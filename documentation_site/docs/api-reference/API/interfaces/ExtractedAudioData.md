@@ -6,7 +6,7 @@
 
 # Interface: ExtractedAudioData
 
-Defined in: [src/ExpoAudioStream.types.ts:517](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L517)
+Defined in: [src/ExpoAudioStream.types.ts:517](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L517)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:517](https://github.com/deeeed/expo-au
 
 > `optional` **base64Data**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:523](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L523)
+Defined in: [src/ExpoAudioStream.types.ts:523](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L523)
 
 Base64 encoded string representation of the audio data (when includeBase64Data is true)
 
@@ -24,7 +24,7 @@ Base64 encoded string representation of the audio data (when includeBase64Data i
 
 > **bitDepth**: [`BitDepth`](../type-aliases/BitDepth.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:529](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L529)
+Defined in: [src/ExpoAudioStream.types.ts:529](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L529)
 
 Bits per sample (8, 16, or 32)
 
@@ -34,7 +34,7 @@ Bits per sample (8, 16, or 32)
 
 > **channels**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:527](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L527)
+Defined in: [src/ExpoAudioStream.types.ts:527](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L527)
 
 Number of audio channels (1 for mono, 2 for stereo)
 
@@ -44,7 +44,7 @@ Number of audio channels (1 for mono, 2 for stereo)
 
 > `optional` **checksum**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:539](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L539)
+Defined in: [src/ExpoAudioStream.types.ts:539](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L539)
 
 CRC32 Checksum of PCM data
 
@@ -54,7 +54,7 @@ CRC32 Checksum of PCM data
 
 > **durationMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:531](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L531)
+Defined in: [src/ExpoAudioStream.types.ts:531](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L531)
 
 Duration of the audio in milliseconds
 
@@ -64,7 +64,7 @@ Duration of the audio in milliseconds
 
 > **format**: `"pcm_32bit"` \| `"pcm_16bit"` \| `"pcm_8bit"`
 
-Defined in: [src/ExpoAudioStream.types.ts:533](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L533)
+Defined in: [src/ExpoAudioStream.types.ts:533](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L533)
 
 PCM format identifier (e.g., "pcm_16bit")
 
@@ -74,7 +74,7 @@ PCM format identifier (e.g., "pcm_16bit")
 
 > `optional` **hasWavHeader**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:537](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L537)
+Defined in: [src/ExpoAudioStream.types.ts:537](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L537)
 
 Whether the pcmData includes a WAV header
 
@@ -84,7 +84,7 @@ Whether the pcmData includes a WAV header
 
 > `optional` **normalizedData**: `Float32Array`\<`ArrayBufferLike`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:521](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L521)
+Defined in: [src/ExpoAudioStream.types.ts:521](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L521)
 
 Normalized audio data in [-1, 1] range (when includeNormalizedData is true)
 
@@ -94,7 +94,7 @@ Normalized audio data in [-1, 1] range (when includeNormalizedData is true)
 
 > **pcmData**: `Uint8Array`
 
-Defined in: [src/ExpoAudioStream.types.ts:519](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L519)
+Defined in: [src/ExpoAudioStream.types.ts:519](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L519)
 
 Raw PCM audio data
 
@@ -104,7 +104,7 @@ Raw PCM audio data
 
 > **sampleRate**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:525](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L525)
+Defined in: [src/ExpoAudioStream.types.ts:525](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L525)
 
 Sample rate in Hz (e.g., 44100, 48000)
 
@@ -114,6 +114,6 @@ Sample rate in Hz (e.g., 44100, 48000)
 
 > **samples**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:535](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L535)
+Defined in: [src/ExpoAudioStream.types.ts:535](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L535)
 
 Total number of audio samples per channel

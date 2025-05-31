@@ -6,7 +6,7 @@
 
 # Interface: RecordingConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:325](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L325)
+Defined in: [src/ExpoAudioStream.types.ts:325](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L325)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:325](https://github.com/deeeed/expo-au
 
 > `optional` **autoResumeAfterInterruption**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:386](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L386)
+Defined in: [src/ExpoAudioStream.types.ts:386](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L386)
 
 Whether to automatically resume recording after an interruption (default is false)
 
@@ -24,7 +24,7 @@ Whether to automatically resume recording after an interruption (default is fals
 
 > `optional` **bufferDurationSeconds**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:416](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L416)
+Defined in: [src/ExpoAudioStream.types.ts:416](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L416)
 
 Buffer duration in seconds. Controls the size of audio buffers
 used during recording. Smaller values reduce latency but increase
@@ -45,7 +45,7 @@ Optimal iOS: >= 0.1 seconds
 
 > `optional` **channels**: `1` \| `2`
 
-Defined in: [src/ExpoAudioStream.types.ts:330](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L330)
+Defined in: [src/ExpoAudioStream.types.ts:330](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L330)
 
 Number of audio channels (1 for mono, 2 for stereo)
 
@@ -55,7 +55,7 @@ Number of audio channels (1 for mono, 2 for stereo)
 
 > `optional` **deviceDisconnectionBehavior**: [`DeviceDisconnectionBehaviorType`](../type-aliases/DeviceDisconnectionBehaviorType.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:400](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L400)
+Defined in: [src/ExpoAudioStream.types.ts:400](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L400)
 
 How to handle device disconnection during recording
 
@@ -65,7 +65,7 @@ How to handle device disconnection during recording
 
 > `optional` **deviceId**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:397](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L397)
+Defined in: [src/ExpoAudioStream.types.ts:397](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L397)
 
 ID of the device to use for recording (if not specified, uses default)
 
@@ -75,7 +75,7 @@ ID of the device to use for recording (if not specified, uses default)
 
 > `optional` **enableProcessing**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:354](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L354)
+Defined in: [src/ExpoAudioStream.types.ts:354](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L354)
 
 Enable audio processing (default is false)
 
@@ -85,7 +85,7 @@ Enable audio processing (default is false)
 
 > `optional` **encoding**: [`EncodingType`](../type-aliases/EncodingType.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:333](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L333)
+Defined in: [src/ExpoAudioStream.types.ts:333](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L333)
 
 Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
 
@@ -95,7 +95,7 @@ Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
 
 > `optional` **features**: [`AudioFeaturesOptions`](AudioFeaturesOptions.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:366](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L366)
+Defined in: [src/ExpoAudioStream.types.ts:366](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L366)
 
 Feature options to extract during audio processing
 
@@ -105,7 +105,7 @@ Feature options to extract during audio processing
 
 > `optional` **filename**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:394](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L394)
+Defined in: [src/ExpoAudioStream.types.ts:394](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L394)
 
 Optional filename for the recording (uses UUID if not provided)
 
@@ -115,7 +115,7 @@ Optional filename for the recording (uses UUID if not provided)
 
 > `optional` **interval**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:336](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L336)
+Defined in: [src/ExpoAudioStream.types.ts:336](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L336)
 
 Interval in milliseconds at which to emit recording data
 
@@ -125,7 +125,7 @@ Interval in milliseconds at which to emit recording data
 
 > `optional` **intervalAnalysis**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:339](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L339)
+Defined in: [src/ExpoAudioStream.types.ts:339](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L339)
 
 Interval in milliseconds at which to emit analysis data
 
@@ -135,7 +135,7 @@ Interval in milliseconds at which to emit analysis data
 
 > `optional` **ios**: [`IOSConfig`](IOSConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:357](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L357)
+Defined in: [src/ExpoAudioStream.types.ts:357](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L357)
 
 iOS-specific configuration
 
@@ -145,7 +145,7 @@ iOS-specific configuration
 
 > `optional` **keepAwake**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:342](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L342)
+Defined in: [src/ExpoAudioStream.types.ts:342](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L342)
 
 Keep the device awake while recording (default is false)
 
@@ -155,7 +155,7 @@ Keep the device awake while recording (default is false)
 
 > `optional` **notification**: [`NotificationConfig`](NotificationConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:351](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L351)
+Defined in: [src/ExpoAudioStream.types.ts:351](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L351)
 
 Configuration for the notification
 
@@ -165,7 +165,7 @@ Configuration for the notification
 
 > `optional` **onAudioAnalysis**: (`_`) => `Promise`\<`void`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:372](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L372)
+Defined in: [src/ExpoAudioStream.types.ts:372](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L372)
 
 Callback function to handle audio features extraction results
 
@@ -185,7 +185,7 @@ Callback function to handle audio features extraction results
 
 > `optional` **onAudioStream**: (`_`) => `Promise`\<`void`\>
 
-Defined in: [src/ExpoAudioStream.types.ts:369](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L369)
+Defined in: [src/ExpoAudioStream.types.ts:369](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L369)
 
 Callback function to handle audio stream data
 
@@ -205,7 +205,7 @@ Callback function to handle audio stream data
 
 > `optional` **onRecordingInterrupted**: (`_`) => `void`
 
-Defined in: [src/ExpoAudioStream.types.ts:389](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L389)
+Defined in: [src/ExpoAudioStream.types.ts:389](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L389)
 
 Optional callback to handle recording interruptions
 
@@ -225,7 +225,7 @@ Optional callback to handle recording interruptions
 
 > `optional` **output**: [`OutputConfig`](OutputConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:383](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L383)
+Defined in: [src/ExpoAudioStream.types.ts:383](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L383)
 
 Configuration for audio output files
 
@@ -241,7 +241,7 @@ Examples:
 
 > `optional` **outputDirectory**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:392](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L392)
+Defined in: [src/ExpoAudioStream.types.ts:392](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L392)
 
 Optional directory path where output files will be saved
 
@@ -251,7 +251,7 @@ Optional directory path where output files will be saved
 
 > `optional` **sampleRate**: [`SampleRate`](../type-aliases/SampleRate.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:327](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L327)
+Defined in: [src/ExpoAudioStream.types.ts:327](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L327)
 
 Sample rate for recording in Hz (16000, 44100, or 48000)
 
@@ -261,7 +261,7 @@ Sample rate for recording in Hz (16000, 44100, or 48000)
 
 > `optional` **segmentDurationMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:363](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L363)
+Defined in: [src/ExpoAudioStream.types.ts:363](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L363)
 
 Duration of each segment in milliseconds for analysis (default: 100)
 
@@ -271,7 +271,7 @@ Duration of each segment in milliseconds for analysis (default: 100)
 
 > `optional` **showNotification**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:345](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L345)
+Defined in: [src/ExpoAudioStream.types.ts:345](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L345)
 
 Show a notification during recording (default is false)
 
@@ -281,7 +281,7 @@ Show a notification during recording (default is false)
 
 > `optional` **showWaveformInNotification**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:348](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L348)
+Defined in: [src/ExpoAudioStream.types.ts:348](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L348)
 
 Show waveform in the notification (Android only, when showNotification is true)
 
@@ -291,6 +291,6 @@ Show waveform in the notification (Android only, when showNotification is true)
 
 > `optional` **web**: [`WebConfig`](WebConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:360](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L360)
+Defined in: [src/ExpoAudioStream.types.ts:360](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L360)
 
 Web-specific configuration options

@@ -6,7 +6,7 @@
 
 # Interface: OutputConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:289](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L289)
+Defined in: [src/ExpoAudioStream.types.ts:289](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L289)
 
 Configuration for audio output files during recording
 
@@ -16,7 +16,7 @@ Configuration for audio output files during recording
 
 > `optional` **compressed**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:303](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L303)
+Defined in: [src/ExpoAudioStream.types.ts:303](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L303)
 
 Configuration for the compressed output file
 
@@ -46,7 +46,7 @@ Format for compression
 
 > `optional` **primary**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:293](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L293)
+Defined in: [src/ExpoAudioStream.types.ts:293](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L293)
 
 Configuration for the primary (uncompressed) output file
 

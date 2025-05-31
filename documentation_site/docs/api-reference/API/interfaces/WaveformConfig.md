@@ -6,7 +6,7 @@
 
 # Interface: WaveformConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:477](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L477)
+Defined in: [src/ExpoAudioStream.types.ts:477](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L477)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:477](https://github.com/deeeed/expo-au
 
 > `optional` **color**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L479)
+Defined in: [src/ExpoAudioStream.types.ts:479](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L479)
 
 The color of the waveform (e.g., "#FFFFFF" for white)
 
@@ -24,7 +24,7 @@ The color of the waveform (e.g., "#FFFFFF" for white)
 
 > `optional` **height**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:489](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L489)
+Defined in: [src/ExpoAudioStream.types.ts:489](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L489)
 
 Height of the waveform view in dp (default: 64)
 
@@ -34,7 +34,7 @@ Height of the waveform view in dp (default: 64)
 
 > `optional` **mirror**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:487](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L487)
+Defined in: [src/ExpoAudioStream.types.ts:487](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L487)
 
 Whether to mirror the waveform (symmetrical display)
 
@@ -44,7 +44,7 @@ Whether to mirror the waveform (symmetrical display)
 
 > `optional` **opacity**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:481](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L481)
+Defined in: [src/ExpoAudioStream.types.ts:481](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L481)
 
 Opacity of the waveform (0.0 - 1.0)
 
@@ -54,7 +54,7 @@ Opacity of the waveform (0.0 - 1.0)
 
 > `optional` **strokeWidth**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:483](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L483)
+Defined in: [src/ExpoAudioStream.types.ts:483](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L483)
 
 Width of the waveform line (default: 1.5)
 
@@ -64,6 +64,6 @@ Width of the waveform line (default: 1.5)
 
 > `optional` **style**: `"fill"` \| `"stroke"`
 
-Defined in: [src/ExpoAudioStream.types.ts:485](https://github.com/deeeed/expo-audio-stream/blob/bb8418f2156d531377247a6d4095112560ff975f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L485)
+Defined in: [src/ExpoAudioStream.types.ts:485](https://github.com/deeeed/expo-audio-stream/blob/fc32bf3efef3f8f402e17ca4f3940494e467e904/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L485)
 
 Drawing style: "stroke" for outline, "fill" for solid
