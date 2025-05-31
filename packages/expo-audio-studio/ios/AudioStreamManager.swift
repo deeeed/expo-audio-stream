@@ -2061,50 +2061,19 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // Additional forced reset of engine to ensure clean state
             audioEngine.reset()
             audioEngine.prepare()
-
-            // Create a counter for tracking buffers since fallback
-            var buffersSinceFallback = 0
             
-            // Create a specialized tap block for fallback with aggressive emission
+            // Create a simplified tap block for fallback - rely on processAudioBuffer for proper emission
             let fallbackTapBlock = { [weak self] (buffer: AVAudioPCMBuffer, time: AVAudioTime) -> Void in
                 guard let self = self, self.isRecording else { return }
                 
-                // Process the buffer and ensure it's written to file
+                // Process the buffer normally - processAudioBuffer handles all emission logic
                 self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
                 self.lastBufferTime = time
-                
-                // Special handling for fallback: force emission regularly to restart flow
-                let audioData = buffer.audioBufferList.pointee.mBuffers
-                guard let bufferData = audioData.mData else { return }
-                
-                let dataToAdd = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
-                if !dataToAdd.isEmpty {
-                    // Force emission every few buffers regardless of timing during recovery period
-                    buffersSinceFallback += 1
-                    
-                    // MORE AGGRESSIVE: Force emission every 2 buffers for the first 30 buffers
-                    if buffersSinceFallback <= 30 && buffersSinceFallback % 2 == 0 {
-                        DispatchQueue.main.async {
-                            // Bypass normal timing checks to ensure data flows
-                            let recordingTime = self.currentRecordingDuration()
-                            let totalSize = self.totalDataSize // Make sure we use the current value
-                            Logger.debug("FALLBACK FORCE EMIT: Forcing emission after fallback (buffer #\(buffersSinceFallback), size: \(dataToAdd.count) bytes, totalSize: \(totalSize))")
-                            
-                            self.delegate?.audioStreamManager(
-                                self,
-                                didReceiveAudioData: dataToAdd,
-                                recordingTime: recordingTime,
-                                totalDataSize: totalSize,
-                                compressionInfo: nil
-                            )
-                        }
-                    }
-                }
             }
             
             // Use our shared tap installation method with the custom block
             _ = installTapWithHardwareFormat(customTapBlock: fallbackTapBlock)
-            Logger.debug("Fallback: Re-installed tap with enhanced emission handling")
+            Logger.debug("Fallback: Re-installed tap with simplified emission handling")
             
             // Force prepare engine again to ensure it's ready
             audioEngine.prepare()

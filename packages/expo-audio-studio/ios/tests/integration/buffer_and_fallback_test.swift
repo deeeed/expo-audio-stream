@@ -42,7 +42,7 @@ class BufferAndFallbackTest {
         print("Expected requested frames: \(expectedRequestedFrames)")
         
         // Since iOS enforces minimum ~4800 frames, we expect either 4800 or our requested size
-        let expectedActualFrames: AVAudioFrameCount = max(4800, expectedRequestedFrames)
+        let _ : AVAudioFrameCount = max(4800, expectedRequestedFrames)
         
         let expectation = DispatchSemaphore(value: 0)
         var receivedFrames: AVAudioFrameCount = 0
