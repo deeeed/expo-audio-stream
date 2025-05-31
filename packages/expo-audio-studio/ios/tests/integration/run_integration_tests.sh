@@ -23,5 +23,10 @@ echo "========================"
 swift output_control_test.swift
 echo ""
 
+echo "3️⃣  Buffer and Fallback Test"
+echo "============================"
+swift buffer_and_fallback_test.swift
+echo ""
+
 echo "✅ Integration tests validate real iOS behavior"
 echo "✅ Tests must pass before merging any feature!" 
