@@ -1752,16 +1752,53 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // For streaming-only mode (no primary output), create a result without file validation
         if !settings.output.primary.enabled {
             let durationMs = Int64(finalDuration * 1000)
+            
+            // Check for compressed output even when primary is disabled
+            var compression: CompressedRecordingInfo?
+            if settings.output.compressed.enabled, let compressedURL = compressedFileURL {
+                let compressedPath = compressedURL.path
+                if FileManager.default.fileExists(atPath: compressedPath) {
+                    do {
+                        let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedPath)
+                        let compressedSize = compressedAttributes[FileAttributeKey.size] as? Int64 ?? 0
+                        
+                        Logger.debug("""
+                            Compressed File validation (primary disabled):
+                            - Path: \(compressedPath)
+                            - Format: \(compressedFormat)
+                            - Size: \(compressedSize) bytes
+                            - Bitrate: \(compressedBitRate) bps
+                            """)
+                        
+                        if compressedSize > 0 {
+                            compression = CompressedRecordingInfo(
+                                compressedFileUri: compressedURL.absoluteString,
+                                mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                                bitrate: compressedBitRate,
+                                format: compressedFormat,
+                                size: compressedSize
+                            )
+                        } else {
+                            Logger.debug("Warning: Compressed file exists but is empty")
+                        }
+                    } catch {
+                        Logger.debug("Failed to validate compressed file: \(error)")
+                    }
+                } else {
+                    Logger.debug("Warning: Compressed file not found at path: \(compressedPath)")
+                }
+            }
+            
             let result = RecordingResult(
-                fileUri: "",
-                filename: "stream-only",
-                mimeType: mimeType,
+                fileUri: compression?.compressedFileUri ?? "",  // Use compressed URI if available
+                filename: compression != nil ? (compressedURL?.lastPathComponent ?? "compressed-audio") : "stream-only",
+                mimeType: compression?.mimeType ?? mimeType,
                 duration: durationMs,
-                size: totalDataSize,
+                size: compression?.size ?? totalDataSize,
                 channels: settings.numberOfChannels,
                 bitDepth: settings.bitDepth,
                 sampleRate: settings.sampleRate,
-                compression: nil
+                compression: compression
             )
             
             // Cleanup

@@ -1004,18 +1004,29 @@ class AudioRecorderManager(
                 }
 
                 val result = if (!recordingConfig.output.primary.enabled) {
-                    // When primary output is disabled, return minimal info
+                    // When primary output is disabled, still include compression info if available
+                    val localCompressedFile = compressedFile // Create local copy to avoid smart cast issues
+                    val compressionBundle = if (recordingConfig.output.compressed.enabled && localCompressedFile != null) {
+                        bundleOf(
+                            "size" to localCompressedFile.length(),
+                            "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
+                            "bitrate" to recordingConfig.output.compressed.bitrate,
+                            "format" to recordingConfig.output.compressed.format,
+                            "compressedFileUri" to localCompressedFile.toURI().toString()
+                        )
+                    } else null
+                    
                     bundleOf(
-                        "fileUri" to "",
-                        "filename" to "stream-only",
+                        "fileUri" to (compressionBundle?.getString("compressedFileUri") ?: ""),
+                        "filename" to (localCompressedFile?.name ?: "stream-only"),
                         "durationMs" to duration,
                         "channels" to recordingConfig.channels,
                         "bitDepth" to AudioFormatUtils.getBitDepth(recordingConfig.encoding),
                         "sampleRate" to recordingConfig.sampleRate,
-                        "size" to totalDataSize,
-                        "mimeType" to mimeType,
+                        "size" to (compressionBundle?.getLong("size") ?: totalDataSize),
+                        "mimeType" to (compressionBundle?.getString("mimeType") ?: mimeType),
                         "createdAt" to System.currentTimeMillis(),
-                        "compression" to null
+                        "compression" to compressionBundle
                     )
                 } else {
                     bundleOf(
