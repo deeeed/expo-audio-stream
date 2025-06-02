@@ -20,6 +20,16 @@ echo "-----------------------------------------------"
 ./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.SkipFileWritingIntegrationTest"
 
 echo ""
+echo "📱 Running Output Control Integration Test..."
+echo "--------------------------------------------"
+./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.OutputControlIntegrationTest"
+
+echo ""
+echo "📱 Running Compressed-Only Output Test (Issue #244)..."
+echo "-----------------------------------------------------"
+./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.CompressedOnlyOutputTest"
+
+echo ""
 echo "📊 Test Results Summary"
 echo "======================"
 echo "Check the test reports at:"
