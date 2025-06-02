@@ -162,6 +162,10 @@ class AudioRecorderManager(
             LogUtils.d(CLASS_NAME, "🔄 Current device info: ${deviceInfo["id"] ?: "unknown"} (${deviceInfo["type"] ?: "unknown"})")
             
             // Make a copy of current recording settings
+            if (!::recordingConfig.isInitialized) {
+                LogUtils.w(CLASS_NAME, "recordingConfig not initialized in handleDeviceChange")
+                return
+            }
             val currentSettings = recordingConfig
             
             // Pause the current recording
@@ -1191,7 +1195,7 @@ class AudioRecorderManager(
                     "isPaused" to false,
                     "mime" to mimeType,
                     "size" to 0,
-                    "interval" to (recordingConfig?.interval ?: 0)
+                    "interval" to if (::recordingConfig.isInitialized) recordingConfig.interval else 0
                 )
             }
 
@@ -1597,7 +1601,7 @@ class AudioRecorderManager(
                 isPaused.set(false)
                 isPrepared = false  // Reset prepared state
                 
-                if (recordingConfig.showNotification) {
+                if (::recordingConfig.isInitialized && recordingConfig.showNotification) {
                     notificationManager.stopUpdates()
                     AudioRecordingService.stopService(context)
                 }
