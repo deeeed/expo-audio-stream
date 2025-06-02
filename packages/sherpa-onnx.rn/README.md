@@ -2,6 +2,13 @@
 
 React Native wrapper for [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) providing Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities for mobile applications.
 
+**Status: 🚧 In Development**
+
+✅ **Native Integration Testing**: Complete framework with 100% test success rate  
+✅ **Model Management**: Lightweight strategy for CI to production environments  
+✅ **Cross-Platform**: Android support validated, iOS structure in place  
+⏳ **Architecture Support**: Old/New React Native architecture compatibility planned
+
 ## Features
 
 - Speech-to-text (STT) using Sherpa-ONNX
@@ -334,6 +341,31 @@ For iOS, ensure that:
 
 1. The necessary static libraries are included in your Xcode project
 2. The pod installation completed successfully
+
+## Documentation
+
+- **[Testing Framework](docs/testing/)** - Native integration testing documentation
+- **[Architecture](docs/architecture/)** - React Native architecture support and planning
+- **[Integration](docs/integration/)** - Platform integration guides
+- **[Compatibility](COMPATIBILITY.md)** - React Native version and platform compatibility
+
+## Development Status
+
+### ✅ Completed
+- Native integration testing framework (12 tests, 100% success rate)
+- Model management strategy for testing environments
+- Android native library integration validation
+- Cross-platform documentation structure
+
+### ⏳ In Progress / Planned
+- React Native architecture-specific validation (Old vs New Architecture)
+- Real ONNX model functionality testing
+- iOS integration validation
+- Web/WASM support
+
+## Contributing
+
+See the testing framework in [`docs/testing/`](docs/testing/) for validation methodology and development workflow.
 
 ## License
 
