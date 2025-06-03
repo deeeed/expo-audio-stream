@@ -1,5 +1,5 @@
 import { ASR } from '@siteed/sherpa-onnx.rn';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Platform, StyleSheet, Text, View } from 'react-native';
 
 interface AsrTestState {
@@ -90,6 +90,7 @@ export default function WebAsrTest() {
     return () => {
       messageHandlers.forEach(handler => window.removeEventListener('message', handler));
     };
+  }, []); // Empty deps array for loadAsrScript
 
   // Check if required model files exist
   const checkRequiredFiles = async () => {
@@ -208,7 +209,7 @@ export default function WebAsrTest() {
     if (statusElement) {
       statusElement.remove();
     }
-  }, []); // Empty deps array for loadAsrScript
+  };
 
   useEffect(() => {
     // Skip on non-web platforms
@@ -220,7 +221,7 @@ export default function WebAsrTest() {
     let cleanup: (() => void) | undefined;
 
     // Load the ASR script and get its cleanup function
-    loadAsrScript().then(cleanupFn => {
+    loadAsrScript().then((cleanupFn: (() => void) | undefined) => {
       cleanup = cleanupFn;
     });
 

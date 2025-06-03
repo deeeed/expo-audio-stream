@@ -55,11 +55,7 @@ export function ModelManagementProvider({
   const [activeDownloads, setActiveDownloads] = useState<Record<string, FileSystem.DownloadResumable>>({});
 
   const [/* ttsModels */, /* setTtsModels */] = useState<TtsModelConfig[]>();
-  // Load saved model states on mount
-  useEffect(() => {
-    loadSavedModelStates();
-  }, [loadSavedModelStates]); // Include loadSavedModelStates dependency
-
+  
   // Original loadSavedModelStates
   const loadSavedModelStates = useCallback(async () => {
     try {
@@ -109,6 +105,11 @@ export function ModelManagementProvider({
       setModelStates({}); // Ensure state is an object even on critical load error
     }
   }, [storageKey]); // Include storageKey dependency
+
+  // Load saved model states on mount
+  useEffect(() => {
+    loadSavedModelStates();
+  }, [loadSavedModelStates]); // Include loadSavedModelStates dependency
 
   // Helper function to migrate from absolute paths to relative paths
   const migrateStoredPaths = async (states: Record<string, ModelState>): Promise<Record<string, ModelState>> => {
@@ -227,103 +228,48 @@ export function ModelManagementProvider({
     );
   }, [modelStates]);
 
-  // Original downloadModel
-  const downloadModel = useCallback(async (modelId: string): Promise<void> => {
-    // Block downloads on web platform
-    if (Platform.OS === 'web') {
-      console.log('[downloadModel] Downloads not supported on web platform');
-      throw new Error('Model downloads are not available on the web platform');
-    }
-
-    console.log(`[downloadModel] Starting download for model: ${modelId}`);
-    const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
-    if (!model) {
-      console.error(`Model ${modelId} not found`);
-      updateModelState(modelId, { status: 'error', error: 'Model definition not found.' });
-      return;
-    }
+  // Helper function to download a single dependency
+  const downloadDependency = useCallback(async (
+    modelId: string,
+    dependency: any,
+    modelDir: string,
+    extractedFileNames: string[]
+  ): Promise<void> => {
+    const depFileName = dependency.url.split('/').pop() || '';
+    const depPath = `${modelDir}/${depFileName}`;
+    console.log(`Downloading dependency: ${dependency.name} to ${depPath}`);
     
-    // For web TTS models, simulate immediate download completion
-    if (isTtsModelOnWeb(modelId, model)) {
-      console.log(`Web TTS model ${modelId} - simulating download`);
-      updateModelState(modelId, {
-        metadata: model,
-        status: 'downloaded',
-        progress: 1,
-        localPath: '/wasm/tts',
-        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
-        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
-        lastDownloaded: Date.now(),
-        error: undefined
-      });
-      return;
-    }
+    const depResumable = FileSystem.createDownloadResumable(dependency.url, depPath);
+    const depKey = `${modelId}_dep_${dependency.id}`;
     
-    const currentState = modelStates[modelId];
-    if (currentState?.status === 'downloading' || currentState?.status === 'downloaded') {
-      console.log(`Model ${modelId} already ${currentState.status}.`);
-      return;
-    }
-    
-    const isArchive = model.url.endsWith('.tar.bz2');
-    const fileName = model.url.split('/').pop() || '';
-    
-    // Use the helper function for consistent paths
-    const modelDir = getModelDirectoryPath(modelId);
-    const filePath = `${modelDir}/${fileName}`;
+    setActiveDownloads(prev => ({ ...prev, [depKey]: depResumable }));
     
     try {
-      console.log(`Starting download: ${modelId}`);
-      
-      // Update initial state immediately
-      updateModelState(modelId, {
-        metadata: model,
-        status: 'downloading' as ModelStatus,
-        progress: 0,
-        error: undefined,
-      });
-      
-      // Create directory for model - do this immediately
-      await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
-
-      // Define the progress callback with UI updates on main thread
-      const progressCallback = (dp: FileSystem.DownloadProgressData) => {
-        const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
-        console.log(`[ProgressCallback] ${modelId} - Progress: ${newProgress.toFixed(2)}`);
-        
-        // Use InteractionManager for all platforms to avoid blocking UI
-        InteractionManager.runAfterInteractions(() => {
-          updateModelState(modelId, { progress: newProgress });
+      // Use InteractionManager to keep UI responsive
+      await new Promise<void>((resolve, reject) => {
+        InteractionManager.runAfterInteractions(async () => {
+          try {
+            await depResumable.downloadAsync();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
         });
-      };
-
-      // Create the download resumable object
-      const downloadResumable = FileSystem.createDownloadResumable(
-        model.url, 
-        filePath, 
-        {}, 
-        progressCallback
-      );
-      
-      // Store in active downloads
-      setActiveDownloads(prev => ({ ...prev, [modelId]: downloadResumable }));
-
-      // Run the download process in the background with InteractionManager for all platforms
-      InteractionManager.runAfterInteractions(() => {
-        startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
       });
-
-      // Return immediately
-      return;
-    } catch (initError) {
-      console.error(`Error initializing download for ${modelId}:`, initError);
-      updateModelState(modelId, {
-        status: 'error' as ModelStatus,
-        progress: 0,
-        error: initError instanceof Error ? initError.message : 'Failed to start download',
+      
+      extractedFileNames.push(depFileName);
+      console.log(`Dependency ${dependency.name} downloaded.`);
+    } catch (depError) {
+      console.error(`Error downloading dependency ${dependency.name}:`, depError);
+      throw new Error(`Failed to download dependency ${dependency.name}`);
+    } finally {
+      setActiveDownloads(prev => { 
+        const newState = { ...prev }; 
+        delete newState[depKey]; 
+        return newState; 
       });
     }
-  }, [modelStates, startDownloadProcess, updateModelState]);
+  }, [setActiveDownloads]);
 
   // Helper function to start the download process separately
   const startDownloadProcess = useCallback((
@@ -450,50 +396,139 @@ export function ModelManagementProvider({
           console.log(`Error cleaning up model dir: ${e}`);
         });
       });
-  };
+  }, [updateModelState, modelStates, setActiveDownloads, downloadDependency]);
 
-  // Helper function to download a single dependency
-  const downloadDependency = async (
-    modelId: string,
-    dependency: any,
-    modelDir: string,
-    extractedFileNames: string[]
-  ): Promise<void> => {
-    const depFileName = dependency.url.split('/').pop() || '';
-    const depPath = `${modelDir}/${depFileName}`;
-    console.log(`Downloading dependency: ${dependency.name} to ${depPath}`);
+  // Original downloadModel
+  const downloadModel = useCallback(async (modelId: string): Promise<void> => {
+    // Block downloads on web platform
+    if (Platform.OS === 'web') {
+      console.log('[downloadModel] Downloads not supported on web platform');
+      throw new Error('Model downloads are not available on the web platform');
+    }
+
+    console.log(`[downloadModel] Starting download for model: ${modelId}`);
+    const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
+    if (!model) {
+      console.error(`Model ${modelId} not found`);
+      updateModelState(modelId, { status: 'error', error: 'Model definition not found.' });
+      return;
+    }
     
-    const depResumable = FileSystem.createDownloadResumable(dependency.url, depPath);
-    const depKey = `${modelId}_dep_${dependency.id}`;
+    // For web TTS models, simulate immediate download completion
+    if (isTtsModelOnWeb(modelId, model)) {
+      console.log(`Web TTS model ${modelId} - simulating download`);
+      updateModelState(modelId, {
+        metadata: model,
+        status: 'downloaded',
+        progress: 1,
+        localPath: '/wasm/tts',
+        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
+        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
+        lastDownloaded: Date.now(),
+        error: undefined
+      });
+      return;
+    }
     
-    setActiveDownloads(prev => ({ ...prev, [depKey]: depResumable }));
+    const currentState = modelStates[modelId];
+    if (currentState?.status === 'downloading' || currentState?.status === 'downloaded') {
+      console.log(`Model ${modelId} already ${currentState.status}.`);
+      return;
+    }
+    
+    const isArchive = model.url.endsWith('.tar.bz2');
+    const fileName = model.url.split('/').pop() || '';
+    
+    // Use the helper function for consistent paths
+    const modelDir = getModelDirectoryPath(modelId);
+    const filePath = `${modelDir}/${fileName}`;
     
     try {
-      // Use InteractionManager to keep UI responsive
-      await new Promise<void>((resolve, reject) => {
-        InteractionManager.runAfterInteractions(async () => {
-          try {
-            await depResumable.downloadAsync();
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        });
+      console.log(`Starting download: ${modelId}`);
+      
+      // Update initial state immediately
+      updateModelState(modelId, {
+        metadata: model,
+        status: 'downloading' as ModelStatus,
+        progress: 0,
+        error: undefined,
       });
       
-      extractedFileNames.push(depFileName);
-      console.log(`Dependency ${dependency.name} downloaded.`);
-    } catch (depError) {
-      console.error(`Error downloading dependency ${dependency.name}:`, depError);
-      throw new Error(`Failed to download dependency ${dependency.name}`);
-    } finally {
-      setActiveDownloads(prev => { 
-        const newState = { ...prev }; 
-        delete newState[depKey]; 
-        return newState; 
+      // Create directory for model - do this immediately
+      await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
+
+      // Define the progress callback with UI updates on main thread
+      const progressCallback = (dp: FileSystem.DownloadProgressData) => {
+        const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
+        console.log(`[ProgressCallback] ${modelId} - Progress: ${newProgress.toFixed(2)}`);
+        
+        // Use InteractionManager for all platforms to avoid blocking UI
+        InteractionManager.runAfterInteractions(() => {
+          updateModelState(modelId, { progress: newProgress });
+        });
+      };
+
+      // Create the download resumable object
+      const downloadResumable = FileSystem.createDownloadResumable(
+        model.url, 
+        filePath, 
+        {}, 
+        progressCallback
+      );
+      
+      // Store in active downloads
+      setActiveDownloads(prev => ({ ...prev, [modelId]: downloadResumable }));
+
+      // Run the download process in the background with InteractionManager for all platforms
+      InteractionManager.runAfterInteractions(() => {
+        startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
+      });
+
+      // Return immediately
+      return;
+    } catch (initError) {
+      console.error(`Error initializing download for ${modelId}:`, initError);
+      updateModelState(modelId, {
+        status: 'error' as ModelStatus,
+        progress: 0,
+        error: initError instanceof Error ? initError.message : 'Failed to start download',
       });
     }
-  }, [updateModelState]); // Include updateModelState dependency
+  }, [modelStates, updateModelState, startDownloadProcess]);
+
+
+  // Original cancelDownload
+  const cancelDownload = useCallback(async (modelId: string) => {
+    console.log(`Attempting to cancel download/extraction for ${modelId}...`);
+    let cancelled = false;
+    const downloadResumable = activeDownloads[modelId];
+    if (downloadResumable) {
+      try { await downloadResumable.cancelAsync(); console.log(`Cancelled main task ${modelId}`); cancelled = true; }
+      catch (error) { console.error(`Error cancelling main task ${modelId}:`, error); }
+       finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[modelId]; return newState; }); }
+    }
+    const depKeys = Object.keys(activeDownloads).filter(key => key.startsWith(`${modelId}_dep_`));
+    for (const key of depKeys) {
+       const depResumable = activeDownloads[key];
+       if(depResumable) {
+          try { await depResumable.cancelAsync(); console.log(`Cancelled dep task ${key}`); cancelled = true; }
+          catch(error) { console.error(`Error cancelling dep task ${key}:`, error); }
+          finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[key]; return newState; }); }
+       }
+    }
+    const state = modelStates[modelId];
+    if (cancelled || state?.status === 'extracting') {
+       const errorMsg = state?.status === 'extracting' ? 'Extraction cancelled' : 'Download cancelled';
+       updateModelState(modelId, { // Use 'pending'
+           status: 'pending',
+           progress: 0, error: errorMsg, localPath: undefined,
+           files: undefined, extractedFiles: undefined,
+        });
+       console.log(`Reset state for ${modelId} due to cancellation.`);
+    } else {
+      console.log(`No active download/extraction found to cancel for ${modelId}.`);
+    }
+  }, [activeDownloads, modelStates, updateModelState]); // Include dependencies
 
   // Original deleteModel
   const deleteModel = useCallback(async (modelId: string): Promise<void> => {
@@ -637,38 +672,6 @@ export function ModelManagementProvider({
     }
   };
 
-  // Original cancelDownload
-  const cancelDownload = useCallback(async (modelId: string) => {
-    console.log(`Attempting to cancel download/extraction for ${modelId}...`);
-    let cancelled = false;
-    const downloadResumable = activeDownloads[modelId];
-    if (downloadResumable) {
-      try { await downloadResumable.cancelAsync(); console.log(`Cancelled main task ${modelId}`); cancelled = true; }
-      catch (error) { console.error(`Error cancelling main task ${modelId}:`, error); }
-       finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[modelId]; return newState; }); }
-    }
-    const depKeys = Object.keys(activeDownloads).filter(key => key.startsWith(`${modelId}_dep_`));
-    for (const key of depKeys) {
-       const depResumable = activeDownloads[key];
-       if(depResumable) {
-          try { await depResumable.cancelAsync(); console.log(`Cancelled dep task ${key}`); cancelled = true; }
-          catch(error) { console.error(`Error cancelling dep task ${key}:`, error); }
-          finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[key]; return newState; }); }
-       }
-    }
-    const state = modelStates[modelId];
-    if (cancelled || state?.status === 'extracting') {
-       const errorMsg = state?.status === 'extracting' ? 'Extraction cancelled' : 'Download cancelled';
-       updateModelState(modelId, { // Use 'pending'
-           status: 'pending',
-           progress: 0, error: errorMsg, localPath: undefined,
-           files: undefined, extractedFiles: undefined,
-        });
-       console.log(`Reset state for ${modelId} due to cancellation.`);
-    } else {
-      console.log(`No active download/extraction found to cancel for ${modelId}.`);
-    }
-  }, [activeDownloads, modelStates, updateModelState]); // Include dependencies
 
   // Restore original context value structure, ensure it matches type
   const value: ModelManagementContextType = {
