@@ -120,7 +120,7 @@ export default function AsrScreen() {
         );
       }
     };
-  }, []); // Empty dependency array = only runs on unmount
+  }, [initialized]); // Include initialized dependency
   
   // Sound cleanup - runs when sound changes
   useEffect(() => {

@@ -58,10 +58,10 @@ export function ModelManagementProvider({
   // Load saved model states on mount
   useEffect(() => {
     loadSavedModelStates();
-  }, []); // Empty dependency array to run only once on mount
+  }, [loadSavedModelStates]); // Include loadSavedModelStates dependency
 
   // Original loadSavedModelStates
-  const loadSavedModelStates = async () => {
+  const loadSavedModelStates = useCallback(async () => {
     try {
       console.log('Loading saved model states from key:', storageKey);
       const savedStatesJSON = await AsyncStorage.getItem(storageKey);
@@ -108,7 +108,7 @@ export function ModelManagementProvider({
       console.error('Critical error loading model states:', error);
       setModelStates({}); // Ensure state is an object even on critical load error
     }
-  };
+  }, [storageKey]); // Include storageKey dependency
 
   // Helper function to migrate from absolute paths to relative paths
   const migrateStoredPaths = async (states: Record<string, ModelState>): Promise<Record<string, ModelState>> => {
@@ -131,7 +131,7 @@ export function ModelManagementProvider({
   };
 
   // Original saveModelStates
-  const saveModelStates = async (states: Record<string, ModelState>) => {
+  const saveModelStates = useCallback(async (states: Record<string, ModelState>) => {
     // Prevent saving empty state immediately after a failed load/clear
     if (Object.keys(states).length === 0 && Object.keys(modelStates).length > 0) {
       // Check against previous state length to avoid clearing valid empty state
@@ -145,10 +145,10 @@ export function ModelManagementProvider({
     } catch (error) {
       console.error('Error saving model states:', error);
     }
-  };
+  }, [storageKey, modelStates]); // Include dependencies
 
   // Original updateModelState
-  const updateModelState = (modelId: string, updates: Partial<ModelState>) => {
+  const updateModelState = useCallback((modelId: string, updates: Partial<ModelState>) => {
     // Add more detailed logging here
     console.log(`[updateModelState] Updating ${modelId}:`, JSON.stringify(updates)); 
     setModelStates((prev) => {
@@ -175,7 +175,7 @@ export function ModelManagementProvider({
       saveModelStates(newStates);
       return newStates;
     });
-  };
+  }, [saveModelStates]); // Include saveModelStates dependency
 
   // Add this function to check for web TTS models
   const isTtsModelOnWeb = (modelId: string, metadata: ModelMetadata): boolean => {
@@ -323,10 +323,10 @@ export function ModelManagementProvider({
         error: initError instanceof Error ? initError.message : 'Failed to start download',
       });
     }
-  }, []);
+  }, [modelStates, startDownloadProcess, updateModelState]);
 
   // Helper function to start the download process separately
-  const startDownloadProcess = (
+  const startDownloadProcess = useCallback((
     modelId: string,
     model: ModelMetadata,
     downloadResumable: FileSystem.DownloadResumable,
@@ -493,7 +493,7 @@ export function ModelManagementProvider({
         return newState; 
       });
     }
-  };
+  }, [updateModelState]); // Include updateModelState dependency
 
   // Original deleteModel
   const deleteModel = useCallback(async (modelId: string): Promise<void> => {
@@ -534,7 +534,7 @@ export function ModelManagementProvider({
       return newStates;
     });
     // No separate status update needed, just remove from state.
-  }, []);
+  }, [cancelDownload, modelStates, saveModelStates]);
 
   // Original getAvailableModels (returns ModelMetadata[])
   const getAvailableModels = useCallback((): ModelMetadata[] => {
@@ -638,7 +638,7 @@ export function ModelManagementProvider({
   };
 
   // Original cancelDownload
-  const cancelDownload = async (modelId: string) => {
+  const cancelDownload = useCallback(async (modelId: string) => {
     console.log(`Attempting to cancel download/extraction for ${modelId}...`);
     let cancelled = false;
     const downloadResumable = activeDownloads[modelId];
@@ -668,7 +668,7 @@ export function ModelManagementProvider({
     } else {
       console.log(`No active download/extraction found to cancel for ${modelId}.`);
     }
-  };
+  }, [activeDownloads, modelStates, updateModelState]); // Include dependencies
 
   // Restore original context value structure, ensure it matches type
   const value: ModelManagementContextType = {

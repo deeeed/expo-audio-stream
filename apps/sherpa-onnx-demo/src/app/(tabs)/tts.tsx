@@ -83,7 +83,7 @@ export default function TtsScreen() {
         sound.unloadAsync();
       }
     };
-  }, []);
+  }, [sound]);
 
   // Reset configuration when selected model or ttsConfig changes
   useEffect(() => {

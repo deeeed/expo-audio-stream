@@ -137,7 +137,7 @@ function AudioTaggingScreen() {
     } else {
       console.log('[DEBUG] No audioTaggingConfig available for model:', selectedModelId);
     }
-  }, [selectedModelId, audioTaggingConfig]);
+  }, [selectedModelId, audioTaggingConfig, topK, numThreads, debugMode, provider]);
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -183,7 +183,7 @@ function AudioTaggingScreen() {
         );
       }
     };
-  }, [initialized]);
+  }, [initialized, sound]);
   
   const handleModelSelect = (modelId: string) => {
     console.log('[DEBUG] handleModelSelect called with modelId:', modelId);

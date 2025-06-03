@@ -77,7 +77,7 @@ export function FileExplorer({
       onNavigate(targetPath); // Navigate to the correct initial state
     }
     // Depend only on the derived target paths and the navigation function
-  }, [initialModelPath, modelRootPath, onNavigate]); // Removed currentPath dependency
+  }, [initialModelPath, modelRootPath, onNavigate, currentPath]); // Include currentPath dependency
 
   const fetchItems = useCallback(async (logOnly = false) => {
     // Use the memoized normalized currentPath directly for fetching logic
@@ -254,7 +254,7 @@ export function FileExplorer({
     console.log("Fetch Effect: Triggered. currentPath=", currentPath);
     // No need to check for null/undefined here if currentPath is derived via useMemo from prop
     fetchItems();
-  }, [fetchItems]); // Depend only on the memoized callback
+  }, [fetchItems, currentPath]); // Depend on callback and currentPath
 
   const logDirectoryContents = useCallback(async () => {
     setLoading(true);

@@ -52,7 +52,7 @@ export default function WebAsrTest() {
   const recognizerStreamRef = useRef<RecognizerStream | null>(null);
 
   // Load the ASR library
-  const loadAsrScript = async () => {
+  const loadAsrScript = useCallback(async () => {
     // Create a cleanup function for message listeners
     const messageHandlers: ((event: MessageEvent) => void)[] = [];
 
@@ -209,7 +209,7 @@ export default function WebAsrTest() {
     if (statusElement) {
       statusElement.remove();
     }
-  };
+  }, []); // Empty deps array for loadAsrScript
 
   useEffect(() => {
     // Skip on non-web platforms
@@ -234,7 +234,7 @@ export default function WebAsrTest() {
       
       cleanupAsrResources();
     };
-  }, []);
+  }, [loadAsrScript]);
 
   // Helper function to create and initialize ASR recognizer
   const createAsrRecognizer = async (asrNamespace: any) => {
