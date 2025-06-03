@@ -59,6 +59,113 @@ When the playground app builds, it includes expo-audio-studio as a native module
 3. Implement iOS tests
 4. Set up CI/CD integration
 
+## Platform Compilation Verification
+
+### Critical Requirement: Code Must Compile
+
+Before running any tests, **all native code changes must compile successfully**. This is a fundamental requirement that prevents issues like:
+
+- Swift scope errors (variables accessed outside their scope)
+- Kotlin compilation failures
+- Missing imports or undefined symbols
+- Type mismatches between platforms
+
+### iOS Compilation Verification
+
+**MANDATORY for any Swift code changes:**
+
+```bash
+# Method 1: Through playground app (recommended)
+cd apps/playground
+yarn ios --build-only
+
+# Method 2: Through Xcode (for detailed error analysis)
+cd apps/playground
+yarn open:ios
+# Then build in Xcode (⌘+B)
+
+# Method 3: Direct xcodebuild (for CI)
+cd apps/playground/ios
+xcodebuild -workspace AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -destination 'platform=iOS Simulator,name=iPhone 14' build
+```
+
+**Common iOS compilation issues to watch for:**
+- Variable scope errors (e.g., accessing `if let` variables outside their scope)
+- Missing optional chaining (`?.` or `!`)
+- Type mismatches with Objective-C bridge
+- Missing import statements
+
+### Android Compilation Verification
+
+**MANDATORY for any Kotlin code changes:**
+
+```bash
+# Method 1: Through playground app (recommended)
+cd apps/playground
+yarn android --build-only
+
+# Method 2: Through Gradle directly
+cd apps/playground/android
+./gradlew assembleDebug
+
+# Method 3: Through Android Studio
+cd apps/playground
+yarn open:android
+# Then build in Android Studio (Build → Make Project)
+```
+
+**Common Android compilation issues to watch for:**
+- Missing import statements
+- Kotlin null safety violations
+- Java/Kotlin interop issues
+- Missing dependencies in build.gradle
+
+### Example: Scope Error that Should Be Caught
+
+This real example from issue #255 shows a scope error that should be caught during compilation:
+
+```swift
+// WRONG: compressedURL is out of scope
+if settings.output.compressed.enabled, let compressedURL = compressedFileURL {
+    // compressedURL is only available inside this block
+    let compressedPath = compressedURL.path
+    // ... more code
+} // <- compressedURL scope ends here
+
+let result = RecordingResult(
+    // ERROR: compressedURL is undefined here
+    filename: compression != nil ? (compressedURL?.lastPathComponent ?? "compressed-audio") : "stream-only"
+)
+
+// CORRECT: Use the class property
+let result = RecordingResult(
+    filename: compression != nil ? (compressedFileURL?.lastPathComponent ?? "compressed-audio") : "stream-only"
+)
+```
+
+### Why This Wasn't Caught Previously
+
+This type of error can slip through when:
+
+1. **No automatic compilation in CI/CD** - Changes can be committed without compilation
+2. **Local testing skipped** - Developers commit without building locally
+3. **Integration tests don't compile** - Tests simulate rather than compile actual code
+4. **Manual process** - Relies on developers remembering to test
+
+### Prevention Strategy
+
+**For all contributors:**
+1. **Always build before committing** native code changes
+2. **Use IDE warnings** - Pay attention to Xcode/Android Studio warnings
+3. **Test on actual devices** when possible
+4. **Follow the PR checklist** in CONTRIBUTE.md
+
+**For repository maintainers:**
+1. **Require compilation verification** in PR reviews
+2. **Set up CI/CD compilation checks** (future improvement)
+3. **Enforce pre-commit hooks** that check compilation
+4. **Regular integration testing** on real devices
+
 ## Known Issues and Solutions
 
 ### Android Log Mocking
