@@ -158,4 +158,18 @@ class SherpaOnnxModule(reactContext: ReactApplicationContext) :
     fun testOnnxIntegration(promise: Promise) {
         implementation.testOnnxIntegration(promise)
     }
+
+    @ReactMethod
+    fun getArchitectureInfo(promise: Promise) {
+        implementation.getArchitectureInfo(promise)
+    }
+    
+    @ReactMethod
+    fun getSystemInfo(promise: Promise) {
+        implementation.getSystemInfo(promise)
+    }
+
+    override fun onCatalystInstanceDestroy() {
+        super.onCatalystInstanceDestroy()
+    }
 }

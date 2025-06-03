@@ -147,7 +147,7 @@ fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
             // Adjusted acousticModel/vocoder path logic for Matcha:
             // - Use modelFile for acoustic model path
             // - For vocoder, use vocoderFile if available
-            let acousticModelAbsPath = "\(assetBasePath)/\(modelFile)"
+            let acousticModelAbsPath = "\(assetBasePath)/\(modelFile ?? "")"
             let vocoderAbsPath = vocoderFile != nil ? "\(assetBasePath)/\(vocoderFile!)" : voicesAbsPath
 
             // --- Handle dataDir (joining with the final assetBasePath if relative) ---

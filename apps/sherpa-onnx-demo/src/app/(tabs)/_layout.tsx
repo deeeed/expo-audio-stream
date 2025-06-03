@@ -65,6 +65,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="download" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="system-info-test"
+        options={{
+          title: 'System Test',
+          tabBarIcon: ({ color }) => <TabBarIcon name="hardware-chip" color={color} />,
+        }}
+      />
     </Tabs>
   );
 } 

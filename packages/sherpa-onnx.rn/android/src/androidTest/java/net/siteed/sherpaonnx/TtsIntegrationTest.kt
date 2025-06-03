@@ -1,4 +1,4 @@
-package com.siteed.sherpaonnx
+package net.siteed.sherpaonnx
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry

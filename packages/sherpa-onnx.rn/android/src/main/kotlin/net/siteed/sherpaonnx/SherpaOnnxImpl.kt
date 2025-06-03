@@ -1,11 +1,17 @@
 package net.siteed.sherpaonnx
 
+import android.app.ActivityManager
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.turbomodule.core.CallInvokerHolderImpl
+import java.io.File
 
 import com.k2fsa.sherpa.onnx.OnlineStream
 
@@ -16,7 +22,7 @@ import net.siteed.sherpaonnx.handlers.AudioTaggingHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
 
-class SherpaOnnxImpl(reactContext: ReactApplicationContext) {
+class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
     private val ttsHandler = TtsHandler(reactContext)
     private val audioTaggingHandler = AudioTaggingHandler(reactContext)
@@ -186,4 +192,140 @@ class SherpaOnnxImpl(reactContext: ReactApplicationContext) {
             promise.resolve(response)  // Still resolve but with error info
         }
     }
+
+    fun getArchitectureInfo(promise: Promise) {
+        getSystemInfo(promise)
+    }
+    
+    fun getSystemInfo(promise: Promise) {
+        val response = Arguments.createMap()
+        
+        try {
+            // React Native Architecture Info
+            val archInfo = Arguments.createMap()
+            val isNewArchEnabled = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+            
+            // Check if JSI is available (for additional context)
+            val isJSIAvailable = try {
+                Class.forName("com.facebook.react.turbomodule.core.CallInvokerHolderImpl")
+                true
+            } catch (e: ClassNotFoundException) {
+                false
+            }
+            
+            archInfo.putString("type", if (isNewArchEnabled) "new" else "old")
+            archInfo.putString("description", if (isNewArchEnabled) "New Architecture (TurboModules)" else "Old Architecture (Bridge)")
+            archInfo.putBoolean("jsiAvailable", isJSIAvailable)
+            archInfo.putBoolean("turboModulesEnabled", isNewArchEnabled)
+            archInfo.putString("moduleType", if (isNewArchEnabled) "TurboModule" else "Bridge Module")
+            response.putMap("architecture", archInfo)
+            
+            // Memory Information
+            val memoryInfo = Arguments.createMap()
+            val runtime = Runtime.getRuntime()
+            val maxMemory = runtime.maxMemory()
+            val totalMemory = runtime.totalMemory()
+            val freeMemory = runtime.freeMemory()
+            val usedMemory = totalMemory - freeMemory
+            
+            memoryInfo.putDouble("maxMemoryMB", maxMemory / 1024.0 / 1024.0)
+            memoryInfo.putDouble("totalMemoryMB", totalMemory / 1024.0 / 1024.0)
+            memoryInfo.putDouble("freeMemoryMB", freeMemory / 1024.0 / 1024.0)
+            memoryInfo.putDouble("usedMemoryMB", usedMemory / 1024.0 / 1024.0)
+            
+            // Get system memory info
+            val activityManager = reactContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            if (activityManager != null) {
+                val memInfo = ActivityManager.MemoryInfo()
+                activityManager.getMemoryInfo(memInfo)
+                memoryInfo.putDouble("systemTotalMemoryMB", memInfo.totalMem / 1024.0 / 1024.0)
+                memoryInfo.putDouble("systemAvailableMemoryMB", memInfo.availMem / 1024.0 / 1024.0)
+                memoryInfo.putBoolean("lowMemory", memInfo.lowMemory)
+                memoryInfo.putDouble("lowMemoryThresholdMB", memInfo.threshold / 1024.0 / 1024.0)
+            }
+            response.putMap("memory", memoryInfo)
+            
+            // CPU Information
+            val cpuInfo = Arguments.createMap()
+            cpuInfo.putInt("availableProcessors", runtime.availableProcessors())
+            
+            // Read CPU info from /proc/cpuinfo if available
+            try {
+                val cpuInfoFile = File("/proc/cpuinfo")
+                if (cpuInfoFile.exists()) {
+                    val cpuInfoText = cpuInfoFile.readText()
+                    val hardwareMatch = Regex("Hardware\\s*:\\s*(.*)").find(cpuInfoText)
+                    if (hardwareMatch != null) {
+                        cpuInfo.putString("hardware", hardwareMatch.groupValues[1].trim())
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not read CPU info", e)
+            }
+            
+            // ABI Information
+            val abiInfo = Arguments.createArray()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                Build.SUPPORTED_ABIS.forEach { abi ->
+                    abiInfo.pushString(abi)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                abiInfo.pushString(Build.CPU_ABI)
+                @Suppress("DEPRECATION")
+                if (Build.CPU_ABI2.isNotEmpty()) {
+                    abiInfo.pushString(Build.CPU_ABI2)
+                }
+            }
+            cpuInfo.putArray("supportedAbis", abiInfo)
+            response.putMap("cpu", cpuInfo)
+            
+            // Device Information
+            val deviceInfo = Arguments.createMap()
+            deviceInfo.putString("brand", Build.BRAND)
+            deviceInfo.putString("model", Build.MODEL)
+            deviceInfo.putString("device", Build.DEVICE)
+            deviceInfo.putString("manufacturer", Build.MANUFACTURER)
+            deviceInfo.putInt("sdkVersion", Build.VERSION.SDK_INT)
+            deviceInfo.putString("androidVersion", Build.VERSION.RELEASE)
+            response.putMap("device", deviceInfo)
+            
+            // GPU Information (limited on Android)
+            val gpuInfo = Arguments.createMap()
+            // Android doesn't provide direct GPU info access, but we can check for some features
+            val packageManager = reactContext.packageManager
+            gpuInfo.putBoolean("supportsVulkan", 
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && 
+                packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL))
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && 
+                packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL)) {
+                // Note: getSystemFeatureLevel is available from API 24+
+                // For now, just indicate Vulkan is supported
+                gpuInfo.putBoolean("vulkanSupported", true)
+            }
+            
+            // Check OpenGL ES version
+            val glEsVersion = activityManager?.deviceConfigurationInfo?.glEsVersion ?: "Unknown"
+            gpuInfo.putString("openGLESVersion", glEsVersion)
+            response.putMap("gpu", gpuInfo)
+            
+            // Library Status
+            response.putBoolean("libraryLoaded", isLibraryLoaded)
+            
+            // Thread Information (for debugging)
+            val threadInfo = Arguments.createMap()
+            threadInfo.putString("currentThread", Thread.currentThread().name)
+            threadInfo.putInt("threadId", Thread.currentThread().id.toInt())
+            response.putMap("thread", threadInfo)
+            
+            Log.i(TAG, "System info collected successfully")
+            promise.resolve(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get system info", e)
+            response.putString("error", e.message)
+            promise.resolve(response)
+        }
+    }
+
 } 

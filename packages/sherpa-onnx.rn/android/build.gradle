@@ -35,6 +35,9 @@ android {
         // Test instrumentation runner for integration tests
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
+        // Add BuildConfig field for architecture detection
+        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "${isNewArchitectureEnabled()}"
+        
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
         }
@@ -120,6 +123,13 @@ dependencies {
 
     // Apache Commons Compress for tar.bz2 extraction
     implementation "org.apache.commons:commons-compress:1.23.0"
+    
+    // OkHttp for model downloads
+    implementation "com.squareup.okhttp3:okhttp:4.11.0"
+    
+    // Kotlin coroutines for async operations
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
     
     // Make sure we have the actual sherpa-onnx library dependencies
     // First check if there are prebuilt libraries in the jniLibs folder
