@@ -1791,7 +1791,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             
             let result = RecordingResult(
                 fileUri: compression?.compressedFileUri ?? "",  // Use compressed URI if available
-                filename: compression != nil ? (compressedURL?.lastPathComponent ?? "compressed-audio") : "stream-only",
+                filename: compression != nil ? (compressedFileURL?.lastPathComponent ?? "compressed-audio") : "stream-only",
                 mimeType: compression?.mimeType ?? mimeType,
                 duration: durationMs,
                 size: compression?.size ?? totalDataSize,

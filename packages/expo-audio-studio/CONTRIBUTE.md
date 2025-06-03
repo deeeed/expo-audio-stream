@@ -487,6 +487,42 @@ swift test --filter AudioProcessorTests/testTrimAudio
 
 ## Pull Request Process
 
+### MANDATORY: Platform Compilation Verification
+
+**All pull requests involving native code changes MUST verify that the code compiles on the target platforms.** This includes:
+
+1. **Swift Code Changes (iOS)**
+   - Verify compilation using Xcode or command line
+   - Check for scope errors, undefined variables, and type mismatches
+   - Run: `cd apps/playground && yarn ios --build-only` or similar
+
+2. **Kotlin Code Changes (Android)**
+   - Verify compilation using Android Studio or Gradle
+   - Check for compilation errors and lint warnings
+   - Run: `cd apps/playground && yarn android --build-only` or similar
+
+3. **Integration Test Compilation**
+   - Ensure tests compile and run without errors
+   - Verify test imports and dependencies are correct
+
+**Common Issues to Watch For:**
+- Variable scope errors (accessing variables outside their scope)
+- Missing imports or undefined symbols
+- Type mismatches between platforms
+- Changes that compile but would fail at runtime
+
+**Example of a scope error that should be caught:**
+```swift
+// WRONG: compressedURL is out of scope
+if let compressedURL = compressedFileURL {
+  // compressedURL is only available inside this block
+}
+let filename = compressedURL?.lastPathComponent // ❌ Compilation error
+
+// CORRECT: Use the class property
+let filename = compressedFileURL?.lastPathComponent // ✅ Compiles correctly
+```
+
 ### MANDATORY: Integration Tests for New Features
 
 **All new features MUST include integration tests that validate ACTUAL platform behavior.** See [PR_METHODOLOGY.md](../../docs/PR_METHODOLOGY.md) for detailed requirements.
@@ -505,19 +541,32 @@ Example from the buffer duration feature:
 
 ### Before Submitting
 
-1. **Run Full Test Suite**
+1. **Verify Platform Compilation (MANDATORY for native code changes)**
+   ```bash
+   # For iOS changes - verify Swift compilation
+   cd apps/playground && yarn ios --build-only
+   
+   # For Android changes - verify Kotlin compilation  
+   cd apps/playground && yarn android --build-only
+   
+   # Alternative: Build through Xcode/Android Studio
+   ```
+
+2. **Run Full Test Suite**
    ```bash
    yarn test:all
    yarn lint
    yarn format:check
    ```
 
-2. **Update Documentation**
+3. **Update Documentation**
    - Update API documentation
    - Update test plan if needed
    - Add usage examples
 
-3. **Self Review Checklist**
+4. **Self Review Checklist**
+   - [ ] **Native code compiles successfully on target platforms**
+   - [ ] No scope errors or undefined variables
    - [ ] All tests pass on all platforms
    - [ ] New features have tests (highly recommended)
    - [ ] API changes are documented
@@ -529,6 +578,12 @@ Example from the buffer duration feature:
 ```markdown
 ## Description
 Brief description of the feature/fix
+
+## Platform Compilation Verification (MANDATORY for native code changes)
+- [ ] **iOS compilation verified** (Swift code compiles without errors)
+- [ ] **Android compilation verified** (Kotlin code compiles without errors)
+- [ ] No scope errors or undefined variables
+- [ ] Tested with: `cd apps/playground && yarn ios --build-only` (or equivalent)
 
 ## Integration Tests
 - [ ] **MANDATORY for new features**: Integration tests that validate ACTUAL platform behavior
@@ -557,6 +612,7 @@ Link to design doc or explain architectural choices
 - [ ] Platform-specific behavior documented
 
 ## Checklist
+- [ ] **Platform compilation verified** (iOS/Android)
 - [ ] Integration tests REQUIRED for features
 - [ ] Minimal file changes
 - [ ] No unnecessary subdirectories
