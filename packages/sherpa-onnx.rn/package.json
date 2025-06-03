@@ -58,7 +58,6 @@
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
     "postinstall": "node ./install.js",
-    "publish-static": "./publish-static-libs.sh",
     "codegen": "npx @react-native-community/cli codegen",
     "regenerate-codegen": "npx react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/",
     "test:android": "cd ../../apps/sherpa-onnx-demo/android && ./gradlew :siteed_sherpa-onnx.rn:connectedAndroidTest",

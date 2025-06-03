@@ -33,7 +33,7 @@ The native integration testing framework validates React Native module integrati
 ### Run Android Tests
 ```bash
 cd packages/sherpa-onnx.rn
-./run-native-tests.sh
+yarn test:android
 ```
 
 ### View Test Results
