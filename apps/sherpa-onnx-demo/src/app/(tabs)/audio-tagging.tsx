@@ -1,5 +1,4 @@
 import type {
-  AudioEvent,
   AudioTaggingModelConfig,
   AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
@@ -21,7 +20,6 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement';
 import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../hooks/useModelWithConfig';
 
 // Define sample audio with only name and module
@@ -68,7 +66,7 @@ function AudioTaggingScreen() {
     localUri: string;
   } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
+  const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
@@ -942,7 +940,11 @@ function AudioTaggingScreen() {
                 ]}
                 onPress={() => {
                   if (selectedAudio && 'localUri' in selectedAudio) {
-                    isPlaying ? handleStopAudio() : handlePlayAudio(selectedAudio);
+                    if (isPlaying) {
+                      handleStopAudio();
+                    } else {
+                      handlePlayAudio(selectedAudio);
+                    }
                   }
                 }}
                 disabled={processing}

@@ -90,7 +90,7 @@ export default function AsrScreen() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
-  const [configToVisualize, setConfigToVisualize] = useState<AsrModelConfig | null>(null);
+  const [/* configToVisualize */, setConfigToVisualize] = useState<AsrModelConfig | null>(null);
   
   // Add new state for initialization status messages
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -460,7 +460,8 @@ export default function AsrScreen() {
   // Release ASR resources
   const handleReleaseAsr = async () => {
     try {
-      const result = await ASR.release();
+      // const result = await ASR.release();
+      await ASR.release();
       
       setInitialized(false);
       setRecognitionResult('');

@@ -44,7 +44,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   isSelected,
   onBrowseFiles,
   onCancelDownload
-}) => {
+}) {
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<{
@@ -63,7 +63,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   const isDownloaded = state?.status === 'downloaded';
   const isDownloading = state?.status === 'downloading';
   const isExtracting = state?.status === 'extracting';
-  const hasError = state?.status === 'error';
+  // const hasError = state?.status === 'error';
   const hasDependencies = model.dependencies && model.dependencies.length > 0;
 
   // Animate progress changes

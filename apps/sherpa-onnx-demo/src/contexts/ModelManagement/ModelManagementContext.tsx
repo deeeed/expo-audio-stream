@@ -54,7 +54,7 @@ export function ModelManagementProvider({
   const [modelStates, setModelStates] = useState<Record<string, ModelState>>({});
   const [activeDownloads, setActiveDownloads] = useState<Record<string, FileSystem.DownloadResumable>>({});
 
-  const [ttsModels, setTtsModels] = useState<TtsModelConfig[]>();
+  const [/* ttsModels */, /* setTtsModels */] = useState<TtsModelConfig[]>();
   // Load saved model states on mount
   useEffect(() => {
     loadSavedModelStates();

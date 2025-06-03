@@ -14,7 +14,6 @@ import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { formatBytes } from '../utils/formatters';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
-import { ModelState } from '../contexts/ModelManagement/types';
 
 interface FileItem {
   name: string;
