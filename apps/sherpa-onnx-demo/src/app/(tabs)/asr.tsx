@@ -6,18 +6,14 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Button,
   FlatList,
-  Image,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
-  TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
@@ -65,12 +61,12 @@ export default function AsrScreen() {
   const { asrConfig, localPath, isDownloaded } = useAsrModelWithConfig({ modelId: selectedModelId });
   
   // Add state for loaded audio assets
-  const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
+  const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
     id: string;
     name: string;
     module: number;
     localUri: string;
-  }>>([]);
+  }[]>([]);
   
   // Add state for audio playback
   const [sound, setSound] = useState<Audio.Sound | null>(null);

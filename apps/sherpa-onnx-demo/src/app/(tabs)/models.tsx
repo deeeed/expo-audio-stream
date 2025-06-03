@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, StyleSheet, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileExplorer } from '../../components/FileExplorer';
@@ -19,7 +19,6 @@ export default function ModelsScreen() {
   const [selectedModelPath, setSelectedModelPath] = useState<string | null>(null);
   
   const modelCounts = useModelCounts(selectedType);
-  const { getAvailableModels } = useModelManagement();
 
   // --- Temporary Safeguard for modelCounts ---
   const safeAvailableCount = modelCounts?.filtered?.available ?? 0;

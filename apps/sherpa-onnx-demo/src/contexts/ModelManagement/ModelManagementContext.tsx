@@ -1,12 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import { Platform } from 'react-native';
+import { Platform , InteractionManager } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { InteractionManager } from 'react-native';
 import { extractTarBz2 } from '../../utils/archiveUtils';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
-import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn/src';
+import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState } from '../../utils/constants';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);

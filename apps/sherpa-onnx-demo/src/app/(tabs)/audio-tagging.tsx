@@ -71,12 +71,12 @@ function AudioTaggingScreen() {
   const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
-  const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
+  const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
     id: string;
     name: string;
     module: number;
     localUri: string;
-  }>>([]);
+  }[]>([]);
   
   // Add state for audio playback
   const [sound, setSound] = useState<Audio.Sound | null>(null);

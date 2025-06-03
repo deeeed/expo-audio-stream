@@ -54,7 +54,7 @@ export default function WebAsrTest() {
   // Load the ASR library
   const loadAsrScript = async () => {
     // Create a cleanup function for message listeners
-    const messageHandlers: Array<(event: MessageEvent) => void> = [];
+    const messageHandlers: ((event: MessageEvent) => void)[] = [];
 
     // Check if ASR is already loaded by checking the SherpaWasm namespace
     if ((window as any).SherpaWasm?.ASR) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Platform, Text, TouchableOpacity, StyleSheet, View, TextInput } from 'react-native';
 import { TTS } from '@siteed/sherpa-onnx.rn';
 

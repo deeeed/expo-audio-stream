@@ -4,7 +4,7 @@ import { Button, StyleSheet, Text, View, Platform } from 'react-native';
 interface AudioTaggingTestState {
   isInitialized: boolean;
   isProcessing: boolean;
-  events: Array<{ label: string; confidence: number }>;
+  events: { label: string; confidence: number }[];
   error: string;
 }
 

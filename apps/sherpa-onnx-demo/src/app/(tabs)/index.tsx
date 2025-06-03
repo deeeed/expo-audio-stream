@@ -1,9 +1,8 @@
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import SherpaOnnx, { ValidateResult, SystemInfo } from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ValidateResult, SystemInfo } from '@siteed/sherpa-onnx.rn/src/types/interfaces';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();

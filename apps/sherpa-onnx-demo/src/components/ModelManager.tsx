@@ -35,7 +35,7 @@ interface ModelManagerProps {
   onBackToDownloads: () => void;
 }
 
-const ModelCard: React.FC<ModelCardProps> = React.memo(({
+const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   model,
   state,
   onDownload,
@@ -47,7 +47,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
-  const [fileDetails, setFileDetails] = useState<Array<{
+  const [fileDetails, setFileDetails] = useState<{
     id: string;
     name: string;
     size: number;
@@ -55,7 +55,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
     uri?: string;
     isDirectory?: boolean;
     error?: string;
-  }>>([]);
+  }[]>([]);
   const [fileListError, setFileListError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;

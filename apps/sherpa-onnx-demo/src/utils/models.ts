@@ -35,7 +35,7 @@ export interface ModelMetadata {
   version: string;
   language: string;
   // Use the new DependencyMetadata interface
-  dependencies?: Array<DependencyMetadata>;
+  dependencies?: DependencyMetadata[];
 }
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [

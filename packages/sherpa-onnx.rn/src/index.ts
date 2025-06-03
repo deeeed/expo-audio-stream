@@ -37,3 +37,6 @@ export const SpeakerId = speakerIdService;
 // Export types
 export * from './types/api';
 export * from './types/interfaces';
+
+// Export web utilities
+export { loadWasmModule } from './WebUtils';
