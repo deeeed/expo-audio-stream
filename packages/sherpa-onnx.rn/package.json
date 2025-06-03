@@ -199,5 +199,11 @@
     "type": "legacy-module",
     "languages": "cpp",
     "version": "0.48.3"
+  },
+  "codegenConfig": {
+    "name": "SherpaOnnxSpec",
+    "type": "modules",
+    "jsSrcsDir": "./src",
+    "outputDir": "./ios/codegen/SherpaOnnxSpec"
   }
 }

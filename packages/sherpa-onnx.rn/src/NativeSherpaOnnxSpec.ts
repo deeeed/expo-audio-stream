@@ -25,6 +25,65 @@ export interface Spec extends TurboModule {
     success: boolean;
   }>;
 
+  getArchitectureInfo(): Promise<{
+    architecture: string;
+    jsiAvailable: boolean;
+    turboModulesEnabled: boolean;
+    libraryLoaded: boolean;
+    currentThread: string;
+    threadId: number;
+    moduleType: string;
+    error?: string;
+  }>;
+
+  getSystemInfo(): Promise<{
+    architecture: {
+      type: 'new' | 'old';
+      description: string;
+      jsiAvailable: boolean;
+      turboModulesEnabled: boolean;
+      moduleType: string;
+    };
+    memory: {
+      maxMemoryMB: number;
+      totalMemoryMB: number;
+      freeMemoryMB: number;
+      usedMemoryMB: number;
+      systemTotalMemoryMB?: number;
+      systemAvailableMemoryMB?: number;
+      lowMemory?: boolean;
+      lowMemoryThresholdMB?: number;
+    };
+    cpu: {
+      availableProcessors: number;
+      hardware?: string;
+      supportedAbis: string[];
+    };
+    device: {
+      brand: string;
+      model: string;
+      device: string;
+      manufacturer: string;
+      sdkVersion?: number;
+      androidVersion?: string;
+      iosVersion?: string;
+      webPlatform?: string;
+    };
+    gpu: {
+      supportsVulkan?: boolean;
+      vulkanSupported?: boolean;
+      openGLESVersion?: string;
+      metalVersion?: string;
+      webGLVersion?: string;
+    };
+    libraryLoaded: boolean;
+    thread: {
+      currentThread: string;
+      threadId: number;
+    };
+    error?: string;
+  }>;
+
   // TTS methods
   initTts(config: {
     modelDir: string;
@@ -265,14 +324,60 @@ export function getNativeModule(): NativeSherpaOnnxInterface | null {
     return null;
   }
 
+  // Debug: Check what modules are available
+  const sherpaModules = Object.keys(NativeModules).filter(k => k.includes('Sherpa'));
+  console.log('[SherpaOnnx] Available Sherpa modules:', sherpaModules);
+  
+  // Debug: Check all available modules 
+  const allModules = Object.keys(NativeModules);
+  console.log('[SherpaOnnx] Total available modules:', allModules.length);
+  console.log('[SherpaOnnx] First 10 modules:', allModules.slice(0, 10));
+  
+  // Check if our module is registered under any name
+  const onnxModules = allModules.filter(k => k.toLowerCase().includes('onnx') || k.toLowerCase().includes('sherpa'));
+  console.log('[SherpaOnnx] ONNX-related modules:', onnxModules);
+
   // Try the new architecture first
   try {
-    return TurboModuleRegistry.getEnforcing<Spec>(
+    const turboModule = TurboModuleRegistry.getEnforcing<Spec>(
       'SherpaOnnx'
     ) as NativeSherpaOnnxInterface;
+    console.log('[SherpaOnnx] Loaded via TurboModule');
+    return turboModule;
   } catch (e) {
+    console.warn('[SherpaOnnx] TurboModule failed:', e);
+    
+    // Try alternative TurboModule names
+    const possibleTurboNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx', 'SherpaOnnxSpec'];
+    for (const name of possibleTurboNames) {
+      try {
+        const turboModule = TurboModuleRegistry.getEnforcing<Spec>(name) as NativeSherpaOnnxInterface;
+        console.log(`[SherpaOnnx] Loaded via TurboModule with name: ${name}`);
+        return turboModule;
+      } catch (e2) {
+        console.warn(`[SherpaOnnx] TurboModule name ${name} failed:`, e2);
+      }
+    }
+    
     // Fall back to old architecture if TurboModule not available
-    return NativeModules.SherpaOnnx as NativeSherpaOnnxInterface;
+    const bridgeModule = NativeModules.SherpaOnnx as NativeSherpaOnnxInterface;
+    if (bridgeModule) {
+      console.log('[SherpaOnnx] Loaded via Bridge');
+      return bridgeModule;
+    }
+    
+    // Try alternative Bridge module names
+    const possibleBridgeNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx'];
+    for (const name of possibleBridgeNames) {
+      const module = NativeModules[name] as NativeSherpaOnnxInterface;
+      if (module) {
+        console.log(`[SherpaOnnx] Loaded via Bridge with name: ${name}`);
+        return module;
+      }
+    }
+    
+    console.error('[SherpaOnnx] No native module found with any name!');
+    return null;
   }
 }
 

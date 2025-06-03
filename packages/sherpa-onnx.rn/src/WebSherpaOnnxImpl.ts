@@ -1,4 +1,4 @@
-import type { ApiInterface } from './types/api';
+import type { ApiInterface, ArchitectureInfo, SystemInfo } from './types/api';
 import type {
   AsrInitResult,
   AsrModelConfig,
@@ -332,6 +332,190 @@ export class WebSherpaOnnxImpl implements ApiInterface {
       return {
         loaded: false,
         status: `Sherpa ONNX WASM library failed to load: ${(error as Error).message}`,
+      };
+    }
+  }
+
+  /**
+   * Get architecture information for debugging and diagnostics
+   */
+  async getArchitectureInfo(): Promise<ArchitectureInfo> {
+    try {
+      const isLibraryLoaded = this.module !== null;
+      
+      return {
+        architecture: 'web',
+        jsiAvailable: false,
+        turboModulesEnabled: false,
+        libraryLoaded: isLibraryLoaded,
+        currentThread: 'main',
+        threadId: 1,
+        moduleType: 'WASM',
+      };
+    } catch (error) {
+      return {
+        architecture: 'web',
+        jsiAvailable: false,
+        turboModulesEnabled: false,
+        libraryLoaded: false,
+        currentThread: 'main',
+        threadId: 1,
+        moduleType: 'WASM',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
+   * Get comprehensive system information for web environment
+   */
+  async getSystemInfo(): Promise<SystemInfo> {
+    try {
+      const isLibraryLoaded = this.module !== null;
+      
+      // Architecture information
+      const architecture = {
+        type: 'old' as const,
+        description: 'Web (WASM)',
+        jsiAvailable: false,
+        turboModulesEnabled: false,
+        moduleType: 'WASM',
+      };
+      
+      // Memory information (using performance API if available)
+      const memory: SystemInfo['memory'] = {
+        maxMemoryMB: 0,
+        totalMemoryMB: 0,
+        freeMemoryMB: 0,
+        usedMemoryMB: 0,
+      };
+      
+      // Try to get memory info from performance API
+      if (typeof performance !== 'undefined' && 'memory' in performance) {
+        const perfMemory = (performance as any).memory;
+        if (perfMemory) {
+          memory.maxMemoryMB = (perfMemory.jsHeapSizeLimit || 0) / 1024 / 1024;
+          memory.totalMemoryMB = (perfMemory.totalJSHeapSize || 0) / 1024 / 1024;
+          memory.usedMemoryMB = (perfMemory.usedJSHeapSize || 0) / 1024 / 1024;
+          memory.freeMemoryMB = memory.totalMemoryMB - memory.usedMemoryMB;
+        }
+      }
+      
+      // CPU information
+      const cpu = {
+        availableProcessors: navigator.hardwareConcurrency || 1,
+        supportedAbis: ['wasm32'],
+      };
+      
+      // Device information from user agent
+      const userAgent = navigator.userAgent;
+      let device: SystemInfo['device'];
+      
+      // Try to detect device info from user agent
+      if (typeof navigator !== 'undefined') {
+        // Use userAgentData if available (newer API), fallback to deprecated platform
+        const platformInfo = (navigator as any).userAgentData?.platform || 
+                            (navigator as any).platform || 
+                            'Unknown';
+        const vendor = (navigator as any).vendor || 'Unknown';
+        
+        device = {
+          brand: vendor,
+          model: platformInfo,
+          device: 'browser',
+          manufacturer: vendor,
+          webPlatform: userAgent,
+        };
+        
+        // Try to extract more specific info from user agent
+        if (userAgent.includes('Chrome')) {
+          device.brand = 'Google';
+          device.manufacturer = 'Google';
+        } else if (userAgent.includes('Firefox')) {
+          device.brand = 'Mozilla';
+          device.manufacturer = 'Mozilla';
+        } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
+          device.brand = 'Apple';
+          device.manufacturer = 'Apple';
+        }
+      } else {
+        device = {
+          brand: 'Unknown',
+          model: 'Unknown',
+          device: 'browser',
+          manufacturer: 'Unknown',
+          webPlatform: 'Unknown',
+        };
+      }
+      
+      // GPU information
+      const gpu: SystemInfo['gpu'] = {
+        webGLVersion: 'WebGL',
+      };
+      
+      // Check WebGL support
+      if (typeof document !== 'undefined') {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl && gl instanceof WebGLRenderingContext) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            gpu.webGLVersion = `WebGL (${renderer})`;
+          }
+        }
+      }
+      
+      // Thread information
+      const thread = {
+        currentThread: 'main',
+        threadId: 1,
+      };
+      
+      return {
+        architecture,
+        memory,
+        cpu,
+        device,
+        gpu,
+        libraryLoaded: isLibraryLoaded,
+        thread,
+      };
+    } catch (error) {
+      return {
+        architecture: {
+          type: 'old',
+          description: 'Web (WASM)',
+          jsiAvailable: false,
+          turboModulesEnabled: false,
+          moduleType: 'WASM',
+        },
+        memory: {
+          maxMemoryMB: 0,
+          totalMemoryMB: 0,
+          freeMemoryMB: 0,
+          usedMemoryMB: 0,
+        },
+        cpu: {
+          availableProcessors: 1,
+          supportedAbis: ['wasm32'],
+        },
+        device: {
+          brand: 'Unknown',
+          model: 'Unknown',
+          device: 'browser',
+          manufacturer: 'Unknown',
+          webPlatform: 'Unknown',
+        },
+        gpu: {
+          webGLVersion: 'WebGL',
+        },
+        libraryLoaded: false,
+        thread: {
+          currentThread: 'main',
+          threadId: 1,
+        },
+        error: (error as Error).message,
       };
     }
   }

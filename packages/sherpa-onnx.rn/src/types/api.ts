@@ -23,10 +23,71 @@ import type {
   SpeakerIdFileProcessResult,
 } from './interfaces';
 
+export interface ArchitectureInfo {
+  architecture: string;
+  jsiAvailable: boolean;
+  turboModulesEnabled: boolean;
+  libraryLoaded: boolean;
+  currentThread: string;
+  threadId: number;
+  moduleType: string;
+  error?: string;
+}
+
+export interface SystemInfo {
+  architecture: {
+    type: 'new' | 'old';
+    description: string;
+    jsiAvailable: boolean;
+    turboModulesEnabled: boolean;
+    moduleType: string;
+  };
+  memory: {
+    maxMemoryMB: number;
+    totalMemoryMB: number;
+    freeMemoryMB: number;
+    usedMemoryMB: number;
+    systemTotalMemoryMB?: number;
+    systemAvailableMemoryMB?: number;
+    lowMemory?: boolean;
+    lowMemoryThresholdMB?: number;
+  };
+  cpu: {
+    availableProcessors: number;
+    hardware?: string;
+    supportedAbis: string[];
+  };
+  device: {
+    brand: string;
+    model: string;
+    device: string;
+    manufacturer: string;
+    sdkVersion?: number; // Optional for non-Android platforms
+    androidVersion?: string; // Optional for non-Android platforms
+    iosVersion?: string; // Optional for non-iOS platforms
+    webPlatform?: string; // Optional for web platform
+  };
+  gpu: {
+    supportsVulkan?: boolean; // Optional as not all platforms support
+    vulkanSupported?: boolean;
+    openGLESVersion?: string; // Optional as not all platforms use OpenGL
+    metalVersion?: string; // Optional for iOS Metal support
+    webGLVersion?: string; // Optional for web WebGL support
+  };
+  libraryLoaded: boolean;
+  thread: {
+    currentThread: string;
+    threadId: number;
+  };
+  error?: string;
+}
+
 export interface ApiInterface {
   // Test methods
   testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
   validateLibraryLoaded(): Promise<ValidateResult>;
+  getArchitectureInfo(): Promise<ArchitectureInfo>;
+  getSystemInfo(): Promise<SystemInfo>;
 
   // TTS methods
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;

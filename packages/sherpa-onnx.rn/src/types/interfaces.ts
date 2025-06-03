@@ -1046,6 +1046,8 @@ export interface NativeSherpaOnnxInterface {
   // Test methods
   testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
   validateLibraryLoaded(): Promise<ValidateResult>;
+  getArchitectureInfo(): Promise<import('./api').ArchitectureInfo>;
+  getSystemInfo(): Promise<import('./api').SystemInfo>;
 
   // TTS methods
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;
@@ -1117,6 +1119,8 @@ export interface SherpaOnnxInterface {
   // Test methods
   testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
   validateLibraryLoaded(): Promise<ValidateResult>;
+  getArchitectureInfo(): Promise<import('./api').ArchitectureInfo>;
+  getSystemInfo(): Promise<import('./api').SystemInfo>;
 
   // TTS methods
   initTts(config: TtsModelConfig): Promise<TtsInitResult>;
