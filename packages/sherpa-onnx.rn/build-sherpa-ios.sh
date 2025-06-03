@@ -85,13 +85,11 @@ mkdir -p prebuilt/swift/sherpa-onnx
 cp third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift prebuilt/swift/sherpa-onnx/
 cp third_party/sherpa-onnx/swift-api-examples/SherpaOnnx-Bridging-Header.h prebuilt/swift/sherpa-onnx/
 
-# Create ios directory structure
-mkdir -p ios/include/sherpa-onnx/c-api
-cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h ios/include/sherpa-onnx/c-api/
+# Headers are already copied to prebuilt/include/sherpa-onnx/c-api/ above
+# No need for iOS-specific duplication
 
 # Create module.modulemap file
 echo -e "${BLUE}Creating module.modulemap file...${NC}"
-mkdir -p prebuilt/include/module.modulemap
 cat > prebuilt/include/module.modulemap << 'EOL'
 module CSherpaOnnx {
     umbrella header "sherpa-onnx/c-api/c-api.h"

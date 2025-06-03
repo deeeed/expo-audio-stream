@@ -166,6 +166,14 @@ namespace facebook::react {
       return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "extractTarBz2", @selector(extractTarBz2:targetDir:resolve:reject:), args, count);
     }
 
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_getArchitectureInfo(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "getArchitectureInfo", @selector(getArchitectureInfo:reject:), args, count);
+    }
+
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_getSystemInfo(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "getSystemInfo", @selector(getSystemInfo:reject:), args, count);
+    }
+
   NativeSherpaOnnxSpecSpecJSI::NativeSherpaOnnxSpecSpecJSI(const ObjCTurboModule::InitParams &params)
     : ObjCTurboModule(params) {
       
@@ -245,6 +253,12 @@ namespace facebook::react {
         
         
         methodMap_["extractTarBz2"] = MethodMetadata {2, __hostFunction_NativeSherpaOnnxSpecSpecJSI_extractTarBz2};
+        
+        
+        methodMap_["getArchitectureInfo"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_getArchitectureInfo};
+        
+        
+        methodMap_["getSystemInfo"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_getSystemInfo};
         
   }
 } // namespace facebook::react

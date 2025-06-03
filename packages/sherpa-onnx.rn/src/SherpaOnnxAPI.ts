@@ -1,4 +1,4 @@
-import type { ApiInterface } from './types/api';
+import type { ApiInterface, ArchitectureInfo, SystemInfo } from './types/api';
 import type {
   AsrInitResult,
   AsrModelConfig,
@@ -41,6 +41,8 @@ const createWebPlaceholder = (): ApiInterface => {
     // Return basic error-throwing implementations for each method
     testOnnxIntegration: notImplementedError,
     validateLibraryLoaded: notImplementedError,
+    getArchitectureInfo: notImplementedError,
+    getSystemInfo: notImplementedError,
     initTts: notImplementedError,
     generateTts: notImplementedError,
     stopTts: notImplementedError,
@@ -87,6 +89,8 @@ const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
     samples: number[],
     topK?: number
   ) => Promise<AudioTaggingResult>;
+  getArchitectureInfo: () => Promise<ArchitectureInfo>;
+  getSystemInfo: () => Promise<SystemInfo>;
 } =
   NativeModuleImport ||
   (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder());
@@ -109,6 +113,14 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   validateLibraryLoaded(): Promise<ValidateResult> {
     return NativeSherpaOnnx.validateLibraryLoaded();
+  },
+
+  getArchitectureInfo(): Promise<ArchitectureInfo> {
+    return NativeSherpaOnnx.getArchitectureInfo();
+  },
+  
+  getSystemInfo(): Promise<SystemInfo> {
+    return NativeSherpaOnnx.getSystemInfo();
   },
 
   /**

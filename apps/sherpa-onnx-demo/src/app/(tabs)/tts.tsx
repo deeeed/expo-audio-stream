@@ -52,7 +52,7 @@ export default function TtsScreen() {
   const [provider, setProvider] = useState<ModelProvider>('cpu');
   const [autoPlay, setAutoPlay] = useState(true);
   // State to track pending model selection (for confirmation flow)
-  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
+  const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
 
   // Use our new hooks
   const { downloadedModels } = useTtsModels();
@@ -83,7 +83,7 @@ export default function TtsScreen() {
         sound.unloadAsync();
       }
     };
-  }, []);
+  }, [sound]);
 
   // Reset configuration when selected model or ttsConfig changes
   useEffect(() => {

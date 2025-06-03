@@ -79,7 +79,7 @@ export async function extractTarBz2(
       
       if (result.success) {
         // Verify extraction by checking files
-        const extractedFiles = result.extractedFiles || [];
+        // const extractedFiles = result.extractedFiles || [];
         
         return {
           success: true,

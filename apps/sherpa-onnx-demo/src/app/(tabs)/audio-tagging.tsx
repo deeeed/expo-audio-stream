@@ -1,5 +1,4 @@
 import type {
-  AudioEvent,
   AudioTaggingModelConfig,
   AudioTaggingResult
 } from '@siteed/sherpa-onnx.rn';
@@ -21,7 +20,6 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useModelManagement } from '../../contexts/ModelManagement';
 import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../hooks/useModelWithConfig';
 
 // Define sample audio with only name and module
@@ -68,15 +66,15 @@ function AudioTaggingScreen() {
     localUri: string;
   } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
+  const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
   
   // Add state for loaded audio assets
-  const [loadedAudioFiles, setLoadedAudioFiles] = useState<Array<{
+  const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
     id: string;
     name: string;
     module: number;
     localUri: string;
-  }>>([]);
+  }[]>([]);
   
   // Add state for audio playback
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -139,7 +137,7 @@ function AudioTaggingScreen() {
     } else {
       console.log('[DEBUG] No audioTaggingConfig available for model:', selectedModelId);
     }
-  }, [selectedModelId, audioTaggingConfig]);
+  }, [selectedModelId, audioTaggingConfig, topK, numThreads, debugMode, provider]);
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -185,7 +183,7 @@ function AudioTaggingScreen() {
         );
       }
     };
-  }, [initialized]);
+  }, [initialized, sound]);
   
   const handleModelSelect = (modelId: string) => {
     console.log('[DEBUG] handleModelSelect called with modelId:', modelId);
@@ -942,7 +940,11 @@ function AudioTaggingScreen() {
                 ]}
                 onPress={() => {
                   if (selectedAudio && 'localUri' in selectedAudio) {
-                    isPlaying ? handleStopAudio() : handlePlayAudio(selectedAudio);
+                    if (isPlaying) {
+                      handleStopAudio();
+                    } else {
+                      handlePlayAudio(selectedAudio);
+                    }
                   }
                 }}
                 disabled={processing}

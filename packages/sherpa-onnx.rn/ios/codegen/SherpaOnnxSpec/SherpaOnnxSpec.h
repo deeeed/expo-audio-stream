@@ -250,6 +250,10 @@ namespace JS {
             targetDir:(NSString *)targetDir
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject;
+- (void)getArchitectureInfo:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject;
+- (void)getSystemInfo:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject;
 
 @end
 

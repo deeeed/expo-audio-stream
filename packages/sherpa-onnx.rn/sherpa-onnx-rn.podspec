@@ -48,22 +48,21 @@ Pod::Spec.new do |s|
 
   s.preserve_paths = preserve_paths
 
-  # List of libraries to link
+  # List of libraries to link (order matters for dependency resolution)
   sherpa_libraries = [
-    "libonnxruntime.a",
-    "libsherpa-onnx-c-api.a",
-    "libsherpa-onnx-core.a",
-    "libsherpa-onnx-cxx-api.a",
+    "libkissfft-float.a",
+    "libkaldi-native-fbank-core.a",
+    "libkaldi-decoder-core.a",
     "libsherpa-onnx-fst.a",
     "libsherpa-onnx-fstfar.a",
     "libsherpa-onnx-kaldifst-core.a",
-    "libkaldi-decoder-core.a",
-    "libkaldi-native-fbank-core.a",
+    "libsherpa-onnx-core.a",
+    "libsherpa-onnx-c-api.a",
     "libpiper_phonemize.a",
     "libespeak-ng.a",
     "libssentencepiece_core.a",
     "libucd.a",
-    "libcargs.a"
+    "libonnxruntime.a"
   ]
 
   # Vendored libraries pointing to the current folder (will be symlinked later)
@@ -126,7 +125,19 @@ Pod::Spec.new do |s|
           fi
         done
       else
-        echo "Warning: Device libraries directory not found"
+        echo ""
+        echo "❌ ERROR: iOS libraries not found!"
+        echo ""
+        echo "The sherpa-onnx iOS libraries need to be built before using this package."
+        echo ""
+        echo "To fix this error, run the following commands:"
+        echo "  cd $(pwd)"
+        echo "  ./build-sherpa-ios.sh"
+        echo ""
+        echo "This will download and build the required iOS libraries."
+        echo "The build process may take 5-10 minutes."
+        echo ""
+        exit 1
       fi
     else
       echo "Symlinks already exist, skipping"
@@ -161,7 +172,18 @@ Pod::Spec.new do |s|
             fi
           done
         else
-          echo "Error: Simulator libraries directory not found at $SIMULATOR_DIR"
+          echo ""
+          echo "❌ ERROR: iOS Simulator libraries not found!"
+          echo ""
+          echo "Building for iOS Simulator but libraries are missing at:"
+          echo "  $SIMULATOR_DIR"
+          echo ""
+          echo "To fix this error:"
+          echo "  1. cd ${PODS_TARGET_SRCROOT}"
+          echo "  2. ./build-sherpa-ios.sh"
+          echo ""
+          echo "This will build both device and simulator libraries."
+          echo ""
           exit 1
         fi
       else
@@ -176,7 +198,18 @@ Pod::Spec.new do |s|
             fi
           done
         else
-          echo "Error: Device libraries directory not found at $DEVICE_DIR"
+          echo ""
+          echo "❌ ERROR: iOS Device libraries not found!"
+          echo ""
+          echo "Building for iOS Device but libraries are missing at:"
+          echo "  $DEVICE_DIR"
+          echo ""
+          echo "To fix this error:"
+          echo "  1. cd ${PODS_TARGET_SRCROOT}"
+          echo "  2. ./build-sherpa-ios.sh"
+          echo ""
+          echo "This will build both device and simulator libraries."
+          echo ""
           exit 1
         fi
       fi
@@ -199,5 +232,8 @@ Pod::Spec.new do |s|
     s.dependency "RCTRequired"
     s.dependency "RCTTypeSafety"
     s.dependency "ReactCommon/turbomodule/core"
+    
+    # Install TurboModule dependencies
+    install_modules_dependencies(s)
   end
 end

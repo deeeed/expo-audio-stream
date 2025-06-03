@@ -58,9 +58,10 @@
     "build:all": "./build-all.sh",
     "build:all:force": "./build-all.sh --force",
     "postinstall": "node ./install.js",
-    "publish-static": "./publish-static-libs.sh",
     "codegen": "npx @react-native-community/cli codegen",
-    "regenerate-codegen": "npx react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/"
+    "regenerate-codegen": "npx react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/",
+    "test:android": "cd ../../apps/sherpa-onnx-demo/android && ./gradlew :siteed_sherpa-onnx.rn:connectedAndroidTest",
+    "test:ios:info": "./ios-testing-info.sh"
   },
   "keywords": [
     "react-native",
@@ -97,6 +98,7 @@
     "@babel/preset-env": "^7.26.9",
     "@commitlint/config-conventional": "^17.0.2",
     "@evilmartians/lefthook": "^1.5.0",
+    "@expo/config-plugins": "^10.0.2",
     "@react-native-community/cli": "^18.0.0",
     "@react-native/eslint-config": "^0.73.1",
     "@siteed/publisher": "^0.6.0",
@@ -117,7 +119,7 @@
     "react": "19.0.0",
     "react-native": "0.78.0",
     "react-native-builder-bob": "^0.37.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.8.3"
   },
   "resolutions": {
     "@types/react": "^18.2.44"
@@ -199,5 +201,11 @@
     "type": "legacy-module",
     "languages": "cpp",
     "version": "0.48.3"
+  },
+  "codegenConfig": {
+    "name": "SherpaOnnxSpec",
+    "type": "modules",
+    "jsSrcsDir": "./src",
+    "outputDir": "./ios/codegen/SherpaOnnxSpec"
   }
 }

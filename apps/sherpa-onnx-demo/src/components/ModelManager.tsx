@@ -35,7 +35,7 @@ interface ModelManagerProps {
   onBackToDownloads: () => void;
 }
 
-const ModelCard: React.FC<ModelCardProps> = React.memo(({
+const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   model,
   state,
   onDownload,
@@ -44,10 +44,10 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
   isSelected,
   onBrowseFiles,
   onCancelDownload
-}) => {
+}) {
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
-  const [fileDetails, setFileDetails] = useState<Array<{
+  const [fileDetails, setFileDetails] = useState<{
     id: string;
     name: string;
     size: number;
@@ -55,7 +55,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
     uri?: string;
     isDirectory?: boolean;
     error?: string;
-  }>>([]);
+  }[]>([]);
   const [fileListError, setFileListError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -63,7 +63,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
   const isDownloaded = state?.status === 'downloaded';
   const isDownloading = state?.status === 'downloading';
   const isExtracting = state?.status === 'extracting';
-  const hasError = state?.status === 'error';
+  // const hasError = state?.status === 'error';
   const hasDependencies = model.dependencies && model.dependencies.length > 0;
 
   // Animate progress changes
@@ -267,7 +267,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(({
     if (state?.status === 'downloading') {
       console.log(`[ModelCard] ${model.name} - progress: ${Math.round((state.progress || 0) * 100)}%`);
     }
-  }, [state?.progress, state?.status]);
+  }, [state?.progress, state?.status, model.name]);
 
   return (
     <View style={[cardStyles.card, isSelected && cardStyles.cardSelected]}>
@@ -547,8 +547,8 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
   const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded'); // Start with downloaded expanded
 
   // Memoized model lists (as before)
-  const availableModels = useMemo(() => getAvailableModels(), []);
-  const downloadedModels = useMemo(() => getDownloadedModels(), [modelsState]);
+  const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
+  const downloadedModels = useMemo(() => getDownloadedModels(), [getDownloadedModels]);
 
   const filteredAvailableModels = useMemo(() =>
     filterType === 'all'
@@ -579,9 +579,9 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
   }, []);
 
   // Function to toggle section expansion
-  const toggleSection = (sectionId: SectionId) => {
+  const toggleSection = useCallback((sectionId: SectionId) => {
       setExpandedSection(prev => prev === sectionId ? null : sectionId);
-  };
+  }, []);
 
   // Create the unified list data based on expanded state
   const listData = useMemo((): ListItem[] => {

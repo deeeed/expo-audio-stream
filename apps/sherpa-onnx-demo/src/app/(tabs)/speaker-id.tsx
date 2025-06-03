@@ -6,7 +6,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Button,
   FlatList,
   Platform,
   StyleSheet,

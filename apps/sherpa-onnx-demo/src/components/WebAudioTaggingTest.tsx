@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Button, StyleSheet, Text, View, Platform } from 'react-native';
+import { StyleSheet, Text, View, Platform } from 'react-native';
 
 interface AudioTaggingTestState {
   isInitialized: boolean;
   isProcessing: boolean;
-  events: Array<{ label: string; confidence: number }>;
+  events: { label: string; confidence: number }[];
   error: string;
 }
 
 export default function WebAudioTaggingTest() {
-  const [state, setState] = useState<AudioTaggingTestState>({
+  const [/* state */, /* setState */] = useState<AudioTaggingTestState>({
     isInitialized: false,
     isProcessing: false,
     events: [],

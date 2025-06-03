@@ -1,15 +1,16 @@
-import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import SherpaOnnx, { ValidateResult, SystemInfo } from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ValidateResult } from '@siteed/sherpa-onnx.rn/src/types/interfaces';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [validationResult, setValidationResult] = useState<string>('Not validated');
   const [archInfo, setArchInfo] = useState<string>('Unknown');
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
   const [integrationTestResult, setIntegrationTestResult] = useState<string>('Not tested');
 
   useEffect(() => {
@@ -23,8 +24,9 @@ const SherpaOnnxDemo: React.FC = () => {
       const hasModule = SherpaOnnx !== undefined;
       setIsAvailable(hasModule);
       
-      // Try to validate the library
+      // Try to validate the library and get system info
       if (hasModule) {
+        // Validate library
         SherpaOnnx.validateLibraryLoaded()
           .then((result: ValidateResult) => {
             setValidationResult(`Library validation: ${result.loaded ? 'Success' : 'Failed'} - ${result.status}`);
@@ -37,6 +39,23 @@ const SherpaOnnxDemo: React.FC = () => {
           .catch((error: Error) => {
             setValidationResult(`Validation error: ${error.message}`);
             console.error('Validation error details:', error);
+          });
+        
+        // Get comprehensive system information
+        SherpaOnnx.getSystemInfo()
+          .then((info: SystemInfo) => {
+            console.log('📊 System Info Retrieved:', info);
+            setSystemInfo(info);
+            
+            // Update architecture info with detailed information
+            const detailedArch = `${info.architecture.type.toUpperCase()} (${info.architecture.description})`;
+            setArchInfo(detailedArch);
+            
+            setSystemInfoError(null);
+          })
+          .catch((error: Error) => {
+            console.error('System info error:', error);
+            setSystemInfoError(error.message);
           });
       }
     } catch (error) {
@@ -75,7 +94,7 @@ const SherpaOnnxDemo: React.FC = () => {
         <Text style={styles.subtitle}>System Status</Text>
         
         <View style={styles.statusCard}>
-          <Text style={styles.statusTitle}>Architecture:</Text>
+          <Text style={styles.statusTitle}>React Native Architecture:</Text>
           <Text style={styles.status}>{archInfo}</Text>
           
           <Text style={styles.statusTitle}>Sherpa-ONNX Available:</Text>
@@ -87,8 +106,85 @@ const SherpaOnnxDemo: React.FC = () => {
             {isAvailable === null ? 'Checking...' : isAvailable ? 'Yes' : 'No'}
           </Text>
           
-          <Text style={styles.statusTitle}>Validation:</Text>
+          <Text style={styles.statusTitle}>Library Validation:</Text>
           <Text style={styles.status}>{validationResult}</Text>
+
+          {/* System Information Display */}
+          {systemInfo && (
+            <View style={styles.systemInfoContainer}>
+              <Text style={styles.systemInfoTitle}>📊 System Information</Text>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Platform:</Text>
+                <Text style={styles.infoValue}>{Platform.OS} {systemInfo.device?.iosVersion || systemInfo.device?.androidVersion || ''}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Device:</Text>
+                <Text style={styles.infoValue}>{systemInfo.device?.brand} {systemInfo.device?.model}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>CPU Cores:</Text>
+                <Text style={styles.infoValue}>{systemInfo.cpu?.availableProcessors}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Memory:</Text>
+                <Text style={styles.infoValue}>
+                  {systemInfo.memory?.usedMemoryMB?.toFixed(1)}MB / {systemInfo.memory?.totalMemoryMB?.toFixed(1)}MB
+                </Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Architecture Type:</Text>
+                <Text style={[
+                  styles.infoValue,
+                  systemInfo.architecture.type === 'new' ? styles.positive : styles.neutral
+                ]}>
+                  {systemInfo.architecture.type.toUpperCase()}
+                </Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Native Library:</Text>
+                <Text style={[
+                  styles.infoValue,
+                  systemInfo.libraryLoaded ? styles.positive : styles.negative
+                ]}>
+                  {systemInfo.libraryLoaded ? 'Loaded' : 'Not Loaded'}
+                </Text>
+              </View>
+              
+              {Platform.OS === 'ios' && systemInfo.gpu?.metalVersion && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Metal GPU:</Text>
+                  <Text style={styles.infoValue}>{systemInfo.gpu.metalVersion}</Text>
+                </View>
+              )}
+              
+              {Platform.OS === 'android' && systemInfo.gpu?.openGLESVersion && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>OpenGL ES:</Text>
+                  <Text style={styles.infoValue}>{systemInfo.gpu.openGLESVersion}</Text>
+                </View>
+              )}
+              
+              {Platform.OS === 'web' && systemInfo.gpu?.webGLVersion && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>WebGL:</Text>
+                  <Text style={styles.infoValue}>{systemInfo.gpu.webGLVersion}</Text>
+                </View>
+              )}
+            </View>
+          )}
+          
+          {systemInfoError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorTitle}>⚠️ System Info Error:</Text>
+              <Text style={styles.errorText}>{systemInfoError}</Text>
+            </View>
+          )}
 
           <TouchableOpacity 
             style={[styles.testButton, !isAvailable && styles.buttonDisabled]}
@@ -367,6 +463,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#757575',
     fontSize: 12,
+  },
+  systemInfoContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  systemInfoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#495057',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6c757d',
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#212529',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    flex: 1,
+    textAlign: 'right',
+  },
+  errorContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffeaa7',
+  },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#856404',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
   },
 });
 

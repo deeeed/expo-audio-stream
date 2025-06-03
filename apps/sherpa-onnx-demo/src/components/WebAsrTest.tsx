@@ -1,5 +1,5 @@
 import { ASR } from '@siteed/sherpa-onnx.rn';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Platform, StyleSheet, Text, View } from 'react-native';
 
 interface AsrTestState {
@@ -52,9 +52,9 @@ export default function WebAsrTest() {
   const recognizerStreamRef = useRef<RecognizerStream | null>(null);
 
   // Load the ASR library
-  const loadAsrScript = async () => {
+  const loadAsrScript = useCallback(async () => {
     // Create a cleanup function for message listeners
-    const messageHandlers: Array<(event: MessageEvent) => void> = [];
+    const messageHandlers: ((event: MessageEvent) => void)[] = [];
 
     // Check if ASR is already loaded by checking the SherpaWasm namespace
     if ((window as any).SherpaWasm?.ASR) {
@@ -90,7 +90,7 @@ export default function WebAsrTest() {
     return () => {
       messageHandlers.forEach(handler => window.removeEventListener('message', handler));
     };
-  };
+  }, []); // Empty deps array for loadAsrScript
 
   // Check if required model files exist
   const checkRequiredFiles = async () => {
@@ -221,7 +221,7 @@ export default function WebAsrTest() {
     let cleanup: (() => void) | undefined;
 
     // Load the ASR script and get its cleanup function
-    loadAsrScript().then(cleanupFn => {
+    loadAsrScript().then((cleanupFn: (() => void) | undefined) => {
       cleanup = cleanupFn;
     });
 
@@ -234,7 +234,7 @@ export default function WebAsrTest() {
       
       cleanupAsrResources();
     };
-  }, []);
+  }, [loadAsrScript]);
 
   // Helper function to create and initialize ASR recognizer
   const createAsrRecognizer = async (asrNamespace: any) => {

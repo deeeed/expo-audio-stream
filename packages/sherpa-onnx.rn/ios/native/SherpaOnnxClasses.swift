@@ -83,6 +83,12 @@ func sherpaOnnxOnlineRecognizerConfig(
   hotwordsBuf: String = "",
   hotwordsBufSize: Int = 0
 ) -> SherpaOnnxOnlineRecognizerConfig {
+  let emptyHomophoneReplacerConfig = SherpaOnnxHomophoneReplacerConfig(
+    dict_dir: nil,
+    lexicon: nil,
+    rule_fsts: nil
+  )
+  
   return SherpaOnnxOnlineRecognizerConfig(
     feat_config: featConfig,
     model_config: modelConfig,
@@ -99,7 +105,8 @@ func sherpaOnnxOnlineRecognizerConfig(
     rule_fars: toCPointer(ruleFars),
     blank_penalty: blankPenalty,
     hotwords_buf: toCPointer(hotwordsBuf),
-    hotwords_buf_size: Int32(hotwordsBufSize)
+    hotwords_buf_size: Int32(hotwordsBufSize),
+    hr: emptyHomophoneReplacerConfig
   )
 }
 

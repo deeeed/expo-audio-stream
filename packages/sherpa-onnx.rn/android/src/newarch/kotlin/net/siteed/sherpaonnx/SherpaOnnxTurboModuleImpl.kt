@@ -56,20 +56,20 @@ class SherpaOnnxTurboModuleImpl(
         implementation.initAudioTagging(config, promise)
     }
 
-    override fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
-        implementation.processAudioSamples(sampleRate, audioBuffer, promise)
+    override fun processAudioSamples(sampleRate: Int, audioBuffer: ReadableArray, topK: Int, promise: Promise) {
+        implementation.processAudioSamples(sampleRate, audioBuffer, topK, promise)
     }
 
-    override fun computeAudioTagging(promise: Promise) {
-        implementation.computeAudioTagging(promise)
+    override fun computeAudioTagging(topK: Int, promise: Promise) {
+        implementation.computeAudioTagging(topK, promise)
     }
 
-    override fun processAndComputeAudioTagging(filePath: String, promise: Promise) {
-        implementation.processAndComputeAudioTagging(filePath, promise)
+    override fun processAndComputeAudioTagging(filePath: String, topK: Int, promise: Promise) {
+        implementation.processAndComputeAudioTagging(filePath, topK, promise)
     }
 
-    override fun processAudioFile(filePath: String, promise: Promise) {
-        implementation.processAudioFile(filePath, promise)
+    override fun processAudioFile(filePath: String, topK: Int, promise: Promise) {
+        implementation.processAudioFile(filePath, topK, promise)
     }
 
     override fun releaseAudioTagging(promise: Promise) {
@@ -126,5 +126,13 @@ class SherpaOnnxTurboModuleImpl(
 
     override fun testOnnxIntegration(promise: Promise) {
         implementation.testOnnxIntegration(promise)
+    }
+
+    override fun getArchitectureInfo(promise: Promise) {
+        implementation.getArchitectureInfo(promise)
+    }
+    
+    override fun getSystemInfo(promise: Promise) {
+        implementation.getSystemInfo(promise)
     }
 } 

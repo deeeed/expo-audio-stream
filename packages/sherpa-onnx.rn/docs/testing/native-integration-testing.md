@@ -217,9 +217,8 @@ The native integration testing framework has been implemented with the following
 - Updated `android/build.gradle` with test dependencies and instrumentation runner
 
 ### Test Execution ✅
-- `run-native-tests.sh` - Cross-platform test runner script
-- Supports both iOS (xcodebuild) and Android (gradle) execution
-- Graceful handling when platforms are unavailable
+- Android: `yarn test:android` - Runs comprehensive integration tests via gradle
+- iOS: `yarn test:ios:info` - Provides guidance for manual testing due to platform limitations
 
 ### Documentation ✅
 - `PLATFORM_DIFFERENCES.md` - Comprehensive platform comparison
@@ -231,7 +230,7 @@ The native integration testing framework has been implemented with the following
 1. **Add Actual sherpa-onnx Integration**: Replace test placeholders with real library calls
 2. **Set up Test Models**: Download/generate small test models for validation  
 3. **Create Xcode Test Target**: Add proper test target to iOS project for automated testing
-4. **Run Initial Tests**: Execute `./run-native-tests.sh` to validate framework
+4. **Run Initial Tests**: Execute `yarn test:android` to validate framework on Android
 5. **Implement Real Validation**: Replace placeholder assertions with actual library validation
 
 The testing framework is ready - now integrate with actual sherpa-onnx implementation! 
