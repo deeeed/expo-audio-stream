@@ -24,6 +24,7 @@
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@react-navigation/native-stack": "^7.3.14",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "expo": "^53.0.9",
     "expo-av": "~15.1.4",

@@ -3905,6 +3905,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/config-plugins@npm:^10.0.2, @expo/config-plugins@npm:~10.0.0, @expo/config-plugins@npm:~10.0.1, @expo/config-plugins@npm:~10.0.2":
+  version: 10.0.2
+  resolution: "@expo/config-plugins@npm:10.0.2"
+  dependencies:
+    "@expo/config-types": "npm:^53.0.3"
+    "@expo/json-file": "npm:~9.1.4"
+    "@expo/plist": "npm:^0.3.4"
+    "@expo/sdk-runtime-versions": "npm:^1.0.0"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.5"
+    getenv: "npm:^1.0.0"
+    glob: "npm:^10.4.2"
+    resolve-from: "npm:^5.0.0"
+    semver: "npm:^7.5.4"
+    slash: "npm:^3.0.0"
+    slugify: "npm:^1.6.6"
+    xcode: "npm:^3.0.1"
+    xml2js: "npm:0.6.0"
+  checksum: 10/0ebf7ff4b697098ed676aff78de68c937abc4761c2c8cb0aae037bba3fa387214d6d52515e071c08a21cc09f4e5c0b7bc9d84bf179c7f3b1ffecd5db7be062db
+  languageName: node
+  linkType: hard
+
 "@expo/config-plugins@npm:^7.2.4":
   version: 7.9.2
   resolution: "@expo/config-plugins@npm:7.9.2"
@@ -3927,28 +3949,6 @@ __metadata:
     xcode: "npm:^3.0.1"
     xml2js: "npm:0.6.0"
   checksum: 10/11e80f74e307742e195b2476efabe362da3593b5351070a68b8a5dd020a1e8f224c7ab0806d2f969e071403c26071a3490ed574797534e7cf043eca4046310af
-  languageName: node
-  linkType: hard
-
-"@expo/config-plugins@npm:~10.0.0, @expo/config-plugins@npm:~10.0.1, @expo/config-plugins@npm:~10.0.2":
-  version: 10.0.2
-  resolution: "@expo/config-plugins@npm:10.0.2"
-  dependencies:
-    "@expo/config-types": "npm:^53.0.3"
-    "@expo/json-file": "npm:~9.1.4"
-    "@expo/plist": "npm:^0.3.4"
-    "@expo/sdk-runtime-versions": "npm:^1.0.0"
-    chalk: "npm:^4.1.2"
-    debug: "npm:^4.3.5"
-    getenv: "npm:^1.0.0"
-    glob: "npm:^10.4.2"
-    resolve-from: "npm:^5.0.0"
-    semver: "npm:^7.5.4"
-    slash: "npm:^3.0.0"
-    slugify: "npm:^1.6.6"
-    xcode: "npm:^3.0.1"
-    xml2js: "npm:0.6.0"
-  checksum: 10/0ebf7ff4b697098ed676aff78de68c937abc4761c2c8cb0aae037bba3fa387214d6d52515e071c08a21cc09f4e5c0b7bc9d84bf179c7f3b1ffecd5db7be062db
   languageName: node
   linkType: hard
 
@@ -7301,6 +7301,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-navigation/elements@npm:^2.4.3":
+  version: 2.4.3
+  resolution: "@react-navigation/elements@npm:2.4.3"
+  dependencies:
+    color: "npm:^4.2.3"
+  peerDependencies:
+    "@react-native-masked-view/masked-view": ">= 0.2.0"
+    "@react-navigation/native": ^7.1.10
+    react: ">= 18.2.0"
+    react-native: "*"
+    react-native-safe-area-context: ">= 4.0.0"
+  peerDependenciesMeta:
+    "@react-native-masked-view/masked-view":
+      optional: true
+  checksum: 10/495a1b27e715c9ff9160f587341f993eff324c4e30cbee2598a5910162f58280cb08e1dda6d34bc0a5019357a180a0040350c1d63421658214927666e64071a4
+  languageName: node
+  linkType: hard
+
 "@react-navigation/native-stack@npm:^7.0.0, @react-navigation/native-stack@npm:^7.2.0":
   version: 7.3.10
   resolution: "@react-navigation/native-stack@npm:7.3.10"
@@ -7330,6 +7348,22 @@ __metadata:
     react-native-safe-area-context: 5.4.0
     react-native-screens: ~4.10.0
   checksum: 10/5b48154ae45a883c7cd34241c8293dd944449b003644d3b916d16a91cc09701e0c94681dfd006280dd83ad3d693d571bf2ce796f516a46397b27cf2dc8af5afc
+  languageName: node
+  linkType: hard
+
+"@react-navigation/native-stack@npm:^7.3.14":
+  version: 7.3.14
+  resolution: "@react-navigation/native-stack@npm:7.3.14"
+  dependencies:
+    "@react-navigation/elements": "npm:^2.4.3"
+    warn-once: "npm:^0.1.1"
+  peerDependencies:
+    "@react-navigation/native": ^7.1.10
+    react: ">= 18.2.0"
+    react-native: "*"
+    react-native-safe-area-context: ">= 4.0.0"
+    react-native-screens: ">= 4.0.0"
+  checksum: 10/361190ac69ddf60121e94dd0e03df0c2a895940f8fe4a2ff3435678ddc6ce6c96eedcaddaa1e47145db74d142c44e1df4818213509ea53750d30cb0becf67e4e
   languageName: node
   linkType: hard
 
@@ -8120,6 +8154,7 @@ __metadata:
     "@react-native-async-storage/async-storage": "npm:2.1.2"
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
     "@react-navigation/native": "npm:^7.0.14"
+    "@react-navigation/native-stack": "npm:^7.3.14"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~18.3.12"
@@ -8171,6 +8206,7 @@ __metadata:
     "@babel/preset-env": "npm:^7.26.9"
     "@commitlint/config-conventional": "npm:^17.0.2"
     "@evilmartians/lefthook": "npm:^1.5.0"
+    "@expo/config-plugins": "npm:^10.0.2"
     "@react-native-community/cli": "npm:^18.0.0"
     "@react-native/eslint-config": "npm:^0.73.1"
     "@siteed/publisher": "npm:^0.6.0"
@@ -8194,7 +8230,7 @@ __metadata:
     react: "npm:19.0.0"
     react-native: "npm:0.78.0"
     react-native-builder-bob: "npm:^0.37.0"
-    typescript: "npm:^5.2.2"
+    typescript: "npm:^5.8.3"
   peerDependencies:
     react: "*"
     react-native: "*"
