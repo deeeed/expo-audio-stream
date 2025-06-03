@@ -13,9 +13,9 @@ This module supports both Old and New React Native architectures:
 - Stable and tested
 
 ### ✅ New Architecture (JSI/TurboModules)
+- Full TurboModule implementation on both platforms
 - Architecture detection and adaptation
 - Compatible with apps using New Architecture
-- Automatic fallback to bridge when needed
 - System information APIs work on both architectures
 
 ## Platform Support
@@ -29,10 +29,10 @@ This module supports both Old and New React Native architectures:
 
 ### ✅ iOS
 - **Status**: Production ready
-- **Testing**: Integration tests available
+- **Testing**: Manual testing required (platform limitation)
 - **Libraries**: Built from source via `./build-sherpa-ios.sh`
 - **Models**: Full model management support
-- **Architecture**: Bridge-based with New Architecture compatibility
+- **Architecture**: Both Old/New architecture support (fixed in PR #254)
 
 ### ✅ Web
 - **Status**: Basic support
@@ -91,26 +91,33 @@ The module automatically detects and adapts to the React Native architecture:
 import { SherpaOnnx } from '@siteed/sherpa-onnx.rn';
 
 // Works on both architectures
-const systemInfo = await SherpaOnnx.getSystemInfo();
-console.log('Architecture:', systemInfo.architecture.type); // 'old' | 'new'
+const archInfo = await SherpaOnnx.getArchitectureInfo();
+console.log('Architecture:', archInfo);
+// { isNewArchitecture: boolean, turboModuleEnabled: boolean, fabricEnabled: boolean }
 ```
 
-## Migration Guide
+## Integration Testing
 
-### From Old Architecture Only
-- No changes required - module automatically detects architecture
-- New Architecture apps work without modification
-- System info APIs provide architecture details
-
-### Integration Testing
+### Android
 ```bash
-# Android - Run comprehensive test suite
-cd packages/sherpa-onnx.rn/android
-./gradlew :siteed-expo-audio-studio:connectedAndroidTest
-
-# iOS - Open in Xcode for device testing
-open ios/sherpa-onnx-rn.xcworkspace
+# Run integration tests on connected device/emulator
+cd packages/sherpa-onnx.rn
+yarn test:android
 ```
+
+### iOS
+Due to iOS platform limitations, integration tests cannot access React Native modules from unit tests. Testing options:
+
+```bash
+# Get iOS testing information
+cd packages/sherpa-onnx.rn
+yarn test:ios:info
+```
+
+Options for iOS testing:
+- Manual testing with the demo app
+- E2E testing with Detox or Appium
+- Unit tests for isolated native code only
 
 ## Performance Characteristics
 
@@ -127,7 +134,7 @@ open ios/sherpa-onnx-rn.xcworkspace
 ### iOS
 - First-time library build required (`./build-sherpa-ios.sh`)
 - Larger app size (~100MB with libraries)
-- Some models iOS-specific format requirements
+- Integration tests require manual setup in Xcode
 
 ### Android
 - Minimum API 24 required
@@ -154,14 +161,21 @@ cd packages/sherpa-onnx.rn
 ### Architecture Detection Issues
 ```typescript
 // Debug architecture detection
-const info = await SherpaOnnx.getSystemInfo();
-console.log('Architecture info:', info.architecture);
+const info = await SherpaOnnx.getArchitectureInfo();
+console.log('Architecture info:', info);
 ```
 
 ### Build Errors
 - Ensure Java 17+ is used consistently
 - Clear React Native cache: `yarn react-native start --reset-cache`
 - Clean native builds: remove `ios/build` and `android/build`
+
+## Verified Compatibility
+
+- ✅ React Native 0.74+ with new architecture
+- ✅ React Native 0.72+ with old architecture
+- ✅ Expo SDK 51+ (both architectures)
+- ✅ iOS 13.4+ and Android 24+
 
 ## Future Roadmap
 
