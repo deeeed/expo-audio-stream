@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.10.4] - 2025-06-03
+### Changed
+- fix(expo-audio-studio): resolve Swift compilation scope error in AudioStreamManager (#256) ([b44bf3d](https://github.com/deeeed/expo-audio-stream/commit/b44bf3d6d85a3f953d84b024bba828163354a40b))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.10.3 ([5e23474](https://github.com/deeeed/expo-audio-stream/commit/5e23474f9d0b0bcf643098b85779d413d0dc9348))
 ## [2.10.3] - 2025-06-02
 ### Changed
 - fix: prevent UninitializedPropertyAccessException crash in developer menu (#250) ([83c1fd7](https://github.com/deeeed/expo-audio-stream/commit/83c1fd75c9aa022eab1125df251700e3e87c4371))
@@ -270,7 +274,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.4...HEAD
+[2.10.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.3...@siteed/expo-audio-studio@2.10.4
 [2.10.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.2...@siteed/expo-audio-studio@2.10.3
 [2.10.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.1...@siteed/expo-audio-studio@2.10.2
 [2.10.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.0...@siteed/expo-audio-studio@2.10.1
