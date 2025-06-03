@@ -90,7 +90,6 @@ export default function WebAsrTest() {
     return () => {
       messageHandlers.forEach(handler => window.removeEventListener('message', handler));
     };
-  };
 
   // Check if required model files exist
   const checkRequiredFiles = async () => {
