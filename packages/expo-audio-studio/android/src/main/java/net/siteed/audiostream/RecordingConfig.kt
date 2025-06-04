@@ -17,7 +17,8 @@ data class OutputConfig(
     data class CompressedOutput(
         val enabled: Boolean = false,
         val format: String = "aac",
-        val bitrate: Int = 128000
+        val bitrate: Int = 128000,
+        val preferRawStream: Boolean = false
     )
     
     companion object {
@@ -35,7 +36,8 @@ data class OutputConfig(
             val compressed = CompressedOutput(
                 enabled = compressedMap.getBooleanOrDefault("enabled", false),
                 format = compressedMap.getStringOrDefault("format", "aac").lowercase(),
-                bitrate = compressedMap.getNumberOrDefault("bitrate", 128000)
+                bitrate = compressedMap.getNumberOrDefault("bitrate", 128000),
+                preferRawStream = compressedMap.getBooleanOrDefault("preferRawStream", false)
             )
             
             return OutputConfig(primary = primary, compressed = compressed)

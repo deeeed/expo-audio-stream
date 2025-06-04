@@ -1654,9 +1654,20 @@ class AudioRecorderManager(
 
             compressedRecorder?.apply {
                 setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(if (recordingConfig.output.compressed.format == "aac") 
-                    MediaRecorder.OutputFormat.AAC_ADTS 
-                    else MediaRecorder.OutputFormat.OGG)
+                
+                // Choose output format based on codec and preferRawStream flag
+                val outputFormat = when (recordingConfig.output.compressed.format) {
+                    "aac" -> {
+                        if (recordingConfig.output.compressed.preferRawStream) {
+                            MediaRecorder.OutputFormat.AAC_ADTS  // Raw AAC stream
+                        } else {
+                            MediaRecorder.OutputFormat.MPEG_4    // M4A container (new default)
+                        }
+                    }
+                    else -> MediaRecorder.OutputFormat.OGG       // Opus uses OGG container
+                }
+                setOutputFormat(outputFormat)
+                
                 setAudioEncoder(if (recordingConfig.output.compressed.format == "aac") 
                     MediaRecorder.AudioEncoder.AAC 
                     else MediaRecorder.AudioEncoder.OPUS)
@@ -1765,7 +1776,17 @@ class AudioRecorderManager(
         
         // Choose extension based on whether this is a compressed file
         val extension = if (isCompressed) {
-            config.output.compressed.format.lowercase()
+            when (config.output.compressed.format.lowercase()) {
+                "aac" -> {
+                    if (config.output.compressed.preferRawStream) {
+                        "aac"  // Raw AAC stream
+                    } else {
+                        "m4a"  // M4A container (new default)
+                    }
+                }
+                "opus" -> "opus"  // Opus in OGG container
+                else -> config.output.compressed.format.lowercase()
+            }
         } else {
             "wav"
         }

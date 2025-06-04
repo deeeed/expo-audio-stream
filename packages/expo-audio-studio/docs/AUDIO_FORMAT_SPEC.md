@@ -4,11 +4,11 @@
 
 This document describes a complete solution for Issue #253 that will be implemented in a single PR:
 
-### What This PR Will Do:
-1. **Fix iOS bug**: Correct file extension from .aac to .m4a (files are already M4A)
-2. **Improve Android default**: Switch from raw AAC to M4A container (better seeking)
-3. **Add escape hatch**: New `preferRawStream` flag for backward compatibility
-4. **Total changes**: ~20 lines of code + 1 optional TypeScript property
+### ⚠️ Breaking Changes in v2.11.0:
+1. **iOS**: File extension changes from `.aac` to `.m4a` (format unchanged)
+2. **Android**: Both extension AND format change (raw AAC → M4A container)
+3. **Migration**: Add `preferRawStream: true` to keep old Android behavior
+4. **Scope**: ~20 lines of code + 1 optional TypeScript property
 
 ### The Complete Change:
 ```typescript
@@ -302,30 +302,62 @@ The requester wants M4A for better seeking support. The good news:
 - Advanced users can control container format when needed
 - File extension override for special requirements
 
-## Migration Impact
+## ⚠️ BREAKING CHANGE WARNING
 
 ### What Changes for Existing Users
+
+This update includes **breaking changes** that affect file extensions:
 
 ```typescript
 // v2.10.6 and earlier
 { format: 'aac' } 
-// iOS: recording.aac (actually M4A inside)
+// iOS: recording.aac (actually M4A inside, mislabeled)
 // Android: recording.aac (raw AAC stream)
 
-// v2.10.7 and later
+// v2.11.0 and later
 { format: 'aac' } 
-// iOS: recording.m4a (same format, correct extension)
-// Android: recording.m4a (M4A container instead of raw)
+// iOS: recording.m4a (same format, correct extension) ⚠️ BREAKING
+// Android: recording.m4a (M4A container instead of raw) ⚠️ BREAKING
 
-// To get old Android behavior in v2.10.7+
+// To maintain compatibility in v2.11.0+
 { format: 'aac', preferRawStream: true }
 // Android: recording.aac (raw AAC stream, like before)
+// iOS: recording.m4a (cannot produce raw streams)
 ```
 
-**Who is affected:**
-- ✅ iOS users: Just a file extension fix, format unchanged
-- ✅ Most Android users: Get better seekable files
-- ⚠️ Android users who need raw AAC: Must add `preferRawStream: true`
+### Impact Analysis
+
+| User Type | Impact | Action Required |
+|-----------|--------|-----------------|
+| **iOS Users** | File extension changes from `.aac` to `.m4a` | Update code that expects `.aac` files |
+| **Android Users (Basic)** | File extension AND format changes | Update code expecting `.aac` files |
+| **Android Users (Streaming)** | Loss of raw AAC streams | Add `preferRawStream: true` |
+| **Cross-Platform Apps** | Different extensions per platform | Handle platform differences |
+
+### Breaking Change Details
+
+1. **File Extension Changes**
+   - iOS: `.aac` → `.m4a` (format unchanged, just correcting the extension)
+   - Android: `.aac` → `.m4a` (format changes from raw to containerized)
+
+2. **File Format Changes (Android only)**
+   - Before: Raw AAC stream (ADTS format)
+   - After: AAC in MP4 container (M4A format)
+   - Impact: Better seeking but larger file headers (~0.1-1% size increase)
+
+3. **Code That Will Break**
+   ```typescript
+   // This will break after update:
+   const recording = await stopRecording();
+   if (recording.fileUri.endsWith('.aac')) { // ❌ Will be false
+     // Process AAC file
+   }
+   
+   // Fix:
+   if (recording.fileUri.endsWith('.m4a') || recording.fileUri.endsWith('.aac')) {
+     // Process audio file
+   }
+   ```
 
 ### Migration Guide
 
@@ -377,9 +409,16 @@ file recording.aac  # Should show: ADTS, AAC (only on Android with flag)
 
 This complete solution in a single PR:
 1. **Fixes Issue #253** - M4A files with seeking on all platforms
-2. **Minimal code changes** - ~20 lines total across platforms
-3. **Minimal API change** - Just one optional boolean flag
-4. **Maintains compatibility** - Raw AAC still available when needed
-5. **Better defaults** - 99% of users get seekable files automatically
+2. **Breaking change** - File extensions change on both platforms
+3. **Migration path** - `preferRawStream` flag maintains compatibility
+4. **Better defaults** - Most users get seekable files automatically
+5. **Clear upgrade path** - Well-documented migration guide
 
-The key insight: Most users want seekable audio files, not raw streams. By defaulting to M4A containers while keeping raw AAC as an option, we provide the best experience for everyone.
+### Version Strategy
+
+Given the breaking nature of these changes, this should be released as:
+- **Version**: 2.11.0 (minor version bump due to breaking changes)
+- **Highlighted in release notes** as a breaking change
+- **Migration guide** prominently featured
+
+The key insight: While this is a breaking change, it provides better defaults for most users (seekable files) while maintaining backward compatibility through the `preferRawStream` flag.
