@@ -696,12 +696,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Create the default tap block if none provided
         let tapBlock = customTapBlock ?? { [weak self] (buffer, time) in
             guard let self = self,
-                  let fileURL = self.recordingFileURL,
                   self.isRecording else {
                 return
             }
-            // processAudioBuffer will handle resampling if needed
-            self.processAudioBuffer(buffer, fileURL: fileURL)
+            // Process audio buffer for streaming, analysis, and optional file writing
+            // Note: Audio streaming works regardless of primary output settings (consistent with Web/Android)
+            self.processAudioBuffer(buffer)
             self.lastBufferTime = time
         }
         
@@ -1400,12 +1400,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     /// Processes the audio buffer: handles resampling/format conversion if necessary,
-    /// writes the result to the WAV file on a background thread, and triggers
-    /// analysis processing and event emission based on intervals.
+    /// optionally writes the result to the WAV file on a background thread (if primary output is enabled),
+    /// and triggers analysis processing and event emission based on intervals.
+    /// Audio streaming happens regardless of file output settings.
     /// - Parameters:
     ///   - buffer: The audio buffer received from the input node tap.
-    ///   - fileURL: The URL of the file to write the data to (ignored, uses self.fileHandle).
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer, fileURL: URL) {
+    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard let settings = recordingSettings else {
             Logger.debug("processAudioBuffer: Recording settings not available")
             return
@@ -1465,9 +1465,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Create an immutable copy for background/event emission
         let dataToWrite = Data(bytes: bufferData, count: Int(audioData.mDataByteSize))
 
-        // --- Background File Writing ---
-                    // Only write to file if primary output is enabled
-            if settings.output.primary.enabled {
+        // --- Background File Writing (Optional) ---
+        // Only write to file if primary output is enabled
+        if settings.output.primary.enabled {
             // Use the persistent fileHandle opened during preparation.
             DispatchQueue.global(qos: .utility).async { [weak self] in
                 guard let self = self, let handle = self.fileHandle else {
@@ -1488,7 +1488,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             self.totalDataSize += Int64(dataToWrite.count)
         }
 
-        // --- Event Emission & Analysis ---
+        // --- Event Emission & Analysis (Always Happens) ---
+        // Audio streaming is independent of file output settings
         accumulatedData.append(dataToWrite)
         accumulatedAnalysisData.append(dataToWrite)
 
@@ -2104,7 +2105,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 guard let self = self, self.isRecording else { return }
                 
                 // Process the buffer normally - processAudioBuffer handles all emission logic
-                self.processAudioBuffer(buffer, fileURL: self.recordingFileURL!)
+                self.processAudioBuffer(buffer)
                 self.lastBufferTime = time
             }
             
