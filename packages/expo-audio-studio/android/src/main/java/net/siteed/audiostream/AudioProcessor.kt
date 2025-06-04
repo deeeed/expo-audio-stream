@@ -903,43 +903,55 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun decodeAudioToPCM(extractor: MediaExtractor, format: MediaFormat): ByteArray {
-        val decoder = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
-        decoder.configure(format, null, null, 0)
-        decoder.start()
+        var decoder: MediaCodec? = null
+        
+        try {
+            decoder = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            decoder.configure(format, null, null, 0)
+            decoder.start()
 
-        val info = MediaCodec.BufferInfo()
-        val pcmData = mutableListOf<Byte>()
+            val info = MediaCodec.BufferInfo()
+            val pcmData = mutableListOf<Byte>()
 
-        var isEOS = false
-        while (!isEOS) {
-            val inputBufferId = decoder.dequeueInputBuffer(10000)
-            if (inputBufferId >= 0) {
-                val inputBuffer = decoder.getInputBuffer(inputBufferId)!!
-                val sampleSize = extractor.readSampleData(inputBuffer, 0)
+            var isEOS = false
+            while (!isEOS) {
+                val inputBufferId = decoder.dequeueInputBuffer(10000)
+                if (inputBufferId >= 0) {
+                    val inputBuffer = decoder.getInputBuffer(inputBufferId)!!
+                    val sampleSize = extractor.readSampleData(inputBuffer, 0)
 
-                if (sampleSize < 0) {
-                    decoder.queueInputBuffer(inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                    isEOS = true
-                } else {
-                    decoder.queueInputBuffer(inputBufferId, 0, sampleSize, extractor.sampleTime, 0)
-                    extractor.advance()
+                    if (sampleSize < 0) {
+                        decoder.queueInputBuffer(inputBufferId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        isEOS = true
+                    } else {
+                        decoder.queueInputBuffer(inputBufferId, 0, sampleSize, extractor.sampleTime, 0)
+                        extractor.advance()
+                    }
+                }
+
+                val outputBufferId = decoder.dequeueOutputBuffer(info, 10000)
+                if (outputBufferId >= 0) {
+                    val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
+                    val chunk = ByteArray(info.size)
+                    outputBuffer.get(chunk)
+                    pcmData.addAll(chunk.toList())
+                    decoder.releaseOutputBuffer(outputBufferId, false)
                 }
             }
 
-            val outputBufferId = decoder.dequeueOutputBuffer(info, 10000)
-            if (outputBufferId >= 0) {
-                val outputBuffer = decoder.getOutputBuffer(outputBufferId)!!
-                val chunk = ByteArray(info.size)
-                outputBuffer.get(chunk)
-                pcmData.addAll(chunk.toList())
-                decoder.releaseOutputBuffer(outputBufferId, false)
+            return pcmData.toByteArray()
+        } finally {
+            try {
+                decoder?.stop()
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Error stopping decoder: ${e.message}")
+            }
+            try {
+                decoder?.release()
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Error releasing decoder: ${e.message}")
             }
         }
-
-        decoder.stop()
-        decoder.release()
-
-        return pcmData.toByteArray()
     }
 
     private fun resampleAudio(
