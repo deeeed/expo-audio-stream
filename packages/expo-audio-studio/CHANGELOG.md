@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.10.6] - 2025-06-04
+### Changed
+- fix(expo-audio-studio): prevent durationMs returning 0 on iOS (#244) (#260) ([595e5d5](https://github.com/deeeed/expo-audio-stream/commit/595e5d56991c9fa88c2fa4e39efb197916cb8b84))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.10.5 ([d8c6e1d](https://github.com/deeeed/expo-audio-stream/commit/d8c6e1de72ccb0c8885a4f5f3326e3229d9dfd92))
 ## [2.10.5] - 2025-06-04
 ### Changed
 - fix(expo-audio-studio): enable audio streaming when primary output is disabled on iOS (#259) ([1d2bb92](https://github.com/deeeed/expo-audio-stream/commit/1d2bb9280e7d596ed77de30b37e043fd7f8f8cc8))
@@ -278,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.5...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.6...HEAD
+[2.10.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.5...@siteed/expo-audio-studio@2.10.6
 [2.10.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.4...@siteed/expo-audio-studio@2.10.5
 [2.10.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.3...@siteed/expo-audio-studio@2.10.4
 [2.10.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.2...@siteed/expo-audio-studio@2.10.3
