@@ -84,7 +84,7 @@
         "test:android:unit": "cd ../../apps/playground/android && ./gradlew :siteed-expo-audio-studio:test",
         "test:android:instrumented": "cd ../../apps/playground/android && ./gradlew :siteed-expo-audio-studio:connectedAndroidTest",
         "test:android:unit:watch": "cd ../../apps/playground/android && ./gradlew :siteed-expo-audio-studio:test --continuous",
-        "test:ios": "cd ios && xcodebuild test -workspace ExpoAudioStudio.xcworkspace -scheme ExpoAudioStudio -destination 'platform=iOS Simulator,name=iPhone 14'",
+        "test:ios": "cd ../../apps/playground/ios && xcodebuild -workspace AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -destination 'platform=iOS Simulator,name=iPhone 15' build",
         "test:coverage": "cd ../../apps/playground/android && ./gradlew :siteed-expo-audio-studio:jacocoTestReport",
         "typecheck": "tsc --noEmit",
         "docgen": "typedoc src/index.ts --plugin typedoc-plugin-markdown --readme none --out ../../documentation_site/docs/api-reference/API",

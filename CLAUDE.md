@@ -89,8 +89,13 @@ yarn test:android:instrumented       # Instrumented tests
 yarn test:android:unit:watch         # Watch mode for unit tests
 yarn test:coverage                   # Generate coverage report
 
-# iOS tests
-yarn test:ios                        # Run iOS tests
+# iOS compilation verification (MANDATORY for Swift code changes)
+# Method 1: Direct xcodebuild from playground (recommended for CI)
+cd ../../apps/playground/ios && xcodebuild -workspace AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -destination 'platform=iOS Simulator,name=iPhone 15' build
+
+# Method 2: Through Xcode (for detailed error analysis)
+cd ../../apps/playground && yarn open:ios
+# Then build in Xcode (⌘+B)
 ```
 
 #### Playground E2E Testing
