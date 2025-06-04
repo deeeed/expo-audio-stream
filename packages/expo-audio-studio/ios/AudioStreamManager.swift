@@ -782,8 +782,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Update auto-resume preference from settings
         autoResumeAfterInterruption = settings.autoResumeAfterInterruption
         
-        emissionInterval = max(100.0, Double(settings.interval ?? 1000)) / 1000.0
-        emissionIntervalAnalysis = max(100.0, Double(settings.intervalAnalysis ?? 500)) / 1000.0
+        // Enforce minimum interval to prevent excessive CPU usage
+        emissionInterval = max(10.0, Double(settings.interval ?? 1000)) / 1000.0
+        emissionIntervalAnalysis = max(10.0, Double(settings.intervalAnalysis ?? 500)) / 1000.0
         lastEmissionTime = nil // Will be set when recording starts
         lastEmissionTimeAnalysis = nil // Will be set when recording starts
         accumulatedData.removeAll()
