@@ -336,6 +336,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return lastDuration
         }
         
+        // Safety check: if recording but no start time, use current time
+        if isRecording && startTime == nil {
+            Logger.debug("AudioStreamManager", "WARNING: Recording active but startTime is nil, setting to current time")
+            startTime = Date()
+        }
+        
         guard let startTime = self.startTime else { return 0 }
         
         let now = Date()
@@ -786,6 +792,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         lastEmittedSize = 0
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
+        
+        // Initialize startTime early to prevent duration being 0
+        // This will be updated when recording actually starts
+        if startTime == nil {
+            startTime = Date()
+        }
 
         // Create recording file first (unless primary output is disabled)
         if settings.output.primary.enabled {
@@ -1030,7 +1042,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             enableWakeLock()
             
             // Set recording state *before* starting engine to avoid race condition
-            startTime = Date()
+            // Set startTime as early as possible to ensure duration calculation works
+            if startTime == nil {
+                startTime = Date()
+            }
             totalPausedDuration = 0
             currentPauseStart = nil
             lastEmissionTime = Date()
