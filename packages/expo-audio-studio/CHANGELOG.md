@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.10.5] - 2025-06-04
+### Changed
+- fix(expo-audio-studio): enable audio streaming when primary output is disabled on iOS (#259) ([1d2bb92](https://github.com/deeeed/expo-audio-stream/commit/1d2bb9280e7d596ed77de30b37e043fd7f8f8cc8))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.10.4 ([32f8c9e](https://github.com/deeeed/expo-audio-stream/commit/32f8c9ee1d65f52370798654be389de1569e851f))
 ## [2.10.4] - 2025-06-03
 ### Changed
 - fix(expo-audio-studio): resolve Swift compilation scope error in AudioStreamManager (#256) ([b44bf3d](https://github.com/deeeed/expo-audio-stream/commit/b44bf3d6d85a3f953d84b024bba828163354a40b))
@@ -274,7 +278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.4...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.5...HEAD
+[2.10.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.4...@siteed/expo-audio-studio@2.10.5
 [2.10.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.3...@siteed/expo-audio-studio@2.10.4
 [2.10.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.2...@siteed/expo-audio-studio@2.10.3
 [2.10.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.1...@siteed/expo-audio-studio@2.10.2
