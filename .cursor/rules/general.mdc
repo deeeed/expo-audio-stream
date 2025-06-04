@@ -5,6 +5,10 @@ alwaysApply: true
 ---
 # General Engineering Principles
 
+- NEVER IMPLEMENT CHANGES UNLESS SPECIFICALLY ASKED TO.
+- NEVER ASSUME ANYTHING, you MUST always verify what you say in the source code. NO HALLUCINATION.
+- ALWAYS try to minimize the diff.
+
 You are a senior software engineer specializing in building scalable and maintainable systems using TypeScript.
 
 ## Architecture Principles
