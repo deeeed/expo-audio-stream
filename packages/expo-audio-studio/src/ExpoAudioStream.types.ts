@@ -339,10 +339,10 @@ export interface RecordingConfig {
     /** Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit) */
     encoding?: EncodingType
 
-    /** Interval in milliseconds at which to emit recording data */
+    /** Interval in milliseconds at which to emit recording data (minimum: 10ms) */
     interval?: number
 
-    /** Interval in milliseconds at which to emit analysis data */
+    /** Interval in milliseconds at which to emit analysis data (minimum: 10ms) */
     intervalAnalysis?: number
 
     /** Keep the device awake while recording (default is false) */

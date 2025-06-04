@@ -132,8 +132,9 @@ data class RecordingConfig(
                 channels = options.getNumberOrDefault("channels", 1),
                 encoding = options.getStringOrDefault("encoding", "pcm_16bit"),
                 keepAwake = options.getBooleanOrDefault("keepAwake", true),
-                interval = options.getNumberOrDefault("interval", Constants.DEFAULT_INTERVAL),
-                intervalAnalysis = options.getNumberOrDefault("intervalAnalysis", Constants.DEFAULT_INTERVAL_ANALYSIS),
+                // Enforce minimum intervals to prevent excessive CPU usage
+                interval = maxOf(Constants.MIN_INTERVAL, options.getNumberOrDefault("interval", Constants.DEFAULT_INTERVAL)),
+                intervalAnalysis = maxOf(Constants.MIN_INTERVAL, options.getNumberOrDefault("intervalAnalysis", Constants.DEFAULT_INTERVAL_ANALYSIS)),
                 enableProcessing = options.getBooleanOrDefault("enableProcessing", false),
                 segmentDurationMs = options.getNumberOrDefault("segmentDurationMs", 100),
                 showNotification = options.getBooleanOrDefault("showNotification", false),

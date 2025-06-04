@@ -23,7 +23,8 @@ export interface RecordingConfig {
     sampleRate?: SampleRate // Sample rate for recording (16000, 44100, or 48000 Hz)
     channels?: 1 | 2 // Number of audio channels (1 for mono, 2 for stereo)
     encoding?: EncodingType // Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit)
-    interval?: number // Interval in milliseconds at which to emit recording data
+    interval?: number // Interval in milliseconds at which to emit recording data (minimum: 10ms)
+    intervalAnalysis?: number // Interval in milliseconds at which to emit analysis data (minimum: 10ms)
 
     // Device and notification settings
     keepAwake?: boolean // Continue recording when app is in background. On iOS, requires both 'audio' and 'processing' background modes (default is true)
@@ -79,6 +80,40 @@ On iOS, the recording is managed using `AVAudioEngine` and related classes from 
 - Works reliably on both physical devices and simulators regardless of the requested sample rate
 - Supports both 16-bit and 32-bit PCM formats
 - Maintains audio quality through intermediate Float32 format when necessary
+
+## Event Emission Intervals
+
+The `interval` and `intervalAnalysis` options control how frequently audio data and analysis events are emitted during recording. Both have a minimum value of 10ms to ensure consistent behavior across platforms while preventing excessive CPU usage.
+
+### Performance Considerations
+
+| Interval | CPU Usage | Battery Impact | Use Case |
+|----------|-----------|----------------|----------|
+| 10-50ms | High | High | Real-time visualizations, live frequency analysis |
+| 50-100ms | Medium | Medium | Responsive UI updates, waveform display |
+| 100-500ms | Low | Low | Progress indicators, level meters |
+| 500ms+ | Very Low | Minimal | File size monitoring, duration tracking |
+
+### Best Practices
+
+1. **For real-time visualizations**: Use `intervalAnalysis: 10` with minimal features enabled
+2. **For general recording**: Use `interval: 100` or higher to balance responsiveness and performance
+3. **For battery-sensitive apps**: Use intervals of 500ms or higher
+4. **Platform considerations**: While both iOS and Android support 10ms intervals, actual performance may vary based on device capabilities
+
+Example configuration for real-time visualization:
+```tsx
+const realtimeConfig = {
+  intervalAnalysis: 10,      // 10ms for smooth updates
+  interval: 100,             // 100ms for data emission
+  enableProcessing: true,
+  features: {
+    fft: true,              // Only enable what you need
+    energy: false,
+    rms: false
+  }
+};
+```
 
 ## Platform Differences
 
