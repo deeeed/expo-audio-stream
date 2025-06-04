@@ -1,12 +1,25 @@
-# Audio Format Enhancement Specification
+# Audio Format Enhancement Specification - Single PR Solution
 
 ## Executive Summary
 
-This document outlines a comprehensive enhancement to expo-audio-studio's audio format support, addressing:
-1. Fixing file extension inconsistency on iOS (Issue #253)
-2. Clarifying container vs codec distinctions
-3. Implementing platform-appropriate format handling
-4. Ensuring cross-platform consistency
+This document describes a complete solution for Issue #253 that will be implemented in a single PR:
+
+### What This PR Will Do:
+1. **Fix iOS bug**: Correct file extension from .aac to .m4a (files are already M4A)
+2. **Improve Android default**: Switch from raw AAC to M4A container (better seeking)
+3. **Add escape hatch**: New `preferRawStream` flag for backward compatibility
+4. **Total changes**: ~20 lines of code + 1 optional TypeScript property
+
+### The Complete Change:
+```typescript
+// Only addition to the API
+export interface CompressedOutput {
+  enabled?: boolean;
+  format?: 'aac' | 'opus';
+  bitrate?: number;
+  preferRawStream?: boolean;  // NEW: Set to true for raw AAC on Android
+}
+```
 
 ## Immediate Workaround for Issue #253
 
@@ -155,44 +168,114 @@ private fun getFileExtension(format: String, useContainer: Boolean?): String {
 - Android can switch between AAC_ADTS and MPEG_4 output formats
 - iOS always outputs M4A when using AAC codec
 
-## Implementation Plan
+## Proposed Minimal Enhancement
 
-### Phase 1: Quick Fix (v2.10.7)
-Simple file extension correction with no API changes:
+### What We're NOT Changing
+- ❌ NOT adding new audio formats (no MP3, no FLAC, etc.)
+- ❌ NOT adding OGG as a new option
+- ❌ NOT changing the API in Phase 1
+- ✅ ONLY fixing file extensions and improving defaults
 
-```typescript
-// No API changes - just internal fixes
-export interface CompressedOutput {
-  enabled?: boolean;
-  format?: 'aac' | 'opus';  // Unchanged
-  bitrate?: number;         // Unchanged
-}
-```
+### What Currently Happens (v2.10.6)
 
-Platform behavior:
-- **iOS**: Files saved as `.m4a` when format is "aac" (fixing current bug)
-- **Android**: Continue saving as `.aac` (raw AAC stream)
-- **Web**: Continue saving as `.webm` (Opus in WebM)
+| Platform | When you set `format: 'aac'` | When you set `format: 'opus'` |
+|----------|-------------------------------|--------------------------------|
+| iOS | Creates M4A file, saves as .aac ❌ | Tries Opus, falls back to M4A, saves as .aac ❌ |
+| Android | Creates raw AAC file (.aac) ✅ | Creates Opus in OGG container (.opus) ✅ |
+| Web | Creates WebM with Opus (.webm) | Creates WebM with Opus (.webm) |
 
-### Phase 2: Container Control (v2.11.0)
-Add explicit container control:
+### Complete Solution (v2.10.7)
+
+**Minimal API addition to support both better defaults AND backward compatibility:**
 
 ```typescript
 export interface CompressedOutput {
   enabled?: boolean;
-  format?: 'aac' | 'opus';
-  useContainer?: boolean;  // NEW: Request containerized output
+  format?: 'aac' | 'opus';  // Still just these two options!
   bitrate?: number;
+  preferRawStream?: boolean;  // NEW: Optional flag for backward compatibility
 }
 ```
 
-Platform behavior with `useContainer`:
-- **iOS**: Always `.m4a` (ignores flag - platform limitation)
-- **Android**: 
-  - `useContainer: true` → `.m4a` (MP4 container)
-  - `useContainer: false` → `.aac` (raw AAC stream)
-  - Default: `false` for backward compatibility
-- **Web**: Always `.webm` (platform limitation)
+**New behavior:**
+
+| Settings | iOS | Android | Web |
+|----------|-----|---------|-----|
+| `{ format: 'aac' }` | M4A file (.m4a) ✅ | M4A file (.m4a) 🆕 | WebM (.webm) |
+| `{ format: 'aac', preferRawStream: true }` | M4A file (.m4a)* | Raw AAC (.aac) ✅ | WebM (.webm) |
+| `{ format: 'opus' }` | M4A file (.m4a)** | Opus file (.opus) ✅ | WebM (.webm) |
+
+\* iOS cannot produce raw streams, ignores this flag  
+\** iOS falls back to AAC in M4A container
+
+**What this accomplishes:**
+1. ✅ Fixes iOS file extension bug
+2. ✅ Provides better defaults (seekable M4A files)
+3. ✅ Maintains backward compatibility for those who need raw AAC
+4. ✅ Minimal API change - just one optional boolean
+5. ✅ Ships everything in one PR
+
+**Usage Examples:**
+
+```typescript
+// Default - Better for most users (seekable files)
+{ format: 'aac' }  
+// iOS: recording.m4a, Android: recording.m4a
+
+// Need raw AAC stream on Android (like v2.10.6)
+{ format: 'aac', preferRawStream: true }  
+// iOS: recording.m4a (can't do raw), Android: recording.aac
+
+// Opus format (unchanged)
+{ format: 'opus' }
+// iOS: recording.m4a (fallback), Android: recording.opus
+```
+
+### Implementation Details
+
+#### Android Changes
+```kotlin
+// Support both M4A (new default) and raw AAC (backward compatibility)
+private fun getOutputFormat(config: RecordingConfig): Int {
+    val format = config.output.compressed.format
+    val preferRaw = config.output.compressed.preferRawStream ?: false
+    
+    return when (format) {
+        "aac" -> if (preferRaw) {
+            MediaRecorder.OutputFormat.AAC_ADTS  // Raw AAC stream
+        } else {
+            MediaRecorder.OutputFormat.MPEG_4    // M4A container (new default)
+        }
+        "opus" -> MediaRecorder.OutputFormat.OGG
+        else -> MediaRecorder.OutputFormat.MPEG_4
+    }
+}
+
+private fun getFileExtension(config: RecordingConfig): String {
+    val format = config.output.compressed.format
+    val preferRaw = config.output.compressed.preferRawStream ?: false
+    
+    return when (format) {
+        "aac" -> if (preferRaw) "aac" else "m4a"
+        "opus" -> "opus"
+        else -> "m4a"
+    }
+}
+```
+
+#### iOS Changes
+```swift
+// Fix the extension to match actual output
+private func getFileExtension(format: String) -> String {
+    switch format.lowercased() {
+    case "aac", "opus":  // Both produce M4A container on iOS
+        return "m4a"
+    default:
+        return "m4a"
+    }
+}
+// Note: preferRawStream is ignored on iOS as it can't produce raw streams
+```
 
 ## Benefits for Issue #253
 
@@ -202,25 +285,101 @@ The requester wants M4A for better seeking support. The good news:
 - **No slow post-processing needed** - native APIs handle it directly
 - **Seeking works out of the box** with M4A container format
 
+## Why This Approach Works
+
+### 1. Minimal Changes, Maximum Impact
+- **Phase 1**: Just 2-3 line changes per platform
+- **Phase 2**: Optional advanced API preserves simplicity
+- Solves Issue #253 without breaking existing code
+
+### 2. Platform-Optimized Defaults
+- iOS users get M4A files with correct extension
+- Android users get seekable M4A by default (can opt for raw AAC)
+- Web users continue with WebM/Opus
+
+### 3. Progressive Disclosure
+- Basic usage stays simple: `{ format: 'aac' }`
+- Advanced users can control container format when needed
+- File extension override for special requirements
+
+## Migration Impact
+
+### What Changes for Existing Users
+
+```typescript
+// v2.10.6 and earlier
+{ format: 'aac' } 
+// iOS: recording.aac (actually M4A inside)
+// Android: recording.aac (raw AAC stream)
+
+// v2.10.7 and later
+{ format: 'aac' } 
+// iOS: recording.m4a (same format, correct extension)
+// Android: recording.m4a (M4A container instead of raw)
+
+// To get old Android behavior in v2.10.7+
+{ format: 'aac', preferRawStream: true }
+// Android: recording.aac (raw AAC stream, like before)
+```
+
+**Who is affected:**
+- ✅ iOS users: Just a file extension fix, format unchanged
+- ✅ Most Android users: Get better seekable files
+- ⚠️ Android users who need raw AAC: Must add `preferRawStream: true`
+
+### Migration Guide
+
+For Android users who specifically need raw AAC streams:
+```typescript
+// Old code (v2.10.6)
+const recording = await startRecording({
+  output: {
+    compressed: {
+      enabled: true,
+      format: 'aac'  // Produced raw .aac files
+    }
+  }
+});
+
+// New code (v2.10.7+)
+const recording = await startRecording({
+  output: {
+    compressed: {
+      enabled: true,
+      format: 'aac',
+      preferRawStream: true  // Keep raw .aac files
+    }
+  }
+});
+```
+
 ## Testing Requirements
 
-1. **File Format Validation**: 
-   ```bash
-   # Verify actual format matches extension
-   file recording.m4a  # Should show: ISO Media, MP4 Base Media v1
-   file recording.aac  # Should show: ADTS, AAC
-   ```
+```bash
+# Core functionality tests
+- Verify iOS produces .m4a files (not .aac) 
+- Verify Android produces .m4a files by default
+- Verify Android produces .aac files with preferRawStream: true
+- Test seeking works in M4A files on all platforms
+- Ensure web continues to work with WebM
 
-2. **Seeking Performance**: Test that M4A files support instant seeking
-3. **Backward Compatibility**: Ensure existing code continues to work
-4. **Cross-Platform Playback**: Verify files play correctly across platforms
+# Backward compatibility tests
+- Test existing code without preferRawStream works
+- Test preferRawStream flag on all platforms
+- Verify iOS ignores preferRawStream (always M4A)
+
+# File format validation
+file recording.m4a  # Should show: ISO Media, MP4 Base Media
+file recording.aac  # Should show: ADTS, AAC (only on Android with flag)
+```
 
 ## Summary
 
-The issue reported in #253 stems from a simple file extension mismatch on iOS:
-- iOS already produces M4A files (MP4 container) but saves them with `.aac` extension
-- Users can immediately work around this by renaming `.aac` to `.m4a` on iOS
-- A proper fix will correct the extension and add M4A support for Android
-- No slow post-processing is needed - native APIs output the desired format directly
+This complete solution in a single PR:
+1. **Fixes Issue #253** - M4A files with seeking on all platforms
+2. **Minimal code changes** - ~20 lines total across platforms
+3. **Minimal API change** - Just one optional boolean flag
+4. **Maintains compatibility** - Raw AAC still available when needed
+5. **Better defaults** - 99% of users get seekable files automatically
 
-This positions expo-audio-studio to provide the seeking performance requested while maintaining backward compatibility.
+The key insight: Most users want seekable audio files, not raw streams. By defaulting to M4A containers while keeping raw AAC as an option, we provide the best experience for everyone.
