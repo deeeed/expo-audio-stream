@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.11.0] - 2025-06-05
+### Changed
+- refactor(expo-audio-studio): remove android/build.gradle and add device disconnection fallback tests ([36fe9a9](https://github.com/deeeed/expo-audio-stream/commit/36fe9a921505e136ea50406d4b664c597293ffd8))
+- fix(expo-audio-studio): enforce 10ms minimum interval on both platforms (#262) ([035fc07](https://github.com/deeeed/expo-audio-stream/commit/035fc076334c169a2371527bad0ca60f222d10ee))
+- fix(expo-audio-studio): add proper MediaCodec resource cleanup in AudioProcessor ([2b069b6](https://github.com/deeeed/expo-audio-stream/commit/2b069b6ae512f97fae80df1b8cb38bb3a14538e5))
+- feat(expo-audio-studio): add audio format enhancement specification and tests ([ace22a2](https://github.com/deeeed/expo-audio-stream/commit/ace22a22cf6c94ec58ddd4f6cb44f77dd383d6bc))
+- feat\!: Add M4A support with preferRawStream option (#261) ([c9faeb0](https://github.com/deeeed/expo-audio-stream/commit/c9faeb01cd5dcd7407f73a0f7e6d5822adb862a4))
 ## [2.10.6] - 2025-06-04
 ### Changed
 - fix(expo-audio-studio): prevent durationMs returning 0 on iOS (#244) (#260) ([595e5d5](https://github.com/deeeed/expo-audio-stream/commit/595e5d56991c9fa88c2fa4e39efb197916cb8b84))
@@ -282,7 +289,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.6...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.11.0...HEAD
+[2.11.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.6...@siteed/expo-audio-studio@2.11.0
 [2.10.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.5...@siteed/expo-audio-studio@2.10.6
 [2.10.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.4...@siteed/expo-audio-studio@2.10.5
 [2.10.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.3...@siteed/expo-audio-studio@2.10.4
