@@ -311,7 +311,7 @@ export interface OutputConfig {
         format?: 'aac' | 'opus'
         /** Bitrate for compression in bits per second (default: 128000) */
         bitrate?: number
-        /** 
+        /**
          * Prefer raw stream over container format (Android only)
          * - true: Use raw AAC stream (.aac files) like in v2.10.6
          * - false/undefined: Use M4A container (.m4a files) for better seeking support
