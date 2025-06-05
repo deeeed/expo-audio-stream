@@ -8,4 +8,4 @@
 
 > `const` **WAV\_HEADER\_SIZE**: `44` = `44`
 
-Defined in: [src/utils/convertPCMToFloat32.ts:6](https://github.com/deeeed/expo-audio-stream/blob/32f8c9ee1d65f52370798654be389de1569e851f/packages/expo-audio-studio/src/utils/convertPCMToFloat32.ts#L6)
+Defined in: [src/utils/convertPCMToFloat32.ts:6](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/utils/convertPCMToFloat32.ts#L6)

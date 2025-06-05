@@ -8,4 +8,4 @@
 
 > **PCMFormat**: `` `pcm_${BitDepth}bit` ``
 
-Defined in: [src/ExpoAudioStream.types.ts:62](https://github.com/deeeed/expo-audio-stream/blob/32f8c9ee1d65f52370798654be389de1569e851f/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L62)
+Defined in: [src/ExpoAudioStream.types.ts:62](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L62)
