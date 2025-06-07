@@ -6,7 +6,7 @@
 
 # Interface: OutputConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:289](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L289)
+Defined in: [src/ExpoAudioStream.types.ts:304](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L304)
 
 Configuration for audio output files during recording
 
@@ -16,7 +16,7 @@ Configuration for audio output files during recording
 
 > `optional` **compressed**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:303](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L303)
+Defined in: [src/ExpoAudioStream.types.ts:318](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L318)
 
 Configuration for the compressed output file
 
@@ -55,7 +55,7 @@ Note: iOS always produces M4A containers and ignores this flag
 
 > `optional` **primary**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:293](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L293)
+Defined in: [src/ExpoAudioStream.types.ts:308](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L308)
 
 Configuration for the primary (uncompressed) output file
 

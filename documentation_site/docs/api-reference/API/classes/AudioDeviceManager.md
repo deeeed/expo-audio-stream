@@ -6,7 +6,7 @@
 
 # Class: AudioDeviceManager
 
-Defined in: [src/AudioDeviceManager.ts:54](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L54)
+Defined in: [src/AudioDeviceManager.ts:54](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L54)
 
 Class that provides a cross-platform API for managing audio input devices
 
@@ -16,7 +16,7 @@ Class that provides a cross-platform API for managing audio input devices
 
 > **new AudioDeviceManager**(`options`?): [`AudioDeviceManager`](AudioDeviceManager.md)
 
-Defined in: [src/AudioDeviceManager.ts:66](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L66)
+Defined in: [src/AudioDeviceManager.ts:66](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L66)
 
 #### Parameters
 
@@ -36,7 +36,7 @@ Defined in: [src/AudioDeviceManager.ts:66](https://github.com/deeeed/expo-audio-
 
 > **addDeviceChangeListener**(`listener`): () => `void`
 
-Defined in: [src/AudioDeviceManager.ts:265](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L265)
+Defined in: [src/AudioDeviceManager.ts:265](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L265)
 
 Register a listener for device changes
 
@@ -64,7 +64,7 @@ Function to remove the listener
 
 > **getAvailableDevices**(`options`?): `Promise`\<[`AudioDevice`](../interfaces/AudioDevice.md)[]\>
 
-Defined in: [src/AudioDeviceManager.ts:136](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L136)
+Defined in: [src/AudioDeviceManager.ts:136](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L136)
 
 Get all available audio input devices
 
@@ -90,7 +90,7 @@ Promise resolving to an array of audio devices conforming to AudioDevice interfa
 
 > **getCurrentDevice**(): `Promise`\<`null` \| [`AudioDevice`](../interfaces/AudioDevice.md)\>
 
-Defined in: [src/AudioDeviceManager.ts:168](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L168)
+Defined in: [src/AudioDeviceManager.ts:168](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L168)
 
 Get the currently selected audio input device
 
@@ -106,7 +106,7 @@ Promise resolving to the current device (conforming to AudioDevice) or null
 
 > **initWithLogger**(`logger`): [`AudioDeviceManager`](AudioDeviceManager.md)
 
-Defined in: [src/AudioDeviceManager.ts:118](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L118)
+Defined in: [src/AudioDeviceManager.ts:118](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L118)
 
 Initialize the device manager with a logger
 
@@ -130,7 +130,7 @@ The manager instance for chaining
 
 > **refreshDevices**(): `Promise`\<[`AudioDevice`](../interfaces/AudioDevice.md)[]\>
 
-Defined in: [src/AudioDeviceManager.ts:285](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L285)
+Defined in: [src/AudioDeviceManager.ts:285](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L285)
 
 Refresh the list of available devices with debouncing and notify listeners.
 
@@ -146,7 +146,7 @@ Promise resolving to the updated device list (AudioDevice[])
 
 > **resetToDefaultDevice**(): `Promise`\<`boolean`\>
 
-Defined in: [src/AudioDeviceManager.ts:238](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L238)
+Defined in: [src/AudioDeviceManager.ts:238](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L238)
 
 Reset to the default audio input device
 
@@ -162,7 +162,7 @@ Promise resolving to a boolean indicating success
 
 > **selectDevice**(`deviceId`): `Promise`\<`boolean`\>
 
-Defined in: [src/AudioDeviceManager.ts:202](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L202)
+Defined in: [src/AudioDeviceManager.ts:202](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L202)
 
 Select a specific audio input device for recording
 
@@ -186,7 +186,7 @@ Promise resolving to a boolean indicating success
 
 > **setLogger**(`logger`): `void`
 
-Defined in: [src/AudioDeviceManager.ts:127](https://github.com/deeeed/expo-audio-stream/blob/ce05d475b5bcbdb69a6269a6725b5e684604d29e/packages/expo-audio-studio/src/AudioDeviceManager.ts#L127)
+Defined in: [src/AudioDeviceManager.ts:127](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/AudioDeviceManager.ts#L127)
 
 Set the logger instance
 

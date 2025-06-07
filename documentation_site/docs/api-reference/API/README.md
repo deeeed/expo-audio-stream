@@ -10,6 +10,7 @@
 
 ## Interfaces
 
+- [AndroidConfig](interfaces/AndroidConfig.md)
 - [AudioAnalysis](interfaces/AudioAnalysis.md)
 - [AudioDataEvent](interfaces/AudioDataEvent.md)
 - [AudioDevice](interfaces/AudioDevice.md)
