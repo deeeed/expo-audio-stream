@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.12.1] - 2025-06-07
+### Changed
+- feat(playground): implement agent validation framework and enhance testing capabilities (#266) ([e7937e0](https://github.com/deeeed/expo-audio-stream/commit/e7937e0268f54f85ea2e0171b221f7ef29cc6248))
 ## [2.12.0] - 2025-06-07
 ### Changed
 - fix(android): resolve PCM streaming duration calculation bug (Issue #263) (#265) ([a0c5500](https://github.com/deeeed/expo-audio-stream/commit/a0c550099fec9d6b0d486440819173d9d9275908))
@@ -294,7 +297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.1...HEAD
+[2.12.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.0...@siteed/expo-audio-studio@2.12.1
 [2.12.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.11.0...@siteed/expo-audio-studio@2.12.0
 [2.11.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.6...@siteed/expo-audio-studio@2.11.0
 [2.10.6]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.10.5...@siteed/expo-audio-studio@2.10.6
