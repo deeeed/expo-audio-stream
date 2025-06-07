@@ -207,6 +207,21 @@ export interface IOSConfig {
     audioSession?: AudioSessionConfig
 }
 
+/** Android platform specific configuration options */
+export interface AndroidConfig {
+    /**
+     * Audio focus strategy for handling interruptions and background behavior
+     *
+     * - `'background'`: Continue recording when app loses focus (voice recorders, transcription apps)
+     * - `'interactive'`: Pause when losing focus, resume when gaining (music apps, games)
+     * - `'communication'`: Maintain priority for real-time communication (video calls, voice chat)
+     * - `'none'`: No automatic audio focus management (custom handling)
+     *
+     * @default 'background' when keepAwake=true, 'interactive' otherwise
+     */
+    audioFocusStrategy?: 'background' | 'interactive' | 'communication' | 'none'
+}
+
 /** Web platform specific configuration options */
 export interface WebConfig {
     // Reserved for future web-specific options
@@ -362,6 +377,9 @@ export interface RecordingConfig {
 
     /** iOS-specific configuration */
     ios?: IOSConfig
+
+    /** Android-specific configuration */
+    android?: AndroidConfig
 
     /** Web-specific configuration options */
     web?: WebConfig

@@ -30,6 +30,11 @@ echo "-----------------------------------------------------"
 ./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.CompressedOnlyOutputTest"
 
 echo ""
+echo "📱 Running Audio Focus Strategy Integration Test..."
+echo "--------------------------------------------------"
+./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.AudioFocusStrategyIntegrationTest"
+
+echo ""
 echo "📊 Test Results Summary"
 echo "======================"
 echo "Check the test reports at:"

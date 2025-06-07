@@ -13,6 +13,7 @@ import type {
   DeviceDisconnectionBehaviorType,
 } from '@siteed/expo-audio-studio'
 
+import { AndroidSettingsConfig } from './AndroidSettingsConfig'
 import { DeviceValidationManager } from './DeviceValidationManager'
 import { IOSSettingsConfig } from './IOSSettingsConfig'
 import { NativeNotificationConfig } from './NativeNotificationConfig'
@@ -89,6 +90,10 @@ export function RecordingSettings({
   const [iosSettingsEnabled, setIOSSettingsEnabled] = useState(false)
   const [iosSettings, setIOSSettings] = useState<RecordingConfig['ios']>(
     config.ios
+  )
+  const [androidSettingsEnabled, setAndroidSettingsEnabled] = useState(!!config.android?.audioFocusStrategy)
+  const [androidSettings, setAndroidSettings] = useState<RecordingConfig['android']>(
+    config.android
   )
   
   const handleConfigUpdate = (updates: Partial<RecordingConfig>) => {
@@ -347,6 +352,26 @@ export function RecordingSettings({
               onConfigChange={(newConfig) => {
                 setIOSSettings(newConfig)
                 onConfigChange({ ...config, ios: newConfig })
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {Platform.OS === 'android' && (
+        <>
+          <LabelSwitch
+            label="Android Audio Focus Strategy"
+            value={androidSettingsEnabled}
+            onValueChange={setAndroidSettingsEnabled}
+            disabled={isDisabled}
+          />
+          {androidSettingsEnabled && (
+            <AndroidSettingsConfig
+              config={androidSettings}
+              onConfigChange={(newConfig) => {
+                setAndroidSettings(newConfig)
+                onConfigChange({ ...config, android: newConfig })
               }}
             />
           )}

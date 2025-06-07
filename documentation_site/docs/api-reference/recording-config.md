@@ -31,6 +31,7 @@ export interface RecordingConfig {
     showNotification?: boolean // Show a notification during recording (default is false)
     showWaveformInNotification?: boolean // Show waveform in the notification (Android only)
     notification?: NotificationConfig // Configuration for the notification
+    audioFocusStrategy?: 'background' | 'interactive' | 'communication' | 'none' // Audio focus strategy for handling interruptions (Android)
 
     // Audio processing settings
     enableProcessing?: boolean // Enable audio processing (default is false)
@@ -684,6 +685,7 @@ const config = {
     algorithm: 'rms',
     features: { energy: true, rms: true },
     autoResumeAfterInterruption: true,
+    audioFocusStrategy: 'background', // Continue recording through interruptions
     onAudioStream: async (event) => {
         console.log('Audio data:', event);
     },
@@ -780,6 +782,84 @@ const config = {
   - Interruptions are handled through the Web Audio API's state changes
   - Phone call handling is not supported
 
+## Audio Focus Strategy (Android)
+
+The `audioFocusStrategy` option controls how your app handles audio focus changes on Android. This affects how recording behaves when other apps want to play audio or when the user interacts with system audio controls.
+
+### Available Strategies
+
+- **`'background'`** (default when `keepAwake: true`): Continue recording when app loses focus
+  - Best for: Voice recorders, transcription apps, meeting recording
+  - Behavior: Recording continues even when other apps play audio
+  - Use case: Long-term recording where interruptions should not stop recording
+
+- **`'interactive'`** (default when `keepAwake: false`): Pause when losing focus, resume when gaining
+  - Best for: Music apps, games, interactive audio apps
+  - Behavior: Automatically pauses recording when another app needs audio focus
+  - Use case: User-interactive recording where interruptions should pause recording
+
+- **`'communication'`**: Maintain priority for real-time communication
+  - Best for: Video calls, voice chat, live streaming
+  - Behavior: Requests exclusive audio access with high priority
+  - Use case: Real-time communication where audio quality is critical
+
+- **`'none'`**: No automatic audio focus management
+  - Best for: Custom handling scenarios
+  - Behavior: Your app handles all audio focus changes manually
+  - Use case: When you need complete control over audio focus behavior
+
+### Default Behavior
+
+The library automatically selects an appropriate strategy based on your configuration:
+- When `keepAwake: true` → defaults to `'background'`
+- When `keepAwake: false` → defaults to `'interactive'`
+
+### Configuration Examples
+
+```tsx
+// Long-term recording (voice recorder, meeting recording)
+const voiceRecorderConfig = {
+  keepAwake: true,
+  audioFocusStrategy: 'background', // Continue recording through interruptions
+  autoResumeAfterInterruption: true,
+  // ... other config
+};
+
+// Interactive recording (music app, game)
+const interactiveConfig = {
+  keepAwake: false,
+  audioFocusStrategy: 'interactive', // Pause on interruptions
+  autoResumeAfterInterruption: true,
+  // ... other config
+};
+
+// Real-time communication (video call, voice chat)
+const communicationConfig = {
+  sampleRate: 16000, // Optimized for speech
+  audioFocusStrategy: 'communication', // High priority audio access
+  autoResumeAfterInterruption: false, // Manual handling for communication apps
+  // ... other config
+};
+
+// Custom audio focus handling
+const customConfig = {
+  audioFocusStrategy: 'none', // No automatic handling
+  onRecordingInterrupted: (event) => {
+    // Implement custom logic for audio focus changes
+    if (event.reason === 'audioFocusLoss') {
+      // Handle focus loss manually
+    }
+  },
+  // ... other config
+};
+```
+
+### Platform Notes
+
+- **Android**: Full support for all audio focus strategies
+- **iOS**: This option has no effect on iOS (audio session management is handled differently)
+- **Web**: This option has no effect on web platforms
+
 ## Background Recording on iOS
 
 When setting `keepAwake: true` for iOS background recording:
@@ -848,6 +928,7 @@ const config = {
     algorithm: 'rms',
     features: { energy: true, rms: true },
     autoResumeAfterInterruption: true,
+    audioFocusStrategy: 'background', // Continue recording through interruptions
     onAudioStream: async (event) => {
         console.log('Audio data:', event);
     },
