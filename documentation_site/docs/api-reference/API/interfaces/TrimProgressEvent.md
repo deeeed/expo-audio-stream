@@ -6,7 +6,7 @@
 
 # Interface: TrimProgressEvent
 
-Defined in: [src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
+Defined in: [src/ExpoAudioStream.types.ts:635](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L635)
 
 Represents an event emitted during the trimming process to report progress.
 
@@ -16,7 +16,7 @@ Represents an event emitted during the trimming process to report progress.
 
 > `optional` **bytesProcessed**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:644](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L644)
+Defined in: [src/ExpoAudioStream.types.ts:644](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L644)
 
 The number of bytes that have been processed so far. This is optional and may not be provided in all implementations.
 
@@ -26,7 +26,7 @@ The number of bytes that have been processed so far. This is optional and may no
 
 > **progress**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:639](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L639)
+Defined in: [src/ExpoAudioStream.types.ts:639](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L639)
 
 The percentage of the trimming process that has been completed, ranging from 0 to 100.
 
@@ -36,6 +36,6 @@ The percentage of the trimming process that has been completed, ranging from 0 t
 
 > `optional` **totalBytes**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:649](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L649)
+Defined in: [src/ExpoAudioStream.types.ts:649](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L649)
 
 The total number of bytes to process. This is optional and may not be provided in all implementations.

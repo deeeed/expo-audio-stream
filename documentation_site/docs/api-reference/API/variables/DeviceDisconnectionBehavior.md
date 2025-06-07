@@ -8,7 +8,7 @@
 
 > `const` **DeviceDisconnectionBehavior**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:290](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L290)
+Defined in: [src/ExpoAudioStream.types.ts:290](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L290)
 
 Defines how recording should behave when a device becomes unavailable
 

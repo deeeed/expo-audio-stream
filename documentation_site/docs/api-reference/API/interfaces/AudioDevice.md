@@ -6,7 +6,7 @@
 
 # Interface: AudioDevice
 
-Defined in: [src/ExpoAudioStream.types.ts:274](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L274)
+Defined in: [src/ExpoAudioStream.types.ts:274](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L274)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:274](https://github.com/deeeed/expo-au
 
 > **capabilities**: [`AudioDeviceCapabilities`](AudioDeviceCapabilities.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:284](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L284)
+Defined in: [src/ExpoAudioStream.types.ts:284](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L284)
 
 Audio capabilities for the device
 
@@ -24,7 +24,7 @@ Audio capabilities for the device
 
 > **id**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:276](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L276)
+Defined in: [src/ExpoAudioStream.types.ts:276](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L276)
 
 Unique identifier for the device
 
@@ -34,7 +34,7 @@ Unique identifier for the device
 
 > **isAvailable**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:286](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L286)
+Defined in: [src/ExpoAudioStream.types.ts:286](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L286)
 
 Whether the device is currently available
 
@@ -44,7 +44,7 @@ Whether the device is currently available
 
 > **isDefault**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:282](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L282)
+Defined in: [src/ExpoAudioStream.types.ts:282](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L282)
 
 Whether this is the system default device
 
@@ -54,7 +54,7 @@ Whether this is the system default device
 
 > **name**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:278](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L278)
+Defined in: [src/ExpoAudioStream.types.ts:278](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L278)
 
 Human-readable name of the device
 
@@ -64,6 +64,6 @@ Human-readable name of the device
 
 > **type**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:280](https://github.com/deeeed/expo-audio-stream/blob/7b07755001ee12fbd6e31851daf59b90f4897232/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L280)
+Defined in: [src/ExpoAudioStream.types.ts:280](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L280)
 
 Device type (builtin_mic, bluetooth, etc.)
