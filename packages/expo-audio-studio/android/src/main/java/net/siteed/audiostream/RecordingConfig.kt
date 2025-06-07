@@ -64,6 +64,7 @@ data class RecordingConfig(
     val filename: String? = null,
     val deviceId: String? = null,
     val deviceDisconnectionBehavior: String? = null,
+    val audioFocusStrategy: String? = null,
     val bufferDurationSeconds: Double? = null,
 ) {
     companion object {
@@ -125,6 +126,10 @@ data class RecordingConfig(
             // Get device-related settings
             val deviceId = options["deviceId"] as? String
             val deviceDisconnectionBehavior = options["deviceDisconnectionBehavior"] as? String
+            
+            // Get Android-specific settings
+            val androidConfig = options["android"] as? Map<String, Any>
+            val audioFocusStrategy = androidConfig?.get("audioFocusStrategy") as? String
 
             // Initialize the recording configuration with cleaned directory path
             val tempRecordingConfig = RecordingConfig(
@@ -151,6 +156,7 @@ data class RecordingConfig(
                 filename = options["filename"] as? String,
                 deviceId = deviceId,
                 deviceDisconnectionBehavior = deviceDisconnectionBehavior,
+                audioFocusStrategy = audioFocusStrategy,
                 bufferDurationSeconds = (options["bufferDurationSeconds"] as? Number)?.toDouble(),
             )
 

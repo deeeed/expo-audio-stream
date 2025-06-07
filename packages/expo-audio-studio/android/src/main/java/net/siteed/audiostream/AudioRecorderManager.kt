@@ -114,8 +114,17 @@ class AudioRecorderManager(
     private var telephonyManager: TelephonyManager? = null
         get() {
             if (field == null) {
-                field = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-                LogUtils.d(CLASS_NAME, "TelephonyManager initialization: ${if (field != null) "successful" else "failed"}")
+                try {
+                    field = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                    if (field == null) {
+                        LogUtils.w(CLASS_NAME, "TelephonyManager is null - device may not have telephony service (tablet/emulator)")
+                    } else {
+                        LogUtils.d(CLASS_NAME, "TelephonyManager initialization: successful")
+                    }
+                } catch (e: Exception) {
+                    LogUtils.w(CLASS_NAME, "Failed to initialize TelephonyManager: ${e.message}")
+                    field = null
+                }
             }
             return field
         }
@@ -409,8 +418,9 @@ class AudioRecorderManager(
                             }
                             TelephonyManager.CALL_STATE_IDLE -> {
                                 if (_isRecording.get() && isPaused.get()) {
-                                    LogUtils.d(CLASS_NAME, "Call ended, handling auto-resume (enabled: ${recordingConfig.autoResumeAfterInterruption})")
-                                    if (recordingConfig.autoResumeAfterInterruption) {
+                                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
+                                    LogUtils.d(CLASS_NAME, "Call ended, handling auto-resume (enabled: $autoResume)")
+                                    if (autoResume) {
                                         mainHandler.post {
                                             resumeRecording(object : Promise {
                                                 override fun resolve(value: Any?) {
@@ -438,15 +448,18 @@ class AudioRecorderManager(
                     }
                 }
 
-                if (telephonyManager != null) {
+                val localTelephonyManager = telephonyManager
+                if (localTelephonyManager != null) {
                     try {
-                        telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                        localTelephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
                         LogUtils.d(CLASS_NAME, "Successfully registered phone state listener")
+                    } catch (e: SecurityException) {
+                        LogUtils.w(CLASS_NAME, "Missing permission for phone state listener: ${e.message}")
                     } catch (e: Exception) {
                         LogUtils.e(CLASS_NAME, "Failed to register phone state listener", e)
                     }
                 } else {
-                    LogUtils.e(CLASS_NAME, "TelephonyManager is null, cannot register phone state listener")
+                    LogUtils.w(CLASS_NAME, "TelephonyManager is null, phone call interruption handling disabled (device may not have telephony service)")
                 }
             } else {
                 LogUtils.w(CLASS_NAME, "READ_PHONE_STATE permission not granted, phone call interruption handling disabled")
@@ -479,7 +492,8 @@ class AudioRecorderManager(
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (_isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
+                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
+                    if (_isRecording.get() && isPaused.get() && autoResume) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -608,7 +622,11 @@ class AudioRecorderManager(
 
         } catch (e: Exception) {
             releaseAudioFocus()
-            telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+            try {
+                telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+            } catch (e: Exception) {
+                LogUtils.w(CLASS_NAME, "Failed to unregister phone state listener: ${e.message}")
+            }
             promise.reject("UNEXPECTED_ERROR", "Unexpected error: ${e.message}", e)
         }
     }
@@ -1687,6 +1705,55 @@ class AudioRecorderManager(
 
     @SuppressLint("NewApi")
     private fun requestAudioFocus(): Boolean {
+        val strategy = getAudioFocusStrategy()
+        
+        when (strategy) {
+            "none" -> {
+                LogUtils.d(CLASS_NAME, "Skipping audio focus request (strategy: none)")
+                return true
+            }
+            
+            "background" -> {
+                LogUtils.d(CLASS_NAME, "Background recording - minimal audio focus")
+                // For true background recording, we don't request audio focus
+                // This allows recording to continue uninterrupted when users switch apps
+                return true
+            }
+            
+            "communication" -> {
+                return requestCommunicationAudioFocus()
+            }
+            
+            "interactive" -> {
+                return requestInteractiveAudioFocus()
+            }
+            
+            else -> {
+                LogUtils.w(CLASS_NAME, "Unknown audio focus strategy: $strategy, using interactive")
+                return requestInteractiveAudioFocus()
+            }
+        }
+    }
+
+    private fun getAudioFocusStrategy(): String {
+        // Use explicit strategy if provided
+        if (::recordingConfig.isInitialized) {
+            recordingConfig.audioFocusStrategy?.let { return it }
+            
+            // Smart defaults based on other config
+            return if (recordingConfig.keepAwake && enableBackgroundAudio) {
+                "background"
+            } else {
+                "interactive"
+            }
+        }
+        
+        // Default strategy if recordingConfig is not initialized
+        return "interactive"
+    }
+
+    @SuppressLint("NewApi")
+    private fun requestInteractiveAudioFocus(): Boolean {
         audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
             when (focusChange) {
                 AudioManager.AUDIOFOCUS_LOSS,
@@ -1709,7 +1776,8 @@ class AudioRecorderManager(
                     }
                 }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    if (_isRecording.get() && isPaused.get() && recordingConfig.autoResumeAfterInterruption) {
+                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
+                    if (_isRecording.get() && isPaused.get() && autoResume) {
                         mainHandler.post {
                             resumeRecording(object : Promise {
                                 override fun resolve(value: Any?) {
@@ -1744,6 +1812,78 @@ class AudioRecorderManager(
                 audioFocusChangeListener,
                 AudioManager.STREAM_MUSIC,
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+            )
+        }
+        
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    @SuppressLint("NewApi")
+    private fun requestCommunicationAudioFocus(): Boolean {
+        audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_LOSS -> {
+                    // Only pause for permanent focus loss (like phone calls)
+                    if (_isRecording.get() && !isPaused.get()) {
+                        mainHandler.post {
+                            pauseRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    isPaused.set(true)
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusLoss",
+                                        "isPaused" to true
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    LogUtils.e(CLASS_NAME, "Failed to pause recording on audio focus loss")
+                                }
+                            })
+                        }
+                    }
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    // Don't pause for temporary loss in communication mode
+                    LogUtils.d(CLASS_NAME, "Ignoring transient audio focus loss in communication mode")
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
+                    if (_isRecording.get() && isPaused.get() && autoResume) {
+                        mainHandler.post {
+                            resumeRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "audioFocusGain",
+                                        "isPaused" to false
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    LogUtils.e(CLASS_NAME, "Failed to resume recording on audio focus gain")
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build())
+                .setAcceptsDelayedFocusGain(false)
+                .setWillPauseWhenDucked(false)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener!!)
+                .build()
+            audioFocusRequest = focusRequest
+            audioManager.requestAudioFocus(focusRequest)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN
             )
         }
         

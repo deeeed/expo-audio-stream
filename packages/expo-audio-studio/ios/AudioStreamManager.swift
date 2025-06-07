@@ -849,43 +849,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 newSettings.sampleRate = settings.sampleRate  // Keep original sample rate
             }
             
-            // Get base configuration from user settings or defaults
-            var category: AVAudioSession.Category = .playAndRecord
-            var mode: AVAudioSession.Mode = .default
-            var options: AVAudioSession.CategoryOptions = [.allowBluetooth, .mixWithOthers]
-            
-            if let audioSessionConfig = settings.ios?.audioSession {
-                category = audioSessionConfig.category
-                mode = audioSessionConfig.mode
-                options = audioSessionConfig.categoryOptions
-            }
-            
-            // Append necessary options for background recording if keepAwake is enabled
-            if settings.keepAwake {
-                Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
-                // Set the category to PlayAndRecord with proper background options
-                options.insert(.mixWithOthers)
-                // Add duckOthers to reduce volume of other apps instead of stopping them
-                options.insert(.duckOthers)
-                
-                // Configure audio session for background audio
-                do {
-                    try session.setCategory(.playAndRecord, mode: .default, options: options)
-                    try session.setActive(true, options: .notifyOthersOnDeactivation)
-                    // Ensure the app has appropriate Info.plist settings for background audio
-                    Logger.debug("AudioStreamManager", "Audio session configured for background recording with options: \(options)")
-                } catch {
-                    Logger.debug("AudioStreamManager", "Failed to configure audio session for background: \(error)")
-                    try session.setActive(true, options: .notifyOthersOnDeactivation)
-                }
-            } else {
-                Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
-                // If keepAwake is false, don't add background audio options
-                try session.setActive(true)
-            }
-            
-            // Apply the final configuration
-            try session.setCategory(category, mode: mode, options: options)
+            // Configure audio session based on audio focus strategy
+            try configureAudioSession(for: settings)
             // NOTE: We intentionally DO NOT call session.setPreferredSampleRate().
             // Trying to force a sample rate different from the hardware's actual rate
             // often prevents the input node's tap from receiving any buffers.
@@ -2246,6 +2211,50 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
              Logger.debug("Fallback failed with error: \(error). Pausing.")
              performPauseAction(reason: .deviceSwitchFailed)
         }
+    }
+
+    private func configureAudioSession(for settings: RecordingSettings) throws {
+        let session = AVAudioSession.sharedInstance()
+        
+        // Get base configuration from user settings or defaults
+        var category: AVAudioSession.Category = .playAndRecord
+        var mode: AVAudioSession.Mode = .default
+        var options: AVAudioSession.CategoryOptions = [.allowBluetooth, .mixWithOthers]
+        
+        if let audioSessionConfig = settings.ios?.audioSession {
+            category = audioSessionConfig.category
+            mode = audioSessionConfig.mode
+            options = audioSessionConfig.categoryOptions
+        }
+        
+        // Append necessary options for background recording if keepAwake is enabled
+        if settings.keepAwake {
+            Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
+            // Set the category to PlayAndRecord with proper background options
+            options.insert(.mixWithOthers)
+            // Add duckOthers to reduce volume of other apps instead of stopping them
+            options.insert(.duckOthers)
+            
+            // Configure audio session for background audio
+            do {
+                try session.setCategory(.playAndRecord, mode: .default, options: options)
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                // Ensure the app has appropriate Info.plist settings for background audio
+                Logger.debug("AudioStreamManager", "Audio session configured for background recording with options: \(options)")
+            } catch {
+                Logger.debug("AudioStreamManager", "Failed to configure audio session for background: \(error)")
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            }
+        } else {
+            Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
+            // If keepAwake is false, don't add background audio options
+            try session.setActive(true)
+        }
+        
+        // Apply the final configuration
+        try session.setCategory(category, mode: mode, options: options)
+        
+        Logger.debug("AudioStreamManager", "Audio session configured with category: \(category), mode: \(mode), options: \(options)")
     }
 
 }

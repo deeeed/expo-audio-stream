@@ -98,6 +98,9 @@ export default function App() {
         // Optional: Auto-resume after interruption
         autoResumeAfterInterruption: false,
         
+        // Optional: Audio focus strategy (Android only)
+        audioFocusStrategy: 'background', // 'background', 'interactive', 'communication', or 'none'
+        
         // Optional: Buffer duration control
         bufferDurationSeconds: 0.1, // Buffer size in seconds
         // Default: undefined (uses 1024 frames, but iOS enforces minimum 0.1s)
