@@ -94,7 +94,11 @@
         "open:ios": "open -a \"Xcode\" ../../apps/playground/ios",
         "open:android": "open -a \"Android Studio\" ../../apps/playground/android",
         "size": "bundle-size && size-limit",
-        "release": "./publish.sh"
+        "release": "./publish.sh",
+        "agent:validate": "cd ../../apps/playground && yarn agent:validate",
+        "agent:test:unit": "yarn test:android:unit",
+        "agent:test:integration": "yarn test:android:instrumented",
+        "agent:compilation:check": "yarn typecheck && yarn build"
     },
     "devDependencies": {
         "@expo/config-plugins": "~10.0.0",

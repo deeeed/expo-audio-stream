@@ -28,6 +28,7 @@ module.exports = {
     'android.debug': {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
+      testBinaryPath: 'android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
       build: 'cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug',
       reversePorts: [
         7365
@@ -35,10 +36,22 @@ module.exports = {
     },
     'android.release': {
       type: 'android.apk',
-      // Use the standard paths that Gradle generates regardless of APP_NAME value
       binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
       testBinaryPath: 'android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk',
       build: 'cd android && ./gradlew assembleRelease assembleAndroidTest -DtestBuildType=release',
+      reversePorts: [
+        7365
+      ]
+    },
+    // EAS-aligned configurations for CI/testing
+    'android.test': {
+      type: 'android.apk',
+      binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
+      testBinaryPath: 'android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk',
+      build: 'APP_VARIANT=test npx expo run:android --variant release',
+      reversePorts: [
+        7365
+      ]
     }
   },
   devices: {

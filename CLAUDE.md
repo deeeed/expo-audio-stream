@@ -4,345 +4,144 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a monorepo for audio processing libraries and applications built with React Native and Expo. It contains multiple packages:
+**expo-audio-stream** is a comprehensive audio processing monorepo for React Native and Expo applications. It provides real-time audio recording, analysis, visualization, and AI-powered processing capabilities across iOS, Android, and web platforms.
 
-- `@siteed/expo-audio-studio` - Comprehensive audio processing library (formerly `@siteed/expo-audio-stream`)
-- `@siteed/expo-audio-ui` - UI components for audio visualization
-- `@siteed/react-native-essentia` - React Native bindings for Essentia audio analysis
-- `@siteed/sherpa-onnx.rn` - React Native wrapper for sherpa-onnx TTS/STT (in development)
+### Core Packages
+- **`@siteed/expo-audio-studio`** - Main audio processing library with dual-stream recording, device management, and format conversion
+- **`@siteed/expo-audio-ui`** - React Native Skia-based audio visualization components (waveforms, spectrograms)  
+- **`@siteed/react-native-essentia`** - Advanced audio analysis using Essentia (feature extraction, classification)
+- **`@siteed/sherpa-onnx.rn`** - Speech-to-text and text-to-speech capabilities (development)
+
+### Applications
+- **`apps/playground`** - Full-featured demo app showcasing all capabilities (102 E2E tests)
+- **`apps/minimal`** - Simple integration example
+- **`apps/essentia-demo`** - Audio analysis demonstrations
+
+## Agentic Framework Requirements
+
+**10x Engineering with Automated Feedback Loops**: This repository implements a proven agentic framework for fast, reliable development.
+
+### Core Philosophy
+- **Build automated feedback loops** - the absolute key to unlock automated improvements
+- **Quality over speed** - Protect your team from AI mistakes  
+- **Real testing over mocked** - Validate actual functionality works
+- **Fast iteration** - < 2 minutes to prove features work
+
+### Agent Validation System
+
+#### Development Validation (< 2 minutes) - MANDATORY
+**Usage**: `yarn agent:dev <feature> [platform]`
+- **Purpose**: Prove feature functionality works on real devices
+- **Method**: Uses agent-validation.tsx page with deep links  
+- **Validation**: Tests actual expo-audio-studio API behavior
+- **Result**: Immediate feedback on success/failure
+- **Requirement**: **MANDATORY for ALL agent work**
+
+#### Full Validation (5-10 minutes) - OPTIONAL  
+**Usage**: `yarn agent:full [platform]`
+- **Purpose**: Comprehensive testing (102 tests)
+- **When**: Manual choice or CI pipeline
+- **Requirement**: **NOT required for agent completion**
+
+### Agent Constraints (Prevent Costly Mistakes)
+1. **NEVER IMPLEMENT UNLESS ASKED** - No unsolicited changes
+2. **ALWAYS VERIFY IN SOURCE CODE** - No hallucinations accepted
+3. **MINIMIZE DIFF** - Smallest possible changes
+4. **NO WORKAROUNDS** - Fix root causes, not symptoms
+5. **REAL TESTING ONLY** - No simulated results accepted
+
+### Quick Commands
+```bash
+cd apps/playground
+yarn agent:setup                # Device setup (first time)
+yarn agent:dev compression      # Validate compression feature (REQUIRED)
+yarn agent:full                 # Optional comprehensive testing
+yarn agent:cleanup              # Clean dev artifacts
+```
+
+### Device Setup (Required for Validation)
+
+#### Quick Setup Commands
+```bash
+cd apps/playground
+yarn agent:setup               # Check and setup devices
+yarn setup:ios-simulator       # Auto-setup iOS simulator (macOS only)
+```
+
+#### Manual Setup
+```bash
+# Android: Connect device or start emulator
+adb devices                     # Check connected devices
+
+# iOS (macOS only): Boot simulator  
+xcrun simctl boot "iPhone 15"  # Or any available iPhone
+```
+
+### Success Criteria
+- ✅ Development validation passes in < 2 minutes
+- ✅ Feature functionality confirmed working
+- ✅ Include actual command output in response
+- ✅ Real device/simulator testing completed
+- ✅ Optional: Full validation available if desired
+
+**📖 Complete Workflow**: See `docs/AGENT_WORKFLOW.md` for detailed usage, log management, and troubleshooting
 
 ## Essential Commands
 
-### Development Setup
+### Quick Start
 ```bash
-# Install dependencies
-yarn install
-
-# Setup Git LFS for ONNX models (required)
-./scripts/setup-lfs.sh
+yarn install                    # Install dependencies
+./scripts/setup-lfs.sh         # Setup Git LFS for models
+cd apps/playground && yarn build:deps && yarn start  # Run playground app
 ```
 
-### Building Packages
-
-#### expo-audio-studio
+### Development
 ```bash
+# Building packages
+yarn workspace @siteed/expo-audio-studio build
+yarn workspace @siteed/expo-audio-ui build
+
+# Testing
 cd packages/expo-audio-studio
-yarn build          # Build all formats (CJS, ESM, types, plugin)
-yarn build:plugin   # Build Expo plugin only
-yarn build:dev      # Build for development
-yarn typecheck      # Type checking
-yarn lint           # Lint code
-yarn test           # Run all tests
-```
+yarn test:android               # Android tests (36/36) 
+yarn test:ios                   # iOS compilation check
 
-#### expo-audio-ui
-```bash
-cd packages/expo-audio-ui
-yarn build          # Build with Rollup
-yarn build:clean    # Clean and build
-yarn typecheck      # Type checking
-yarn lint           # Lint code
-yarn storybook      # Run Storybook development server
-```
-
-#### react-native-essentia
-```bash
-cd packages/react-native-essentia
-yarn prepare        # Build the package
-yarn build:ios      # Build Essentia for iOS
-yarn build:android  # Build Essentia for Android
-yarn build:all      # Build for all platforms
-yarn test           # Run tests
-```
-
-### Running Example Apps
-
-#### Audio Playground (main demo app)
-```bash
+# E2E Testing
 cd apps/playground
-yarn build:deps     # Build all dependencies
-yarn start          # Start Metro bundler (port 7365)
-yarn ios            # Run on iOS device
-yarn android        # Run on Android
-yarn web            # Run on web
+yarn e2e:android:record         # Recording workflow
+yarn e2e:android:import         # Import workflow
+yarn e2e:android:screenshots    # Visual validation
 ```
 
-#### Minimal Example
-```bash
-cd apps/minimal
-yarn start          # Start Metro bundler
-yarn ios            # Run on iOS
-yarn android        # Run on Android
-yarn web            # Run on web
-```
+## Current Branch Context
 
-### Testing
+You are working on the `main` branch which includes the newly implemented agentic framework validation system.
 
-#### expo-audio-studio Testing
-```bash
-cd packages/expo-audio-studio
-
-# Android tests
-yarn test:android                    # Run all Android tests
-yarn test:android:unit               # Unit tests only
-yarn test:android:instrumented       # Instrumented tests
-yarn test:android:unit:watch         # Watch mode for unit tests
-yarn test:coverage                   # Generate coverage report
-
-# iOS compilation verification (MANDATORY for Swift code changes)
-# Method 1: Direct xcodebuild from playground (recommended for CI)
-cd ../../apps/playground/ios && xcodebuild -workspace AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -destination 'platform=iOS Simulator,name=iPhone 15' build
-
-# Method 2: Through Xcode (for detailed error analysis)
-cd ../../apps/playground && yarn open:ios
-# Then build in Xcode (⌘+B)
-```
-
-#### Playground E2E Testing
-```bash
-cd apps/playground
-
-# Android E2E
-yarn detox:build:android
-yarn e2e:android:record              # Test recording functionality
-yarn e2e:android:screenshots         # Generate screenshots
-yarn e2e:android:import              # Test import functionality
-
-# iOS E2E
-yarn detox:build:ios
-yarn e2e:ios:record
-yarn e2e:ios:screenshots
-yarn e2e:ios:import
-```
-
-### Release & Publishing
-
-#### Publishing Packages
-```bash
-# expo-audio-studio
-cd packages/expo-audio-studio
-yarn release
-
-# expo-audio-ui
-cd packages/expo-audio-ui
-yarn release
-
-# react-native-essentia
-cd packages/react-native-essentia
-npm publish
-```
-
-#### Playground App Deployment
-```bash
-cd apps/playground
-yarn publish                         # Deploy to web
-yarn build:android:production        # Build production Android
-yarn build:ios:production            # Build production iOS
-yarn ota-update:production           # Over-the-air update for production
-```
-
-## Architecture Overview
-
-### Monorepo Structure
-- Uses Yarn workspaces for dependency management
-- Apps in `/apps` directory consume packages from `/packages`
-- Shared TypeScript configuration at root level
-- Lefthook for Git hooks (configured but not enforced)
-
-### Package Architecture
-
-#### expo-audio-studio
-- Native modules for iOS (Swift) and Android (Kotlin)
-- Supports dual-stream recording (raw PCM + compressed)
-- Audio device management and selection
-- Background recording capabilities
-- Integration tests for both platforms
-
-#### expo-audio-ui
-- Built with React Native Skia for visualizations
-- Rollup build system
-- Storybook for component development
-- Peer dependency on expo-audio-studio
-
-#### react-native-essentia
-- C++ native implementation using Essentia library
-- Requires building static libraries for iOS/Android
-- Advanced audio analysis algorithms
-- Uses react-native-builder-bob for building
-
-#### sherpa-onnx.rn
-- Wraps sherpa-onnx for speech recognition and synthesis
-- Web support through WASM
-- Model management system
-- Currently in development
-
-### Key Technical Details
-- All packages use TypeScript
-- iOS requires minimum deployment target 13.4
-- Android minimum SDK 24
-- Web support varies by package
-- ONNX models stored with Git LFS
-- Integration tests require device/simulator
+### Key Features
+- Agentic validation tab (DEV_ONLY) in playground app
+- 102 comprehensive tests (Android + iOS)
+- Real device testing enforcement
+- Cross-platform validation requirements
 
 ## Important Notes
 
 - Always run `yarn build:deps` in playground before development
-- The playground app uses port 7365 by default
-- Git LFS setup is required for ONNX models
+- Git LFS setup required for ONNX models
 - Native changes require pod install (iOS) or gradle sync (Android)
-- Use absolute paths in native test scripts
+- Use absolute paths in test scripts
 - Background recording requires special permissions configuration
+- **VPN Interference**: Disconnect VPNs during iOS E2E tests; Android uses ADB port forwarding (VPN-resistant)
 
-## Current Branch Context
+### Key Benefits of Agentic Framework
 
-You are working on the `fix/compressed-only-output-issue-244` branch which addresses issue #244 - when primary output is disabled and compressed output is enabled, the compression info was not being returned.
+- **10x Productivity**: Automated feedback loops unlock massive productivity gains
+- **Fast Development**: < 2 minutes to prove functionality works on real devices
+- **Quality Assurance**: Real device testing prevents regressions reaching team
+- **Feature-Focused**: Tests only what's relevant, no test maintenance overhead
+- **Simple Workflow**: Single command validation replaces complex test setups
+- **Scalable**: From development iteration to comprehensive CI validation
 
-### Testing the Fix for Issue #244
+### Documentation
 
-To validate the compressed-only output fix on real devices/simulators:
-
-#### Android Testing
-```bash
-# From the repository root
-cd apps/playground/android
-
-# Run the specific test for compressed-only output
-./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.CompressedOnlyOutputTest"
-
-# Or run all integration tests including the new one
-./gradlew :siteed-expo-audio-studio:connectedAndroidTest
-```
-
-#### iOS Testing
-```bash
-# From the repository root
-cd packages/expo-audio-studio/ios/tests/integration
-
-# Make the test executable and run it
-chmod +x compressed_only_output_test.swift
-./compressed_only_output_test.swift
-
-# Or run all integration tests
-./run_integration_tests.sh
-```
-
-#### What the Tests Validate
-- When primary output is disabled and compressed is enabled, compression info is returned
-- The compressed file URI is accessible in the result
-- Different compression formats work correctly (AAC, Opus)
-- File size and metadata are properly reported
-
-## Integration Testing Best Practices
-
-### Running Integration Tests on Real Devices/Simulators
-
-Integration tests are essential for validating that native functionality works correctly. Here's what we've learned:
-
-#### Android Integration Testing
-
-1. **Running Tests**: Android integration tests use instrumented tests that run on a real device or emulator:
-   ```bash
-   cd apps/playground/android
-   ./gradlew :siteed-expo-audio-studio:connectedAndroidTest
-   ```
-
-2. **Test Results**: Located in `packages/expo-audio-studio/android/build/outputs/androidTest-results/`
-
-3. **Specific Test Execution**: Run individual test classes:
-   ```bash
-   ./gradlew :siteed-expo-audio-studio:connectedAndroidTest --tests "*.CompressedOnlyOutputTest"
-   ```
-
-4. **Requirements**:
-   - Connected Android device or running emulator
-   - USB debugging enabled on device
-   - Gradle will automatically install the test APK
-
-#### iOS Integration Testing
-
-1. **Current Setup**: iOS integration tests are script-based and located in `packages/expo-audio-studio/ios/tests/integration/`
-
-2. **Running Tests**:
-   ```bash
-   cd packages/expo-audio-studio/ios/tests/integration
-   ./run_integration_tests.sh
-   ```
-
-3. **Test Types**:
-   - **Simulation Tests**: Some tests simulate behavior (e.g., `compressed_only_output_test.swift`)
-   - **Real Tests**: Unit tests in `ExpoAudioStudioTests/` test actual implementation
-   
-4. **Important Note**: The iOS integration test scripts currently simulate behavior rather than testing the actual AudioStreamManager. For real testing, use the unit tests in Xcode.
-
-### iOS Testing Limitations
-
-**What can be done from CLI:**
-- Build the iOS project (requires Xcode installed)
-- Run script-based tests that don't require iOS runtime
-- Verify source code implementation
-- Check for compilation errors
-
-**What CANNOT be done from CLI:**
-- Run tests that require iOS simulator
-- Execute code that uses iOS-specific APIs (AVAudioSession, etc.)
-- Run instrumented tests on actual devices
-- Access iOS runtime environment
-
-**For actual iOS integration testing:**
-1. Open the project in Xcode
-2. Select a simulator or connected device
-3. Run the test target or app
-4. Manually test the feature or run XCTest unit tests
-
-This limitation applies to any CLI tool (including Claude) that doesn't have access to macOS GUI and Xcode's simulator runtime.
-
-#### Key Learnings
-
-1. **Always Test on Real Implementation**: Simulated tests can mask real bugs. Android's instrumented tests run actual code, while iOS integration scripts may simulate behavior.
-
-2. **Platform Differences**:
-   - Android: Gradle-based instrumented tests run on device
-   - iOS: Mix of script-based tests and Xcode unit tests
-   
-3. **Debugging Failed Tests**:
-   - Check test output logs for detailed error messages
-   - Android: View XML test results in build directory
-   - iOS: Console output from test scripts
-
-4. **Test Coverage**:
-   - Test both success and failure scenarios
-   - Verify edge cases (e.g., primary disabled, compressed enabled)
-   - Check platform-specific behavior (e.g., Opus fallback on iOS)
-
-5. **Fix Validation Process**:
-   - Write/update tests that demonstrate the bug
-   - Implement the fix
-   - Run tests to confirm fix works
-   - Ensure no regression in existing functionality
-
-### Example: Validating Issue #244 Fix
-
-1. **Android** (✅ Can be validated via CLI):
-   ```bash
-   cd apps/playground/android
-   ./gradlew :siteed-expo-audio-studio:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=net.siteed.audiostream.integration.CompressedOnlyOutputTest
-   ```
-   All 4 tests passed, confirming the fix works on Android.
-
-2. **iOS** (⚠️ Requires Xcode/Physical Environment):
-   - **Claude/CLI Limitation**: Cannot run iOS simulator or device tests from command line
-   - **Code Verification**: Can verify fix is implemented by examining source code
-   - **Real Testing**: Requires opening Xcode and running on actual simulator/device
-   - The integration scripts in `ios/tests/integration/` simulate behavior rather than testing real implementation
-
-### Writing Integration Tests
-
-When adding new features or fixing bugs:
-
-1. **Create Test First**: Write a test that demonstrates the current bug
-2. **Run Test**: Confirm it fails with the bug
-3. **Implement Fix**: Make the necessary code changes
-4. **Run Test Again**: Confirm it passes with the fix
-5. **Run Full Suite**: Ensure no regressions
-
-This approach ensures fixes work correctly on real devices and prevents future regressions.
+**📖 Complete Guide**: `docs/AGENT_WORKFLOW.md` - Comprehensive usage, features, setup, and troubleshooting
+**📖 Testing Strategy**: `packages/expo-audio-studio/docs/TESTING_STRATEGY.md` - Agentic validation approach

@@ -75,12 +75,18 @@ const getAppIdentifier = (base: string, variant: string): string => {
     return `${base}.${variant}`
 }
 
+const getAppScheme = (): string => {
+    return `audioplayground`
+}
+
 const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', validatedEnv.APP_VARIANT)
+const APP_SCHEME = getAppScheme()
 
 // Log the important configuration values
 logConfig({
     'App Variant': validatedEnv.APP_VARIANT,
     'App Identifier': APP_IDENTIFIER,
+    'App Scheme': APP_SCHEME,
     'App Version': packageVersion,
     'EAS Project ID': validatedEnv.EAS_PROJECT_ID,
     'Apple Team ID': validatedEnv.APPLE_TEAM_ID || 'Not set',
@@ -101,7 +107,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    scheme: 'audioplayground',
+    scheme: APP_SCHEME,
     splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
