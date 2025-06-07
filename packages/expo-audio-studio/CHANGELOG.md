@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.12.3] - 2025-06-07
+### Changed
+- refactor(expo-audio-studio): adjust audio focus request timing in AudioRecorderManager ([317367c](https://github.com/deeeed/expo-audio-stream/commit/317367cb29fa09016aa73884f2f51e9cfdee1086))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.12.2 ([14db4eb](https://github.com/deeeed/expo-audio-stream/commit/14db4ebfdeb9181e82e810d61283738d41c40a1a))
 ## [2.12.2] - 2025-06-07
 ### Changed
 - fix: audio focus strategy implementation for Android background recording (#267) ([5b7b7ed](https://github.com/deeeed/expo-audio-stream/commit/5b7b7eda86bbd65becbe6bab44a44cdf6a1fb17d))
@@ -300,7 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.3...HEAD
+[2.12.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.2...@siteed/expo-audio-studio@2.12.3
 [2.12.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.1...@siteed/expo-audio-studio@2.12.2
 [2.12.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.0...@siteed/expo-audio-studio@2.12.1
 [2.12.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.11.0...@siteed/expo-audio-studio@2.12.0
