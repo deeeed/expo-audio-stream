@@ -1003,15 +1003,30 @@ class AudioRecorderManager(
                 val fileSize = audioFile?.length() ?: 0
                 LogUtils.d(CLASS_NAME, "WAV File validation - Size: $fileSize bytes, Path: ${audioFile?.absolutePath}")
                 
-                val dataFileSize = fileSize - 44  // Subtract header size
-                val byteRate =
-                    recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
-                        "pcm_8bit" -> 1
-                        "pcm_16bit" -> 2
-                        "pcm_32bit" -> 4
-                        else -> 2 // Default to 2 bytes per sample if the encoding is not recognized
+                // Calculate duration based on context - use actual recording time for streaming-only mode
+                val duration = if (!recordingConfig.output.primary.enabled) {
+                    // For streaming-only mode, calculate duration from actual recording time
+                    val actualRecordingTime = if (recordingStartTime > 0) {
+                        System.currentTimeMillis() - recordingStartTime - pausedDuration
+                    } else {
+                        0L
                     }
-                val duration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
+                    LogUtils.d(CLASS_NAME, "Streaming-only mode: Using actual recording time: ${actualRecordingTime}ms")
+                    actualRecordingTime
+                } else {
+                    // For file-based recording, calculate duration from file size
+                    val dataFileSize = fileSize - 44  // Subtract header size
+                    val byteRate =
+                        recordingConfig.sampleRate * recordingConfig.channels * when (recordingConfig.encoding) {
+                            "pcm_8bit" -> 1
+                            "pcm_16bit" -> 2
+                            "pcm_32bit" -> 4
+                            else -> 2 // Default to 2 bytes per sample if the encoding is not recognized
+                        }
+                    val fileDuration = if (byteRate > 0) (dataFileSize * 1000 / byteRate) else 0
+                    LogUtils.d(CLASS_NAME, "File-based mode: Using file size duration: ${fileDuration}ms")
+                    fileDuration
+                }
 
                 compressedRecorder?.apply {
                     stop()
