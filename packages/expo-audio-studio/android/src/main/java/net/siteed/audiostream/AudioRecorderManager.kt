@@ -469,49 +469,6 @@ class AudioRecorderManager(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    private val audioFocusCallback = object : AudioManager.OnAudioFocusChangeListener {
-        override fun onAudioFocusChange(focusChange: Int) {
-            when (focusChange) {
-                AudioManager.AUDIOFOCUS_LOSS,
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    if (_isRecording.get() && !isPaused.get()) {
-                        mainHandler.post {
-                            pauseRecording(object : Promise {
-                                override fun resolve(value: Any?) {
-                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                        "reason" to "audioFocusLoss",
-                                        "isPaused" to true
-                                    ))
-                                }
-                                override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    LogUtils.e(CLASS_NAME, "Failed to pause recording on audio focus loss")
-                                }
-                            })
-                        }
-                    }
-                }
-                AudioManager.AUDIOFOCUS_GAIN -> {
-                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
-                    if (_isRecording.get() && isPaused.get() && autoResume) {
-                        mainHandler.post {
-                            resumeRecording(object : Promise {
-                                override fun resolve(value: Any?) {
-                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                        "reason" to "audioFocusGain",
-                                        "isPaused" to false
-                                    ))
-                                }
-                                override fun reject(code: String, message: String?, cause: Throwable?) {
-                                    LogUtils.e(CLASS_NAME, "Failed to resume recording on audio focus gain")
-                                }
-                            })
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     @RequiresApi(Build.VERSION_CODES.R)
     fun startRecording(options: Map<String, Any?>, promise: Promise) {
@@ -1753,17 +1710,23 @@ class AudioRecorderManager(
     private fun getAudioFocusStrategy(): String {
         // Use explicit strategy if provided
         if (::recordingConfig.isInitialized) {
-            recordingConfig.audioFocusStrategy?.let { return it }
+            recordingConfig.audioFocusStrategy?.let { 
+                LogUtils.d(CLASS_NAME, "Using explicit audio focus strategy: $it")
+                return it 
+            }
             
             // Smart defaults based on other config
-            return if (recordingConfig.keepAwake && enableBackgroundAudio) {
+            val defaultStrategy = if (recordingConfig.keepAwake && enableBackgroundAudio) {
                 "background"
             } else {
                 "interactive"
             }
+            LogUtils.d(CLASS_NAME, "Using default audio focus strategy: $defaultStrategy (keepAwake=${recordingConfig.keepAwake}, enableBackgroundAudio=$enableBackgroundAudio)")
+            return defaultStrategy
         }
         
         // Default strategy if recordingConfig is not initialized
+        LogUtils.d(CLASS_NAME, "Using fallback audio focus strategy: interactive")
         return "interactive"
     }
 

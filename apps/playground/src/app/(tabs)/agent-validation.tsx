@@ -75,6 +75,40 @@ const AgentValidationScreen = () => {
 
   // Create recording configuration from URL params
   const createRecordingConfig = useCallback((params: ParsedParams): RecordingConfig => {
+    // Check if we have a base64-encoded config parameter
+    if (params.config && typeof params.config === 'string') {
+      try {
+        // Decode base64 and parse JSON
+        const decodedConfig = JSON.parse(atob(params.config))
+        console.log('📦 Using base64-encoded config:', decodedConfig)
+        
+        // Add callbacks
+        const recordingConfig: RecordingConfig = {
+          ...decodedConfig,
+          onAudioStream: async (event: AudioDataEvent) => {
+            const message = `AudioStream: position=${event.position}, size=${event.eventDataSize}, total=${event.totalSize}`
+            addEvent(`${new Date().toISOString()}: ${message}`)
+          },
+          onRecordingInterrupted: (event) => {
+            console.log('🔄 Recording interrupted:', event)
+            addEvent(`Recording interrupted: ${event.reason}, isPaused: ${event.isPaused}`)
+          },
+        }
+        return recordingConfig
+      } catch (error) {
+        console.error('Failed to parse base64 config:', error)
+        // Don't call setError here as it causes re-renders
+        // Return a minimal valid config to avoid type errors
+        return {
+          sampleRate: 44100,
+          channels: 1,
+          encoding: 'pcm_16bit',
+          interval: 100,
+        } as RecordingConfig
+      }
+    }
+    
+    // Fallback to legacy parameter parsing for backward compatibility
     const recordingConfig: RecordingConfig = {
       sampleRate: params.sampleRate ? parseInt(params.sampleRate as string) as SampleRate : 44100,
       channels: params.channels ? parseInt(params.channels as string) as 1 | 2 : 1,
@@ -83,6 +117,10 @@ const AgentValidationScreen = () => {
       enableProcessing: params.enableProcessing === 'true',
       keepAwake: params.keepAwake !== 'false',
       showNotification: params.showNotification === 'true',
+      // Support both flat audioFocusStrategy and android.audioFocusStrategy in URL
+      android: params['android.audioFocusStrategy'] ? {
+        audioFocusStrategy: params['android.audioFocusStrategy'] as 'background' | 'interactive' | 'communication' | 'none'
+      } : undefined,
       output: {
         primary: {
           enabled: params.primaryOutput !== 'false',
@@ -97,10 +135,9 @@ const AgentValidationScreen = () => {
         const message = `AudioStream: position=${event.position}, size=${event.eventDataSize}, total=${event.totalSize}`
         addEvent(`${new Date().toISOString()}: ${message}`)
       },
-      // Add callback to prevent warning overlay
       onRecordingInterrupted: (event) => {
         console.log('🔄 Recording interrupted:', event)
-        addEvent(`Recording interrupted: ${event.reason}`)
+        addEvent(`Recording interrupted: ${event.reason}, isPaused: ${event.isPaused}`)
       },
     }
 
@@ -113,7 +150,7 @@ const AgentValidationScreen = () => {
       setError(null)
       const configToUse = recordingConfig || createRecordingConfig(params)
       if (!configToUse) {
-        setError('No configuration available')
+        setError('No configuration available or invalid base64 config')
         return
       }
 
@@ -186,6 +223,7 @@ const AgentValidationScreen = () => {
       withScrollView
       useInsets={false}
       contentContainerStyle={styles.container}
+      testID="agent-validation-wrapper"
     >
         <Card style={styles.resultCard}>
           <Card.Content>
@@ -396,10 +434,17 @@ const AgentValidationScreen = () => {
               {'\n'}• With compression:
               {'\n'}audioplayground://agent-validation?compressedOutput=true&compressedFormat=aac&compressedBitrate=128000
               {'\n'}
+              {'\n'}• Background recording:
+              {'\n'}audioplayground://agent-validation?keepAwake=true&android.audioFocusStrategy=background
+              {'\n'}
+              {'\n'}• With base64 config:
+              {'\n'}audioplayground://agent-validation?config=eyJrZWVwQXdha2UiOnRydWUsImFuZHJvaWQiOnsiYXVkaW9Gb2N1c1N0cmF0ZWd5IjoiYmFja2dyb3VuZCJ9fQ==
+              {'\n'}
               {'\n'}• Production scheme: audioplayground://
               {'\n'}• Development scheme: audioplayground-development://
               {'\n'}
-              {'\n'}Parameters: sampleRate, channels, encoding, interval, enableProcessing, keepAwake, showNotification, primaryOutput, compressedOutput, compressedFormat, compressedBitrate
+              {'\n'}Parameters: sampleRate, channels, encoding, interval, enableProcessing, keepAwake, showNotification, android.audioFocusStrategy, primaryOutput, compressedOutput, compressedFormat, compressedBitrate
+              {'\n'}Alternative: Pass entire config as base64 JSON with ?config=base64String
               {'\n'}
               {'\n'}Use Detox to press buttons and test recording workflow.
             </Text>
