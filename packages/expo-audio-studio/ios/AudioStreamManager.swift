@@ -896,9 +896,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
             // Log session config details as single lines for clarity
             Logger.debug("AudioStreamManager", "Audio session configured:")
-            Logger.debug("AudioStreamManager", "  - category: \(category)")
-            Logger.debug("AudioStreamManager", "  - mode: \(mode)")
-            Logger.debug("AudioStreamManager", "  - options: \(options)")
+            Logger.debug("AudioStreamManager", "  - category: \(session.category)")
+            Logger.debug("AudioStreamManager", "  - mode: \(session.mode)")
+            Logger.debug("AudioStreamManager", "  - options: \(session.categoryOptions)")
             Logger.debug("AudioStreamManager", "  - keepAwake: \(settings.keepAwake)")
             Logger.debug("AudioStreamManager", "  - emission interval: \(emissionInterval * 1000)ms")
             Logger.debug("AudioStreamManager", "  - analysis interval: \(emissionIntervalAnalysis * 1000)ms")
