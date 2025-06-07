@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- fix(android): resolve PCM streaming duration calculation bug (Issue #263) (#265) ([a0c5500](https://github.com/deeeed/expo-audio-stream/commit/a0c550099fec9d6b0d486440819173d9d9275908))
+- feat(expo-audio-studio): implement Android-only audioFocusStrategy (#264) ([cc77226](https://github.com/deeeed/expo-audio-stream/commit/cc7722605a5502a58b8236b610c9bdccf5f7f561))
+- docs: fix comment formatting in OutputConfig interface for clarity ([07fac61](https://github.com/deeeed/expo-audio-stream/commit/07fac61245843c601709bb7576db6e48b2106cf7))
 
 ## [2.11.0] - 2025-06-05
 ### Changed
