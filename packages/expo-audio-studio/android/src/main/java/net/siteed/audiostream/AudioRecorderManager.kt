@@ -479,12 +479,6 @@ class AudioRecorderManager(
                 return
             }
             
-            // Request audio focus - always do this right before starting
-            if (!requestAudioFocus()) {
-                promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
-                return
-            }
-
             // If already prepared, we can skip initialization
             if (!isPrepared) {
                 LogUtils.d(CLASS_NAME, "Not prepared, preparing recording first")
@@ -499,7 +493,7 @@ class AudioRecorderManager(
                 // Check permissions
                 if (!checkPermissions(options, promise)) return
 
-                // Parse recording configuration
+                // Parse recording configuration FIRST
                 val configResult = RecordingConfig.fromMap(options)
                 if (configResult.isFailure) {
                     promise.reject(
@@ -513,6 +507,12 @@ class AudioRecorderManager(
                 val (tempRecordingConfig, audioFormatInfo) = configResult.getOrNull()!!
                 
                 recordingConfig = tempRecordingConfig
+                
+                // Request audio focus AFTER config is parsed so strategy is correct
+                if (!requestAudioFocus()) {
+                    promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
+                    return
+                }
                 
                 // Store device-related settings
                 selectedDeviceId = recordingConfig.deviceId
@@ -545,6 +545,12 @@ class AudioRecorderManager(
                     deviceDisconnectionBehavior = tempRecordingConfig.deviceDisconnectionBehavior 
                         ?: deviceDisconnectionBehavior
                         ?: "pause"
+                }
+                
+                // Request audio focus with current config
+                if (!requestAudioFocus()) {
+                    promise.reject("AUDIO_FOCUS_ERROR", "Failed to obtain audio focus", null)
+                    return
                 }
             }
 
