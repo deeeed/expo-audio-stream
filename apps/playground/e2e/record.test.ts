@@ -1,5 +1,5 @@
 import { beforeAll, describe, it } from '@jest/globals'
-import { by, element, expect as detoxExpect, device } from 'detox'
+import { by, element, expect as detoxExpect, device, waitFor } from 'detox'
 
 // Define direction type locally
 type ScrollDirection = 'up' | 'down' | 'left' | 'right';
@@ -41,13 +41,11 @@ describe('Record Screen', () => {
       }
     });
     
-    if (device.getPlatform() === 'android') {
-      await element(by.text('Record')).atIndex(0).tap();
-    } else {
-      await element(by.label('Record')).atIndex(0).tap();
-    }
-    
-    await detoxExpect(element(by.id('record-screen-notice'))).toBeVisible();
+    // App should start on the Record tab by default (initialRouteName="record")
+    // Wait for the record screen to be visible
+    await waitFor(element(by.id('record-screen-notice')))
+      .toBeVisible()
+      .withTimeout(10000);
   });
 
   it('should show start recording button', async () => {
@@ -71,7 +69,9 @@ describe('Record Screen', () => {
     await element(by.id('start-recording-button')).tap();
     
     // Wait for recording to start
-    await detoxExpect(element(by.id('active-recording-view'))).toBeVisible();
+    await waitFor(element(by.id('active-recording-view')))
+      .toBeVisible()
+      .withTimeout(5000);
     
     // Wait a bit to simulate recording
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -81,17 +81,23 @@ describe('Record Screen', () => {
     await element(by.id('pause-recording-button')).tap();
     
     // Wait for paused state
-    await detoxExpect(element(by.id('paused-recording-view'))).toBeVisible();
+    await waitFor(element(by.id('paused-recording-view')))
+      .toBeVisible()
+      .withTimeout(3000);
     
     // Wait a bit in paused state
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Find and tap resume button
-    await detoxExpect(element(by.id('resume-recording-button'))).toBeVisible();
+    await waitFor(element(by.id('resume-recording-button')))
+      .toBeVisible()
+      .withTimeout(3000);
     await element(by.id('resume-recording-button')).tap();
     
     // Wait for active recording again
-    await detoxExpect(element(by.id('active-recording-view'))).toBeVisible();
+    await waitFor(element(by.id('active-recording-view')))
+      .toBeVisible()
+      .withTimeout(3000);
     
     // Wait a bit more to simulate recording
     await new Promise(resolve => setTimeout(resolve, 2000));

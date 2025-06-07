@@ -1,38 +1,73 @@
 # Contributing to @siteed/expo-audio-studio
 
-Thank you for your interest in contributing to this library! This document provides comprehensive guidelines for contributing to the project using a test-driven development approach.
+Thank you for your interest in contributing to this library! This document provides comprehensive guidelines for contributing using our **Agentic Framework** for 10x productivity gains.
 
 ## Table of Contents
 
-- [Development Philosophy](#development-philosophy)
+- [Agentic Framework Philosophy](#agentic-framework-philosophy)
 - [Feature Development Process](#feature-development-process)
-- [Test-Driven Development Workflow](#test-driven-development-workflow)
+- [Validation Workflows](#validation-workflows)
 - [Platform Implementation Order](#platform-implementation-order)
-- [Testing Architecture](#testing-architecture)
 - [Development Setup](#development-setup)
 - [Debugging](#debugging)
 - [Code Style](#code-style)
 - [Pull Request Process](#pull-request-process)
 - [Release Process](#release-process)
 
-## Development Philosophy
+## Development Approaches
 
-This project strongly encourages a **Test-Driven Development (TDD)** approach for new features. With the testing framework now in place, this approach helps ensure:
-- High code quality and reliability
-- Clear feature specifications before implementation
-- Consistent behavior across platforms
-- Easier maintenance and refactoring
-- Living documentation through tests
+This project supports two development approaches - choose the one that best fits your workflow:
 
-### Core Principles
+### 🤖 Agentic Framework (Recommended for AI-Assisted Development)
 
-1. **Write Tests First**: When possible, define expected behavior through tests before writing implementation
-2. **Cross-Platform Consistency**: Ensure features work identically on iOS, Android, and Web
-3. **Architecture First**: Design the API and architecture before coding
-4. **Incremental Development**: Build features in small, testable increments
-5. **Continuous Validation**: Run tests after each change
+For those using AI agents or seeking 10x productivity gains through automated feedback loops:
 
-> **Note**: The testing framework is newly available. While TDD is highly recommended for new features, existing code may not have full test coverage. Contributors are encouraged to add tests when modifying existing features.
+**Core Philosophy:**
+- **Fast validation** (< 2 minutes to prove functionality works)
+- **Real device testing** instead of mocked behavior
+- **Automated feedback loops** as the key to productivity
+- **Quality assurance** that prevents team regressions
+
+**Quick Commands:**
+```bash
+cd apps/playground
+yarn agent:setup              # Setup devices (first time)
+yarn agent:dev <feature>      # Validate feature works (< 2 minutes)
+yarn agent:full               # Optional comprehensive testing
+```
+
+**Agent Constraints:**
+- NEVER IMPLEMENT UNLESS ASKED
+- ALWAYS VERIFY IN SOURCE CODE
+- MINIMIZE DIFF - smallest possible changes
+- NO WORKAROUNDS - fix root causes
+- REAL TESTING ONLY - no simulated results
+
+### 🧪 Traditional TDD (Alternative Approach)
+
+For those preferring traditional test-driven development:
+
+**Core Philosophy:**
+- Write tests first to define expected behavior
+- Red → Green → Refactor cycle
+- High test coverage and living documentation
+- Cross-platform consistency through comprehensive testing
+
+**Quick Commands:**
+```bash
+# Run traditional test suite
+./scripts/run_tests.sh all     # All platforms
+./scripts/run_tests.sh android # Android only
+./scripts/run_tests.sh ios     # iOS only
+```
+
+**TDD Workflow:**
+1. Write failing tests first
+2. Implement minimal code to pass
+3. Refactor while keeping tests green
+4. Validate on all platforms
+
+Both approaches ensure high-quality, cross-platform consistent features. Choose based on your development style and tooling preferences.
 
 ## Feature Development Process
 
@@ -222,21 +257,48 @@ Example additions for a new feature:
 />
 ```
 
-## Test-Driven Development Workflow
+## Validation Workflows
 
-### The TDD Cycle (Recommended Approach)
+Choose the validation approach that fits your development style:
 
-1. **Red**: Write a failing test
-2. **Green**: Write minimal code to pass the test
-3. **Refactor**: Improve code while keeping tests green
+### 🤖 Agentic Validation Workflow (Fast & Modern)
 
-### Example Workflow
+For AI-assisted development with fast feedback loops:
 
 ```bash
 # 1. Create feature branch
 git checkout -b feature/audio-pitch-detection
 
-# 2. Write test first (recommended)
+# 2. Implement feature with fast validation
+# Edit iOS/Android implementations
+
+# 3. Validate functionality works (< 2 minutes)
+cd apps/playground
+yarn agent:dev pitch-detection android
+
+# 4. Cross-platform validation
+yarn agent:dev pitch-detection ios
+yarn agent:dev pitch-detection both
+
+# 5. Optional comprehensive testing
+yarn agent:full
+```
+
+**Benefits:**
+- Validates real functionality on actual devices
+- Immediate feedback (< 2 minutes)
+- No test maintenance overhead
+- Discovers platform limitations immediately
+
+### 🧪 Traditional TDD Workflow (Comprehensive Testing)
+
+For traditional test-driven development:
+
+```bash
+# 1. Create feature branch  
+git checkout -b feature/audio-pitch-detection
+
+# 2. Write test first (TDD approach)
 touch src/__tests__/pitchDetection.test.ts
 # Write failing tests
 
@@ -247,7 +309,7 @@ yarn test
 # Edit ios/PitchDetector.swift
 ./scripts/run_tests.sh ios
 
-# 5. Implement for Android
+# 5. Implement for Android  
 # Edit android/src/main/java/.../PitchDetector.kt
 ./scripts/run_tests.sh android
 
@@ -260,6 +322,12 @@ yarn test
 # 8. Run full test suite
 yarn test:all
 ```
+
+**Benefits:**
+- Comprehensive test coverage
+- Living documentation through tests
+- Detailed error scenario testing
+- Traditional development comfort
 
 ## Testing Architecture
 
@@ -280,37 +348,12 @@ yarn test:all
    - Cross-platform consistency tests
    - Location: `e2e/`
 
-### Test Structure
-
-```
-packages/expo-audio-studio/
-├── src/
-│   └── __tests__/          # TypeScript unit tests
-├── android/
-│   ├── src/test/           # Android unit tests (JVM)
-│   └── src/androidTest/    # Android instrumented tests
-├── ios/
-│   └── ExpoAudioStudioTests/  # iOS tests
-├── e2e/                    # Integration tests
-└── test-assets/            # Shared test audio files
-```
-
-### Running Tests
+### Quick Test Commands
 
 ```bash
-# Run all tests
-./scripts/run_tests.sh
-
-# Run specific platform
-./scripts/run_tests.sh android
-./scripts/run_tests.sh ios
-
-# Run specific test type
-./scripts/run_tests.sh android unit
-./scripts/run_tests.sh android instrumented
-
-# Run with coverage
-yarn test:coverage
+./scripts/run_tests.sh              # All platforms
+./scripts/run_tests.sh android      # Android only  
+./scripts/run_tests.sh ios          # iOS only
 ```
 
 ## Development Setup
@@ -343,106 +386,24 @@ Test audio files are located in `test-assets/`:
 
 ## Debugging
 
-### Android (ADB)
+### Quick Debug Commands
 
-For Android development, you can use ADB (Android Debug Bridge) to view and filter log output from the library. The library uses a standardized logging approach with consistent prefixes to make filtering easier.
-
-#### Viewing All Library Logs
-
+**Android**
 ```bash
-# View all logs from the library
-adb logcat -v time | grep "ExpoAudioStudio"
+adb logcat -v time | grep "ExpoAudioStudio"        # Module logs
+adb logcat -v time | grep "ExpoAudioStudio" | grep " E "  # Errors only
 ```
 
-#### Filtering by Component
-
+**iOS**
 ```bash
-# View logs from specific components
-adb logcat -v time | grep "ExpoAudioStudio:AudioDeviceManager"
-adb logcat -v time | grep "ExpoAudioStudio:AudioRecorderManager"
-adb logcat -v time | grep "ExpoAudioStudio:AudioProcessor"
-```
-
-#### Common Debug Commands
-
-```bash
-# View only errors from the library
-adb logcat -v time | grep "ExpoAudioStudio" | grep " E "
-
-# Save logs to a file for analysis
-adb logcat -v time | grep "ExpoAudioStudio" > expo_audio_logs.txt
-
-# Clear logcat buffer
-adb logcat -c
-
-# View test logs
-adb logcat -v time | grep "ExpoAudioStudioTest"
-```
-
-#### Useful Log Tags
-
-- `ExpoAudioStudio:AudioProcessor` - Audio analysis and processing
-- `ExpoAudioStudio:AudioDeviceManager` - Device selection and monitoring
-- `ExpoAudioStudio:AudioRecorderManager` - Recording lifecycle
-- `ExpoAudioStudio:ExpoAudioStreamModule` - Module initialization and API calls
-- `ExpoAudioStudio:AudioTrimmer` - Audio trimming operations
-
-### iOS (Xcode)
-
-This monorepo includes an `AudioDevPlayground` app for testing. When launched in development mode, you can use these commands to view logs:
-
-#### Simulator
-
-```bash
-# View all logs from the AudioDevPlayground app
+# Simulator
 xcrun simctl spawn booted log stream --predicate 'process contains "AudioDevPlayground"'
 
-# View only error logs
-xcrun simctl spawn booted log stream --level error --predicate 'process contains "AudioDevPlayground"'
-
-# View logs from our module in the playground app
-xcrun simctl spawn booted log stream --predicate 'process contains "AudioDevPlayground" && subsystem contains "ExpoAudioStream"'
-
-# View logs from the module directly
-xcrun simctl spawn booted log stream --predicate 'subsystem contains "ExpoAudioStudio"'
-```
-
-#### Physical Device
-
-For connected physical iOS devices, use these commands instead:
-
-```bash
-# View all logs from the AudioDevPlayground app on device
+# Device
 log stream --predicate 'process contains "AudioDevPlayground"'
-
-# View only error logs
-log stream --level error --predicate 'process contains "AudioDevPlayground"'
-
-# View logs from our module in the playground app
-log stream --predicate 'process contains "AudioDevPlayground" && subsystem contains "ExpoAudioStream"'
-
-# View logs from the module directly
-log stream --predicate 'subsystem contains "ExpoAudioStudio"'
 ```
 
-For a better debugging experience, use the Console app:
-
-1. Open **Console** app on your Mac
-2. Select your device/simulator from the sidebar
-3. Filter with: `process:AudioDevPlayground` or similar
-
-### Test Debugging
-
-```bash
-# Run tests with verbose output
-./scripts/run_tests.sh android --verbose
-
-# Run specific test
-./gradlew :siteed-expo-audio-studio:test --tests "*.AudioProcessorTest.testTrimAudio"
-
-# Debug iOS test
-swift test --filter AudioProcessorTests/testTrimAudio
-```
+**Visual Tools**: Xcode Console app or macOS Console.app
 
 ## Code Style
 

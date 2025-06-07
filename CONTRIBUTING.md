@@ -1,19 +1,40 @@
-# Contributing to the monorepo.
+# Contributing to expo-audio-stream
 
-## Setup for Development
+## Quick Start
 
-### Git LFS for ONNX Models
+### Setup
+```bash
+# 1. Install Git LFS for ONNX models
+./scripts/setup-lfs.sh
 
-This project uses ONNX models that are stored using Git LFS. Before you begin development:
+# 2. Install dependencies  
+yarn install
 
-1. Install Git LFS: https://git-lfs.github.com/
-2. Run our setup script:
-   ```bash
-   ./scripts/setup-lfs.sh
-   ```
+# 3. Build packages
+cd apps/playground && yarn build:deps
+```
 
-For detailed information about model management, please see [docs/MODEL_MANAGEMENT.md](docs/MODEL_MANAGEMENT.md).
+### Development Approaches
 
-## Development Workflow
+**🤖 Agentic Framework (Recommended)**
+```bash
+cd apps/playground
+yarn agent:setup              # Setup devices (first time)
+yarn agent:dev <feature>      # Validate feature works (< 2 minutes)
+```
 
-More contribution guidelines will be added here in future updates. 
+**🧪 Traditional Testing**
+```bash
+./scripts/run_tests.sh        # Run comprehensive test suite
+```
+
+### Constraints
+- NEVER IMPLEMENT UNLESS ASKED
+- ALWAYS VERIFY IN SOURCE CODE  
+- MINIMIZE DIFF
+- NO WORKAROUNDS - fix root causes
+- REAL TESTING ONLY
+
+## Documentation
+- **Complete Guide**: `docs/AGENT_WORKFLOW.md`
+- **Package Details**: `packages/expo-audio-studio/CONTRIBUTE.md` 

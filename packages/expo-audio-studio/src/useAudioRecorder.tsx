@@ -619,7 +619,7 @@ export function useAudioRecorder({
                     )
                 }
             } else {
-                logger?.warn('No recording interruption callback configured')
+                logger?.debug('No recording interruption callback configured')
             }
         })
 
