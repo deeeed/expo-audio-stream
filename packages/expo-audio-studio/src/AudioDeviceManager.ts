@@ -50,6 +50,26 @@ function mapRawDeviceToAudioDevice(rawDevice: any): AudioDevice {
 
 /**
  * Class that provides a cross-platform API for managing audio input devices
+ *
+ * EVENT API SPECIFICATION:
+ * ========================
+ *
+ * Device Events (deviceChangedEvent):
+ * {
+ *   type: "deviceConnected" | "deviceDisconnected",
+ *   deviceId: string
+ * }
+ *
+ * Recording Interruption Events (recordingInterruptedEvent):
+ * {
+ *   reason: "userPaused" | "userResumed" | "audioFocusLoss" | "audioFocusGain" |
+ *           "deviceFallback" | "deviceSwitchFailed" | "phoneCall" | "phoneCallEnded",
+ *   isPaused: boolean,
+ *   timestamp: number
+ * }
+ *
+ * NOTE: Device events use "type" field, interruption events use "reason" field.
+ * This is intentional to distinguish between different event categories.
  */
 export class AudioDeviceManager {
     private eventEmitter: InstanceType<typeof EventEmitter>
@@ -57,57 +77,74 @@ export class AudioDeviceManager {
     private availableDevices: AudioDevice[] = []
     private deviceChangeListeners: Set<(devices: AudioDevice[]) => void> =
         new Set()
-    private deviceListeners: Set<() => void> = new Set()
+    private webDeviceChangeHandler?: () => void
     private lastRefreshTime: number = 0
     private refreshInProgress: boolean = false
     private refreshDebounceMs: number = 500 // Minimum 500ms between refreshes
     private logger?: ConsoleLike
 
+    // Track temporarily disconnected devices
+    private temporarilyDisconnectedDevices: Set<string> = new Set()
+    private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
+    private readonly DISCONNECTION_TIMEOUT_MS = 5000 // 5 seconds
+
     constructor(options?: { logger?: ConsoleLike }) {
         this.eventEmitter = new EventEmitter(ExpoAudioStreamModule)
         this.logger = options?.logger
 
-        // Listen for device change events from native modules if not on web
-        if (Platform.OS !== 'web') {
-            // Store the last event type to avoid duplicates
-            let lastEventType: string | null = null
-            let lastEventTime = 0
+        // Set up device event listeners for all platforms immediately
+        this.setupDeviceEventListeners()
+    }
 
-            this.eventEmitter.addListener(
-                'deviceChangedEvent',
-                (event: any) => {
-                    // Skip processing duplicate events that occur too close together
-                    const now = Date.now()
-                    const isSimilarEvent =
-                        lastEventType === event.type &&
-                        now - lastEventTime < this.refreshDebounceMs
-
-                    if (isSimilarEvent) {
-                        this.logger?.debug(
-                            `Skipping similar device event (${event.type}) received too soon`
-                        )
-                        return
-                    }
-
-                    // Update the last event tracking
-                    lastEventType = event.type
-                    lastEventTime = now
-
-                    // Only refresh on meaningful events
-                    if (
-                        event.type === 'deviceConnected' ||
-                        event.type === 'deviceDisconnected' ||
-                        event.type === 'routeChanged'
-                    ) {
-                        this.logger?.debug(
-                            `Processing device event: ${event.type}`
-                        )
-                        // Refresh devices and notify listeners regardless of the direct return value
-                        this.refreshDevices()
-                    }
-                }
-            )
+    /**
+     * Set up device event listeners for the current platform
+     */
+    private setupDeviceEventListeners(): void {
+        if (Platform.OS === 'web') {
+            this.setupWebDeviceChangeListener()
+        } else {
+            this.setupNativeDeviceEventListener()
         }
+    }
+
+    /**
+     * Set up native device event listener for iOS/Android
+     */
+    private setupNativeDeviceEventListener(): void {
+        // Store the last event type to avoid duplicates
+        let lastEventType: string | null = null
+        let lastEventTime = 0
+
+        this.eventEmitter.addListener('deviceChangedEvent', (event: any) => {
+            // Skip processing duplicate events that occur too close together
+            const now = Date.now()
+            const isSimilarEvent =
+                lastEventType === event.type &&
+                now - lastEventTime < this.refreshDebounceMs
+
+            if (isSimilarEvent) {
+                this.logger?.debug(
+                    `Skipping similar device event (${event.type}) received too soon`
+                )
+                return
+            }
+
+            // Update the last event tracking
+            lastEventType = event.type
+            lastEventTime = now
+
+            // Only refresh on meaningful events
+            if (
+                event.type === 'deviceConnected' ||
+                event.type === 'deviceDisconnected' ||
+                event.type === 'routeChanged'
+            ) {
+                this.logger?.debug(`Processing device event: ${event.type}`)
+                // Force refresh for device events to ensure fresh data
+                this.forceRefreshDevices()
+            }
+        })
+        this.logger?.debug('Native device event listener set up')
     }
 
     /**
@@ -126,6 +163,36 @@ export class AudioDeviceManager {
      */
     setLogger(logger: ConsoleLike) {
         this.logger = logger
+    }
+
+    /**
+     * Initialize or reinitialize device detection
+     * Useful for restarting device detection if initial setup failed
+     */
+    initializeDeviceDetection(): void {
+        this.logger?.debug('Initializing device detection...')
+
+        // Clean up existing listeners first
+        if (Platform.OS === 'web' && this.webDeviceChangeHandler) {
+            if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+                navigator.mediaDevices.removeEventListener(
+                    'devicechange',
+                    this.webDeviceChangeHandler
+                )
+            }
+            this.webDeviceChangeHandler = undefined
+        }
+
+        // Re-setup device event listeners
+        this.setupDeviceEventListeners()
+    }
+
+    /**
+     * Get the current logger instance
+     * @returns The logger instance or undefined if not set
+     */
+    getLogger(): ConsoleLike | undefined {
+        return this.logger
     }
 
     /**
@@ -279,6 +346,152 @@ export class AudioDeviceManager {
     }
 
     /**
+     * Mark a device as temporarily disconnected (for UI filtering)
+     * @param deviceId The ID of the device that was disconnected
+     * @param notify Whether to notify listeners immediately (default: true)
+     */
+    markDeviceAsDisconnected(deviceId: string, notify: boolean = true): void {
+        this.logger?.debug(
+            `Marking device ${deviceId} as temporarily disconnected`
+        )
+
+        // Clear any existing timeout for this device
+        const existingTimeout = this.disconnectionTimeouts.get(deviceId)
+        if (existingTimeout) {
+            clearTimeout(existingTimeout)
+        }
+
+        // Add to disconnected set
+        this.temporarilyDisconnectedDevices.add(deviceId)
+
+        // Set timeout to remove from disconnected set
+        const timeout = setTimeout(() => {
+            this.logger?.debug(
+                `Reconnection timeout expired for device ${deviceId}`
+            )
+            this.temporarilyDisconnectedDevices.delete(deviceId)
+            this.disconnectionTimeouts.delete(deviceId)
+            // Refresh devices to show the device again if it's still available
+            this.forceRefreshDevices()
+        }, this.DISCONNECTION_TIMEOUT_MS)
+
+        this.disconnectionTimeouts.set(deviceId, timeout)
+
+        // Only notify listeners if requested
+        if (notify) {
+            this.notifyListeners()
+        }
+    }
+
+    /**
+     * Mark a device as reconnected (remove from disconnected set)
+     * @param deviceId The ID of the device that was reconnected
+     */
+    markDeviceAsReconnected(deviceId: string): void {
+        this.logger?.debug(`Marking device ${deviceId} as reconnected`)
+
+        // Clear timeout and remove from disconnected set
+        const timeout = this.disconnectionTimeouts.get(deviceId)
+        if (timeout) {
+            clearTimeout(timeout)
+            this.disconnectionTimeouts.delete(deviceId)
+        }
+
+        this.temporarilyDisconnectedDevices.delete(deviceId)
+
+        // Notify listeners with updated device list
+        this.notifyListeners()
+    }
+
+    /**
+     * Get filtered device list (excluding temporarily disconnected devices)
+     * @returns Array of available devices excluding temporarily disconnected ones
+     */
+    private getFilteredDevices(): AudioDevice[] {
+        if (this.temporarilyDisconnectedDevices.size === 0) {
+            return [...this.availableDevices]
+        }
+
+        const filtered = this.availableDevices.filter(
+            (device) => !this.temporarilyDisconnectedDevices.has(device.id)
+        )
+
+        this.logger?.debug(
+            `Filtered ${this.availableDevices.length - filtered.length} temporarily disconnected devices. ` +
+                `Showing ${filtered.length} devices.`
+        )
+
+        return filtered
+    }
+
+    /**
+     * Get the raw device list (including temporarily disconnected devices)
+     * @returns Array of all available devices from native layer
+     */
+    getRawDevices(): AudioDevice[] {
+        return [...this.availableDevices]
+    }
+
+    /**
+     * Get the IDs of temporarily disconnected devices
+     * @returns Set of device IDs that are temporarily hidden from UI
+     */
+    getTemporarilyDisconnectedDeviceIds(): ReadonlySet<string> {
+        return new Set(this.temporarilyDisconnectedDevices)
+    }
+
+    /**
+     * Clean up timeouts and listeners (useful for testing or cleanup)
+     */
+    cleanup(): void {
+        // Clear all disconnection timeouts
+        this.disconnectionTimeouts.forEach((timeout) => clearTimeout(timeout))
+        this.disconnectionTimeouts.clear()
+        this.temporarilyDisconnectedDevices.clear()
+
+        // Clear device change listeners
+        this.deviceChangeListeners.clear()
+
+        // Clean up web device listener
+        if (Platform.OS === 'web' && this.webDeviceChangeHandler) {
+            if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+                navigator.mediaDevices.removeEventListener(
+                    'devicechange',
+                    this.webDeviceChangeHandler
+                )
+            }
+            this.webDeviceChangeHandler = undefined
+        }
+
+        this.logger?.debug('AudioDeviceManager cleanup completed')
+    }
+
+    /**
+     * Force refresh devices without debouncing (for device events)
+     * @returns Promise resolving to the updated device list (AudioDevice[])
+     */
+    async forceRefreshDevices(): Promise<AudioDevice[]> {
+        this.logger?.debug('Force refreshing devices (bypassing debounce)...')
+        this.refreshInProgress = true
+        try {
+            // Force fetch the latest devices from native layer
+            const devices = await this.getAvailableDevices({ refresh: true })
+            // Update internal state
+            this.availableDevices = devices
+            // Notify listeners with fresh data
+            this.notifyListeners()
+            this.lastRefreshTime = Date.now()
+            return devices
+        } catch (error) {
+            this.logger?.error('Error during forceRefreshDevices:', error)
+            return this.availableDevices
+        } finally {
+            this.refreshInProgress = false
+            this.logger?.debug('Force refresh finished.')
+        }
+    }
+
+    /**
      * Refresh the list of available devices with debouncing and notify listeners.
      * @returns Promise resolving to the updated device list (AudioDevice[])
      */
@@ -385,7 +598,6 @@ export class AudioDeviceManager {
                 finalDevices = [DEFAULT_DEVICE]
             }
 
-            this.setupWebDeviceChangeListener()
             this.availableDevices = finalDevices // Update internal state
             return finalDevices
         } catch (error) {
@@ -421,27 +633,39 @@ export class AudioDeviceManager {
     /**
      * Setup listener for device changes in web environment
      */
-    private setupWebDeviceChangeListener() {
+    private setupWebDeviceChangeListener(): void {
         if (
             typeof navigator === 'undefined' ||
             !navigator.mediaDevices ||
-            this.deviceListeners.size > 0 // Avoid adding multiple listeners
+            this.webDeviceChangeHandler // Avoid adding multiple listeners
         ) {
+            this.logger?.debug(
+                'Web device change listener not available or already set up'
+            )
             return
         }
 
-        const handleDeviceChange = () => {
-            this.logger?.debug('Web device change detected.')
-            // Refresh devices on change
-            this.refreshDevices()
-        }
+        try {
+            this.webDeviceChangeHandler = () => {
+                this.logger?.debug(
+                    'Web device change detected, refreshing device list'
+                )
+                // Force refresh to get immediate updates
+                this.forceRefreshDevices()
+            }
 
-        navigator.mediaDevices.addEventListener(
-            'devicechange',
-            handleDeviceChange
-        )
-        this.deviceListeners.add(handleDeviceChange)
-        this.logger?.debug('Web device change listener added.')
+            navigator.mediaDevices.addEventListener(
+                'devicechange',
+                this.webDeviceChangeHandler
+            )
+            this.logger?.debug('Web device change listener successfully set up')
+        } catch (error) {
+            this.logger?.warn(
+                'Failed to set up web device change listener:',
+                error
+            )
+            this.webDeviceChangeHandler = undefined
+        }
     }
 
     /**
@@ -549,12 +773,15 @@ export class AudioDeviceManager {
     /**
      * Notify all registered listeners about device changes.
      */
-    private notifyListeners(): void {
-        // Pass a copy of the current devices array to listeners
-        const devicesCopy = [...this.availableDevices]
+    notifyListeners(): void {
+        // Pass a copy of the filtered devices array to listeners
+        const devicesCopy = this.getFilteredDevices()
+
         this.logger?.debug(
-            `Notifying ${this.deviceChangeListeners.size} listeners with ${devicesCopy.length} devices.`
+            `Notifying ${this.deviceChangeListeners.size} listeners with ${devicesCopy.length} devices ` +
+                `(${this.temporarilyDisconnectedDevices.size} temporarily hidden)`
         )
+
         this.deviceChangeListeners.forEach((listener) => {
             try {
                 listener(devicesCopy)

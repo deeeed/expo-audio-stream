@@ -1,8 +1,9 @@
 // src/useAudioRecorder.ts
 import { EventSubscription, Platform } from 'expo-modules-core'
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useId } from 'react'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
+import { audioDeviceManager } from './AudioDeviceManager'
 import {
     AudioDataEvent,
     AudioRecording,
@@ -157,6 +158,10 @@ export function useAudioRecorder({
     audioWorkletUrl,
     featuresExtratorUrl,
 }: UseAudioRecorderProps = {}): UseAudioRecorderState {
+    // Initialize AudioDeviceManager with logger (once)
+    if (logger) {
+        audioDeviceManager.setLogger(logger)
+    }
     const [state, dispatch] = useReducer(audioRecorderReducer, {
         isRecording: false,
         isPaused: false,
@@ -199,6 +204,9 @@ export function useAudioRecorder({
     })
 
     const recordingConfigRef = useRef<RecordingConfig | null>(null)
+
+    // Generate unique instance ID for debugging
+    const instanceId = useId().replace(/:/g, '').slice(0, 5)
 
     const handleAudioAnalysis = useCallback(
         async ({
@@ -469,7 +477,12 @@ export function useAudioRecorder({
 
             analysisRef.current = { ...defaultAnalysis } // Reset analysis data
             fullAnalysisRef.current = { ...defaultAnalysis }
-            const { onAudioStream, ...options } = recordingOptions
+            const {
+                onAudioStream,
+                onRecordingInterrupted,
+                onAudioAnalysis,
+                ...options
+            } = recordingOptions
             const { enableProcessing } = options
 
             const maxRecentDataDuration = 10000 // TODO compute maxRecentDataDuration based on screen dimensions
@@ -518,7 +531,12 @@ export function useAudioRecorder({
 
             analysisRef.current = { ...defaultAnalysis } // Reset analysis data
             fullAnalysisRef.current = { ...defaultAnalysis }
-            const { onAudioStream, ...options } = recordingOptions
+            const {
+                onAudioStream,
+                onRecordingInterrupted,
+                onAudioAnalysis,
+                ...options
+            } = recordingOptions
 
             // Store onAudioStream for later use when recording starts
             if (typeof onAudioStream === 'function') {
@@ -546,6 +564,8 @@ export function useAudioRecorder({
             analysisListenerRef.current = null
         }
         onAudioStreamRef.current = null
+
+        // Note: We deliberately DON'T clear recordingConfigRef here to preserve interruption callback
         logger?.debug(`recording stopped`, stopResult)
         dispatch({ type: 'STOP' })
         return stopResult
@@ -603,31 +623,104 @@ export function useAudioRecorder({
 
     useEffect(() => {
         // Add event subscription for recording interruptions
-        logger?.debug('Setting up recording interruption listener')
+        logger?.debug(
+            `Setting up recording interruption listener [${instanceId}]`
+        )
 
         const subscription = addRecordingInterruptionListener((event) => {
-            logger?.debug('Received recording interruption event:', event)
+            logger?.debug(
+                `[${instanceId}] Received recording interruption event:`,
+                event
+            )
+
+            // Handle device disconnection for UI updates
+            if (event.reason === 'deviceDisconnected') {
+                logger?.debug(
+                    `[${instanceId}] Device disconnected - temporarily hiding last device from UI`
+                )
+
+                // Get current device list before the native layer updates
+                const currentDevices = audioDeviceManager.getRawDevices()
+
+                // Wait a moment for native layer to update, then compare
+                setTimeout(async () => {
+                    try {
+                        // Get updated devices without notifying yet
+                        const updatedDevices =
+                            await audioDeviceManager.getAvailableDevices({
+                                refresh: true,
+                            })
+
+                        // Find missing devices by comparing lists
+                        const missingDevices = currentDevices.filter(
+                            (oldDevice) =>
+                                !updatedDevices.some(
+                                    (newDevice) => newDevice.id === oldDevice.id
+                                )
+                        )
+
+                        if (missingDevices.length > 0) {
+                            // Mark all missing devices as disconnected (silently)
+                            missingDevices.forEach((missingDevice) => {
+                                logger?.debug(
+                                    `[${instanceId}] Confirmed disconnected device: ${missingDevice.name} (${missingDevice.id})`
+                                )
+                                audioDeviceManager.markDeviceAsDisconnected(
+                                    missingDevice.id,
+                                    false
+                                )
+                            })
+                        }
+
+                        // Notify listeners once with the final filtered state
+                        audioDeviceManager.notifyListeners()
+                    } catch (error) {
+                        logger?.warn(
+                            `[${instanceId}] Error in delayed device disconnection handling:`,
+                            error
+                        )
+                    }
+                }, 500) // 500ms delay to let native layer update
+            } else if (event.reason === 'deviceConnected') {
+                // Device reconnected - force refresh to show it immediately
+                logger?.debug(
+                    `[${instanceId}] Device connected, forcing refresh`
+                )
+                audioDeviceManager.forceRefreshDevices()
+            }
 
             // Check if we have a callback configured
+            logger?.debug(
+                `[${instanceId}] recordingConfigRef.current exists:`,
+                !!recordingConfigRef.current
+            )
+
             if (recordingConfigRef.current?.onRecordingInterrupted) {
                 try {
+                    logger?.debug(
+                        `[${instanceId}] Calling recording interruption callback`
+                    )
                     recordingConfigRef.current.onRecordingInterrupted(event)
                 } catch (error) {
                     logger?.error(
-                        'Error in recording interruption callback:',
+                        `[${instanceId}] Error in recording interruption callback:`,
                         error
                     )
                 }
             } else {
-                logger?.debug('No recording interruption callback configured')
+                logger?.debug(
+                    `[${instanceId}] No recording interruption callback configured`
+                )
             }
         })
 
         return () => {
-            logger?.debug('Removing recording interruption listener')
+            logger?.debug(
+                `[${instanceId}] Removing recording interruption listener`
+            )
             subscription.remove()
         }
-    }, []) // Empty dependency array since we want this to run once
+    }, [instanceId, logger]) // Include instanceId and logger in dependencies
 
     return {
         prepareRecording,

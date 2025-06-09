@@ -1,7 +1,6 @@
 // playground/src/app/(tabs)/play.tsx
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Alert, Linking, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 
@@ -58,33 +57,39 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             shadowRadius: 4,
         },
         buttonContainer: {
-            flexDirection: 'row',
-            flexWrap: 'wrap',
             gap: 12,
             marginTop: 16,
         },
         button: {
-            flex: 1,
-            minWidth: 150,
+            marginBottom: 8,
         },
-        iconButton: {
+        buttonContent: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 4,
+        },
+        buttonText: {
+            fontSize: 16,
+            fontWeight: '500',
         },
         statusItem: {
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: 8,
+            paddingVertical: 4,
         },
         statusLabel: {
             fontWeight: 'bold',
             color: theme.colors.secondary,
-            width: 100,
+            minWidth: 80,
+            flexShrink: 0,
         },
         statusValue: {
-            color: theme.colors.text,
+            color: theme.colors.onSurface,
             flex: 1,
+            flexWrap: 'wrap',
         },
         helpText: {
             marginTop: 12,
@@ -93,6 +98,7 @@ const getStyles = ({ theme }: { theme: AppTheme }) => {
             backgroundColor: theme.colors.errorContainer,
             padding: 12,
             borderRadius: 8,
+            lineHeight: 20,
         },
         infoCard: {
             backgroundColor: theme.colors.tertiaryContainer,
@@ -210,7 +216,7 @@ export const PermissionsPage = () => {
                             
                             {!permissions.granted && (
                                 <Text style={styles.helpText}>
-                                    To enable microphone access, please go to Settings and grant permission for this app.
+                                    Microphone access required. Grant permission to use audio features.
                                 </Text>
                             )}
                         </>
@@ -222,48 +228,38 @@ export const PermissionsPage = () => {
                         mode="contained"
                         onPress={checkPermissions}
                         style={styles.button}
+                        contentStyle={styles.buttonContent}
+                        icon="refresh"
+                        labelStyle={styles.buttonText}
                     >
-                        <View style={styles.iconButton}>
-                            <MaterialCommunityIcons
-                                name="refresh"
-                                size={20}
-                                color={theme.colors.onPrimary}
-                            />
-                            <Text>Check Permissions</Text>
-                        </View>
+                        Check Permissions
                     </Button>
                     
-                    {(!permissions?.granted && permissions?.canAskAgain) && (
+
+                    
+                    {!permissions?.granted && (
                         <Button
                             mode="contained-tonal"
                             onPress={requestPermissions}
                             style={styles.button}
+                            contentStyle={styles.buttonContent}
+                            icon="microphone"
+                            labelStyle={styles.buttonText}
                         >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="microphone"
-                                    size={20}
-                                    color={theme.colors.onSecondaryContainer}
-                                />
-                                <Text>Request Permissions</Text>
-                            </View>
+                            Request Permissions
                         </Button>
                     )}
                     
-                    {(!permissions?.granted && !permissions?.canAskAgain) && (
+                    {(!permissions?.granted && permissions?.canAskAgain === false) && (
                         <Button
                             mode="outlined"
                             onPress={() => Linking.openSettings()}
                             style={styles.button}
+                            contentStyle={styles.buttonContent}
+                            icon="cog"
+                            labelStyle={styles.buttonText}
                         >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="cog"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>Open Settings</Text>
-                            </View>
+                            Open Settings
                         </Button>
                     )}
                 </View>

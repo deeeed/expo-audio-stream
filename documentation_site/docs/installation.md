@@ -54,6 +54,7 @@ You can customize the plugin's behavior by providing options:
                     "enablePhoneStateHandling": true,
                     "enableNotifications": true,
                     "enableBackgroundAudio": true,
+                    "enableDeviceDetection": true,
                     "iosBackgroundModes": {
                         "useVoIP": false,
                         "useAudio": false,
@@ -106,6 +107,19 @@ You can customize the plugin's behavior by providing options:
     The module determines whether background audio is enabled based on the presence of
     FOREGROUND_SERVICE_MICROPHONE permission, not FOREGROUND_SERVICE permission.
 
+- **enableDeviceDetection** (default: `true`):
+  - Enables automatic detection of audio device connections/disconnections (Bluetooth, USB, wired headsets)
+  - Adds BLUETOOTH, BLUETOOTH_CONNECT, and USB_PERMISSION permissions on Android
+  - When enabled (default):
+    - Automatic device list refresh when devices are connected/disconnected
+    - Real-time device change events for UI updates
+    - Support for Bluetooth audio devices, USB audio interfaces, and wired headsets
+  - When disabled:
+    - No Bluetooth or USB permissions are requested
+    - Device list must be manually refreshed to detect changes
+    - Reduces app permissions for privacy-conscious users
+    - Recommended for apps that only use built-in microphone
+
 #### iOS Background Modes
 - **iosBackgroundModes**:
   - `useVoIP` (default: `false`): Enable VoIP background mode
@@ -144,6 +158,11 @@ The plugin automatically adds the following permissions to your Android manifest
 <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+<!-- Device Detection Permissions (Added when enableDeviceDetection: true) -->
+<uses-permission android:name="android.permission.BLUETOOTH" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.USB_PERMISSION" />
 ```
 
 ### Android Service Components

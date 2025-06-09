@@ -18,7 +18,7 @@ private let audioDeviceTypeWiredHeadphones = "wired_headphones"
 private let audioDeviceTypeSpeaker = "speaker"
 private let audioDeviceTypeUnknown = "unknown"
 
-public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
+public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDeviceManagerDelegate {
     private var streamManager = AudioStreamManager()
     private let notificationCenter = UNUserNotificationCenter.current()
     private let notificationIdentifier = "audio_recording_notification"
@@ -41,11 +41,30 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
         OnCreate {
             Logger.debug("ExpoAudioStreamModule", "Module created, setting delegate and starting device monitoring.")
             streamManager.delegate = self
+            // Set up device manager delegate to emit device change events
+            deviceManager.delegate = self
+            
+            // Listen for device connection notifications (minimal addition)
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("DeviceConnected"),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                if let deviceId = notification.userInfo?["deviceId"] as? String {
+                    Logger.debug("ExpoAudioStreamModule", "Device connected: \(deviceId)")
+                    self?.sendEvent(deviceChangedEvent, [
+                        "type": "deviceConnected",
+                        "deviceId": deviceId
+                    ])
+                }
+            }
         }
         
         OnDestroy {
             Logger.debug("ExpoAudioStreamModule", "Module destroyed, stopping device monitoring.")
             _ = streamManager.stopRecording()
+            // Clear device manager delegate
+            deviceManager.delegate = nil
         }
         
         /// Extracts audio analysis data from an audio file.
@@ -979,5 +998,18 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate {
     func audioStreamManager(_ manager: AudioStreamManager, didFailWithError error: String) {
         Logger.error("ExpoAudioStreamModule", "Delegate: didFailWithError: \(error)")
         sendEvent(errorEvent, [ "message": error ])
+    }
+    
+    // MARK: - AudioDeviceManagerDelegate
+    
+    /// Handles device disconnection events from the AudioDeviceManager
+    func audioDeviceManager(_ manager: AudioDeviceManager, didDetectDisconnectionOfDevice deviceId: String) {
+        Logger.debug("ExpoAudioStreamModule", "Device disconnected: \(deviceId)")
+        
+        // Emit device change event to match Android implementation
+        sendEvent(deviceChangedEvent, [
+            "type": "deviceDisconnected",
+            "deviceId": deviceId
+        ])
     }
 }

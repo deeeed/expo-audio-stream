@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.content.pm.PackageManager
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -30,6 +31,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
     private var enablePhoneStateHandling: Boolean = false // Default to false until we check manifest
     private var enableNotificationHandling: Boolean = false // Default to false until we check manifest
     private var enableBackgroundAudio: Boolean = false // Default to false until we check manifest
+    private var enableDeviceDetection: Boolean = false // Default to false until we check manifest
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
     private val audioFileHandler by lazy { 
@@ -65,14 +67,19 @@ class ExpoAudioStreamModule : Module(), EventSender {
             // Check if background audio is enabled by looking for FOREGROUND_SERVICE_MICROPHONE permission
             enableBackgroundAudio = packageInfo.requestedPermissions?.contains(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE) ?: false
             
+            // Check if device detection is enabled by looking for BLUETOOTH_CONNECT permission
+            enableDeviceDetection = packageInfo.requestedPermissions?.contains(Manifest.permission.BLUETOOTH_CONNECT) ?: false
+            
             LogUtils.d(CLASS_NAME, "Phone state handling ${if (enablePhoneStateHandling) "enabled" else "disabled"} based on manifest permissions")
             LogUtils.d(CLASS_NAME, "Notification handling ${if (enableNotificationHandling) "enabled" else "disabled"} based on manifest permissions")
             LogUtils.d(CLASS_NAME, "Background audio handling ${if (enableBackgroundAudio) "enabled" else "disabled"} based on manifest permissions")
+            LogUtils.d(CLASS_NAME, "Device detection ${if (enableDeviceDetection) "enabled" else "disabled"} based on manifest permissions")
         } catch (e: Exception) {
             LogUtils.e(CLASS_NAME, "Failed to check manifest permissions: ${e.message}", e)
             enablePhoneStateHandling = false
             enableNotificationHandling = false
             enableBackgroundAudio = false
+            enableDeviceDetection = false
         }
 
         Events(
@@ -89,6 +96,11 @@ class ExpoAudioStreamModule : Module(), EventSender {
         // Add a convenience function to check for foreground service permission separately
         fun isForegroundServiceMicRequired(): Boolean {
             return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && enableBackgroundAudio
+        }
+
+        // Helper function to check if device detection is enabled
+        fun isDeviceDetectionEnabled(): Boolean {
+            return enableDeviceDetection
         }
 
         // Add device-related functions to the module
@@ -168,6 +180,8 @@ class ExpoAudioStreamModule : Module(), EventSender {
             val success = audioDeviceManager.forceRefreshAudioDevices()
             return@Function mapOf("success" to success)
         }
+
+
 
         AsyncFunction("prepareRecording") { options: Map<String, Any?>, promise: Promise ->
             try {
@@ -263,6 +277,15 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
                 }
 
+                // Add device detection permissions if device detection is enabled
+                if (isDeviceDetectionEnabled()) {
+                    // BLUETOOTH_CONNECT is needed on Android 12+ to access device names/addresses
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+                        LogUtils.d(CLASS_NAME, "Adding BLUETOOTH_CONNECT permission request for device detection")
+                    }
+                }
+
                 LogUtils.d(CLASS_NAME, "Requesting permissions: $permissions")
                 Permissions.askForPermissionsWithPermissionsManager(
                     appContext.permissions,
@@ -288,6 +311,14 @@ class ExpoAudioStreamModule : Module(), EventSender {
             // Only check foreground service permission when background audio is enabled
             if (isForegroundServiceMicRequired()) {
                 permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
+            }
+
+            // Add device detection permissions if enabled
+            if (isDeviceDetectionEnabled()) {
+                // BLUETOOTH_CONNECT is needed on Android 12+ to access device names/addresses
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+                }
             }
 
             Permissions.getPermissionsWithPermissionsManager(
@@ -909,7 +940,10 @@ class ExpoAudioStreamModule : Module(), EventSender {
         val audioDataEncoder = AudioDataEncoder()
         
         // Initialize AudioDeviceManager
+        LogUtils.d(CLASS_NAME, "🔧 Initializing AudioDeviceManager...")
+        LogUtils.d(CLASS_NAME, "🔧 Device detection enabled: $enableDeviceDetection")
         audioDeviceManager = AudioDeviceManager(context)
+        LogUtils.d(CLASS_NAME, "🔧 AudioDeviceManager initialized")
         
         // Initialize AudioRecorderManager with AudioDeviceManager integration
         audioRecorderManager = AudioRecorderManager.initialize(
@@ -936,7 +970,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
                         
                         // Notify JS about the disconnection
                         sendEvent(Constants.DEVICE_CHANGED_EVENT, bundleOf(
-                            "reason" to "deviceDisconnected",
+                            "type" to "deviceDisconnected",
                             "deviceId" to deviceId
                         ))
                     } catch (e: Exception) {
@@ -944,6 +978,26 @@ class ExpoAudioStreamModule : Module(), EventSender {
                     }
                 }
             }
+        }
+        
+        // Set up connection callback
+        audioDeviceManager.onDeviceConnected = { deviceId ->
+            LogUtils.d(CLASS_NAME, "📱 Device connected: $deviceId")
+            // Notify JS about the connection
+            sendEvent(Constants.DEVICE_CHANGED_EVENT, bundleOf(
+                "type" to "deviceConnected",
+                "deviceId" to deviceId
+            ))
+        }
+        
+        // Set up disconnection callback
+        audioDeviceManager.onDeviceDisconnected = { deviceId ->
+            LogUtils.d(CLASS_NAME, "📱 Device disconnected: $deviceId")
+            // Notify JS about the disconnection
+            sendEvent(Constants.DEVICE_CHANGED_EVENT, bundleOf(
+                "type" to "deviceDisconnected",
+                "deviceId" to deviceId
+            ))
         }
         
         audioProcessor = AudioProcessor(filesDir)

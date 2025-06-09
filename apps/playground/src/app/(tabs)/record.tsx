@@ -26,7 +26,9 @@ import type {
     RecordingConfig,
     StartRecordingResult,
     TranscriberData,
-    AudioDevice } from '@siteed/expo-audio-studio'
+    AudioDevice,
+    RecordingInterruptionEvent,
+} from '@siteed/expo-audio-studio'
 import {
     ExpoAudioStreamModule,
     useSharedAudioRecorder,
@@ -714,6 +716,28 @@ export default function RecordScreen() {
                 ...startRecordingConfig,
                 filename: finalFileName || undefined,
                 outputDirectory: !isWeb ? defaultDirectory : undefined,
+                // Override the interruption callback to add toast notifications
+                onRecordingInterrupted: (event: RecordingInterruptionEvent) => {
+                    logger.warn('Recording interrupted', event)
+                    
+                    // Call the original callback if it exists
+                    if (startRecordingConfig.onRecordingInterrupted) {
+                        startRecordingConfig.onRecordingInterrupted(event)
+                    }
+                    
+                    // Add toast notifications
+                    if (event.reason === 'deviceDisconnected') {
+                        show({
+                            type: 'warning',
+                            message: `Device disconnected`,
+                        })
+                    } else if (event.reason === 'deviceConnected' || event.reason === 'deviceFallback') {
+                        show({
+                            type: 'info',
+                            message: `Device event: ${event.reason}`,
+                        })
+                    }
+                },
             }
 
             logger.debug(`Starting recording with config:`, finalConfig)

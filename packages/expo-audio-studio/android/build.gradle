@@ -32,6 +32,7 @@ buildscript {
 
   repositories {
     mavenCentral()
+    google()
   }
 
   dependencies {
@@ -91,11 +92,21 @@ android {
 
 repositories {
   mavenCentral()
+  google()
 }
 
 dependencies {
   implementation project(':expo-modules-core')
   implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${getKotlinVersion()}"
+
+  // Add AndroidX dependencies
+  implementation 'androidx.core:core-ktx:1.10.1'
+  implementation 'androidx.annotation:annotation:1.6.0'
+  implementation 'androidx.appcompat:appcompat:1.6.1'
+  
+  // Add Kotlinx Coroutines for main code
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
   // Add testing dependencies
   testImplementation 'junit:junit:4.13.2'

@@ -27,6 +27,8 @@ sidebar_label: Features
 - **Automatic fallback behavior** when devices become unavailable
 - **Cross-platform compatibility** with consistent API across iOS, Android, and web
 
+> **Note:** Device detection features require Bluetooth and USB permissions on Android. You can disable this functionality by setting `enableDeviceDetection: false` in the [plugin configuration](installation.md#configuration-options) to reduce app permissions.
+
 ## Audio Processing
 
 - **Comprehensive [audio analysis](api-reference/audio-features/audio-analysis-overview.md)** with feature extraction (energy, RMS, MFCC, etc.)

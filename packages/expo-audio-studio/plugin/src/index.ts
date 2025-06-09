@@ -20,6 +20,7 @@ interface AudioStreamPluginOptions {
     enablePhoneStateHandling?: boolean // Controls READ_PHONE_STATE permission
     enableNotifications?: boolean
     enableBackgroundAudio?: boolean
+    enableDeviceDetection?: boolean // Controls Bluetooth and USB permissions for device change detection
     iosBackgroundModes?: {
         useVoIP?: boolean
         useAudio?: boolean
@@ -43,6 +44,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
         enablePhoneStateHandling: true, // Default to true for backward compatibility
         enableNotifications: true,
         enableBackgroundAudio: true,
+        enableDeviceDetection: true, // Default to true for backward compatibility
         iosBackgroundModes: {
             useVoIP: false,
             useAudio: false,
@@ -61,6 +63,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
         enablePhoneStateHandling,
         enableNotifications,
         enableBackgroundAudio,
+        enableDeviceDetection,
     } = options
 
     debugLog('📱 Configuring Recording Permissions Plugin...', options)
@@ -175,6 +178,10 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             enablePhoneStateHandling && 'android.permission.READ_PHONE_STATE', // Only add if enabled
             enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE',
             enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+            // Device detection permissions (only if enabled)
+            enableDeviceDetection && 'android.permission.BLUETOOTH',
+            enableDeviceDetection && 'android.permission.BLUETOOTH_CONNECT',
+            enableDeviceDetection && 'android.permission.USB_PERMISSION',
         ].filter(Boolean) as string[]
 
         const permissionsToAdd = [...basePermissions, ...optionalPermissions]
@@ -188,16 +195,9 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
         debugLog('➕ Adding Android permissions:', permissionsToAdd)
 
-        const { addPermission } = AndroidConfig.Permissions
-
         // Add each permission only if it doesn't exist
         permissionsToAdd.forEach((permission) => {
-            const existingPermission = config.modResults.manifest[
-                'uses-permission'
-            ]?.find((p) => p.$?.['android:name'] === permission)
-            if (!existingPermission) {
-                addPermission(config.modResults, permission)
-            }
+            AndroidConfig.Permissions.addPermission(config.modResults, permission)
         })
 
         // Get the main application node
