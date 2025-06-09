@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- feat(expo-audio-studio): enhance device detection and management system ([97ceef0](https://github.com/deeeed/expo-audio-stream/commit/97ceef003ddb8eb5246cda8a5a00ddc75bf665a0))
 
+
+## [2.13.0] - 2025-06-09
+### Changed
+- feat(expo-audio-studio): enhance device detection and management system ([97ceef0](https://github.com/deeeed/expo-audio-stream/commit/97ceef003ddb8eb5246cda8a5a00ddc75bf665a0))
 ## [2.12.3] - 2025-06-07
 ### Changed
 - refactor(expo-audio-studio): adjust audio focus request timing in AudioRecorderManager ([317367c](https://github.com/deeeed/expo-audio-stream/commit/317367cb29fa09016aa73884f2f51e9cfdee1086))
@@ -304,7 +307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.0...HEAD
+[2.13.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.3...@siteed/expo-audio-studio@2.13.0
 [2.12.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.2...@siteed/expo-audio-studio@2.12.3
 [2.12.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.1...@siteed/expo-audio-studio@2.12.2
 [2.12.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.0...@siteed/expo-audio-studio@2.12.1
