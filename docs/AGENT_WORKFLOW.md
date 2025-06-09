@@ -44,7 +44,7 @@ yarn agent:full
 |---------|-------------|---------------------|
 | `basic` | Standard recording workflow | `sampleRate=44100&channels=1` |
 | `compression` | Compressed audio output | `compressedOutput=true&compressedFormat=aac` |
-| `high-frequency` | High sample rates/intervals | `interval=10&sampleRate=48000` |
+| `high-frequency` | High-frequency dual timing measurement | `intervalAnalysis=25&interval=10&measurePrecision=true&sampleRate=48000` |
 | `multi-channel` | Stereo recording | `channels=2&sampleRate=44100` |
 | `pause-resume` | Pause/resume workflow | `testPauseResume=true` |
 | `error-handling` | Error scenarios | `sampleRate=999999&testErrors=true` |

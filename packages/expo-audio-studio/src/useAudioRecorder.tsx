@@ -85,6 +85,7 @@ const defaultAnalysis: AudioAnalysis = {
         min: Number.POSITIVE_INFINITY,
         max: Number.NEGATIVE_INFINITY,
     },
+    extractionTimeMs: 0,
 }
 
 function audioRecorderReducer(
