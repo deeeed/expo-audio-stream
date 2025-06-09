@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- fix(deps): update expo-modules-core peer dependency for Expo SDK 53 compatibility ([40b946f](https://github.com/deeeed/expo-audio-stream/commit/40b946f83eecd3fdcedfe7a2cbac62f1207a4ff0))
+- docs: updated docs site ([8a01a97](https://github.com/deeeed/expo-audio-stream/commit/8a01a97ebee927a2dfa0a7cb40b11329410509d2))
 
 ## [2.13.0] - 2025-06-09
 ### Changed
