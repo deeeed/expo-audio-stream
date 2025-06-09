@@ -8253,7 +8253,7 @@ __metadata:
     eslint-plugin-react: "npm:^7.34.1"
     expo: "npm:^53.0.9"
     expo-module-scripts: "npm:^4.1.7"
-    expo-modules-core: "npm:~2.3.13"
+    expo-modules-core: "npm:2.4.0"
     jest: "npm:^29.7.0"
     prettier: "npm:^3.2.5"
     react: "npm:19.0.0"
@@ -8266,6 +8266,7 @@ __metadata:
     typescript: "npm:~5.8.3"
   peerDependencies:
     expo: "*"
+    expo-modules-core: ~2.4.0
     react: "*"
     react-native: "*"
   languageName: unknown
@@ -18739,7 +18740,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-modules-core@npm:2.3.13, expo-modules-core@npm:~2.3.13":
+"expo-modules-core@npm:2.3.13":
   version: 2.3.13
   resolution: "expo-modules-core@npm:2.3.13"
   dependencies:
