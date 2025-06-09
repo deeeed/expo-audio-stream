@@ -802,12 +802,14 @@ self.onmessage = function (event) {
             rmsRange: {
                 min: 0,
                 max: Math.max(Math.abs(min), Math.abs(max))
-            },
-            extractionTimeMs: Date.now() - lastEmitTime
+            }
         }
     }
 
     try {
+        // Measure actual processing time using performance.now() for higher precision
+        const processingStartTime = performance.now()
+        
         const result = extractWaveform(
             channelData,
             sampleRate,
@@ -815,6 +817,9 @@ self.onmessage = function (event) {
             numberOfChannels || 1, // Default to 1 channel if not provided
             bytesPerSample
         )
+        
+        const processingEndTime = performance.now()
+        const actualExtractionTimeMs = processingEndTime - processingStartTime
 
         // Send complete result immediately
         self.postMessage({
@@ -829,6 +834,7 @@ self.onmessage = function (event) {
                 dataPoints: result.dataPoints,
                 amplitudeRange: result.amplitudeRange,
                 rmsRange: result.rmsRange,
+                extractionTimeMs: actualExtractionTimeMs,
             }
         })
     } catch (error) {

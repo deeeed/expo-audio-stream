@@ -5,6 +5,7 @@ describe('Agent Validation Suite', () => {
   beforeAll(async () => {
     await device.launchApp({
       newInstance: true,
+      permissions: { microphone: 'YES' },
       launchArgs: { 
         detoxDebug: 'true',
         AGENT_VALIDATION: 'true'

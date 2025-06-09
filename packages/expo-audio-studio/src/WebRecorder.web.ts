@@ -147,6 +147,7 @@ export class WebRecorder {
             sampleRate: this.config.sampleRate || this.audioContext.sampleRate,
             segmentDurationMs:
                 this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS, // Default to 100ms segments
+            extractionTimeMs: 0,
         }
 
         if (recordingConfig.enableProcessing) {
