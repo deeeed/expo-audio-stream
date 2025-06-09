@@ -55,18 +55,22 @@ function mapRawDeviceToAudioDevice(rawDevice: any): AudioDevice {
  * ========================
  *
  * Device Events (deviceChangedEvent):
+ * ```
  * {
  *   type: "deviceConnected" | "deviceDisconnected",
  *   deviceId: string
  * }
+ * ```
  *
  * Recording Interruption Events (recordingInterruptedEvent):
+ * ```
  * {
  *   reason: "userPaused" | "userResumed" | "audioFocusLoss" | "audioFocusGain" |
  *           "deviceFallback" | "deviceSwitchFailed" | "phoneCall" | "phoneCallEnded",
  *   isPaused: boolean,
  *   timestamp: number
  * }
+ * ```
  *
  * NOTE: Device events use "type" field, interruption events use "reason" field.
  * This is intentional to distinguish between different event categories.

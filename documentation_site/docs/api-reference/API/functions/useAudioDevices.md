@@ -8,7 +8,7 @@
 
 > **useAudioDevices**(): `object`
 
-Defined in: [src/hooks/useAudioDevices.ts:9](https://github.com/deeeed/expo-audio-stream/blob/bbdd3decaa750fbf29d5ddaf443493cc894c7375/packages/expo-audio-studio/src/hooks/useAudioDevices.ts#L9)
+Defined in: [src/hooks/useAudioDevices.ts:9](https://github.com/deeeed/expo-audio-stream/blob/cbd4a23f12073e71995f65e1ad122e720eefa920/packages/expo-audio-studio/src/hooks/useAudioDevices.ts#L9)
 
 React hook for managing audio input devices
 
@@ -27,6 +27,14 @@ React hook for managing audio input devices
 ### error
 
 > **error**: `null` \| `Error`
+
+### initializeDeviceDetection()
+
+> **initializeDeviceDetection**: () => `void`
+
+#### Returns
+
+`void`
 
 ### loading
 
