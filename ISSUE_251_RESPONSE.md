@@ -2,25 +2,25 @@ Hi @[username]! 👋
 
 I've completed a comprehensive investigation into sub-100ms audio events and have some great news to share! I also built automated testing to validate the results across both platforms.
 
-## 🎯 **TL;DR - Your sub-100ms requirements are absolutely achievable!**
+## 🎯 **TL;DR - Your sub-100ms requirements are achievable with some caveats!**
 
-- **Android**: ✅ **Exceptional performance** - we're achieving **sub-50ms** actual intervals!
-- **iOS**: ⚠️ **System-limited to ~100ms** - this is due to iOS AVAudioEngine constraints (expected behavior)
+- **Android**: ✅ **Low-latency performance** - achieving **sub-50ms** actual intervals
+- **iOS**: ⚠️ **System-limited to ~100ms** - due to iOS AVAudioEngine buffer constraints (may improve with different sample rates)
 
 ## 📊 **Real-World Performance Results**
 
 I ran extensive end-to-end testing with actual audio recording validation. Here's what we found:
 
-### **Android Performance (Outstanding!)** 🚀
+### **Android Performance** 🤖
 
 | Configuration | intervalAnalysis | interval | Analysis Events | Stream Events | Performance |
 |--------------|------------------|----------|-----------------|---------------|------------|
-| **Ultra High-Frequency** | `25ms` | `10ms` | `40.2ms actual` ✅ | `20.4ms actual` ✅ | **Sub-50ms achieved!** |
-| **High-Frequency** | `50ms` | `25ms` | `69.4ms actual` ✅ | `35.4ms actual` ✅ | **Excellent sub-100ms!** |
-| **Standard** | `100ms` | `50ms` | `121.7ms actual` ⚠️ | `60.6ms actual` ✅ | **Stream excellent, analysis good** |
-| **Conservative** | `200ms` | `100ms` | `221.7ms actual` ⚠️ | `107.6ms actual` ✅ | **Stream good, analysis standard** |
+| **Ultra High-Frequency** | `25ms` | `10ms` | `40.2ms actual` ✅ | `20.4ms actual` ✅ | **Sub-50ms possible** |
+| **High-Frequency** | `50ms` | `25ms` | `69.4ms actual` ✅ | `35.4ms actual` ✅ | **Good sub-100ms** |
+| **Standard** | `100ms` | `50ms` | `121.7ms actual` ⚠️ | `60.6ms actual` ✅ | **Stream good, analysis slower** |
+| **Conservative** | `200ms` | `100ms` | `221.7ms actual` ⚠️ | `107.6ms actual` ✅ | **More processing overhead** |
 
-**The best part?** Android is delivering **20.4ms actual intervals** when you configure `interval: 10ms` - that's incredibly responsive!
+**Important to note:** Android can deliver **~20ms intervals** for raw audio data, but remember there's always additional processing lag to account for. The more audio analysis features you enable, the longer the processing time becomes - it's not perfect but workable for many real-time applications.
 
 ### **iOS Results (System Constraint)** 📱
 
