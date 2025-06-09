@@ -51,7 +51,7 @@ print_usage() {
     echo "Features (for dev command):"
     echo "  basic          - Standard recording workflow"
     echo "  compression    - Compressed audio output"
-    echo "  high-frequency - High sample rates/intervals"
+    echo "  high-frequency - High-frequency dual timing measurement (sub-100ms intervals)"
     echo "  multi-channel  - Stereo recording"
     echo "  pause-resume   - Pause/resume workflow"
     echo "  error-handling - Error scenarios"
@@ -177,7 +177,7 @@ generate_test_url() {
             echo "audioplayground://agent-validation?${base_params}&compressedOutput=true&compressedFormat=aac&compressedBitrate=128000"
             ;;
         "high-frequency")
-            echo "audioplayground://agent-validation?interval=10&sampleRate=48000&channels=1"
+            echo "audioplayground://agent-validation?intervalAnalysis=25&interval=10&measurePrecision=true&enableProcessing=true&sampleRate=48000"
             ;;
         "multi-channel")
             echo "audioplayground://agent-validation?channels=2&sampleRate=44100&encoding=pcm_16bit"

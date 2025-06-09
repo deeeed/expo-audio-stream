@@ -479,7 +479,7 @@ export default function WebAudioTestPage() {
       addLog(`Error starting recording: ${errorMessage}`);
       setError(`Recording error: ${errorMessage}`);
     }
-  }, [startRecording, addLog, audioUrl, concatenatedAudioUrl]);
+  }, [addLog, audioUrl, concatenatedAudioUrl, startRecording, isWeb, audioChunks.length]);
 
   // Stop recording
   const handleStopRecording = useCallback(async () => {

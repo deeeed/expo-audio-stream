@@ -121,6 +121,7 @@ export interface AudioAnalysis {
         min: number
         max: number
     }
+    extractionTimeMs: number // Time taken to extract/process the analysis in milliseconds
     // TODO: speaker changes into a broader speech analysis section
     speechAnalysis?: {
         speakerChanges: {
