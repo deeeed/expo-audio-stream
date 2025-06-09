@@ -166,6 +166,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 enablePhoneStateHandling: true,
                 enableNotifications: true,
                 enableBackgroundAudio: true,
+                enableDeviceDetection: true,
                 iosBackgroundModes: {
                     useAudio: true,
                     useProcessing: true,

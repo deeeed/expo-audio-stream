@@ -140,7 +140,7 @@ yarn typecheck                 # Fix compilation first
 
 ## Complete Documentation
 
-**📖 Full Guide**: See `docs/AGENT_WORKFLOW.md` for:
+**📖 Full Guide**: See [agentic workflow](../../../docs/AGENT_WORKFLOW.md)` for:
 - Detailed usage instructions
 - Complete feature list and examples  
 - Platform setup guides

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useId } from 'react'
 
 import { audioDeviceManager } from '../AudioDeviceManager'
 import { AudioDevice } from '../ExpoAudioStream.types'
@@ -11,6 +11,9 @@ export function useAudioDevices() {
     const [currentDevice, setCurrentDevice] = useState<AudioDevice | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<Error | null>(null)
+
+    // Generate unique instance ID for debugging
+    const instanceId = useId().replace(/:/g, '').slice(0, 5)
 
     // Load devices on mount
     useEffect(() => {
@@ -30,7 +33,9 @@ export function useAudioDevices() {
                 const device = await audioDeviceManager.getCurrentDevice()
                 if (isMounted) setCurrentDevice(device)
             } catch (err) {
-                console.error('Failed to load audio devices:', err)
+                audioDeviceManager
+                    .getLogger()
+                    ?.error('Failed to load audio devices:', err)
                 if (isMounted)
                     setError(
                         err instanceof Error
@@ -47,6 +52,12 @@ export function useAudioDevices() {
         // Set up device change listener
         const removeListener = audioDeviceManager.addDeviceChangeListener(
             (updatedDevices: AudioDevice[]) => {
+                audioDeviceManager
+                    .getLogger()
+                    ?.debug(
+                        `🎛️ useAudioDevices [${instanceId}] received device change. Count: ${updatedDevices.length}`
+                    )
+
                 if (isMounted) {
                     setDevices(updatedDevices)
 
@@ -58,9 +69,16 @@ export function useAudioDevices() {
                         )
                     ) {
                         audioDeviceManager
+                            .getLogger()
+                            ?.debug(
+                                `🎛️ useAudioDevices [${instanceId}] Current device ${currentDevice.id} no longer available, updating`
+                            )
+                        audioDeviceManager
                             .getCurrentDevice()
                             .then((newDevice: AudioDevice | null) => {
-                                if (isMounted) setCurrentDevice(newDevice)
+                                if (isMounted) {
+                                    setCurrentDevice(newDevice)
+                                }
                             })
                     }
                 }
@@ -94,7 +112,9 @@ export function useAudioDevices() {
 
                 return success
             } catch (err) {
-                console.error('Failed to select audio device:', err)
+                audioDeviceManager
+                    .getLogger()
+                    ?.error('Failed to select audio device:', err)
                 setError(
                     err instanceof Error
                         ? err
@@ -127,7 +147,9 @@ export function useAudioDevices() {
 
             return success
         } catch (err) {
-            console.error('Failed to reset to default audio device:', err)
+            audioDeviceManager
+                .getLogger()
+                ?.error('Failed to reset to default audio device:', err)
             setError(
                 err instanceof Error
                     ? err
@@ -156,7 +178,9 @@ export function useAudioDevices() {
 
             return updatedDevices
         } catch (err) {
-            console.error('Failed to refresh audio devices:', err)
+            audioDeviceManager
+                .getLogger()
+                ?.error('Failed to refresh audio devices:', err)
             setError(
                 err instanceof Error
                     ? err
@@ -168,6 +192,14 @@ export function useAudioDevices() {
         }
     }, [])
 
+    /**
+     * Initialize device detection
+     * Useful for restarting device detection if it failed initially
+     */
+    const initializeDeviceDetection = useCallback(() => {
+        audioDeviceManager.initializeDeviceDetection()
+    }, [])
+
     return {
         devices,
         currentDevice,
@@ -176,5 +208,6 @@ export function useAudioDevices() {
         selectDevice,
         resetToDefaultDevice,
         refreshDevices,
+        initializeDeviceDetection,
     }
 }

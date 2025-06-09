@@ -584,7 +584,7 @@ class AudioDeviceManager {
         }
     }
 
-    /// Handles route change notifications to detect device disconnections
+    /// Handles route change notifications to detect device connections and disconnections
     @objc private func handleRouteChange(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
@@ -594,7 +594,7 @@ class AudioDeviceManager {
 
          Logger.debug("AudioDeviceManager", "Route change detected, reason: \(reason.rawValue)")
 
-        // Only proceed if a device was potentially removed or the route changed significantly
+        // Only proceed if a device was potentially removed or added or the route changed significantly
         guard reason == .oldDeviceUnavailable || reason == .newDeviceAvailable || reason == .override || reason == .routeConfigurationChange else {
              Logger.debug("AudioDeviceManager", "Ignoring route change reason: \(reason.rawValue)")
             return
@@ -602,24 +602,36 @@ class AudioDeviceManager {
 
         // Get the *previous* route description
         guard let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription else {
-            Logger.debug("AudioDeviceManager", "No previous route info found for disconnection check.")
+            Logger.debug("AudioDeviceManager", "No previous route info found for device change check.")
             return
         }
 
         // Get the *current* available input devices
         let currentInputs = AVAudioSession.sharedInstance().availableInputs ?? []
         let currentInputIds = Set(currentInputs.map { normalizeBluetoothDeviceId($0.uid) })
+        let previousInputIds = Set(previousRoute.inputs.map { normalizeBluetoothDeviceId($0.uid) })
 
-        // Check which inputs from the *previous* route are *no longer* available
+                // Check for DISCONNECTED devices (were in previous route but not in current available)
         for previousInputPort in previousRoute.inputs {
             let normalizedPreviousId = normalizeBluetoothDeviceId(previousInputPort.uid)
-            // Check if the previously connected input is NOT in the set of currently available inputs
             if !currentInputIds.contains(normalizedPreviousId) {
                  Logger.debug("AudioDeviceManager", "Detected disconnection of device: \(previousInputPort.portName) (Normalized ID: \(normalizedPreviousId))")
-                // Notify the delegate (AudioStreamManager) about the specific disconnected device
-                delegate?.audioDeviceManager(self, didDetectDisconnectionOfDevice: normalizedPreviousId)
-                // Found a disconnected device, can stop checking previous inputs for this event
-                break
+                 // Keep existing disconnection delegate method unchanged
+                 delegate?.audioDeviceManager(self, didDetectDisconnectionOfDevice: normalizedPreviousId)
+            }
+        }
+
+        // Check for CONNECTED devices (are in current available but were not in previous route)
+        for currentInput in currentInputs {
+            let normalizedCurrentId = normalizeBluetoothDeviceId(currentInput.uid)
+            if !previousInputIds.contains(normalizedCurrentId) {
+                Logger.debug("AudioDeviceManager", "Detected connection of device: \(currentInput.portName) (Normalized ID: \(normalizedCurrentId))")
+                // Emit connection event via notification
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("DeviceConnected"),
+                    object: nil,
+                    userInfo: ["deviceId": normalizedCurrentId]
+                )
             }
         }
     }

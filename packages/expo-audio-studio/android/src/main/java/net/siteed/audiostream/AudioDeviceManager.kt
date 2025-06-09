@@ -21,6 +21,7 @@ import net.siteed.audiostream.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /**
  * Constants not available in all Android versions
@@ -61,6 +62,12 @@ class AudioDeviceManager(private val context: Context) {
     
     // Delegate for handling device disconnection
     var delegate: AudioDeviceManagerDelegate? = null
+    
+    // Simple callback for device connections
+    var onDeviceConnected: ((String) -> Unit)? = null
+    
+    // Simple callback for device disconnections
+    var onDeviceDisconnected: ((String) -> Unit)? = null
     
     // Audio manager for accessing device information
     private val audioManager: AudioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -1113,6 +1120,9 @@ class AudioDeviceManager(private val context: Context) {
                     addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED)
                     addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED)
                 }
+                
+                // Bluetooth SCO state changes - to detect when microphone becomes available
+                addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
             }
             
             deviceReceiver = object : BroadcastReceiver() {
@@ -1153,6 +1163,28 @@ class AudioDeviceManager(private val context: Context) {
                                         }
                                     }
                                 }
+                            } else if (state == 1) { // Plugged in
+                                LogUtils.d(CLASS_NAME, "Wired headset connected: $name")
+                                
+                                // For M+ find the actual new device
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    // Find the newly connected wired device
+                                    val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                                    val wiredDevice = audioDevices.firstOrNull { 
+                                        (it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || 
+                                         it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) &&
+                                        getDeviceName(it).contains(name, ignoreCase = true)
+                                    }
+                                    
+                                    if (wiredDevice != null) {
+                                        val connectedDeviceId = wiredDevice.id.toString()
+                                        LogUtils.d(CLASS_NAME, "Found connected wired device: $name (ID: $connectedDeviceId)")
+                                        handleDeviceConnection(connectedDeviceId)
+                                    }
+                                } else {
+                                    // Legacy handling for older Android
+                                    handleDeviceConnection("1")
+                                }
                             }
                         }
                         
@@ -1180,6 +1212,59 @@ class AudioDeviceManager(private val context: Context) {
                                         deviceId = lastSelectedDeviceId
                                         LogUtils.d(CLASS_NAME, "Routing changed from ${lastDeviceInfo.id} to ${currentDevice["id"]}")
                                     }
+                                }
+                            }
+                        }
+                        
+                        BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                            val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                            }
+                            
+                            if (device != null) {
+                                LogUtils.d(CLASS_NAME, "Bluetooth device connected: ${device.name}")
+                                
+                                // For M+ find the actual new device
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    val actualDevice = findBluetoothDevice(device)
+                                    if (actualDevice != null) {
+                                        val connectedDeviceId = actualDevice.id.toString()
+                                        LogUtils.d(CLASS_NAME, "Found connected Bluetooth device: ${device.name} (ID: $connectedDeviceId)")
+                                        handleDeviceConnection(connectedDeviceId)
+                                    } else {
+                                        LogUtils.d(CLASS_NAME, "Bluetooth device ${device.name} connected but not found in audio device list - attempting to activate SCO")
+                                        
+                                        // Try to activate Bluetooth SCO to make microphone available
+                                        if (!audioManager.isBluetoothScoOn) {
+                                            LogUtils.d(CLASS_NAME, "Starting Bluetooth SCO to activate microphone for ${device.name}")
+                                            audioManager.startBluetoothSco()
+                                            
+                                            // Give SCO time to activate, then check again
+                                            coroutineScope.launch {
+                                                delay(2000) // Wait 2 seconds
+                                                
+                                                val scoDevice = findBluetoothDevice(device)
+                                                if (scoDevice != null) {
+                                                    val activatedDeviceId = scoDevice.id.toString()
+                                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO activated for device: ${device.name} (ID: $activatedDeviceId)")
+                                                    handleDeviceConnection(activatedDeviceId)
+                                                } else {
+                                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO didn't activate microphone for ${device.name}")
+                                                    // Send generic connection event anyway
+                                                    handleDeviceConnection("bluetooth:${device.address}")
+                                                }
+                                            }
+                                        } else {
+                                            // SCO already on, send generic event
+                                            handleDeviceConnection("bluetooth:${device.address}")
+                                        }
+                                    }
+                                } else {
+                                    // Legacy handling for older Android
+                                    handleDeviceConnection("2")
                                 }
                             }
                         }
@@ -1213,38 +1298,113 @@ class AudioDeviceManager(private val context: Context) {
                             val state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1)
                             logAudioState()
                             
-                            // Only handle disconnect events and only for HEADSET profile (relevant for audio)
-                            if (state == BluetoothAdapter.STATE_DISCONNECTED) {
-                                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                                }
-                                
-                                if (device != null) {
-                                    deviceId = "2" // Legacy ID for bluetooth
-                                    deviceName = device.name
-                                    deviceType = DEVICE_TYPE_BLUETOOTH
+                            when (state) {
+                                BluetoothAdapter.STATE_CONNECTED -> {
+                                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                                    }
                                     
-                                    // For M+ get the actual ID
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                        val actualDevice = findBluetoothDevice(device)
-                                        if (actualDevice != null) {
-                                            deviceId = actualDevice.id.toString()
+                                    if (device != null) {
+                                        LogUtils.d(CLASS_NAME, "Bluetooth profile connected: ${device.name}")
+                                        
+                                        // For M+ find the actual new device
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                            val actualDevice = findBluetoothDevice(device)
+                                            if (actualDevice != null) {
+                                                val connectedDeviceId = actualDevice.id.toString()
+                                                LogUtils.d(CLASS_NAME, "Found connected Bluetooth profile device: ${device.name} (ID: $connectedDeviceId)")
+                                                handleDeviceConnection(connectedDeviceId)
+                                            } else {
+                                                LogUtils.d(CLASS_NAME, "Bluetooth profile ${device.name} connected but not found in audio device list - attempting to activate SCO")
+                                                
+                                                // Try to activate Bluetooth SCO to make microphone available
+                                                if (!audioManager.isBluetoothScoOn) {
+                                                    LogUtils.d(CLASS_NAME, "Starting Bluetooth SCO to activate microphone for ${device.name}")
+                                                    audioManager.startBluetoothSco()
+                                                    
+                                                    // Give SCO time to activate, then check again
+                                                    coroutineScope.launch {
+                                                        delay(2000) // Wait 2 seconds
+                                                        
+                                                        val scoDevice = findBluetoothDevice(device)
+                                                        if (scoDevice != null) {
+                                                            val activatedDeviceId = scoDevice.id.toString()
+                                                            LogUtils.d(CLASS_NAME, "Bluetooth SCO activated for device: ${device.name} (ID: $activatedDeviceId)")
+                                                            handleDeviceConnection(activatedDeviceId)
+                                                        } else {
+                                                            LogUtils.d(CLASS_NAME, "Bluetooth SCO didn't activate microphone for ${device.name}")
+                                                            // Send generic connection event anyway
+                                                            handleDeviceConnection("bluetooth:${device.address}")
+                                                        }
+                                                    }
+                                                } else {
+                                                    // SCO already on, send generic event
+                                                    handleDeviceConnection("bluetooth:${device.address}")
+                                                }
+                                            }
+                                        } else {
+                                            // Legacy handling for older Android
+                                            handleDeviceConnection("2")
                                         }
                                     }
-                                    
-                                    LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected: ${device.name}, using ID: $deviceId")
-                                } 
-                                // No device info, check if our last device was bluetooth
-                                else if (lastSelectedDeviceId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                    val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
-                                    
-                                    if (lastDeviceInfo?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-                                        deviceId = lastSelectedDeviceId
-                                        LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected, using last selected device ID: $deviceId")
+                                }
+                                
+                                BluetoothAdapter.STATE_DISCONNECTED -> {
+                                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                                     }
+                                    
+                                    if (device != null) {
+                                        deviceId = "2" // Legacy ID for bluetooth
+                                        deviceName = device.name
+                                        deviceType = DEVICE_TYPE_BLUETOOTH
+                                        
+                                        // For M+ get the actual ID
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                            val actualDevice = findBluetoothDevice(device)
+                                            if (actualDevice != null) {
+                                                deviceId = actualDevice.id.toString()
+                                            }
+                                        }
+                                        
+                                        LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected: ${device.name}, using ID: $deviceId")
+                                    } 
+                                    // No device info, check if our last device was bluetooth
+                                    else if (lastSelectedDeviceId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                        val lastDeviceInfo = findDeviceById(lastSelectedDeviceId!!)
+                                        
+                                        if (lastDeviceInfo?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                                            deviceId = lastSelectedDeviceId
+                                            LogUtils.d(CLASS_NAME, "Bluetooth profile disconnected, using last selected device ID: $deviceId")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        UsbManager.ACTION_USB_DEVICE_ATTACHED, UsbManager.ACTION_USB_ACCESSORY_ATTACHED -> {
+                            LogUtils.d(CLASS_NAME, "USB device attached")
+                            
+                            // For M+ find newly connected USB audio devices
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                                val usbDevice = audioDevices.firstOrNull { 
+                                    it.type == AudioDeviceInfo.TYPE_USB_DEVICE || 
+                                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET || 
+                                    it.type == AudioDeviceInfo.TYPE_USB_ACCESSORY
+                                }
+                                
+                                if (usbDevice != null) {
+                                    val connectedDeviceId = usbDevice.id.toString()
+                                    val deviceName = getDeviceName(usbDevice)
+                                    LogUtils.d(CLASS_NAME, "Found connected USB audio device: $deviceName (ID: $connectedDeviceId)")
+                                    handleDeviceConnection(connectedDeviceId)
                                 }
                             }
                         }
@@ -1266,27 +1426,73 @@ class AudioDeviceManager(private val context: Context) {
                                 }
                             }
                         }
+                        
+                        AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED -> {
+                            val scoState = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
+                            LogUtils.d(CLASS_NAME, "Bluetooth SCO state changed: $scoState")
+                            
+                            when (scoState) {
+                                AudioManager.SCO_AUDIO_STATE_CONNECTED -> {
+                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO connected - microphone available")
+                                    
+                                    // Check if any new Bluetooth SCO devices appeared
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                        val audioDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                                        val bluetoothScoDevices = audioDevices.filter { 
+                                            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO 
+                                        }
+                                        
+                                        if (bluetoothScoDevices.isNotEmpty()) {
+                                            // Found Bluetooth SCO device(s), notify about the first one
+                                            val scoDevice = bluetoothScoDevices.first()
+                                            val scoDeviceId = scoDevice.id.toString()
+                                            val scoDeviceName = getDeviceName(scoDevice)
+                                            LogUtils.d(CLASS_NAME, "Found Bluetooth SCO device: $scoDeviceName (ID: $scoDeviceId)")
+                                            handleDeviceConnection(scoDeviceId)
+                                        }
+                                    }
+                                }
+                                
+                                AudioManager.SCO_AUDIO_STATE_DISCONNECTED -> {
+                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO disconnected - microphone no longer available")
+                                    // Note: Device disconnection will be handled by other broadcasts
+                                }
+                                
+                                AudioManager.SCO_AUDIO_STATE_CONNECTING -> {
+                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO connecting...")
+                                }
+                                
+                                else -> {
+                                    LogUtils.d(CLASS_NAME, "Bluetooth SCO state: $scoState")
+                                }
+                            }
+                        }
                     }
                     
-                    // If this is the currently selected device, notify delegate
-                    if (deviceId != null && deviceId == lastSelectedDeviceId) {
-                        LogUtils.d(CLASS_NAME, "Currently selected device disconnected: $deviceId")
+                    // Handle any device disconnection - send events to React Native for device list updates
+                    if (deviceId != null) {
+                        LogUtils.d(CLASS_NAME, "Device disconnected: $deviceId (selected: ${deviceId == lastSelectedDeviceId})")
+                        if (deviceName != null) {
+                            LogUtils.d(CLASS_NAME, "Device name: $deviceName, type: $deviceType")
+                        }
+                        
                         // Log the disconnection for debugging
                         logDeviceDisconnection(deviceId, action ?: "unknown")
                         
-                        // Launch a coroutine to call the suspend function
-                        coroutineScope.launch {
-                            try {
-                                handleDeviceDisconnection(deviceId)
-                            } catch (e: Exception) {
-                                LogUtils.e(CLASS_NAME, "Error handling device disconnection: ${e.message}", e)
+                        // Send device disconnection event to React Native (for UI updates)
+                        handleDeviceDisconnectionEvent(deviceId)
+                        
+                        // If this was the currently selected device, also notify delegate for recording interruption
+                        if (deviceId == lastSelectedDeviceId) {
+                            LogUtils.d(CLASS_NAME, "Currently selected device disconnected - notifying delegate: $deviceId")
+                            // Launch a coroutine to call the suspend function
+                            coroutineScope.launch {
+                                try {
+                                    handleDeviceDisconnection(deviceId)
+                                } catch (e: Exception) {
+                                    LogUtils.e(CLASS_NAME, "Error handling device disconnection: ${e.message}", e)
+                                }
                             }
-                        }
-                    } else if (deviceId != null) {
-                        // Even if not our current device, log for debugging
-                        LogUtils.d(CLASS_NAME, "Device disconnected but not currently selected: $deviceId")
-                        if (deviceName != null) {
-                            LogUtils.d(CLASS_NAME, "Device name: $deviceName, type: $deviceType")
                         }
                     }
                     
@@ -1498,4 +1704,22 @@ class AudioDeviceManager(private val context: Context) {
         LogUtils.d(CLASS_NAME, "Device disconnected: $deviceId. Pausing recording.")
         delegate?.onDeviceDisconnected(deviceId)
     }
+    
+    /**
+     * Handles audio device connection
+     */
+    private fun handleDeviceConnection(deviceId: String) {
+        LogUtils.d(CLASS_NAME, "Device connected: $deviceId")
+        onDeviceConnected?.invoke(deviceId)
+    }
+    
+    /**
+     * Handles audio device disconnection (for React Native events)
+     */
+    private fun handleDeviceDisconnectionEvent(deviceId: String) {
+        LogUtils.d(CLASS_NAME, "Device disconnected: $deviceId")
+        onDeviceDisconnected?.invoke(deviceId)
+    }
+    
+
 } 
