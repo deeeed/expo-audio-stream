@@ -89,7 +89,8 @@ export class AudioDeviceManager {
 
     // Track temporarily disconnected devices
     private temporarilyDisconnectedDevices: Set<string> = new Set()
-    private disconnectionTimeouts: Map<string, NodeJS.Timeout> = new Map()
+    private disconnectionTimeouts: Map<string, ReturnType<typeof setTimeout>> =
+        new Map()
     private readonly DISCONNECTION_TIMEOUT_MS = 5000 // 5 seconds
 
     constructor(options?: { logger?: ConsoleLike }) {

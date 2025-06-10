@@ -38,5 +38,6 @@ export {
     useSharedAudioRecorder,
 }
 
+// Export all types
 export type * from './AudioAnalysis/AudioAnalysis.types'
 export type * from './ExpoAudioStream.types'
