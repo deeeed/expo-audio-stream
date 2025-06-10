@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.13.2] - 2025-06-10
+### Changed
+- fix: invalid type exports ([18340ea](https://github.com/deeeed/expo-audio-stream/commit/18340eac9cfef39691637400fc6af811d5b004df))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.13.1 ([9ccce85](https://github.com/deeeed/expo-audio-stream/commit/9ccce858174254387aac44d30853c908707d8254))
 ## [2.13.1] - 2025-06-09
 ### Changed
 - feat(investigation): resolve Issue #251 - comprehensive sub-100ms audio events analysis (#270) ([4813f1e](https://github.com/deeeed/expo-audio-stream/commit/4813f1ef05f3856b58ec8fde95b7b8909feb513d))
@@ -312,7 +316,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.2...HEAD
+[2.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.1...@siteed/expo-audio-studio@2.13.2
 [2.13.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.0...@siteed/expo-audio-studio@2.13.1
 [2.13.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.3...@siteed/expo-audio-studio@2.13.0
 [2.12.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.2...@siteed/expo-audio-studio@2.12.3
