@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.5.1] - 2025-06-11
+
+### Changed
+- release @siteed/expo-audio-studio@2.14.2
+- add performance and file size documentation
+- add file size collection e2e tests
+- remove invalid detox values
+
+### Fixed
+- Fix duration returning 0 when primary output is disabled (#244)
+
+
 ## [1.5.0] - 2025-06-11
 
 ### Added
@@ -121,7 +133,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.1...HEAD
+[1.5.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.0...audio-playground@1.5.1
 [1.5.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.4.0...audio-playground@1.5.0
 [1.4.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.3.0...audio-playground@1.4.0
 [1.3.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.2.0...audio-playground@1.3.0
