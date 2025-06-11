@@ -67,6 +67,14 @@ const sidebars: SidebarsConfig = {
             ],
         },
         {
+            type: 'category',
+            label: 'Performance',
+            items: [
+                'performance/index',
+                'performance/file-sizes',
+            ],
+        },
+        {
             type: 'doc',
             id: 'playground',
             label: 'Playground Application',
