@@ -8,4 +8,7 @@
 
 > **SampleRate**: `16000` \| `44100` \| `48000`
 
-Defined in: [src/ExpoAudioStream.types.ts:60](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L60)
+Defined in: [src/ExpoAudioStream.types.ts:75](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L75)
+
+Supported audio sample rates in Hz.
+All platforms support these standard rates.

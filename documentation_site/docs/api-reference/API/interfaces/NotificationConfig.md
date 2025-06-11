@@ -6,7 +6,7 @@
 
 # Interface: NotificationConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:444](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L444)
+Defined in: [src/ExpoAudioStream.types.ts:489](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L489)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:444](https://github.com/deeeed/expo-au
 
 > `optional` **android**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:455](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L455)
+Defined in: [src/ExpoAudioStream.types.ts:500](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L500)
 
 Android-specific notification configuration
 
@@ -78,7 +78,7 @@ Configuration for the waveform visualization in the notification
 
 > `optional` **icon**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:452](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L452)
+Defined in: [src/ExpoAudioStream.types.ts:497](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L497)
 
 Icon to be displayed in the notification (resource name or URI)
 
@@ -88,7 +88,7 @@ Icon to be displayed in the notification (resource name or URI)
 
 > `optional` **ios**: `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:485](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L485)
+Defined in: [src/ExpoAudioStream.types.ts:530](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L530)
 
 iOS-specific notification configuration
 
@@ -104,7 +104,7 @@ Identifier for the notification category (used for grouping similar notification
 
 > `optional` **text**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:449](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L449)
+Defined in: [src/ExpoAudioStream.types.ts:494](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L494)
 
 Main text content of the notification
 
@@ -114,6 +114,6 @@ Main text content of the notification
 
 > `optional` **title**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:446](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L446)
+Defined in: [src/ExpoAudioStream.types.ts:491](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L491)
 
 Title of the notification

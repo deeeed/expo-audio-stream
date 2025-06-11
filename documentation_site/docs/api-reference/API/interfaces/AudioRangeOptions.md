@@ -6,7 +6,7 @@
 
 # Interface: AudioRangeOptions
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:141](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L141)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:155](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L155)
 
 Options for specifying a time range within an audio file.
 
@@ -20,7 +20,7 @@ Options for specifying a time range within an audio file.
 
 > `optional` **endTimeMs**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:145](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L145)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:159](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L159)
 
 End time in milliseconds
 
@@ -30,6 +30,6 @@ End time in milliseconds
 
 > `optional` **startTimeMs**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:143](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L143)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:157](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L157)
 
 Start time in milliseconds

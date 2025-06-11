@@ -6,7 +6,7 @@
 
 # Interface: AndroidConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:211](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L211)
+Defined in: [src/ExpoAudioStream.types.ts:242](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L242)
 
 Android platform specific configuration options
 
@@ -16,7 +16,7 @@ Android platform specific configuration options
 
 > `optional` **audioFocusStrategy**: `"background"` \| `"interactive"` \| `"communication"` \| `"none"`
 
-Defined in: [src/ExpoAudioStream.types.ts:222](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L222)
+Defined in: [src/ExpoAudioStream.types.ts:253](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L253)
 
 Audio focus strategy for handling interruptions and background behavior
 

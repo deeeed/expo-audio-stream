@@ -8,4 +8,15 @@
 
 > **BitDepth**: `8` \| `16` \| `32`
 
-Defined in: [src/ExpoAudioStream.types.ts:61](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L61)
+Defined in: [src/ExpoAudioStream.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L87)
+
+Audio bit depth (bits per sample).
+
+Platform support:
+- `8`: Android only (iOS/Web will fallback to 16)
+- `16`: All platforms (recommended for compatibility)
+- `32`: All platforms
+
+## See
+
+[Platform Limitations](https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md)

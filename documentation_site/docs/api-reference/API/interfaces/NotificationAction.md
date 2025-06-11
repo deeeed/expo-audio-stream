@@ -6,7 +6,7 @@
 
 # Interface: NotificationAction
 
-Defined in: [src/ExpoAudioStream.types.ts:491](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L491)
+Defined in: [src/ExpoAudioStream.types.ts:536](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L536)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:491](https://github.com/deeeed/expo-au
 
 > `optional` **icon**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:499](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L499)
+Defined in: [src/ExpoAudioStream.types.ts:544](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L544)
 
 Icon to be displayed for the action (Android only)
 
@@ -24,7 +24,7 @@ Icon to be displayed for the action (Android only)
 
 > **identifier**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:496](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L496)
+Defined in: [src/ExpoAudioStream.types.ts:541](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L541)
 
 Unique identifier for the action
 
@@ -34,6 +34,6 @@ Unique identifier for the action
 
 > **title**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:493](https://github.com/deeeed/expo-audio-stream/blob/9ccce858174254387aac44d30853c908707d8254/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L493)
+Defined in: [src/ExpoAudioStream.types.ts:538](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L538)
 
 Display title for the action
