@@ -95,6 +95,7 @@ const AgentValidationScreen = () => {
   const [finalResult, setFinalResult] = useState<AudioRecording | null>(null)
   const [events, setEvents] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [stopTime, setStopTime] = useState<number | null>(null)
 
   // High-frequency event timing analysis using refs to avoid re-renders
   const analysisTimingStats = useRef<TimingStats | null>(null)
@@ -380,10 +381,15 @@ const AgentValidationScreen = () => {
       console.log('🔴 STOP BUTTON CLICKED - Starting handleStopRecording')
       addEvent('Stopping recording...')
       console.log('🔴 About to call stopRecording()')
+      const stopStartTime = performance.now()
       const result = await stopRecording()
+      const stopDuration = Math.round(performance.now() - stopStartTime)
       console.log('🔴 stopRecording() completed, result:', result)
+      console.log(`🔴 Stop recording took: ${stopDuration}ms`)
+      setStopTime(stopDuration)
       setFinalResult(result)
       addEvent(`Recording stopped: ${JSON.stringify(result, null, 2)}`)
+      addEvent(`Stop recording duration: ${stopDuration}ms`)
 
       // Generate timing summary after recording stops
       if (enableTimingAnalysis) {
@@ -507,6 +513,7 @@ const AgentValidationScreen = () => {
     setFinalResult(null)
     setEvents([])
     setError(null)
+    setStopTime(null)
   }, [])
 
   return (
@@ -713,137 +720,78 @@ const AgentValidationScreen = () => {
             <View style={{ marginVertical: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 4 }}>
               <Text testID="event-stats" style={[styles.eventText, { color: theme.colors.onSurfaceVariant }]}>
                 📊 Stats: {events.length} total events
-                {events.length > 0 && ` | First: ${events[0]?.split(':')[0]} | Latest: ${events[events.length - 1]?.split(':')[0]}`}
-              </Text>
-              <Text testID="event-count" style={{ opacity: 0, height: 0 }}>
-                {events.length}
+                {events.length > 0 && ` | Started: ${events[0]?.split(':')[0] || 'N/A'}`}
+                {events.length > 1 && ` | Latest: ${events[events.length - 1]?.split(':')[0] || 'N/A'}`}
               </Text>
             </View>
 
-            {/* Recent Events Display */}
-            <View style={{ maxHeight: 150, minHeight: 50 }}>
-              <Text style={[styles.eventText, { marginBottom: 4, fontWeight: 'bold' }]}>
-                Recent Events (showing last {Math.min(5, events.length)}):
+            {/* Show last 5 events to avoid huge scrollable area - but include all event data for E2E testing */}
+            <Text testID="event-log" style={styles.eventText}>
+              {events.slice(-5).join('\n')}
+            </Text>
+            
+            {events.length > 5 && (
+              <Text style={[styles.eventText, { marginTop: 8, fontStyle: 'italic', color: theme.colors.onSurfaceVariant }]}>
+                ... and {events.length - 5} earlier events (check console for full log)
               </Text>
-              {events.slice(-5).map((event, index) => (
-                <Text key={index} testID={`event-${index}`} style={styles.eventText} numberOfLines={2}>
-                  {event}
-                </Text>
-              ))}
-              {events.length > 5 && (
-                <Text testID="events-overflow" style={[styles.eventText, { fontStyle: 'italic', marginTop: 4 }]}>
-                  ... and {events.length - 5} earlier events (total: {events.length})
-                </Text>
-              )}
-            </View>
-
-            {/* Quick Event Type Summary */}
-            <View style={{ marginTop: 8 }}>
-              <Text style={[styles.eventText, { fontSize: 10, color: theme.colors.onSurfaceVariant }]}>
-                Types: {[...new Set(events.map(e => {
-                  if (e.includes('Starting recording')) return 'start'
-                  if (e.includes('Recording started')) return 'started'
-                  if (e.includes('Stopping recording')) return 'stop'
-                  if (e.includes('Recording stopped')) return 'stopped'
-                  if (e.includes('AudioStream')) return 'stream'
-                  if (e.includes('interrupted')) return 'interrupt'
-                  return 'other'
-                }))].join(', ')}
-              </Text>
-            </View>
+            )}
           </Card.Content>
         </Card>
       )}
 
-      {/* CRITICAL TEST ELEMENTS - Always in predictable positions */}
-
-      {/* Scroll anchor for test navigation */}
-      <View testID="test-results-anchor" style={{ height: 1 }} />
-
-      {/* Timing Summary - HIGH PRIORITY for E2E tests */}
+      {/* Timing Summary - Shows after recording completes when timing analysis is enabled */}
       {timingSummary && (
-        <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]} testID="timing-summary-card">
+        <Card style={[styles.resultCard, { backgroundColor: theme.colors.secondaryContainer }]}>
           <Card.Content>
-            <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-              🎯 Timing Validation Summary
+            <Text variant="titleSmall" style={{ color: theme.colors.onSecondaryContainer }}>
+              📊 Timing Validation Summary
             </Text>
-            <Text testID="timing-validation-summary" style={[styles.resultText, { color: theme.colors.onPrimaryContainer, fontFamily: 'monospace' }]}>
+            <Text testID="timing-summary" style={[styles.resultText, { color: theme.colors.onSecondaryContainer }]}>
               {timingSummary}
             </Text>
           </Card.Content>
         </Card>
       )}
 
-      {/* Final Recording Result - HIGH PRIORITY for tests */}
+      {/* Final Recording Result */}
       {finalResult && (
-        <Card style={[styles.resultCard, { backgroundColor: theme.colors.successContainer }]} testID="final-result-card">
+        <Card style={styles.resultCard}>
           <Card.Content>
-            <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
-              ✅ Final Recording Result
+            <Text variant="titleSmall">Final Recording Result</Text>
+            <Text testID="final-recording-result" style={styles.resultText}>
+              {JSON.stringify(finalResult, null, 2)}
             </Text>
-            <View>
-              <Text testID="final-recording-result" style={[styles.resultText, { color: theme.colors.onSurface }]} numberOfLines={10}>
-                {JSON.stringify(finalResult, null, 2)}
-              </Text>
-            </View>
           </Card.Content>
         </Card>
       )}
 
-      {/* Error Display - HIGH PRIORITY for tests */}
+      {/* Stop Recording Performance */}
+      {stopTime !== null && (
+        <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]}>
+          <Card.Content>
+            <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
+              ⏱️ Stop Recording Performance
+            </Text>
+            <Text testID="stop-time-result" style={[styles.resultText, { color: theme.colors.onPrimaryContainer }]}>
+              {stopTime}ms
+            </Text>
+          </Card.Content>
+        </Card>
+      )}
+
+      {/* Error Display */}
       {error && (
-        <Card style={[styles.resultCard, { backgroundColor: theme.colors.errorContainer }]} testID="error-card">
+        <Card style={[styles.resultCard, { backgroundColor: theme.colors.errorContainer }]}>
           <Card.Content>
             <Text variant="titleSmall" style={{ color: theme.colors.onErrorContainer }}>
               ❌ Error
             </Text>
-            <Text testID="error-message" style={[styles.resultText, { color: theme.colors.onErrorContainer }]} numberOfLines={5}>
+            <Text testID="error-message" style={[styles.resultText, { color: theme.colors.onErrorContainer }]}>
               {error}
             </Text>
           </Card.Content>
         </Card>
       )}
-
-      {/* Usage Instructions */}
-      <Card style={styles.resultCard}>
-        <Card.Content>
-          <Text variant="titleSmall">Deep Link Usage</Text>
-          <Text style={styles.eventText}>
-            Example URLs (scheme varies by APP_VARIANT):
-            {'\n'}
-            {'\n'}• Basic recording:
-            {'\n'}audioplayground://agent-validation?sampleRate=44100&channels=1&encoding=pcm_16bit
-            {'\n'}
-            {'\n'}• High-frequency timing investigation:
-            {'\n'}audioplayground://agent-validation?intervalAnalysis=10&enableProcessing=true&measurePrecision=true
-            {'\n'}
-            {'\n'}• Analysis-only mode:
-            {'\n'}audioplayground://agent-validation?intervalAnalysis=25&analysisOnly=true&measurePrecision=true
-            {'\n'}
-            {'\n'}• With compression:
-            {'\n'}audioplayground://agent-validation?compressedOutput=true&compressedFormat=aac&compressedBitrate=128000
-            {'\n'}
-            {'\n'}• Background recording:
-            {'\n'}audioplayground://agent-validation?keepAwake=true&android.audioFocusStrategy=background
-            {'\n'}
-            {'\n'}• With base64 config:
-            {'\n'}audioplayground://agent-validation?config=eyJrZWVwQXdha2UiOnRydWUsImFuZHJvaWQiOnsiYXVkaW9Gb2N1c1N0cmF0ZWd5IjoiYmFja2dyb3VuZCJ9fQ==
-            {'\n'}
-            {'\n'}• Production scheme: audioplayground://
-            {'\n'}• Development scheme: audioplayground-development://
-            {'\n'}
-            {'\n'}Parameters: sampleRate, channels, encoding, interval, intervalAnalysis, enableProcessing, measurePrecision, analysisOnly, keepAwake, showNotification, android.audioFocusStrategy, primaryOutput, compressedOutput, compressedFormat, compressedBitrate
-            {'\n'}Alternative: Pass entire config as base64 JSON with ?config=base64String
-            {'\n'}
-            {'\n'}🔬 Timing Analysis Parameters:
-            {'\n'}• intervalAnalysis: Target analysis interval (ms)
-            {'\n'}• measurePrecision: Enable high-precision timing measurement
-            {'\n'}• analysisOnly: Focus on analysis timing without audio stream
-            {'\n'}
-            {'\n'}Use Detox to press buttons and test recording workflow.
-          </Text>
-        </Card.Content>
-      </Card>
     </ScreenWrapper>
   )
 }
