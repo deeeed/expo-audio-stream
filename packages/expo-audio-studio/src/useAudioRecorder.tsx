@@ -473,8 +473,34 @@ export function useAudioRecorder({
 
     const startRecording = useCallback(
         async (recordingOptions: RecordingConfig) => {
-            recordingConfigRef.current = recordingOptions
-            logger?.debug(`start recoding`, recordingOptions)
+            // Import validation function
+            const { validateRecordingConfig } = await import(
+                './constants/platformLimitations'
+            )
+
+            // Validate the encoding configuration
+            const validationResult = validateRecordingConfig({
+                encoding: recordingOptions.encoding,
+            })
+
+            // Log warnings if any
+            if (validationResult.warnings.length > 0) {
+                validationResult.warnings.forEach((warning) => {
+                    logger?.warn(warning)
+                })
+            }
+
+            // Update recording options with validated values
+            const validatedOptions = {
+                ...recordingOptions,
+                encoding: validationResult.encoding,
+            }
+
+            recordingConfigRef.current = validatedOptions
+            logger?.debug(
+                `start recording with validated config`,
+                validatedOptions
+            )
 
             analysisRef.current = { ...defaultAnalysis } // Reset analysis data
             fullAnalysisRef.current = { ...defaultAnalysis }
@@ -483,7 +509,7 @@ export function useAudioRecorder({
                 onRecordingInterrupted,
                 onAudioAnalysis,
                 ...options
-            } = recordingOptions
+            } = validatedOptions
             const { enableProcessing } = options
 
             const maxRecentDataDuration = 10000 // TODO compute maxRecentDataDuration based on screen dimensions

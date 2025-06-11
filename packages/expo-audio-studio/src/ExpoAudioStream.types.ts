@@ -56,9 +56,40 @@ export interface AudioDataEvent {
     }
 }
 
+/**
+ * Audio encoding types supported by the library.
+ *
+ * Platform support:
+ * - `pcm_8bit`: Android only (iOS/Web will fallback to 16-bit)
+ * - `pcm_16bit`: All platforms
+ * - `pcm_32bit`: All platforms
+ *
+ * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+ */
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
+
+/**
+ * Supported audio sample rates in Hz.
+ * All platforms support these standard rates.
+ */
 export type SampleRate = 16000 | 44100 | 48000
+
+/**
+ * Audio bit depth (bits per sample).
+ *
+ * Platform support:
+ * - `8`: Android only (iOS/Web will fallback to 16)
+ * - `16`: All platforms (recommended for compatibility)
+ * - `32`: All platforms
+ *
+ * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+ */
 export type BitDepth = 8 | 16 | 32
+
+/**
+ * PCM format string representation.
+ * @deprecated Use `EncodingType` directly
+ */
 export type PCMFormat = `pcm_${BitDepth}bit`
 
 export type ConsoleLike = {
@@ -351,7 +382,21 @@ export interface RecordingConfig {
     /** Number of audio channels (1 for mono, 2 for stereo) */
     channels?: 1 | 2
 
-    /** Encoding type for the recording (pcm_32bit, pcm_16bit, pcm_8bit) */
+    /**
+     * Encoding type for the recording.
+     *
+     * Platform limitations:
+     * - `pcm_8bit`: Android only (iOS/Web will fallback to `pcm_16bit` with warning)
+     * - `pcm_16bit`: All platforms (recommended for cross-platform compatibility)
+     * - `pcm_32bit`: All platforms
+     *
+     * The library will automatically validate and adjust the encoding based on
+     * platform capabilities. A warning will be logged if fallback is required.
+     *
+     * @default 'pcm_16bit'
+     * @see {@link EncodingType}
+     * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+     */
     encoding?: EncodingType
 
     /** Interval in milliseconds at which to emit recording data (minimum: 10ms) */

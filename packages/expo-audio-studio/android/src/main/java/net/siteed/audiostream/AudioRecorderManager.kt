@@ -1030,6 +1030,17 @@ class AudioRecorderManager(
                     LogUtils.d(CLASS_NAME, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
                 }
 
+                // Log bit depth information for debugging
+                val configBitDepth = AudioFormatUtils.getBitDepth(recordingConfig.encoding)
+                val analysisBitDepth = analysisData?.bitDepth
+                LogUtils.d(CLASS_NAME, """
+                    Bit Depth Debug Info:
+                    - Config encoding: ${recordingConfig.encoding}
+                    - Config bit depth: $configBitDepth
+                    - Analysis bit depth: $analysisBitDepth
+                    - Audio format: $audioFormat
+                """.trimIndent())
+                
                 val result = if (!recordingConfig.output.primary.enabled) {
                     // When primary output is disabled, still include compression info if available
                     val localCompressedFile = compressedFile // Create local copy to avoid smart cast issues
