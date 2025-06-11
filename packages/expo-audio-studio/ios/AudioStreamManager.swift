@@ -1410,6 +1410,16 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // targetSampleRate and targetFormat remain the user's requested final format
         let targetSampleRate = Double(settings.sampleRate)
         let targetFormat: AVAudioCommonFormat = settings.bitDepth == 32 ? .pcmFormatFloat32 : .pcmFormatInt16
+        
+        // Log bit depth information
+        Logger.debug("""
+            BIT DEPTH DEBUG:
+            - Settings bitDepth: \(settings.bitDepth)
+            - Target format: \(targetFormat == .pcmFormatFloat32 ? "pcmFormatFloat32" : "pcmFormatInt16")
+            - Buffer format: \(buffer.format.commonFormat.rawValue)
+            - Buffer sample rate: \(buffer.format.sampleRate)
+            - Target sample rate: \(targetSampleRate)
+        """)
 
         // Buffer to be processed - initially the input buffer
         var bufferToProcess: AVAudioPCMBuffer = buffer
@@ -1687,8 +1697,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         audioEngine.inputNode.removeTap(onBus: 0)
         
-        // Stop compressed recording if active
-        compressedRecorder?.stop()
+        // Stop compressed recording if active and update cached size
+        if let recorder = compressedRecorder {
+            recorder.stop()
+            
+            // Update cached compressed file size after stopping
+            if let compressedURL = compressedFileURL {
+                do {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+                    if let size = attributes[.size] as? Int64 {
+                        cachedCompressedFileSize = size
+                        Logger.debug("Updated compressed file size after stop: \(size) bytes")
+                    }
+                } catch {
+                    Logger.debug("Failed to update compressed file size: \(error)")
+                }
+            }
+        }
         
         // Get the final duration before changing state
         let finalDuration = currentRecordingDuration()
@@ -2204,7 +2229,6 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         Logger.debug("AudioStreamManager", "Audio session configured with category: \(category), mode: \(mode), options: \(options)")
     }
-
 }
 
 extension AudioStreamManager: UNUserNotificationCenterDelegate {
