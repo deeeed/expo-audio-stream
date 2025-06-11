@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.14.0] - 2025-06-11
+### Changed
+- feat(expo-audio-studio): comprehensive cross-platform stop recording performance optimization ([b3ed474](https://github.com/deeeed/expo-audio-stream/commit/b3ed474d91994698fe082354621adc98e758557e))
 ## [2.13.2] - 2025-06-10
 ### Changed
 - fix: invalid type exports ([18340ea](https://github.com/deeeed/expo-audio-stream/commit/18340eac9cfef39691637400fc6af811d5b004df))
@@ -316,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.0...HEAD
+[2.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.2...@siteed/expo-audio-studio@2.14.0
 [2.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.1...@siteed/expo-audio-studio@2.13.2
 [2.13.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.0...@siteed/expo-audio-studio@2.13.1
 [2.13.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.12.3...@siteed/expo-audio-studio@2.13.0
