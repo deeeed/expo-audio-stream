@@ -928,6 +928,10 @@ class AudioRecorderManager(
                 return
             }
 
+            // Declare variables at the synchronized block level to ensure they're accessible in both try blocks
+            var duration: Long = 0
+            var fileSize: Long = 0
+
             try {
                 if (isPaused.get()) {
                     val remainingData = ByteArray(bufferSizeInBytes)
@@ -971,24 +975,11 @@ class AudioRecorderManager(
                     audioRecord!!.stop()
                 }
 
-                cleanup()
-            } catch (e: IllegalStateException) {
-                LogUtils.e(CLASS_NAME, "Error reading from AudioRecord", e)
-            } finally {
-                releaseWakeLock()
-                audioRecord?.release()
-            }
-
-            try {
-                AudioProcessor.resetUniqueIdCounter()
-                audioProcessor.resetCumulativeAmplitudeRange()
-
-                // Use cached file size to avoid file system call
-                val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
+                // Calculate duration BEFORE cleanup (which resets recordingStartTime)
+                fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
                 LogUtils.d(CLASS_NAME, "WAV File validation - Size: $fileSize bytes (cached), Path: ${audioFile?.absolutePath}")
                 
-                // Calculate duration based on context - use actual recording time for streaming-only mode
-                val duration = if (!recordingConfig.output.primary.enabled) {
+                duration = if (!recordingConfig.output.primary.enabled) {
                     // For streaming-only mode, calculate duration from actual recording time
                     val actualRecordingTime = if (recordingStartTime > 0) {
                         System.currentTimeMillis() - recordingStartTime - pausedDuration
@@ -1011,6 +1002,18 @@ class AudioRecorderManager(
                     LogUtils.d(CLASS_NAME, "File-based mode: Using file size duration: ${fileDuration}ms")
                     fileDuration
                 }
+
+                cleanup()
+            } catch (e: IllegalStateException) {
+                LogUtils.e(CLASS_NAME, "Error reading from AudioRecord", e)
+            } finally {
+                releaseWakeLock()
+                audioRecord?.release()
+            }
+
+            try {
+                AudioProcessor.resetUniqueIdCounter()
+                audioProcessor.resetCumulativeAmplitudeRange()
 
                 compressedRecorder?.apply {
                     stop()
@@ -1221,14 +1224,25 @@ class AudioRecorderManager(
 
             // Use cached file size instead of file system call
             val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
-            val duration = when (mimeType) {
-                "audio/wav" -> {
-                    val dataFileSize = fileSize - Constants.WAV_HEADER_SIZE
-                    val byteRate = recordingConfig.sampleRate * recordingConfig.channels * 
-                        (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
-                    if (byteRate > 0) dataFileSize * 1000 / byteRate else 0
+            val duration = if (!recordingConfig.output.primary.enabled) {
+                // For streaming-only mode, calculate duration from actual recording time
+                val actualRecordingTime = if (recordingStartTime > 0) {
+                    System.currentTimeMillis() - recordingStartTime - pausedDuration
+                } else {
+                    0L
                 }
-                else -> totalRecordedTime
+                actualRecordingTime
+            } else {
+                // For file-based recording, calculate duration from file size
+                when (mimeType) {
+                    "audio/wav" -> {
+                        val dataFileSize = fileSize - Constants.WAV_HEADER_SIZE
+                        val byteRate = recordingConfig.sampleRate * recordingConfig.channels * 
+                            (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8
+                        if (byteRate > 0) dataFileSize * 1000 / byteRate else 0
+                    }
+                    else -> totalRecordedTime
+                }
             }
 
             val compressionBundle = if (recordingConfig.output.compressed.enabled) {
