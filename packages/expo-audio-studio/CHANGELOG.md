@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.14.2] - 2025-06-11
+### Changed
+- fix(ios): update compressed file size when primary output is disabled ([9f03ee0](https://github.com/deeeed/expo-audio-stream/commit/9f03ee0b18f1c079e5aaf13267e19f095ad3b7ea))
+- feat(expo-audio-studio): add platform limitations validation and documentation ([7e062ff](https://github.com/deeeed/expo-audio-stream/commit/7e062ff837865b735f0cabdb9e2b755ce55a94c6))
+- docs: reorg ([0251063](https://github.com/deeeed/expo-audio-stream/commit/0251063893c6464ec6410ec6e08866e12d3113a7))
 ## [2.14.1] - 2025-06-11
 ### Changed
 - fix(android): Fix duration returning 0 when primary output is disabled (#244) ([38d6f50](https://github.com/deeeed/expo-audio-stream/commit/38d6f50c084a10329be33a0f1c123aa9f457c371))
@@ -322,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.2...HEAD
+[2.14.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.1...@siteed/expo-audio-studio@2.14.2
 [2.14.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.0...@siteed/expo-audio-studio@2.14.1
 [2.14.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.2...@siteed/expo-audio-studio@2.14.0
 [2.13.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.13.1...@siteed/expo-audio-studio@2.13.2
