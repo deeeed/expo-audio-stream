@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.5.0] - 2025-06-11
+
+### Added
+- implement native integration testing framework for sherpa-onnx.rn (#252)
+
+### Changed
+- release @siteed/expo-audio-studio@2.14.0
+
+### Fixed
+- invalid type exports
+- audio focus strategy implementation for Android background recording (#267)
+- docs: fix comment formatting in OutputConfig interface for clarity
+- fix iOS TurboModule architecture compatibility (#254)
+- prevent UninitializedPropertyAccessException crash in developer menu (#250)
+- return compression info when primary output is disabled (issue #244) (#249)
+- Buffer size calculation and document duplicate emission fix for … (#248)
+
+
 ## [1.4.0] - 2025-05-26
 
 ### Added
@@ -102,7 +120,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.4.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.0...HEAD
+[1.5.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.4.0...audio-playground@1.5.0
 [1.4.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.3.0...audio-playground@1.4.0
 [1.3.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.2.0...audio-playground@1.3.0
 [1.2.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.0.1...audio-playground@1.2.0
