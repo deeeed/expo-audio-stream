@@ -137,6 +137,10 @@ class AudioRecorderManager(
     var isPrepared = false
     private var selectedDeviceId: String? = null
     private var deviceDisconnectionBehavior: String? = null
+    
+    // Cache file sizes to avoid file system calls during stop
+    private var cachedPrimaryFileSize: Long = 44L  // Start with WAV header size
+    private var cachedCompressedFileSize: Long = 0L
 
     // Add a method to handle device changes
     fun handleDeviceChange() {
@@ -819,6 +823,10 @@ class AudioRecorderManager(
             streamUuid = java.util.UUID.randomUUID().toString()
             totalDataSize = 0
             
+            // Reset cached file sizes
+            cachedPrimaryFileSize = 44L  // WAV header size
+            cachedCompressedFileSize = 0L
+            
             // Only create file if primary output is enabled
             if (recordingConfig.output.primary.enabled) {
                 audioFile = createRecordingFile(recordingConfig)
@@ -936,7 +944,19 @@ class AudioRecorderManager(
 
                 _isRecording.set(false)
                 isPrepared = false  // Reset preparation state
-                recordingThread?.join(1000)
+                
+                // Calculate adaptive timeout based on estimated file size
+                // Assume ~5MB per minute at 44.1kHz, 16-bit, mono
+                val recordingDurationMs = if (recordingStartTime > 0) {
+                    System.currentTimeMillis() - recordingStartTime - pausedDuration
+                } else {
+                    0L
+                }
+                val estimatedFileSizeMB = (recordingDurationMs / 60000.0) * 5.0
+                val timeoutMs = maxOf(2000L, (estimatedFileSizeMB * 100).toLong()) // 100ms per MB, min 2 seconds
+                
+                LogUtils.d(CLASS_NAME, "Waiting for recording thread to complete with timeout: ${timeoutMs}ms (estimated size: ${estimatedFileSizeMB}MB)")
+                recordingThread?.join(timeoutMs)
 
                 val audioData = ByteArray(bufferSizeInBytes)
                 val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
@@ -963,8 +983,9 @@ class AudioRecorderManager(
                 AudioProcessor.resetUniqueIdCounter()
                 audioProcessor.resetCumulativeAmplitudeRange()
 
-                val fileSize = audioFile?.length() ?: 0
-                LogUtils.d(CLASS_NAME, "WAV File validation - Size: $fileSize bytes, Path: ${audioFile?.absolutePath}")
+                // Use cached file size to avoid file system call
+                val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
+                LogUtils.d(CLASS_NAME, "WAV File validation - Size: $fileSize bytes (cached), Path: ${audioFile?.absolutePath}")
                 
                 // Calculate duration based on context - use actual recording time for streaming-only mode
                 val duration = if (!recordingConfig.output.primary.enabled) {
@@ -997,9 +1018,12 @@ class AudioRecorderManager(
                 }
                 compressedRecorder = null
 
-                // Log compressed file status if enabled
+                // Log compressed file status if enabled - use actual file size for validation
                 if (recordingConfig.output.compressed.enabled) {
+                    // Note: For compressed files, we need to get actual size as MediaRecorder handles the writing
+                    // Use actual file size here for validation purposes only
                     val compressedSize = compressedFile?.length() ?: 0
+                    cachedCompressedFileSize = compressedSize // Update cache with final size
                     LogUtils.d(CLASS_NAME, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
                 }
 
@@ -1008,7 +1032,7 @@ class AudioRecorderManager(
                     val localCompressedFile = compressedFile // Create local copy to avoid smart cast issues
                     val compressionBundle = if (recordingConfig.output.compressed.enabled && localCompressedFile != null) {
                         bundleOf(
-                            "size" to localCompressedFile.length(),
+                            "size" to cachedCompressedFileSize,  // Use cached size
                             "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
                             "bitrate" to recordingConfig.output.compressed.bitrate,
                             "format" to recordingConfig.output.compressed.format,
@@ -1040,7 +1064,7 @@ class AudioRecorderManager(
                         "mimeType" to mimeType,
                         "createdAt" to System.currentTimeMillis(),
                         "compression" to if (compressedFile != null) bundleOf(
-                            "size" to compressedFile?.length(),
+                            "size" to cachedCompressedFileSize,  // Use cached size
                             "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
                             "bitrate" to recordingConfig.output.compressed.bitrate,
                             "format" to recordingConfig.output.compressed.format,
@@ -1195,7 +1219,8 @@ class AudioRecorderManager(
                 )
             }
 
-            val fileSize = audioFile?.length() ?: 0
+            // Use cached file size instead of file system call
+            val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
             val duration = when (mimeType) {
                 "audio/wav" -> {
                     val dataFileSize = fileSize - Constants.WAV_HEADER_SIZE
@@ -1208,7 +1233,7 @@ class AudioRecorderManager(
 
             val compressionBundle = if (recordingConfig.output.compressed.enabled) {
                 bundleOf(
-                    "size" to (compressedFile?.length() ?: 0),
+                    "size" to cachedCompressedFileSize,  // Use cached size
                     "mimeType" to if (recordingConfig.output.compressed.format == "aac") "audio/aac" else "audio/opus",
                     "bitrate" to recordingConfig.output.compressed.bitrate,
                     "format" to recordingConfig.output.compressed.format
@@ -1380,6 +1405,7 @@ class AudioRecorderManager(
                         // Only write to file if primary output is enabled
                         if (fos != null) {
                             fos.write(audioData, 0, bytesRead)
+                            cachedPrimaryFileSize += bytesRead  // Update cached file size
                         }
                         totalDataSize += bytesRead
                         
@@ -1440,16 +1466,17 @@ class AudioRecorderManager(
                     }
                 }
             } finally {
-                // Close the file output stream if it was opened
+                // Flush and close the file output stream if it was opened
+                try {
+                    fos?.flush()
+                    LogUtils.d(CLASS_NAME, "FileOutputStream flushed successfully")
+                } catch (e: Exception) {
+                    LogUtils.e(CLASS_NAME, "Error flushing FileOutputStream", e)
+                }
                 fos?.close()
             }
             
-            // Update the WAV header to reflect the actual data size (only if file was created)
-            if (recordingConfig.output.primary.enabled) {
-                audioFile?.let { file ->
-                    audioFileHandler.updateWavHeader(file)
-                }
-            }
+            // WAV header update is already handled in cleanup(), no need to duplicate here
 
         } catch (e: Exception) {
             // Ensure wake lock is released if the thread is interrupted
@@ -1463,7 +1490,8 @@ class AudioRecorderManager(
     private fun emitAudioData(audioData: ByteArray, length: Int) {
         val encodedBuffer = audioDataEncoder.encodeToBase64(audioData)
 
-        val fileSize = audioFile?.length() ?: 0
+        // Use cached file size instead of file system call
+        val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
         val from = lastEmittedSize
         lastEmittedSize = fileSize
 
@@ -1472,7 +1500,14 @@ class AudioRecorderManager(
             (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
 
         val compressionBundle = if (recordingConfig.output.compressed.enabled) {
-            val compressedSize = compressedFile?.length() ?: 0
+            // For compressed files, we need to get actual size as MediaRecorder handles the writing
+            // Only update cache periodically to avoid frequent file system calls
+            val currentTime = System.currentTimeMillis()
+            if (cachedCompressedFileSize == 0L || (currentTime - lastEmittedCompressedSize) > 5000) {
+                cachedCompressedFileSize = compressedFile?.length() ?: 0
+            }
+            
+            val compressedSize = cachedCompressedFileSize
             val eventDataSize = compressedSize - lastEmittedCompressedSize
             
             // Read the new compressed data

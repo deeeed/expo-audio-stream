@@ -112,6 +112,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     // Add the stopping flag to the class properties
     private var stopping: Bool = false
+    
+    // Performance optimization: Cache file sizes during recording
+    private var cachedWavFileSize: Int64 = 0
+    private var cachedCompressedFileSize: Int64 = 0
 
     /// Initializes the AudioStreamManager
     override init() {
@@ -819,6 +823,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     let header = createWavHeader(dataSize: 0)
                     self.fileHandle?.write(header)
                     self.totalDataSize = Int64(WAV_HEADER_SIZE) // Initialize size with header size
+                    self.cachedWavFileSize = Int64(WAV_HEADER_SIZE) // Initialize cached size
                     Logger.debug("AudioStreamManager", "File handle opened and initial header written for \(url.path). Initial size: \(self.totalDataSize)")
                 } catch {
                     Logger.debug("AudioStreamManager", "Error creating/opening file handle: \(error.localizedDescription)")
@@ -1462,6 +1467,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     try handle.write(contentsOf: dataToWrite)
                     // Update total size state
                     self.totalDataSize += Int64(dataToWrite.count)
+                    // Cache WAV file size for performance
+                    self.cachedWavFileSize = self.totalDataSize
                 } catch {
                      Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
                 }
@@ -1698,34 +1705,51 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return nil
         }
         
-        if recordingSettings?.showNotification == true {
-            // Stop and clean up timer safely
+        // PERFORMANCE OPTIMIZATION: Capture current state for immediate return
+        let capturedFileURL = recordingFileURL
+        let capturedSettings = recordingSettings
+        let capturedWavFileSize = cachedWavFileSize
+        let capturedCompressedFileSize = cachedCompressedFileSize
+        let capturedTotalDataSize = totalDataSize
+        let capturedCompressedURL = compressedFileURL
+        
+        // PERFORMANCE OPTIMIZATION: Move all slow operations to background
+        let capturedShowNotification = recordingSettings?.showNotification == true
+        
+        // Queue notification and audio session cleanup for background
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
+            if capturedShowNotification {
+                // Clean up notifications on main queue but don't wait
+                DispatchQueue.main.async {
+                    self.mediaInfoUpdateTimer?.invalidate()
+                    self.mediaInfoUpdateTimer = nil
+                    
+                    // Clean up notification manager
+                    self.notificationManager?.stopUpdates()
+                    self.notificationManager = nil
+                    
+                    // Clean up media controls
+                    UIApplication.shared.endReceivingRemoteControlEvents()
+                    self.remoteCommandCenter?.pauseCommand.isEnabled = false
+                    self.remoteCommandCenter?.playCommand.isEnabled = false
+                    self.notificationView?.nowPlayingInfo = nil
+                }
+            }
+            
+            // Reset audio session in background
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                Logger.debug("Background: Error deactivating audio session: \(error)")
+            }
+            
+            // Reset audio engine in background
             DispatchQueue.main.async {
-                self.mediaInfoUpdateTimer?.invalidate()
-                self.mediaInfoUpdateTimer = nil
-                
-                // Clean up notification manager
-                self.notificationManager?.stopUpdates()
-                self.notificationManager = nil
-                
-                // Clean up media controls
-                UIApplication.shared.endReceivingRemoteControlEvents()
-                self.remoteCommandCenter?.pauseCommand.isEnabled = false
-                self.remoteCommandCenter?.playCommand.isEnabled = false
-                self.notificationView?.nowPlayingInfo = nil
+                self.audioEngine.reset()
             }
         }
-        
-        // Reset audio session safely
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            Logger.debug("Error deactivating audio session: \(error)")
-            // Continue with cleanup despite session errors
-        }
-
-        // Reset audio engine
-        audioEngine.reset()
         
         guard let settings = recordingSettings else {
             Logger.debug("Recording settings is nil.")
@@ -1737,40 +1761,25 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         if !settings.output.primary.enabled {
             let durationMs = Int64(finalDuration * 1000)
             
-            // Check for compressed output even when primary is disabled
+            // Check for compressed output using cached size
             var compression: CompressedRecordingInfo?
-            if settings.output.compressed.enabled, let compressedURL = compressedFileURL {
-                let compressedPath = compressedURL.path
-                if FileManager.default.fileExists(atPath: compressedPath) {
-                    do {
-                        let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedPath)
-                        let compressedSize = compressedAttributes[FileAttributeKey.size] as? Int64 ?? 0
-                        
-                        Logger.debug("""
-                            Compressed File validation (primary disabled):
-                            - Path: \(compressedPath)
-                            - Format: \(compressedFormat)
-                            - Size: \(compressedSize) bytes
-                            - Bitrate: \(compressedBitRate) bps
-                            """)
-                        
-                        if compressedSize > 0 {
-                            compression = CompressedRecordingInfo(
-                                compressedFileUri: compressedURL.absoluteString,
-                                mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
-                                bitrate: compressedBitRate,
-                                format: compressedFormat,
-                                size: compressedSize
-                            )
-                        } else {
-                            Logger.debug("Warning: Compressed file exists but is empty")
-                        }
-                    } catch {
-                        Logger.debug("Failed to validate compressed file: \(error)")
-                    }
-                } else {
-                    Logger.debug("Warning: Compressed file not found at path: \(compressedPath)")
-                }
+            if settings.output.compressed.enabled, 
+               let compressedURL = capturedCompressedURL,
+               capturedCompressedFileSize > 0 {
+                compression = CompressedRecordingInfo(
+                    compressedFileUri: compressedURL.absoluteString,
+                    mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                    bitrate: compressedBitRate,
+                    format: compressedFormat,
+                    size: capturedCompressedFileSize
+                )
+                
+                Logger.debug("""
+                    Compressed File (cached - primary disabled):
+                    - Format: \(compressedFormat)
+                    - Size: \(capturedCompressedFileSize) bytes
+                    - Bitrate: \(compressedBitRate) bps
+                    """)
             }
             
             let result = RecordingResult(
@@ -1804,139 +1813,78 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return result
         }
         
-        guard let fileURL = recordingFileURL else {
+        guard let fileURL = capturedFileURL else {
             Logger.debug("Recording file URL is nil.")
             stopping = false // Reset stopping flag before returning nil
             return nil
         }
         
-        // Reset stopping flag before returning
-        let result = createRecordingResult(fileURL: fileURL, settings: settings, finalDuration: finalDuration)
-        stopping = false
+        // PERFORMANCE OPTIMIZATION: Create result immediately with cached values
+        let durationMs = Int64(finalDuration * 1000)
         
-        // Return after all cleanup tasks are completed
+        // Check compressed output
+        var compression: CompressedRecordingInfo?
+        if capturedSettings?.output.compressed.enabled == true, 
+           let compressedURL = capturedCompressedURL,
+           capturedCompressedFileSize > 0 {
+            compression = CompressedRecordingInfo(
+                compressedFileUri: compressedURL.absoluteString,
+                mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                bitrate: compressedBitRate,
+                format: compressedFormat,
+                size: capturedCompressedFileSize
+            )
+        }
+        
+        // Create result with cached values - no file system access
+        let result = RecordingResult(
+            fileUri: fileURL.absoluteString,
+            filename: fileURL.lastPathComponent,
+            mimeType: mimeType,
+            duration: durationMs,
+            size: capturedWavFileSize,
+            channels: capturedSettings?.numberOfChannels ?? 1,
+            bitDepth: capturedSettings?.bitDepth ?? 16,
+            sampleRate: capturedSettings?.sampleRate ?? 44100,
+            compression: compression
+        )
+        
+        // Perform file operations asynchronously after returning result
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Update WAV header in background
+            let finalDataChunkSize = capturedTotalDataSize - Int64(WAV_HEADER_SIZE)
+            if finalDataChunkSize > 0 {
+                self.updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
+                Logger.debug("Background: WAV header updated. Data chunk size: \(finalDataChunkSize)")
+            }
+            
+            // Cleanup
+            self.recordingSettings = nil
+            self.startTime = nil
+            self.totalPausedDuration = 0
+            self.currentPauseStart = nil
+            self.lastEmissionTime = nil
+            self.lastEmissionTimeAnalysis = nil
+            self.lastEmittedSize = 0
+            self.lastEmittedSizeAnalysis = 0
+            self.lastEmittedCompressedSize = 0
+            self.accumulatedData.removeAll()
+            self.accumulatedAnalysisData.removeAll()
+            self.recordingUUID = nil
+            self.totalDataSize = 0
+            self.cachedWavFileSize = 0
+            self.cachedCompressedFileSize = 0
+            self.recordingFileURL = nil
+            self.compressedFileURL = nil
+            self.fileHandle = nil
+        }
+        
+        stopping = false
         return result
     }
 
-    /// Creates a RecordingResult from the finished recording
-    /// - Parameters:
-    ///   - fileURL: The URL of the recording file
-    ///   - settings: The settings used for recording
-    ///   - finalDuration: The final duration of the recording
-    /// - Returns: A RecordingResult object or nil if validation fails
-    private func createRecordingResult(fileURL: URL, settings: RecordingSettings, finalDuration: TimeInterval) -> RecordingResult? {
-        // Validate WAV file
-        let wavPath = fileURL.path
-        do {
-            // Check if WAV file exists
-            let wavFileAttributes = try FileManager.default.attributesOfItem(atPath: wavPath)
-            let wavFileSize = wavFileAttributes[FileAttributeKey.size] as? Int64 ?? 0
-            
-            Logger.debug("""
-                WAV File validation:
-                - Path: \(wavPath)
-                - Exists: true
-                - Size: \(wavFileSize) bytes
-                - Duration: \(finalDuration) seconds
-                - Expected minimum size: \(WAV_HEADER_SIZE) bytes (WAV header)
-                """)
-            
-            // Use the final totalDataSize tracked by the background queue
-            let finalDataChunkSize = self.totalDataSize - Int64(WAV_HEADER_SIZE)
-            if finalDataChunkSize <= 0 {
-                Logger.debug("Recording file data chunk size is zero or negative (\(finalDataChunkSize) bytes), likely no audio data was recorded successfully after header")
-                // Optionally delete the empty file?
-                // try? FileManager.default.removeItem(at: fileURL)
-                return nil
-            }
-
-            // Update the WAV header with the correct final file size
-            updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
-            Logger.debug("Final WAV header updated. Data chunk size: \(finalDataChunkSize)")
-            
-            // Validate compressed file if enabled
-            var compression: CompressedRecordingInfo?
-            if let compressedURL = compressedFileURL {
-                let compressedPath = compressedURL.path
-                if FileManager.default.fileExists(atPath: compressedPath) {
-                    let compressedAttributes = try FileManager.default.attributesOfItem(atPath: compressedPath)
-                    let compressedSize = compressedAttributes[FileAttributeKey.size] as? Int64 ?? 0
-                    
-                    Logger.debug("""
-                        Compressed File validation:
-                        - Path: \(compressedPath)
-                        - Format: \(compressedFormat)
-                        - Size: \(compressedSize) bytes
-                        - Bitrate: \(compressedBitRate) bps
-                        """)
-                    
-                    if compressedSize > 0 {
-                        compression = CompressedRecordingInfo(
-                            compressedFileUri: compressedURL.absoluteString,
-                            mimeType: compressedFormat == "aac" ? "audio/aac" : "audio/opus",
-                            bitrate: compressedBitRate,
-                            format: compressedFormat,
-                            size: compressedSize
-                        )
-                    } else {
-                        Logger.debug("Warning: Compressed file exists but is empty")
-                    }
-                } else {
-                    Logger.debug("Warning: Compressed file not found at path: \(compressedPath)")
-                }
-            }
-            
-            let durationMs = Int64(finalDuration * 1000)
-            
-            let result = RecordingResult(
-                fileUri: fileURL.absoluteString,
-                filename: fileURL.lastPathComponent,
-                mimeType: mimeType,
-                duration: durationMs,
-                size: wavFileSize,
-                channels: settings.numberOfChannels,
-                bitDepth: settings.bitDepth,
-                sampleRate: settings.sampleRate,
-                compression: compression
-            )
-            
-            Logger.debug("""
-                Recording completed successfully:
-                - WAV file: \(fileURL.lastPathComponent)
-                - Size: \(wavFileSize) bytes
-                - Duration: \(durationMs)ms
-                - Sample rate: \(settings.sampleRate)Hz
-                - Bit depth: \(settings.bitDepth)-bit
-                - Channels: \(settings.numberOfChannels)
-                - Compressed: \(compression != nil ? "yes" : "no")
-                """)
-            
-            // Additional cleanup
-            recordingFileURL = nil
-            lastBufferTime = nil
-            lastValidDuration = nil
-            compressedRecorder = nil
-            compressedFileURL = nil
-            recordingSettings = nil
-            startTime = nil
-            totalPausedDuration = 0
-            currentPauseStart = nil
-            lastEmissionTime = nil
-            lastEmissionTimeAnalysis = nil
-            lastEmittedSize = 0
-            lastEmittedSizeAnalysis = 0
-            lastEmittedCompressedSize = 0
-            accumulatedData.removeAll()
-            accumulatedAnalysisData.removeAll()
-            recordingUUID = nil
-            
-            return result
-            
-        } catch {
-            Logger.debug("Failed to validate recording files: \(error)")
-            return nil
-        }
-    }
 
     // MARK: - AudioDeviceManagerDelegate Implementation
 
@@ -2297,6 +2245,19 @@ extension AudioStreamManager: AVAudioRecorderDelegate {
         Logger.debug("Compressed recording finished - success: \(flag)")
         if !flag {
             delegate?.audioStreamManager(self, didFailWithError: "Compressed recording failed to complete")
+        } else {
+            // Update cached compressed file size when recording finishes
+            if let compressedURL = compressedFileURL {
+                do {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+                    if let size = attributes[.size] as? Int64 {
+                        cachedCompressedFileSize = size
+                        Logger.debug("Cached compressed file size: \(size) bytes")
+                    }
+                } catch {
+                    Logger.debug("Failed to cache compressed file size: \(error)")
+                }
+            }
         }
     }
     
