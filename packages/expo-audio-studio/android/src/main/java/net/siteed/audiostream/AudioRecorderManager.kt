@@ -1032,12 +1032,10 @@ class AudioRecorderManager(
 
                 // Log bit depth information for debugging
                 val configBitDepth = AudioFormatUtils.getBitDepth(recordingConfig.encoding)
-                val analysisBitDepth = analysisData?.bitDepth
                 LogUtils.d(CLASS_NAME, """
                     Bit Depth Debug Info:
                     - Config encoding: ${recordingConfig.encoding}
                     - Config bit depth: $configBitDepth
-                    - Analysis bit depth: $analysisBitDepth
                     - Audio format: $audioFormat
                 """.trimIndent())
                 
