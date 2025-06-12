@@ -60,6 +60,21 @@ npm install @shopify/react-native-skia react-native-gesture-handler react-native
 
 This package is currently under active development and is primarily used for testing purposes. The API and features are subject to change. Future updates will focus on optimization and expanding the component library with additional audio visualization and control components.
 
+## Development
+
+### Storybook
+
+This package uses Storybook v9 for component development and documentation.
+
+```bash
+# Run Storybook locally (web-only)
+cd packages/expo-audio-ui
+yarn storybook
+# Opens at http://localhost:6068
+```
+
+**Note**: Currently using React 18.3.1 for Storybook compatibility. React Native Storybook support is planned for future releases.
+
 ## Documentation
 
 For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).

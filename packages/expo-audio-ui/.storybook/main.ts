@@ -1,6 +1,8 @@
-import path, { join, dirname } from 'path';
+import * as path from 'path';
+import { join, dirname } from 'path';
 import type { StorybookConfig } from '@storybook/react-webpack5';
 import type { Configuration as WebpackConfig } from 'webpack';
+import * as webpack from 'webpack';
 
 const production = process.env.NODE_ENV === 'production';
 
@@ -22,16 +24,11 @@ const config: StorybookConfig = {
     `,
     addons: [
         getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
-        getAbsolutePath('@storybook/addon-controls'),
         getAbsolutePath('@storybook/addon-links'),
-        getAbsolutePath('@storybook/addon-measure'),
-        getAbsolutePath('@storybook/addon-outline'),
-        getAbsolutePath('@storybook/addon-backgrounds'),
-        getAbsolutePath('@storybook/addon-toolbars'),
         // getAbsolutePath('@storybook/addon-interactions'),
-        // getAbsolutePath('@storybook/addon-actions'),
+        // getAbsolutePath('storybook/actions'),
         {
-            name: '@storybook/addon-react-native-web',
+            name: getAbsolutePath("@storybook/addon-react-native-web"),
             options: {
                 modulesToTranspile: ['react-native-reanimated', '@gorhom/bottom-sheet'],
                 babelPlugins: [
@@ -44,6 +41,36 @@ const config: StorybookConfig = {
     framework: {
         name: getAbsolutePath('@storybook/react-webpack5'),
         options: {},
+    },
+    webpackFinal: async (config: WebpackConfig) => {
+        // Fix for canvaskit-wasm trying to import Node.js modules
+        config.resolve = {
+            ...config.resolve,
+            fallback: {
+                ...config.resolve?.fallback,
+                fs: false,
+                path: false,
+            },
+            alias: {
+                ...config.resolve?.alias,
+                // Ensure we're using the same React instance
+                'react': path.resolve(__dirname, '../node_modules/react'),
+                'react-dom': path.resolve(__dirname, '../node_modules/react-dom'),
+                // Add react-native-web alias
+                'react-native$': 'react-native-web',
+            },
+        };
+        
+        // Add DefinePlugin to define Expo environment variables
+        config.plugins = config.plugins || [];
+        config.plugins.push(
+            new webpack.DefinePlugin({
+                'process.env.EXPO_OS': JSON.stringify('web'),
+                '__DEV__': JSON.stringify(!production),
+            })
+        );
+        
+        return config;
     },
 }
 export default config

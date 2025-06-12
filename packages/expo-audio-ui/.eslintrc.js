@@ -7,13 +7,7 @@ module.exports = {
         browser: true,
         es2021: true,
     },
-    extends: [
-        'universe/native',
-        'universe/web',
-        'plugin:promise/recommended',
-        'plugin:react/recommended',
-        'prettier',
-    ],
+    extends: ['universe/native', 'universe/web', 'plugin:promise/recommended', 'plugin:react/recommended', 'prettier', 'plugin:storybook/recommended'],
     ignorePatterns: ['build', 'node_modules', 'dist', 'coverage'],
     parser: '@typescript-eslint/parser',
     parserOptions: {

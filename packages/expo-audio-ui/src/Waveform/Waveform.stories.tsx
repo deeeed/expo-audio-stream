@@ -1,5 +1,5 @@
 import { Canvas } from '@shopify/react-native-skia'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import React from 'react'
 import { View } from 'react-native'
 
@@ -23,19 +23,38 @@ export default meta
 type Story = StoryObj<typeof Waveform>
 
 function generateSineWave(length: number, frequency = 1): CandleData[] {
-    return Array.from({ length }, (_, i) => ({
-        amplitude: Math.sin((i * frequency * Math.PI) / length) * 0.5 + 0.5,
-        visible: true,
-        id: i,
-    }))
+    return Array.from({ length }, (_, i) => {
+        const amplitude =
+            Math.sin((i * frequency * Math.PI) / length) * 0.5 + 0.5
+        const rms = amplitude * 0.7071 // RMS for sine wave is amplitude / sqrt(2)
+        const dB = 20 * Math.log10(Math.max(rms, 0.00001)) // Convert to dB, avoid log(0)
+
+        return {
+            amplitude,
+            rms,
+            dB,
+            silent: amplitude < 0.01,
+            visible: true,
+            id: i,
+        }
+    })
 }
 
 function generateRandomWave(length: number): CandleData[] {
-    return Array.from({ length }, (_, i) => ({
-        amplitude: Math.random(),
-        visible: true,
-        id: i,
-    }))
+    return Array.from({ length }, (_, i) => {
+        const amplitude = Math.random()
+        const rms = amplitude * 0.7071 // Approximate RMS
+        const dB = 20 * Math.log10(Math.max(rms, 0.00001)) // Convert to dB
+
+        return {
+            amplitude,
+            rms,
+            dB,
+            silent: amplitude < 0.01,
+            visible: true,
+            id: i,
+        }
+    })
 }
 
 const WaveformStory = (args: WaveformProps) => (
@@ -100,8 +119,15 @@ const LiveWaveformComponent = (args: WaveformProps) => {
         const interval = setInterval(() => {
             setActivePoints((prevPoints) => {
                 const newPoints = [...prevPoints.slice(1)]
+                const amplitude = Math.random()
+                const rms = amplitude * 0.7071
+                const dB = 20 * Math.log10(Math.max(rms, 0.00001))
+
                 newPoints.push({
-                    amplitude: Math.random(),
+                    amplitude,
+                    rms,
+                    dB,
+                    silent: amplitude < 0.01,
                     visible: true,
                     id: prevPoints[prevPoints.length - 1].id + 1,
                 })

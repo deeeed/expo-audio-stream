@@ -1,5 +1,5 @@
 import { Canvas, useFont } from '@shopify/react-native-skia'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import React from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 

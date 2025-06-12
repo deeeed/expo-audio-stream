@@ -175,16 +175,16 @@ export function DecibelGauge({
     const GAUGE_START_ANGLE = 135 // Start at bottom-left
     const GAUGE_SWEEP_ANGLE = 270 // Sweep 270 degrees
 
-    const needleRotation = useDerivedValue(() => {
+    const needleTransform = useDerivedValue(() => {
         'worklet'
         const normalizedValue = Math.max(
             0,
             Math.min(1, (dbShared.value - minDb) / (maxDb - minDb))
         )
-        return (
+        const rotation =
             (GAUGE_START_ANGLE + normalizedValue * GAUGE_SWEEP_ANGLE) *
             (Math.PI / 180)
-        )
+        return [{ rotate: rotation }]
     }, [dbShared, minDb, maxDb])
 
     // Define arrow parameters
@@ -307,7 +307,7 @@ export function DecibelGauge({
             {showNeedle && (
                 <Group
                     origin={{ x: centerX, y: centerY }}
-                    transform={[{ rotate: needleRotation.get() }]}
+                    transform={needleTransform}
                 >
                     <Path
                         path={needleLinePath}

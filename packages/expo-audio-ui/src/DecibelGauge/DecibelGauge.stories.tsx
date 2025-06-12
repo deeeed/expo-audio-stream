@@ -1,5 +1,5 @@
 import { Canvas, useFont } from '@shopify/react-native-skia'
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-webpack5'
 import React from 'react'
 import {
     ActivityIndicator,
@@ -82,6 +82,17 @@ type Story = StoryObj<typeof DecibelGauge>
 
 // Basic usage - only needs db value
 export const Default: Story = {
+    render: (args) => {
+        const font = useFont(RobotoRegular, 14)
+
+        if (!font) return <ActivityIndicator />
+
+        return (
+            <Canvas style={{ width: 300, height: 220 }}>
+                <DecibelGauge {...args} font={font} />
+            </Canvas>
+        )
+    },
     args: {
         db: -30,
     },
@@ -89,6 +100,17 @@ export const Default: Story = {
 
 // Custom theme example
 export const CustomTheme: Story = {
+    render: (args) => {
+        const font = useFont(RobotoRegular, 14)
+
+        if (!font) return <ActivityIndicator />
+
+        return (
+            <Canvas style={{ width: 300, height: 220 }}>
+                <DecibelGauge {...args} font={font} />
+            </Canvas>
+        )
+    },
     args: {
         db: -20,
         theme: {
@@ -104,58 +126,67 @@ export const CustomTheme: Story = {
 
 // Multiple ranges example
 export const MultipleRanges: Story = {
-    render: () => (
-        <>
-            <View style={styles.gaugeWrapper}>
-                <Canvas style={{ width: 200, height: 60 }}>
-                    <DecibelGauge
-                        db={-50}
-                        theme={{
-                            minDb: -60,
-                            maxDb: -40,
-                            colors: {
-                                needle: '#34C759',
-                                progress: '#34C759',
-                                high: '#34C759',
-                            },
-                        }}
-                    />
-                </Canvas>
-            </View>
-            <View style={styles.gaugeWrapper}>
-                <Canvas style={{ width: 200, height: 60 }}>
-                    <DecibelGauge
-                        db={-30}
-                        theme={{
-                            minDb: -40,
-                            maxDb: -20,
-                            colors: {
-                                needle: '#FFD60A',
-                                progress: '#FFD60A',
-                                high: '#FFD60A',
-                            },
-                        }}
-                    />
-                </Canvas>
-            </View>
-            <View style={styles.gaugeWrapper}>
-                <Canvas style={{ width: 200, height: 60 }}>
-                    <DecibelGauge
-                        db={-10}
-                        theme={{
-                            minDb: -20,
-                            maxDb: 0,
-                            colors: {
-                                needle: '#FF453A',
-                                progress: '#FF453A',
-                                high: '#FF453A',
-                            },
-                        }}
-                    />
-                </Canvas>
-            </View>
-        </>
-    ),
+    render: () => {
+        const font = useFont(RobotoRegular, 14)
+
+        if (!font) return <ActivityIndicator />
+
+        return (
+            <>
+                <View style={styles.gaugeWrapper}>
+                    <Canvas style={{ width: 200, height: 60 }}>
+                        <DecibelGauge
+                            db={-50}
+                            font={font}
+                            theme={{
+                                minDb: -60,
+                                maxDb: -40,
+                                colors: {
+                                    needle: '#34C759',
+                                    progress: '#34C759',
+                                    high: '#34C759',
+                                },
+                            }}
+                        />
+                    </Canvas>
+                </View>
+                <View style={styles.gaugeWrapper}>
+                    <Canvas style={{ width: 200, height: 60 }}>
+                        <DecibelGauge
+                            db={-30}
+                            font={font}
+                            theme={{
+                                minDb: -40,
+                                maxDb: -20,
+                                colors: {
+                                    needle: '#FFD60A',
+                                    progress: '#FFD60A',
+                                    high: '#FFD60A',
+                                },
+                            }}
+                        />
+                    </Canvas>
+                </View>
+                <View style={styles.gaugeWrapper}>
+                    <Canvas style={{ width: 200, height: 60 }}>
+                        <DecibelGauge
+                            db={-10}
+                            font={font}
+                            theme={{
+                                minDb: -20,
+                                maxDb: 0,
+                                colors: {
+                                    needle: '#FF453A',
+                                    progress: '#FF453A',
+                                    high: '#FF453A',
+                                },
+                            }}
+                        />
+                    </Canvas>
+                </View>
+            </>
+        )
+    },
 }
 
 // Simulated live audio levels
