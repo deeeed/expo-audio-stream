@@ -1,45 +1,59 @@
 # Storybook Implementation Plan
 
 ## Current Status (December 2024)
-- ✅ **Storybook v9.0.8** - Web-only, working on port 6068
-- ✅ **React 18.3.1** - Downgraded from v19 for compatibility  
+- ✅ **Storybook v9.0.8** - Web-only in expo-audio-ui, working on port 6068
+- ✅ **React 18.3.1** - Stable version for compatibility  
 - ❌ **React Native** - Not implemented (NEXT STEP)
 - ❌ **Agent Automation** - Not implemented
 
-## Quick Start
+## Architecture Overview
+
+### Two-Tier Storybook Setup
+1. **UI Library** (`packages/expo-audio-ui`): Web-only Storybook for rapid development
+2. **Playground App** (`apps/playground`): React Native Storybook for device testing
+
+This separation ensures the UI library remains a pure library while enabling real device testing through the playground app.
+
+## Quick Start (Current)
 ```bash
 cd packages/expo-audio-ui && yarn storybook
-# http://localhost:6068
+# http://localhost:6068 (Web only)
 ```
 
-## Next Steps (In Order)
+## Implementation Plan
 
-### Step 1: Add React Native Support (DO THIS FIRST)
+### Step 1: Add React Native Storybook to Playground App
 
-1. **Install React Native Storybook v9**
+1. **Install React Native Storybook in Playground**
    ```bash
-   cd packages/expo-audio-ui
+   cd apps/playground
    yarn add -D @storybook/react-native@^9.0.6 \
      @storybook/addon-ondevice-controls@^9.0.6 \
      @storybook/addon-ondevice-actions@^9.0.6
    ```
 
-2. **Update .storybook/main.ts**
+2. **Create Storybook Configuration**
+   Create `apps/playground/.storybook/main.ts`:
    ```typescript
-   // Add to existing configuration
-   const config = {
-     // ... existing config
-     refs: {
-       'react-native': {
-         title: 'React Native',
-         url: 'http://localhost:7007',
-       },
-     },
+   import type { StorybookConfig } from '@storybook/react-native';
+   
+   const config: StorybookConfig = {
+     stories: [
+       '../src/**/*.stories.@(js|jsx|ts|tsx)',
+       // Import stories from UI library
+       '../../../packages/expo-audio-ui/src/**/*.stories.@(js|jsx|ts|tsx)'
+     ],
+     addons: [
+       '@storybook/addon-ondevice-controls',
+       '@storybook/addon-ondevice-actions',
+     ],
    };
+   
+   export default config;
    ```
 
-3. **Create Native Entry Point**
-   Create `src/storybook.native.ts`:
+3. **Create Storybook Entry Point**
+   Create `apps/playground/src/storybook/index.tsx`:
    ```typescript
    import { getStorybookUI } from '@storybook/react-native';
    import './storybook.requires';
@@ -53,72 +67,46 @@ cd packages/expo-audio-ui && yarn storybook
    export default StorybookUIRoot;
    ```
 
-4. **Configure Metro**
-   Create/update `metro.config.js`:
-   ```javascript
-   const { getDefaultConfig } = require('expo/metro-config');
-   const { withStorybook } = require('@storybook/react-native/metro');
-   
-   const config = getDefaultConfig(__dirname);
-   module.exports = withStorybook(config);
-   ```
-
-5. **Add Scripts to package.json**
-   ```json
-   {
-     "scripts": {
-       "storybook:native": "sb-rn-get-stories && react-native start",
-       "storybook:ios": "react-native run-ios",
-       "storybook:android": "react-native run-android"
-     }
-   }
-   ```
-
-6. **Test on Devices**
-   - Run `yarn storybook:native`
-   - Test on iOS simulator
-   - Test on Android emulator
-   - Verify stories load on both platforms
-
-### Step 2: Build Automation Framework (AFTER React Native Works)
-
-1. **Install Dependencies**
-   ```bash
-   yarn add -D chromatic @storybook/test-runner playwright
-   ```
-
-2. **Create Validation Script**
-   Create `scripts/story-validate.ts`:
+4. **Add Storybook Mode to App**
+   Update `apps/playground/src/index.tsx` to support Storybook mode:
    ```typescript
-   import { test } from '@storybook/test-runner';
-   import { chromatic } from 'chromatic';
+   const STORYBOOK_MODE = process.env.EXPO_PUBLIC_STORYBOOK === 'true';
    
-   export async function validateStory(component: string, platform: 'web' | 'ios' | 'android' = 'web') {
-     // Implementation here
+   if (STORYBOOK_MODE) {
+     module.exports = require('./storybook');
+   } else {
+     module.exports = require('./AppRoot');
    }
    ```
 
-3. **Add Agent Commands**
-   Update package.json:
+5. **Add Scripts to Playground package.json**
    ```json
    {
      "scripts": {
-       "agent:story": "ts-node scripts/story-validate.ts",
-       "agent:story:visual": "chromatic --project-token=$CHROMATIC_TOKEN",
-       "agent:story:test": "test-storybook"
+       "storybook:generate": "sb-rn-get-stories",
+       "storybook": "EXPO_PUBLIC_STORYBOOK=true yarn start",
+       "storybook:ios": "EXPO_PUBLIC_STORYBOOK=true yarn ios",
+       "storybook:android": "EXPO_PUBLIC_STORYBOOK=true yarn android"
      }
    }
    ```
 
-4. **Setup Visual Regression**
-   - Configure Chromatic
-   - Set up baseline screenshots
-   - Create diff reports
+6. **Test Implementation**
+   - Run `yarn storybook:generate` to create story imports
+   - Run `yarn storybook:ios` for iOS testing
+   - Run `yarn storybook:android` for Android testing
+   - Verify both playground and UI library stories load
 
-5. **Implement Cross-Platform Testing**
-   - Web screenshots via Chromatic
-   - Native screenshots via device testing
-   - Automated comparison reports
+### Step 2: Add Testing Capabilities (Optional)
+
+For visual regression testing:
+- **Chromatic**: Automated visual testing for web Storybook
+- **Percy**: Alternative visual testing service
+- **Storybook Test Runner**: For interaction testing
+
+For the playground app:
+- Use existing e2e testing with Detox
+- Leverage agent validation framework
 
 ## Known Issues
 - **React 19**: Not supported by @storybook/addon-react-native-web
@@ -126,20 +114,20 @@ cd packages/expo-audio-ui && yarn storybook
 - **Webpack**: Needs `fs: false, path: false` fallbacks
 
 ## Success Criteria
-### For React Native Support:
-- [ ] Stories load on iOS devices
-- [ ] Stories load on Android devices
+### For UI Library:
+- [x] Web Storybook running on port 6068
+- [x] All components have stories
+- [ ] Interaction tests for key flows
+- [ ] Visual regression testing setup
+
+### For Playground App:
+- [ ] React Native Storybook configured
+- [ ] Can view UI library stories on devices
+- [ ] Can view playground-specific stories
 - [ ] Hot reload works on both platforms
-- [ ] No console errors
 
-### For Automation Framework:
-- [ ] `yarn agent:story RecordButton` validates the component
-- [ ] Visual regression catches UI changes
-- [ ] Cross-platform differences are reported
-- [ ] CI/CD integration works
-
-## Technical Decisions Made
-1. Used automatic upgrade (`npx storybook@latest upgrade`)
-2. Stayed on React 18 for ecosystem compatibility
-3. Fixed Skia rendering with string styles
-4. Added webpack fallbacks for Node.js modules
+## Technical Decisions
+1. Keep UI library as pure library (no app files)
+2. Use playground app for all device testing
+3. Leverage existing tools rather than building custom scripts
+4. Focus on simplicity and maintainability
