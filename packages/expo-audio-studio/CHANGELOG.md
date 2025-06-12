@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+- refactor(AudioRecorderManager): remove analysis bit depth logging for cleaner debug output ([ddaf9e2](https://github.com/deeeed/expo-audio-stream/commit/ddaf9e25c0bf9bad1e3435b9ec08b3b4a27a6161))
 
 ## [2.14.2] - 2025-06-11
 ### Changed
