@@ -6,7 +6,7 @@
 
 # Interface: StartRecordingResult
 
-Defined in: [src/ExpoAudioStream.types.ts:160](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L160)
+Defined in: [src/ExpoAudioStream.types.ts:160](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L160)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:160](https://github.com/deeeed/expo-au
 
 > `optional` **bitDepth**: [`BitDepth`](../type-aliases/BitDepth.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:168](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L168)
+Defined in: [src/ExpoAudioStream.types.ts:168](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L168)
 
 Bit depth of the audio (8, 16, or 32 bits)
 
@@ -24,7 +24,7 @@ Bit depth of the audio (8, 16, or 32 bits)
 
 > `optional` **channels**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:166](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L166)
+Defined in: [src/ExpoAudioStream.types.ts:166](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L166)
 
 Number of audio channels (1 for mono, 2 for stereo)
 
@@ -34,7 +34,7 @@ Number of audio channels (1 for mono, 2 for stereo)
 
 > `optional` **compression**: [`CompressionInfo`](CompressionInfo.md) & `object`
 
-Defined in: [src/ExpoAudioStream.types.ts:172](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L172)
+Defined in: [src/ExpoAudioStream.types.ts:172](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L172)
 
 Information about compression if enabled, including the URI to the compressed file
 
@@ -52,7 +52,7 @@ URI to the compressed audio file
 
 > **fileUri**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:162](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L162)
+Defined in: [src/ExpoAudioStream.types.ts:162](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L162)
 
 URI to the file being recorded
 
@@ -62,7 +62,7 @@ URI to the file being recorded
 
 > **mimeType**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L164)
+Defined in: [src/ExpoAudioStream.types.ts:164](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L164)
 
 MIME type of the recording
 
@@ -72,6 +72,6 @@ MIME type of the recording
 
 > `optional` **sampleRate**: [`SampleRate`](../type-aliases/SampleRate.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:170](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L170)
+Defined in: [src/ExpoAudioStream.types.ts:170](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L170)
 
 Sample rate of the audio in Hz

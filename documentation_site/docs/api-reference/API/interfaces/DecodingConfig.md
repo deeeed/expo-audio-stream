@@ -6,7 +6,7 @@
 
 # Interface: DecodingConfig
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:8](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L8)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:8](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L8)
 
 Represents the configuration for decoding audio data.
 
@@ -16,7 +16,7 @@ Represents the configuration for decoding audio data.
 
 > `optional` **normalizeAudio**: `boolean`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:16](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L16)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:16](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L16)
 
 Whether to normalize audio levels (Android and Web)
 
@@ -26,7 +26,7 @@ Whether to normalize audio levels (Android and Web)
 
 > `optional` **targetBitDepth**: [`BitDepth`](../type-aliases/BitDepth.md)
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L14)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:14](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L14)
 
 Target bit depth (Android and Web)
 
@@ -36,7 +36,7 @@ Target bit depth (Android and Web)
 
 > `optional` **targetChannels**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L12)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:12](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L12)
 
 Target number of channels (Android and Web)
 
@@ -46,6 +46,6 @@ Target number of channels (Android and Web)
 
 > `optional` **targetSampleRate**: `number`
 
-Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/cf134fc47969a1847375db6ab9d66bb0b73aabc3/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
+Defined in: [src/AudioAnalysis/AudioAnalysis.types.ts:10](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts#L10)
 
 Target sample rate for decoded audio (Android and Web)
