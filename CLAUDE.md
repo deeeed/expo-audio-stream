@@ -207,6 +207,7 @@ If multiple simulators are running:
 2. "Will this break existing agent commands?" → Test `yarn agent:dev compression ios`
 3. "Is this a protected file?" → Check the protected files list below
 4. "Did I test both platforms?" → Run Android AND iOS validation
+5. "Are there TypeScript/lint errors?" → ALWAYS run `yarn typecheck && yarn lint:fix`
 
 **✅ SAFE TO MODIFY**: New files in `src/`, new stories, new E2E tests
 **🚨 DANGER ZONE**: Anything in `scripts/`, `.detoxrc.js`, root `/index.js`, package.json agent scripts
@@ -271,7 +272,18 @@ If multiple simulators are running:
 **❌ NEVER**: Add new functionality without checking for existing implementations
 **✅ ALWAYS**: Use `grep -r` to find existing patterns before implementing new features
 
-#### **Lesson 6: Critical Files - DO NOT MODIFY**
+#### **Lesson 6: TypeScript Jest Configuration**
+**Issue**: New E2E test files show "Cannot find name 'describe'" TypeScript errors
+**Solution Applied**: 
+- Import Jest globals from `@jest/globals`: `import { beforeAll, afterAll, describe, it, expect as jestExpected } from '@jest/globals'`
+- Import Detox separately: `import { by, element, expect as detoxExpected, device, waitFor } from 'detox'`
+- Follow exact pattern from existing `e2e/agent-validation.test.ts`
+
+**❌ NEVER**: Create E2E test files without proper Jest imports
+**✅ ALWAYS**: Copy import structure from existing working E2E tests
+**🚨 MANDATORY**: Run `yarn typecheck && yarn lint:fix` after creating any new test files
+
+#### **Lesson 7: Critical Files - DO NOT MODIFY**
 **Files that are critical to system function and should NEVER be changed without extreme caution:**
 
 **🔒 PROTECTED FILES:**
@@ -292,6 +304,7 @@ If multiple simulators are running:
 3. Verify ALL existing agent commands still work
 4. Test both Android and iOS platforms
 5. Check that screenshots still capture properly
+6. **MANDATORY**: Run `yarn typecheck && yarn lint:fix` after ANY code changes
 
 ### **Verification Commands for Future Agents**
 Before making ANY changes, run these commands to understand current state:
