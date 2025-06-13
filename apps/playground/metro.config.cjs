@@ -131,7 +131,12 @@ config.resolver = {
     },
 }
 
-module.exports = withStorybook(config, {
-  enabled: process.env.EXPO_PUBLIC_STORYBOOK === 'true',
-  configPath: path.resolve(__dirname, './.rnstorybook'),
-})
+// Only apply Storybook wrapper when explicitly enabled
+if (process.env.EXPO_PUBLIC_STORYBOOK === 'true') {
+  module.exports = withStorybook(config, {
+    enabled: true,
+    configPath: path.resolve(__dirname, './.rnstorybook'),
+  })
+} else {
+  module.exports = config
+}

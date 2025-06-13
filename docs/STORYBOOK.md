@@ -2,12 +2,12 @@
 
 ## Overview
 
-The expo-audio-stream monorepo implements a comprehensive triple Storybook setup designed for efficient cross-platform component development with real device testing capabilities and automated validation feedback loops.
+The expo-audio-stream monorepo implements a comprehensive multi-tier Storybook setup designed for efficient cross-platform component development with real device testing capabilities and automated validation feedback loops.
 
-### Three-Tier Architecture
+### Multi-Tier Architecture
 
 1. **Native Storybook** (React Native v9) - `apps/playground`
-   - Port: 7007 (Metro bundler)
+   - Port: 7366 (Metro bundler)
    - Purpose: Real device testing on iOS/Android
    - Features: Hot reload, auto-discovery, environment switching
 
@@ -20,6 +20,11 @@ The expo-audio-stream monorepo implements a comprehensive triple Storybook setup
    - Port: 6068 (Vite bundler)
    - Purpose: Library-specific component iteration
    - Features: Isolated component development, documentation
+
+4. **Regular App Development** - `apps/playground`
+   - Port: 7365 (Metro bundler)
+   - Purpose: Normal app development and testing
+   - Features: Full app functionality, agent validation
 
 ## Architecture & Component Organization
 
@@ -58,6 +63,34 @@ apps/playground/
    - Not included in Storybook by default
    - Can be migrated to ui-components/ when ready
 
+## Quick Start - Four Development Servers
+
+```bash
+# Terminal 1: Regular App
+cd apps/playground
+yarn start                           # http://localhost:7365 (Metro)
+
+# Terminal 2: Native Storybook  
+cd apps/playground
+yarn storybook                       # http://localhost:7366 (Metro)
+
+# Terminal 3: Web Storybook (Playground)
+cd apps/playground
+yarn storybook:web                   # http://localhost:6006 (Vite)
+
+# Terminal 4: UI Library Storybook
+cd packages/expo-audio-ui
+yarn storybook                       # http://localhost:6068 (Vite)
+```
+
+**Port Summary:**
+- **7365** → Regular playground app (Metro bundler)
+- **7366** → Native Storybook for iOS/Android (Metro bundler)  
+- **6006** → Web Storybook for playground components (Vite bundler)
+- **6068** → UI Library Storybook for expo-audio-ui package (Vite bundler)
+
+All four can run simultaneously for maximum development flexibility!
+
 ## Available Commands
 
 ### Development Commands
@@ -65,7 +98,7 @@ apps/playground/
 cd apps/playground
 
 # Native Storybook (React Native v9)
-yarn storybook                       # Start Metro server (localhost:7007)
+yarn storybook                       # Start Metro server (localhost:7366)
 yarn storybook:ios                   # Run on iOS simulator/device
 yarn storybook:android               # Run on Android device/emulator
 
@@ -76,6 +109,7 @@ yarn storybook:web                   # Playground web (localhost:6006)
 cd ../../packages/expo-audio-ui
 yarn storybook                       # Library web (localhost:6068)
 ```
+
 
 ### Agent Validation Commands
 ```bash
