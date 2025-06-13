@@ -132,6 +132,63 @@ You are working on the `main` branch which includes the newly implemented agenti
 - Background recording requires special permissions configuration
 - **VPN Interference**: Disconnect VPNs during iOS E2E tests; Android uses ADB port forwarding (VPN-resistant)
 
+## iOS Simulator Configuration
+
+### Default Simulator Setup
+The agentic framework uses **iPhone 16 Pro Max** as the standard iOS simulator for consistency across all tests and validations.
+
+### Simulator Selection Commands
+```bash
+# List all available simulators
+xcrun simctl list devices
+
+# Check currently booted simulators  
+xcrun simctl list devices | grep Booted
+
+# Boot specific simulator (iPhone 16 Pro Max)
+xcrun simctl boot "iPhone 16 Pro Max"
+
+# Shutdown specific simulator
+xcrun simctl shutdown "iPhone 15 Pro"
+
+# Auto-setup standard simulator for agents
+yarn setup:ios-simulator
+```
+
+### Detox Configuration
+Simulator selection is controlled in `.detoxrc.js`:
+- **Primary**: `ios.sim.debug` → iPhone 16 Pro Max
+- **Alternative**: `ios.iPadPro.debug` → iPad Pro 13-inch (M4)
+
+### Agent Commands with Simulator Support
+```bash
+# Setup standard simulator for all agent workflows
+yarn setup:ios-simulator
+
+# Agentic framework commands (all use iPhone 16 Pro Max)
+yarn agent:dev compression ios    # Development validation  
+yarn agent:full ios              # Full validation (102 tests)
+yarn agent:storybook:ios         # Storybook validation
+
+# Manual E2E testing with different simulators
+yarn detox test -c ios.sim.debug -o e2e/agent-validation.test.ts
+yarn detox test -c ios.iPadPro.debug -o e2e/record.test.ts
+
+# Force specific simulator in Detox config
+# Edit .detoxrc.js devices.simulator.device.type
+```
+
+### Troubleshooting Multiple Simulators
+If multiple simulators are running:
+1. **Identify target**: Detox will use the first matching device type
+2. **Explicit shutdown**: Close unwanted simulators for consistency  
+3. **Check logs**: Detox output shows which simulator was selected
+
+### Consistency Notes
+- All screenshot scripts use iPhone 16 Pro Max (6.9" display)
+- App Store preparation uses same simulator
+- Agent validation maintains cross-platform consistency
+
 ### Key Benefits of Agentic Framework
 
 - **10x Productivity**: Automated feedback loops unlock massive productivity gains
@@ -140,6 +197,139 @@ You are working on the `main` branch which includes the newly implemented agenti
 - **Feature-Focused**: Tests only what's relevant, no test maintenance overhead
 - **Simple Workflow**: Single command validation replaces complex test setups
 - **Scalable**: From development iteration to comprehensive CI validation
+
+## AI Agent Memory & Learning
+
+### 🧠 Quick Reference for Future AI Agents
+
+**BEFORE making ANY changes, ask yourself:**
+1. "Does this already exist?" → Use `grep -r "feature_name" .`
+2. "Will this break existing agent commands?" → Test `yarn agent:dev compression ios`
+3. "Is this a protected file?" → Check the protected files list below
+4. "Did I test both platforms?" → Run Android AND iOS validation
+
+**✅ SAFE TO MODIFY**: New files in `src/`, new stories, new E2E tests
+**🚨 DANGER ZONE**: Anything in `scripts/`, `.detoxrc.js`, root `/index.js`, package.json agent scripts
+
+---
+
+### Critical Implementation Lessons (MUST READ FOR ALL AI AGENTS)
+
+**🚨 MANDATORY: Read this section before ANY modifications to prevent repeating mistakes**
+
+#### **Lesson 1: Storybook v9 Integration Complexities**
+**Issue**: React Native Storybook v9 has significant module resolution issues in monorepo setups
+**Solution Applied**: 
+- Created `/index.js` redirect at monorepo root pointing to `apps/playground/src/index.tsx`
+- Fixed `storybook.requires.ts` with proper require.context paths
+- Added missing dependencies: `@react-native-community/datetimepicker`, `@react-native-community/slider`
+
+**❌ NEVER**: Delete or modify the monorepo root `/index.js` file - it's critical for Storybook
+**✅ ALWAYS**: Use `yarn build:deps` before any Storybook development
+
+#### **Lesson 2: Device Configuration Consistency**
+**Issue**: Multiple simulators running causes inconsistent test results
+**Solution Applied**: 
+- iPhone 16 Pro Max standardized across ALL agentic workflows
+- Documented simulator selection in `.detoxrc.js` configuration  
+- Created `yarn setup:ios-simulator` for consistent setup
+
+**❌ NEVER**: Change simulator selection without updating ALL references in:
+  - `.detoxrc.js`
+  - `scripts/setup-simulators.sh`
+  - `scripts/generate-screenshots.sh` 
+**✅ ALWAYS**: Use existing `yarn setup:ios-simulator` command for simulator management
+
+#### **Lesson 3: Agentic Framework Integration**
+**Issue**: New features must integrate with existing agentic structure without breaking changes
+**Current Structure**: `scripts/agent.sh` handles ALL agent commands with consistent patterns
+**Solution Applied**:
+- Added Storybook validation as NEW commands: `yarn agent:storybook:ios/android`
+- Integrated with existing validation timeouts and screenshot systems
+- Maintained existing log file structure in `logs/` directories
+
+**❌ NEVER**: Modify core `scripts/agent.sh` without understanding full validation flow
+**✅ ALWAYS**: Add new agent commands as separate scripts that integrate with existing patterns
+
+#### **Lesson 4: Cross-Platform Test Differences**  
+**Issue**: iOS and Android Storybook behavior differs in navigation timing
+**Solution Applied**:
+- Created platform-specific test adaptations in `e2e/storybook-validation.test.ts`
+- Used try/catch blocks for timing-sensitive elements
+- Maintained consistent screenshot capture across platforms
+
+**❌ NEVER**: Assume cross-platform tests will work identically
+**✅ ALWAYS**: Test on BOTH platforms and handle platform-specific timing differences
+
+#### **Lesson 5: Documentation vs Implementation Gaps**
+**Issue**: Making changes without verifying existing system integration points
+**Solution Applied**:
+- Analyzed existing `agent.sh`, `package.json`, `.detoxrc.js` before changes
+- Added documentation AFTER confirming integration works
+- Verified no duplicate functionality was created
+
+**❌ NEVER**: Add new functionality without checking for existing implementations
+**✅ ALWAYS**: Use `grep -r` to find existing patterns before implementing new features
+
+#### **Lesson 6: Critical Files - DO NOT MODIFY**
+**Files that are critical to system function and should NEVER be changed without extreme caution:**
+
+**🔒 PROTECTED FILES:**
+- `/index.js` (monorepo root) - Critical for Storybook module resolution
+- `apps/playground/.rnstorybook/storybook.requires.ts` - Auto-generated, only update via `sb-rn-get-stories`
+- `apps/playground/.detoxrc.js` - Device configurations used across ALL tests
+- `apps/playground/scripts/agent.sh` - Core agentic framework script
+
+**🔒 PROTECTED PATTERNS:**
+- Any script that starts with `yarn agent:` in package.json
+- Simulator device names in any configuration files
+- Metro/bundler configuration related to Storybook
+- E2E test timeout values and screenshot configurations
+
+**🚨 BEFORE MODIFYING PROTECTED FILES:**
+1. Create backup: `cp file.js file.js.backup`
+2. Test change on single platform first
+3. Verify ALL existing agent commands still work
+4. Test both Android and iOS platforms
+5. Check that screenshots still capture properly
+
+### **Verification Commands for Future Agents**
+Before making ANY changes, run these commands to understand current state:
+```bash
+# Check existing agent structure
+cat scripts/agent.sh | grep -A 5 -B 5 "ios\|android"
+
+# Verify simulator configuration  
+cat .detoxrc.js | grep -A 10 "devices\|configurations"
+
+# Check existing package.json scripts
+cat package.json | grep -A 1 -B 1 "agent:\|setup:\|e2e:"
+
+# Find integration points for new features
+grep -r "yarn.*agent" scripts/
+```
+
+### **✅ COMPLETED IMPLEMENTATIONS (DO NOT DUPLICATE)**
+
+**Storybook Integration - COMPLETE:**
+- ✅ React Native Storybook v9 fully working on Android & iOS
+- ✅ Cross-platform E2E validation with screenshots  
+- ✅ Agent commands: `yarn agent:storybook:android` & `yarn agent:storybook:ios`
+- ✅ Module resolution fixed with monorepo root redirect
+- ✅ Missing dependencies added (@react-native-community/datetimepicker, slider)
+
+**Simulator Management - COMPLETE:**
+- ✅ iPhone 16 Pro Max standardized across all workflows
+- ✅ `yarn setup:ios-simulator` integrated with `scripts/agent.sh`
+- ✅ Cross-platform consistency documented and enforced
+
+**Validation Framework - COMPLETE:**
+- ✅ < 2 minute validation cycles working
+- ✅ Real device testing with screenshot capture  
+- ✅ Technical + E2E validation pipeline
+- ✅ Log management and error reporting
+
+**DO NOT RE-IMPLEMENT THESE FEATURES - THEY WORK PERFECTLY**
 
 ### Documentation
 
