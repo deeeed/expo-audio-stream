@@ -111,17 +111,33 @@ cd apps/playground
 yarn e2e:android:record         # Recording workflow
 yarn e2e:android:import         # Import workflow
 yarn e2e:android:screenshots    # Visual validation
+
+# Storybook Development
+yarn storybook                  # Native Storybook (metro bundler)
+yarn storybook:ios              # iOS native Storybook
+yarn storybook:android          # Android native Storybook
+yarn storybook:web              # Web Storybook (vite bundler)
+yarn agent:storybook:ios        # iOS validation with screenshots
+yarn agent:storybook:android    # Android validation with screenshots
+yarn e2e:android:storybook      # Storybook E2E validation (Android)
+yarn e2e:ios:storybook          # Storybook E2E validation (iOS)
 ```
 
 ## Current Branch Context
 
-You are working on the `main` branch which includes the newly implemented agentic framework validation system.
+You are working on the `main` branch which includes the newly implemented agentic framework validation system and React Native Storybook v8/v9 setup.
 
 ### Key Features
-- Agentic validation tab (DEV_ONLY) in playground app
-- 102 comprehensive tests (Android + iOS)
-- Real device testing enforcement
-- Cross-platform validation requirements
+- **Agentic validation tab** (DEV_ONLY) in playground app with 102 comprehensive tests
+- **React Native Storybook v9** for native mobile (iOS/Android) development
+- **Web Storybook v8** for browser-based component development 
+- **Detox E2E integration** for Storybook validation with screenshot capture
+- **Cross-platform validation** requirements with real device testing enforcement
+- **Dual Storybook environments** supporting both native and web development workflows
+
+### Storybook Documentation
+- **📖 Complete Guide**: `docs/STORYBOOK.md` - Architecture, commands, validation workflow
+- **📖 Migration Guide**: `docs/STORYBOOK_MIGRATION_GUIDE.md` - Step-by-step component migration
 
 ## Important Notes
 
@@ -131,6 +147,8 @@ You are working on the `main` branch which includes the newly implemented agenti
 - Use absolute paths in test scripts
 - Background recording requires special permissions configuration
 - **VPN Interference**: Disconnect VPNs during iOS E2E tests; Android uses ADB port forwarding (VPN-resistant)
+- **Storybook Dual Setup**: Native (v9) uses Metro bundler; Web (v8) uses Vite bundler for React Native Web compatibility
+- **Story Sources**: Stories include playground app components and expo-audio-ui package components (AudioVisualizer, Waveform, etc.)
 
 ## iOS Simulator Configuration
 
@@ -283,7 +301,18 @@ If multiple simulators are running:
 **✅ ALWAYS**: Copy import structure from existing working E2E tests
 **🚨 MANDATORY**: Run `yarn typecheck && yarn lint:fix` after creating any new test files
 
-#### **Lesson 7: Critical Files - DO NOT MODIFY**
+#### **Lesson 7: Cross-Platform Component Architecture**
+**Issue**: Need to support components in both React Native and Web Storybook
+**Solution Applied**: 
+- Created `ui-components/` folder at playground root for cross-platform components
+- Kept `src/stories-web/` for web-only stories
+- Both locations are auto-discovered by Storybook configurations
+
+**❌ NEVER**: Mix platform-specific code in ui-components folder
+**✅ ALWAYS**: Test components in both native and web Storybook before marking complete
+**🚨 IMPORTANT**: The `storybook:both` command was removed for clarity - use separate commands
+
+#### **Lesson 8: Critical Files - DO NOT MODIFY**
 **Files that are critical to system function and should NEVER be changed without extreme caution:**
 
 **🔒 PROTECTED FILES:**
@@ -324,12 +353,16 @@ grep -r "yarn.*agent" scripts/
 
 ### **✅ COMPLETED IMPLEMENTATIONS (DO NOT DUPLICATE)**
 
-**Storybook Integration - COMPLETE:**
+**Storybook Integration - COMPLETE (January 2025):**
 - ✅ React Native Storybook v9 fully working on Android & iOS
+- ✅ Web Storybook v9 in playground app for cross-platform development
 - ✅ Cross-platform E2E validation with screenshots  
 - ✅ Agent commands: `yarn agent:storybook:android` & `yarn agent:storybook:ios`
 - ✅ Module resolution fixed with monorepo root redirect
 - ✅ Missing dependencies added (@react-native-community/datetimepicker, slider)
+- ✅ NEW: `ui-components/` folder for cross-platform components
+- ✅ NEW: Separate web stories in `src/stories-web/`
+- ✅ NEW: Triple Storybook setup (Native, Web, UI Library)
 
 **Simulator Management - COMPLETE:**
 - ✅ iPhone 16 Pro Max standardized across all workflows
@@ -348,3 +381,6 @@ grep -r "yarn.*agent" scripts/
 
 **📖 Complete Guide**: `docs/AGENT_WORKFLOW.md` - Comprehensive usage, features, setup, and troubleshooting
 **📖 Testing Strategy**: `packages/expo-audio-studio/docs/TESTING_STRATEGY.md` - Agentic validation approach
+**📖 Storybook Quick Start**: `docs/AGENT_STORYBOOK_QUICKSTART.md` - Commands and workflow for Storybook development
+**📖 Storybook Status**: `docs/AGENT_STORYBOOK_STATUS.md` - Current implementation status and capabilities
+**📖 Storybook Plan**: `docs/AGENT_STORYBOOK_UPGRADE_PLAN.md` - Architecture decisions and lessons learned

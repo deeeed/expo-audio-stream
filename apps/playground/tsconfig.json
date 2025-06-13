@@ -2,7 +2,7 @@
     "extends": "expo/tsconfig.base",
     "compilerOptions": {
         "strict": true,
-        "types": ["node"],
+        "types": ["node", "jest"],
         "experimentalDecorators": true,
         "resolveJsonModule": true,
         "paths": {
@@ -23,6 +23,6 @@
         },
         "module": "esnext"
     },
-    "include": ["src", "app.config.ts"],
-    "exclude": ["node_modules", "build"]
+    "include": ["src", "app.config.ts", ".rnstorybook"],
+    "exclude": ["node_modules", "build", "node_modules/@storybook"]
 }

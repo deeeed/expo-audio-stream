@@ -3,13 +3,15 @@
   "include": [
     "./src",
     "./*.js",
+    "./*.cjs",
     "./scripts",
     "./modules/playgroundapi/src",
     "./e2e",
     "./plugins",
     "app.config.ts",
     ".eslintrc.js",
-    "./public/**/*.js"
+    "./public/**/*.js",
+    ".rnstorybook"
   ],
   "exclude": ["dist/**", "node_modules"]
 }

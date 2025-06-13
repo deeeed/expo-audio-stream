@@ -1,9 +1,10 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 // Learn more https://docs.expo.io/guides/customizing-metro
 const escape = require('escape-string-regexp')
 const { getDefaultConfig } = require('expo/metro-config')
 const exclusionList = require('metro-config/src/defaults/exclusionList')
 const path = require('node:path')
+const withStorybook = require('@storybook/react-native/metro/withStorybook')
 
 const pakLib = require('../../packages/expo-audio-stream/package.json')
 const pakUI = require('../../packages/expo-audio-ui/package.json')
@@ -130,4 +131,7 @@ config.resolver = {
     },
 }
 
-module.exports = config
+module.exports = withStorybook(config, {
+  enabled: process.env.EXPO_PUBLIC_STORYBOOK === 'true',
+  configPath: path.resolve(__dirname, './.rnstorybook'),
+})

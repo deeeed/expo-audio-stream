@@ -48,8 +48,8 @@ fi
 
 print_status "Looking for available iPhone simulators..."
 
-# Preferred simulator order
-PREFERRED_SIMS=("iPhone 15" "iPhone 14" "iPhone 13" "iPhone SE (3rd generation)" "iPhone 12")
+# Agentic framework standard simulators (matching .detoxrc.js configuration)
+PREFERRED_SIMS=("iPhone 16 Pro Max" "iPhone 15 Pro Max" "iPhone 15 Pro" "iPhone 16 Pro" "iPhone 15")
 
 # Find the best available simulator
 CHOSEN_SIM=""
@@ -95,8 +95,10 @@ if xcrun simctl boot "$CHOSEN_SIM"; then
         print_success "iOS simulator is ready for agent validation!"
         echo ""
         print_status "You can now run:"
-        echo "  yarn agent:validate:ios"
-        echo "  yarn agent:full-validation"
+        echo "  yarn agent:storybook:ios"
+        echo "  yarn e2e:ios:storybook"
+        echo "  yarn agent:dev compression ios"
+        echo "  yarn agent:full ios"
     else
         print_warning "Simulator may still be booting. Please wait a moment and try again."
     fi
