@@ -33,7 +33,7 @@ if [[ -n $(git status -s) ]]; then
         exit 1
     fi
 else
-    publisher release
+    publisher release --debug
 fi
 
 # Get new version after bump
