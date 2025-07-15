@@ -66,6 +66,12 @@ Unique identifier for this notification
 
 Priority of the notification (affects how it's displayed)
 
+#### showPauseResumeActions?
+
+> `optional` **showPauseResumeActions**: `boolean`
+
+Whether to show pause/resume actions in the notification (default: true)
+
 #### waveform?
 
 > `optional` **waveform**: [`WaveformConfig`](WaveformConfig.md)

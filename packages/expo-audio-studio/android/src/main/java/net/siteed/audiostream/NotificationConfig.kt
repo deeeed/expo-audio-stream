@@ -12,7 +12,8 @@ data class NotificationConfig(
     val waveform: WaveformConfig? = null,
     val lightColor: String = "#FF0000",
     val priority: String = "high",
-    val accentColor: String? = null
+    val accentColor: String? = null,
+    val showPauseResumeActions: Boolean = true
 ) {
     companion object {
         fun fromMap(map: Map<String, Any?>?): NotificationConfig {
@@ -32,7 +33,8 @@ data class NotificationConfig(
                 waveform = parseWaveformConfig(androidMap["waveform"] as? Map<String, Any?>),
                 lightColor = androidMap["lightColor"] as? String ?: "#FF0000",
                 priority = androidMap["priority"] as? String ?: "high",
-                accentColor = androidMap["accentColor"] as? String
+                accentColor = androidMap["accentColor"] as? String,
+                showPauseResumeActions = androidMap["showPauseResumeActions"] as? Boolean ?: true
             )
         }
 

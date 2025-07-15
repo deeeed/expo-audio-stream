@@ -165,19 +165,21 @@ class AudioNotificationManager private constructor(context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Add only one pause/resume action based on current state
-        if (isPaused.get()) {
-            notificationBuilder.addAction(
-                R.drawable.ic_play,
-                "Resume",
-                resumePendingIntent
-            )
-        } else {
-            notificationBuilder.addAction(
-                R.drawable.ic_pause,
-                "Pause",
-                pausePendingIntent
-            )
+        // Add only one pause/resume action based on current state (if enabled)
+        if (recordingConfig.notification.showPauseResumeActions) {
+            if (isPaused.get()) {
+                notificationBuilder.addAction(
+                    R.drawable.ic_play,
+                    "Resume",
+                    resumePendingIntent
+                )
+            } else {
+                notificationBuilder.addAction(
+                    R.drawable.ic_pause,
+                    "Pause",
+                    pausePendingIntent
+                )
+            }
         }
 
         // Add configured custom actions (only if they don't already exist)
