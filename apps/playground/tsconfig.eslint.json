@@ -8,6 +8,7 @@
     "./modules/playgroundapi/src",
     "./e2e",
     "./plugins",
+    "./ui-components",
     "app.config.ts",
     ".eslintrc.js",
     "./public/**/*.js",

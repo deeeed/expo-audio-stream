@@ -29,3 +29,14 @@ export const LongText: Story = {
     title: 'This is a very long button text',
   },
 };
+
+// For React Native, use simple visual testing and actions
+export const Interactive: Story = {
+  args: {
+    title: 'Click me!',
+    onPress: () => {
+      // This will show up in the Actions panel
+      console.log('Button pressed!');
+    },
+  },
+};
