@@ -6,7 +6,7 @@
 
 # Interface: TimeRange
 
-Defined in: [src/ExpoAudioStream.types.ts:700](https://github.com/deeeed/expo-audio-stream/blob/34ea5104fe661743627b2234f95382ba6980a44c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L700)
+Defined in: [src/ExpoAudioStream.types.ts:703](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L703)
 
 Defines a time range in milliseconds for trimming operations.
 
@@ -16,7 +16,7 @@ Defines a time range in milliseconds for trimming operations.
 
 > **endTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:709](https://github.com/deeeed/expo-audio-stream/blob/34ea5104fe661743627b2234f95382ba6980a44c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L709)
+Defined in: [src/ExpoAudioStream.types.ts:712](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L712)
 
 The end time of the range in milliseconds.
 
@@ -26,6 +26,6 @@ The end time of the range in milliseconds.
 
 > **startTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:704](https://github.com/deeeed/expo-audio-stream/blob/34ea5104fe661743627b2234f95382ba6980a44c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L704)
+Defined in: [src/ExpoAudioStream.types.ts:707](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L707)
 
 The start time of the range in milliseconds.
