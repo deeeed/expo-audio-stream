@@ -8,7 +8,7 @@
 
 > **BitDepth**: `8` \| `16` \| `32`
 
-Defined in: [src/ExpoAudioStream.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L87)
+Defined in: [src/ExpoAudioStream.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/34ea5104fe661743627b2234f95382ba6980a44c/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L87)
 
 Audio bit depth (bits per sample).
 

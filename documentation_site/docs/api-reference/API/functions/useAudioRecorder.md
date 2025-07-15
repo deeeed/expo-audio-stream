@@ -8,7 +8,7 @@
 
 > **useAudioRecorder**(`__namedParameters`): `UseAudioRecorderState`
 
-Defined in: [src/useAudioRecorder.tsx:157](https://github.com/deeeed/expo-audio-stream/blob/e496f5dd1024dfffefc22b133ee7e25a9e09a3b7/packages/expo-audio-studio/src/useAudioRecorder.tsx#L157)
+Defined in: [src/useAudioRecorder.tsx:157](https://github.com/deeeed/expo-audio-stream/blob/34ea5104fe661743627b2234f95382ba6980a44c/packages/expo-audio-studio/src/useAudioRecorder.tsx#L157)
 
 ## Parameters
 
