@@ -43,19 +43,19 @@ const validatedEnv = env as typeof env & {
 }
 
 try {
-  const ortPackageJsonPath = join(__dirname, 'node_modules/onnxruntime-web/package.json')
-  const canvasKitPackageJsonPath = join(__dirname, 'node_modules/canvaskit-wasm/package.json')
+    const ortPackageJsonPath = join(__dirname, 'node_modules/onnxruntime-web/package.json')
+    const canvasKitPackageJsonPath = join(__dirname, 'node_modules/canvaskit-wasm/package.json')
 
-  const ortPackageJson = JSON.parse(readFileSync(ortPackageJsonPath, 'utf-8'))
-  const canvasKitPackageJson = JSON.parse(readFileSync(canvasKitPackageJsonPath, 'utf-8'))
+    const ortPackageJson = JSON.parse(readFileSync(ortPackageJsonPath, 'utf-8'))
+    const canvasKitPackageJson = JSON.parse(readFileSync(canvasKitPackageJsonPath, 'utf-8'))
 
-  validatedEnv.ORT_VERSION = ortPackageJson.version
-  validatedEnv.CANVASKIT_VERSION = canvasKitPackageJson.version
+    validatedEnv.ORT_VERSION = ortPackageJson.version
+    validatedEnv.CANVASKIT_VERSION = canvasKitPackageJson.version
 
 } catch (readError) {
-  console.error('Error reading package.json for version injection:', readError)
-  validatedEnv.ORT_VERSION = undefined
-  validatedEnv.CANVASKIT_VERSION = undefined
+    console.error('Error reading package.json for version injection:', readError)
+    validatedEnv.ORT_VERSION = undefined
+    validatedEnv.CANVASKIT_VERSION = undefined
 }
 
 // Add a helper function for logging
@@ -97,152 +97,151 @@ logConfig({
 
 export default ({ config }: ConfigContext): ExpoConfig => {
     return {
-    ...config,
-    name:
-        validatedEnv.APP_VARIANT === 'production'
-            ? 'AudioPlayground'
-            : `AudioDevPlayground`,
-    slug: 'audioplayground',
-    version: packageVersion,
-    orientation: 'portrait',
-    icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
-    scheme: APP_SCHEME,
-    splash: {
-        image: './assets/splash.png',
-        resizeMode: 'contain',
-        backgroundColor:
-            validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
-    },
-    assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx'],
-    ios: {
-        newArchEnabled: true,
-        supportsTablet: true,
-        bundleIdentifier: APP_IDENTIFIER,
-        appleTeamId: validatedEnv.APPLE_TEAM_ID,
-        infoPlist: {
-            "ITSAppUsesNonExemptEncryption": false,
-        },
-    },
-    android: {
-        newArchEnabled: true,
-        adaptiveIcon: {
-            foregroundImage: './assets/adaptive-icon.png',
+        ...config,
+        name:
+            validatedEnv.APP_VARIANT === 'production'
+                ? 'AudioPlayground'
+                : `AudioDevPlayground`,
+        slug: 'audioplayground',
+        version: packageVersion,
+        orientation: 'portrait',
+        icon: './assets/icon.png',
+        userInterfaceStyle: 'light',
+        scheme: APP_SCHEME,
+        splash: {
+            image: './assets/splash.png',
+            resizeMode: 'contain',
             backgroundColor:
                 validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
-        package: APP_IDENTIFIER,
-    },
-    developmentClient: {
-        silentLaunch: true,
-    },
-    web: {
-        favicon: './assets/favicon.png',
-        bundler: 'metro',
-    },
-    experiments: {
-        baseUrl:
-            validatedEnv.APP_VARIANT === 'production'
-                ? '/expo-audio-stream/playground/'
-                : '',
-    },
-    updates: {
-        url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
-        enabled: true,
-        checkAutomatically: "ON_LOAD",
-        useEmbeddedUpdate: true
-    },
-    runtimeVersion: '1.5.1',
-    owner: 'deeeed',
-    plugins: [
-        [
-            'expo-font',
-            {
-                fonts: ['./assets/Roboto/Roboto-Regular.ttf'],
+        assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx'],
+        ios: {
+            newArchEnabled: true,
+            supportsTablet: true,
+            bundleIdentifier: APP_IDENTIFIER,
+            appleTeamId: validatedEnv.APPLE_TEAM_ID,
+            infoPlist: {
+                "ITSAppUsesNonExemptEncryption": false,
             },
-        ],
-        [
-            // We need to force use the cjs version on local monorepo plugin development since expo 53
-            '../../packages/expo-audio-studio/app.plugin.cjs',
-            // '@siteed/expo-audio-studio',
-            {
-                enablePhoneStateHandling: true,
-                enableNotifications: true,
-                enableBackgroundAudio: true,
-                enableDeviceDetection: true,
-                iosBackgroundModes: {
-                    useAudio: true,
-                    useProcessing: true,
-                    useVoIP: false,
-                    useLocation: false,
-                    useExternalAccessory: false
+        },
+        android: {
+            newArchEnabled: true,
+            adaptiveIcon: {
+                foregroundImage: './assets/adaptive-icon.png',
+                backgroundColor:
+                    validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
+            },
+            package: APP_IDENTIFIER,
+        },
+        developmentClient: {
+            silentLaunch: true,
+        },
+        web: {
+            favicon: './assets/favicon.png',
+            bundler: 'metro',
+        },
+        experiments: {
+            baseUrl:
+                validatedEnv.APP_VARIANT === 'production'
+                    ? '/expo-audio-stream/playground/'
+                    : '',
+        },
+        updates: {
+            url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
+            enabled: true,
+            checkAutomatically: "ON_LOAD",
+            useEmbeddedUpdate: true
+        },
+        runtimeVersion: '1.5.1',
+        owner: 'deeeed',
+        plugins: [
+            [
+                'expo-font',
+                {
+                    fonts: ['./assets/Roboto/Roboto-Regular.ttf'],
                 },
-                iosConfig: {
-                    allowBackgroundAudioControls: false,
-                    backgroundProcessingTitle: "Audio Processing",
-                    microphoneUsageDescription: "AudioPlayground needs microphone access to record your voice and audio for creating audio samples.",
-                    notificationUsageDescription: "Allow notifications to control audio recording from the notification center"
-                }
-            },
-        ],
-        [
-            'expo-build-properties',
-            {
-                ios: {
-                    deploymentTarget: "15.1",
-                    infoPlist: {
-                        ITSAppUsesNonExemptEncryption: false,
-                        LSApplicationCategoryType: "public.app-category.utilities"
+            ],
+            [
+                // We need to force use the cjs version on local monorepo plugin development since expo 53
+                '../../packages/expo-audio-studio/app.plugin.cjs',
+                // '@siteed/expo-audio-studio',
+                {
+                    enablePhoneStateHandling: true,
+                    enableNotifications: true,
+                    enableBackgroundAudio: true,
+                    enableDeviceDetection: true,
+                    iosBackgroundModes: {
+                        useAudio: true,
+                        useProcessing: true,
+                        useVoIP: false,
+                        useLocation: false,
+                        useExternalAccessory: false
+                    },
+                    iosConfig: {
+                        allowBackgroundAudioControls: false,
+                        backgroundProcessingTitle: "Audio Processing",
+                        microphoneUsageDescription: "AudioPlayground needs microphone access to record your voice and audio for creating audio samples.",
+                        notificationUsageDescription: "Allow notifications to control audio recording from the notification center"
                     }
                 },
-                android: {},
-            },
+            ],
+            [
+                'expo-build-properties',
+                {
+                    ios: {
+                        deploymentTarget: "15.1",
+                        infoPlist: {
+                            ITSAppUsesNonExemptEncryption: false,
+                            LSApplicationCategoryType: "public.app-category.utilities"
+                        }
+                    },
+                    android: {},
+                },
+            ],
+            'onnxruntime-react-native',
+            ['./plugins/withCustomGradleConfig.cjs', {}],
+            ['./plugins/withLibcppFix.cjs', {}],
+            [
+                'react-native-edge-to-edge',
+                {
+                    enableEdgeToEdge: true,
+                },
+            ],
+            [
+                '@config-plugins/detox',
+                {
+                    skipProguard: false,
+                    subdomains: process.env.EAS_BUILD_PROFILE === "development"
+                        ? "*"
+                        : [
+                            '10.0.2.2',
+                            'localhost',
+                            '192.168.50.10',
+                            '192.168.50.11',
+                            '192.168.11.1',
+                            '192.168.1.39',
+                        ],
+                },
+            ],
+            ["./plugins/withMetroPort.cjs", { port: 7365 }],
+            "expo-background-task",
+            'expo-localization',
+            // [
+            //     'expo-asset',
+            //     {
+            //         assets: ['./public/audio_samples/recorder_hello_world.wav'],
+            //     },
+            // ],
+            'expo-router',
         ],
-        'onnxruntime-react-native',
-        ['./plugins/withCustomGradleConfig.cjs', {}],
-        ['./plugins/withLibcppFix.cjs', {}],
-        [
-            'react-native-edge-to-edge',
-            {
-                enableEdgeToEdge: true,
+        extra: {
+            eas: {
+                projectId: validatedEnv.EAS_PROJECT_ID,
+                channelName: validatedEnv.APP_VARIANT,
             },
-        ],
-        [
-            '@config-plugins/detox',
-            {
-              skipProguard: false,
-              subdomains: process.env.EAS_BUILD_PROFILE === "development"
-              ? "*"
-              : [
-                '10.0.2.2',
-                'localhost',
-                '192.168.50.10',
-                '192.168.50.11',
-                '192.168.11.1',
-                '192.168.1.39',
-              ],
-            },
-        ],
-        ["./plugins/withMetroPort.cjs", { port: 7365 }],
-        "expo-background-task",
-        'expo-localization',
-        // [
-        //     'expo-asset',
-        //     {
-        //         assets: ['./public/audio_samples/recorder_hello_world.wav'],
-        //     },
-        // ],
-        'expo-router',
-    ],
-    extra: {
-        eas: {
-            projectId: validatedEnv.EAS_PROJECT_ID,
-            channelName: validatedEnv.APP_VARIANT,
+            APP_VARIANT: validatedEnv.APP_VARIANT,
+            ORT_VERSION: validatedEnv.ORT_VERSION,
+            CANVASKIT_VERSION: validatedEnv.CANVASKIT_VERSION,
         },
-        APP_VARIANT: validatedEnv.APP_VARIANT,
-        ORT_VERSION: validatedEnv.ORT_VERSION,
-        CANVASKIT_VERSION: validatedEnv.CANVASKIT_VERSION,
-    },
-}
-
+    }
 }

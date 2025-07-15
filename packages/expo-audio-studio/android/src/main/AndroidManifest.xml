@@ -1,19 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Permissions will be merged into the app's manifest -->
+    <!-- Core permissions required for basic functionality -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     
-    <!-- Bluetooth permissions for device detection -->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    
-    <!-- USB permission for USB device detection -->
-    <uses-permission android:name="android.permission.USB_PERMISSION" />
+    <!-- All other permissions are handled conditionally by the plugin based on configuration:
+         - FOREGROUND_SERVICE & FOREGROUND_SERVICE_MICROPHONE & WAKE_LOCK: enableBackgroundAudio
+         - POST_NOTIFICATIONS: enableNotifications  
+         - BLUETOOTH, BLUETOOTH_ADMIN, BLUETOOTH_CONNECT, USB_PERMISSION: enableDeviceDetection
+         - READ_PHONE_STATE: enablePhoneStateHandling
+    -->
 
     <application>
         <receiver 

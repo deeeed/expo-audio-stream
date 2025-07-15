@@ -168,16 +168,15 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
     // Android Configuration
     config = withAndroidManifest(config as any, (config) => {
-        const basePermissions = [
-            'android.permission.RECORD_AUDIO',
-            'android.permission.WAKE_LOCK',
-        ]
+        const basePermissions = ['android.permission.RECORD_AUDIO']
 
         const optionalPermissions = [
             enableNotifications && 'android.permission.POST_NOTIFICATIONS',
             enablePhoneStateHandling && 'android.permission.READ_PHONE_STATE', // Only add if enabled
             enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE',
-            enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+            enableBackgroundAudio &&
+                'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+            enableBackgroundAudio && 'android.permission.WAKE_LOCK', // Keep device awake during background recording
             // Device detection permissions (only if enabled)
             enableDeviceDetection && 'android.permission.BLUETOOTH',
             enableDeviceDetection && 'android.permission.BLUETOOTH_ADMIN',
