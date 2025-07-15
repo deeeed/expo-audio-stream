@@ -180,6 +180,7 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
             enableBackgroundAudio && 'android.permission.FOREGROUND_SERVICE_MICROPHONE',
             // Device detection permissions (only if enabled)
             enableDeviceDetection && 'android.permission.BLUETOOTH',
+            enableDeviceDetection && 'android.permission.BLUETOOTH_ADMIN',
             enableDeviceDetection && 'android.permission.BLUETOOTH_CONNECT',
             enableDeviceDetection && 'android.permission.USB_PERMISSION',
         ].filter(Boolean) as string[]
@@ -197,7 +198,10 @@ const withRecordingPermission: ConfigPlugin<AudioStreamPluginOptions> = (
 
         // Add each permission only if it doesn't exist
         permissionsToAdd.forEach((permission) => {
-            AndroidConfig.Permissions.addPermission(config.modResults, permission)
+            AndroidConfig.Permissions.addPermission(
+                config.modResults,
+                permission
+            )
         })
 
         // Get the main application node
