@@ -524,6 +524,9 @@ export interface NotificationConfig {
 
         /** Accent color for the notification (used for the app icon and buttons) */
         accentColor?: string
+
+        /** Whether to show pause/resume actions in the notification (default: true) */
+        showPauseResumeActions?: boolean
     }
 
     /** iOS-specific notification configuration */
