@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.14.4] - 2025-07-15
+### Changed
+-  fix(plugin): respect enableDeviceDetection configuration for Android permissions ([32647c8](https://github.com/deeeed/expo-audio-stream/commit/32647c8d80bd33406f7dcabcf2823beaf3ba3b62))
+- fix(audio-studio): add missing Bluetooth_ADMIN permission for device detection ([5a56900](https://github.com/deeeed/expo-audio-stream/commit/5a5690025a3c2ac279b853e21470015935b9a469))
 ## [2.14.3] - 2025-06-12
 ### Changed
 - refactor(AudioRecorderManager): remove analysis bit depth logging for cleaner debug output ([ddaf9e2](https://github.com/deeeed/expo-audio-stream/commit/ddaf9e25c0bf9bad1e3435b9ec08b3b4a27a6161))
@@ -330,7 +334,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.4...HEAD
+[2.14.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.3...@siteed/expo-audio-studio@2.14.4
 [2.14.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.2...@siteed/expo-audio-studio@2.14.3
 [2.14.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.1...@siteed/expo-audio-studio@2.14.2
 [2.14.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.0...@siteed/expo-audio-studio@2.14.1
