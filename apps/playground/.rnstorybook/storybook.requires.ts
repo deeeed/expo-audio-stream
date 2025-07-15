@@ -28,9 +28,10 @@ declare global {
   var view: View;
   var STORIES: typeof normalizedStories;
 }
-  
+
 
 const annotations = [
+  require('./preview'),
   require("@storybook/react-native/preview")
 ];
 
@@ -39,13 +40,10 @@ global.STORIES = normalizedStories;
 // @ts-ignore
 module?.hot?.accept?.();
 
-
-
 if (!global.view) {
   global.view = start({
     annotations,
     storyEntries: normalizedStories,
-    
   });
 } else {
   updateView(global.view, annotations, normalizedStories, );

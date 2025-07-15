@@ -5,6 +5,7 @@
         "types": ["node", "jest"],
         "experimentalDecorators": true,
         "resolveJsonModule": true,
+        "skipLibCheck": true,
         "paths": {
             "@siteed/expo-audio-studio": [
                 "../../packages/expo-audio-studio/src/index"
@@ -23,6 +24,6 @@
         },
         "module": "esnext"
     },
-    "include": ["src", "app.config.ts", ".rnstorybook"],
-    "exclude": ["node_modules", "build", "node_modules/@storybook"]
+    "include": ["src", "app.config.ts"],
+    "exclude": ["node_modules", "build", "node_modules/@storybook", ".rnstorybook"]
 }

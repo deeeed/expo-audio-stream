@@ -125,13 +125,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
     },
     android: {
-        newArchEnabled: false,
+        newArchEnabled: true,
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor:
                 validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
         package: APP_IDENTIFIER,
+    },
+    developmentClient: {
+        silentLaunch: true,
     },
     web: {
         favicon: './assets/favicon.png',

@@ -328,12 +328,11 @@ If multiple simulators are running:
 - E2E test timeout values and screenshot configurations
 
 **🚨 BEFORE MODIFYING PROTECTED FILES:**
-1. Create backup: `cp file.js file.js.backup`
-2. Test change on single platform first
-3. Verify ALL existing agent commands still work
-4. Test both Android and iOS platforms
-5. Check that screenshots still capture properly
-6. **MANDATORY**: Run `yarn typecheck && yarn lint:fix` after ANY code changes
+- Test change on single platform first
+- Verify ALL existing agent commands still work
+- Test both Android and iOS platforms
+- Check that screenshots still capture properly
+- **MANDATORY**: Run `yarn typecheck && yarn lint:fix` after ANY code changes
 
 ### **Verification Commands for Future Agents**
 Before making ANY changes, run these commands to understand current state:
