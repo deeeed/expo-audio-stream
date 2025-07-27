@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.16.2] - 2025-07-27
+### Changed
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.16.1 ([c9614d4](https://github.com/deeeed/expo-audio-stream/commit/c9614d4ebf87d73c3c5b2f7d6e60492fd5e45e64))
 ## [2.16.1] - 2025-07-27
 ### Changed
 -  fix(expo-audio-studio): fix Android audio analysis accumulation showing 0 bytes ([012d478](https://github.com/deeeed/expo-audio-stream/commit/012d478c372db12b9fcf4a49f567d6618eb499f1))
@@ -361,7 +364,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.2...HEAD
+[2.16.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.1...@siteed/expo-audio-studio@2.16.2
 [2.16.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.0...@siteed/expo-audio-studio@2.16.1
 [2.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.15.0...@siteed/expo-audio-studio@2.16.0
 [2.15.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.9...@siteed/expo-audio-studio@2.15.0
