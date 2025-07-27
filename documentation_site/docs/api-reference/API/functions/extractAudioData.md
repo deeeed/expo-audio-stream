@@ -8,7 +8,7 @@
 
 > **extractAudioData**(`props`): `Promise`\<`any`\>
 
-Defined in: [src/AudioAnalysis/extractAudioData.ts:4](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/AudioAnalysis/extractAudioData.ts#L4)
+Defined in: [src/AudioAnalysis/extractAudioData.ts:4](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/AudioAnalysis/extractAudioData.ts#L4)
 
 ## Parameters
 

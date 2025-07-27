@@ -6,7 +6,7 @@
 
 # Interface: TranscriberData
 
-Defined in: [src/ExpoAudioStream.types.ts:115](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L115)
+Defined in: [src/ExpoAudioStream.types.ts:115](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L115)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:115](https://github.com/deeeed/expo-au
 
 > **chunks**: [`Chunk`](Chunk.md)[]
 
-Defined in: [src/ExpoAudioStream.types.ts:127](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L127)
+Defined in: [src/ExpoAudioStream.types.ts:127](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L127)
 
 Array of transcribed text chunks with timestamps
 
@@ -24,7 +24,7 @@ Array of transcribed text chunks with timestamps
 
 > **endTime**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:125](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L125)
+Defined in: [src/ExpoAudioStream.types.ts:125](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L125)
 
 End time of the transcription in milliseconds
 
@@ -34,7 +34,7 @@ End time of the transcription in milliseconds
 
 > **id**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:117](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L117)
+Defined in: [src/ExpoAudioStream.types.ts:117](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L117)
 
 Unique identifier for the transcription
 
@@ -44,7 +44,7 @@ Unique identifier for the transcription
 
 > **isBusy**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:119](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L119)
+Defined in: [src/ExpoAudioStream.types.ts:119](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L119)
 
 Indicates if the transcriber is currently processing
 
@@ -54,7 +54,7 @@ Indicates if the transcriber is currently processing
 
 > **startTime**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:123](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L123)
+Defined in: [src/ExpoAudioStream.types.ts:123](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L123)
 
 Start time of the transcription in milliseconds
 
@@ -64,6 +64,6 @@ Start time of the transcription in milliseconds
 
 > **text**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/1af374ada18ec2cd4edeb151fc0e91e54f783b9e/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L121)
+Defined in: [src/ExpoAudioStream.types.ts:121](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L121)
 
 Complete transcribed text
