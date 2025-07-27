@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.16.0] - 2025-07-27
+### Changed
+- feat(expo-audio-studio): optimize stop recording performance for long recording on android ([4553dc9](https://github.com/deeeed/expo-audio-stream/commit/4553dc9d2bd101a461f3f2eadfed63114f7d1b22))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.15.0 ([1af374a](https://github.com/deeeed/expo-audio-stream/commit/1af374ada18ec2cd4edeb151fc0e91e54f783b9e))
 ## [2.15.0] - 2025-07-15
 ### Changed
 - feat(android): add showPauseResumeActions option to notification config ([7456153](https://github.com/deeeed/expo-audio-stream/commit/7456153beb3f5041bd0199595b29d6b62c6b4c8f))
@@ -353,7 +357,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.15.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.0...HEAD
+[2.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.15.0...@siteed/expo-audio-studio@2.16.0
 [2.15.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.9...@siteed/expo-audio-studio@2.15.0
 [2.14.9]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.8...@siteed/expo-audio-studio@2.14.9
 [2.14.8]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.14.7...@siteed/expo-audio-studio@2.14.8
