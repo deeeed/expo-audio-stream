@@ -921,6 +921,8 @@ class AudioRecorderManager(
     }
 
     fun stopRecording(promise: Promise) {
+        val stopStartTime = System.currentTimeMillis()
+        
         synchronized(audioRecordLock) {
             if (!_isRecording.get()) {
                 LogUtils.e(CLASS_NAME, "Recording is not active")
@@ -933,7 +935,9 @@ class AudioRecorderManager(
             var fileSize: Long = 0
 
             try {
+                
                 if (isPaused.get()) {
+                    val readStartTime = System.currentTimeMillis()
                     val remainingData = ByteArray(bufferSizeInBytes)
                     val bytesRead = audioRecord?.read(remainingData, 0, bufferSizeInBytes) ?: -1
                     if (bytesRead > 0) {
@@ -942,6 +946,7 @@ class AudioRecorderManager(
                 }
 
                 if (recordingConfig.showNotification) {
+                    val notificationStartTime = System.currentTimeMillis()
                     notificationManager.stopUpdates()
                     AudioRecordingService.stopService(context)
                 }
@@ -949,28 +954,23 @@ class AudioRecorderManager(
                 _isRecording.set(false)
                 isPrepared = false  // Reset preparation state
                 
-                // Calculate adaptive timeout based on estimated file size
-                // Assume ~5MB per minute at 44.1kHz, 16-bit, mono
-                val recordingDurationMs = if (recordingStartTime > 0) {
-                    System.currentTimeMillis() - recordingStartTime - pausedDuration
-                } else {
-                    0L
-                }
-                val estimatedFileSizeMB = (recordingDurationMs / 60000.0) * 5.0
-                val timeoutMs = maxOf(2000L, (estimatedFileSizeMB * 100).toLong()) // 100ms per MB, min 2 seconds
-                
-                LogUtils.d(CLASS_NAME, "Waiting for recording thread to complete with timeout: ${timeoutMs}ms (estimated size: ${estimatedFileSizeMB}MB)")
+                // Use a reasonable fixed timeout for all cases
+                // The recording thread should exit quickly with non-blocking read
+                val timeoutMs = 2000L // 2 seconds should be more than enough
+                val threadJoinStartTime = System.currentTimeMillis()
                 recordingThread?.join(timeoutMs)
 
+                val finalReadStartTime = System.currentTimeMillis()
                 val audioData = ByteArray(bufferSizeInBytes)
                 val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-                LogUtils.d(CLASS_NAME, "Last Read $bytesRead bytes")
                 if (bytesRead > 0) {
+                    val emitStartTime = System.currentTimeMillis()
                     emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
                 }
 
                 LogUtils.d(CLASS_NAME, "Stopping recording state = ${audioRecord?.state}")
                 if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
+                    val audioStopStartTime = System.currentTimeMillis()
                     LogUtils.d(CLASS_NAME, "Stopping AudioRecord")
                     audioRecord!!.stop()
                 }
@@ -1003,6 +1003,7 @@ class AudioRecorderManager(
                     fileDuration
                 }
 
+                val cleanupStartTime = System.currentTimeMillis()
                 cleanup()
             } catch (e: IllegalStateException) {
                 LogUtils.e(CLASS_NAME, "Error reading from AudioRecord", e)
@@ -1015,16 +1016,25 @@ class AudioRecorderManager(
                 AudioProcessor.resetUniqueIdCounter()
                 audioProcessor.resetCumulativeAmplitudeRange()
 
-                compressedRecorder?.apply {
-                    stop()
-                    release()
+                if (compressedRecorder != null) {
+                    val compressedStopStartTime = System.currentTimeMillis()
+                    try {
+                        compressedRecorder?.stop()
+                        
+                        val compressedReleaseStartTime = System.currentTimeMillis()
+                        compressedRecorder?.release()
+                    } catch (e: Exception) {
+                        LogUtils.e(CLASS_NAME, "Error stopping MediaRecorder: ${e.message}")
+                    }
+                    compressedRecorder = null
                 }
-                compressedRecorder = null
 
                 // Log compressed file status if enabled - use actual file size for validation
                 if (recordingConfig.output.compressed.enabled) {
+                    val fileSizeStartTime = System.currentTimeMillis()
                     // Note: For compressed files, we need to get actual size as MediaRecorder handles the writing
                     // Use actual file size here for validation purposes only
+                    val compressedSizeStartTime = System.currentTimeMillis()
                     val compressedSize = compressedFile?.length() ?: 0
                     cachedCompressedFileSize = compressedSize // Update cache with final size
                     LogUtils.d(CLASS_NAME, "Compressed File validation - Size: $compressedSize bytes, Path: ${compressedFile?.absolutePath}")
@@ -1084,6 +1094,13 @@ class AudioRecorderManager(
                         ) else null
                     )
                 }
+                
+                // Log total stop duration if it's slow
+                val stopDuration = System.currentTimeMillis() - stopStartTime
+                if (stopDuration > 200) {
+                    LogUtils.w(CLASS_NAME, "Stop recording took ${stopDuration}ms - consider investigating")
+                }
+                
                 promise.resolve(result)
 
                 // Reset the timing variables
@@ -1399,7 +1416,12 @@ class AudioRecorderManager(
                 """.trimIndent())
 
                 // Recording loop
+                var loopCount = 0
                 while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
+                    loopCount++
+                    if (loopCount % 100 == 0) {
+                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, _isRecording: ${_isRecording.get()}")
+                    }
                     if (isPaused.get()) {
                         Thread.sleep(100) // Add small delay when paused
                         continue
@@ -1416,7 +1438,8 @@ class AudioRecorderManager(
                                 LogUtils.e(CLASS_NAME, "AudioRecord not initialized")
                                 return@let -1
                             }
-                            it.read(audioData, 0, bufferSizeInBytes).also { bytes ->
+                            // Use non-blocking read mode to allow quick thread exit
+                            it.read(audioData, 0, bufferSizeInBytes, AudioRecord.READ_NON_BLOCKING).also { bytes ->
                                 if (bytes < 0) {
                                     LogUtils.e(CLASS_NAME, "AudioRecord read error: $bytes")
                                 }
@@ -1486,6 +1509,9 @@ class AudioRecorderManager(
                                 }
                             }
                         }
+                    } else if (bytesRead == 0) {
+                        // No data available yet, sleep briefly to avoid busy-waiting
+                        Thread.sleep(10)
                     }
                 }
             } finally {
@@ -1673,7 +1699,14 @@ class AudioRecorderManager(
                 
                 // Update the WAV header if needed
                 audioFile?.let { file ->
-                    audioFileHandler.updateWavHeader(file)
+                    // Skip WAV header update if we're only doing compressed output
+                    if (::recordingConfig.isInitialized && 
+                        !recordingConfig.output.primary.enabled && 
+                        recordingConfig.output.compressed.enabled) {
+                        // Skip WAV header update for compressed-only recording
+                    } else {
+                        audioFileHandler.updateWavHeader(file)
+                    }
                 }
 
                 // Send event to notify that recording was stopped
