@@ -77,7 +77,7 @@ class AudioRecorderManager(
     
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
-    private var _isRecording = AtomicBoolean(false)
+    private val _isRecording = AtomicBoolean(false)
     private val isPaused = AtomicBoolean(false)
     private var streamUuid: String? = null
     private var audioFile: File? = null
@@ -378,7 +378,7 @@ class AudioRecorderManager(
         return deviceDisconnectionBehavior ?: "pause" // Default to pause if not specified
     }
 
-    // Add isRecording property accessor
+    // Public property to check if recording is active
     val isRecording: Boolean
         get() = _isRecording.get()
 
@@ -1403,8 +1403,8 @@ class AudioRecorderManager(
                 
                 // Initialize timing variables
                 var lastEmitTime = System.currentTimeMillis()
-                var lastEmissionTimeAnalysis = System.currentTimeMillis()
-                var isFirstAnalysis = true
+                lastEmissionTimeAnalysis = System.currentTimeMillis()  // Use the class-level variable
+                isFirstAnalysis = true  // Use the class-level variable
                 var shouldProcessAnalysis = false
                 
                 // Debug log for intervals
@@ -1420,7 +1420,7 @@ class AudioRecorderManager(
                 while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
                     loopCount++
                     if (loopCount % 100 == 0) {
-                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, _isRecording: ${_isRecording.get()}")
+                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}")
                     }
                     if (isPaused.get()) {
                         Thread.sleep(100) // Add small delay when paused
@@ -1456,6 +1456,11 @@ class AudioRecorderManager(
                         totalDataSize += bytesRead
                         
                         accumulatedAudioData.write(audioData, 0, bytesRead)
+                        
+                        // Also accumulate data for analysis if enabled
+                        if (shouldProcessAnalysis) {
+                            accumulatedAnalysisData.write(audioData, 0, bytesRead)
+                        }
 
                         // Handle regular audio data emission
                         if (currentTime - lastEmitTime >= recordingConfig.interval) {
