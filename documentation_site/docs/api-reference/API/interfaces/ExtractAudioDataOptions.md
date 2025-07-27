@@ -6,7 +6,7 @@
 
 # Interface: ExtractAudioDataOptions
 
-Defined in: [src/ExpoAudioStream.types.ts:565](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L565)
+Defined in: [src/ExpoAudioStream.types.ts:565](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L565)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:565](https://github.com/deeeed/expo-au
 
 > `optional` **computeChecksum**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
+Defined in: [src/ExpoAudioStream.types.ts:585](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L585)
 
 Compute the checksum of the PCM data
 
@@ -24,7 +24,7 @@ Compute the checksum of the PCM data
 
 > `optional` **decodingOptions**: [`DecodingConfig`](DecodingConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:587](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L587)
+Defined in: [src/ExpoAudioStream.types.ts:587](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L587)
 
 Target config for the normalized audio (Android and Web)
 
@@ -34,7 +34,7 @@ Target config for the normalized audio (Android and Web)
 
 > `optional` **endTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:571](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L571)
+Defined in: [src/ExpoAudioStream.types.ts:571](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L571)
 
 End time in milliseconds (for time-based range)
 
@@ -44,7 +44,7 @@ End time in milliseconds (for time-based range)
 
 > **fileUri**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:567](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L567)
+Defined in: [src/ExpoAudioStream.types.ts:567](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L567)
 
 URI of the audio file to extract data from
 
@@ -54,7 +54,7 @@ URI of the audio file to extract data from
 
 > `optional` **includeBase64Data**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:579](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L579)
+Defined in: [src/ExpoAudioStream.types.ts:579](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L579)
 
 Include base64 encoded string representation of the audio data
 
@@ -64,7 +64,7 @@ Include base64 encoded string representation of the audio data
 
 > `optional` **includeNormalizedData**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:577](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L577)
+Defined in: [src/ExpoAudioStream.types.ts:577](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L577)
 
 Include normalized audio data in [-1, 1] range
 
@@ -74,7 +74,7 @@ Include normalized audio data in [-1, 1] range
 
 > `optional` **includeWavHeader**: `boolean`
 
-Defined in: [src/ExpoAudioStream.types.ts:581](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L581)
+Defined in: [src/ExpoAudioStream.types.ts:581](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L581)
 
 Include WAV header in the PCM data (makes it a valid WAV file)
 
@@ -84,7 +84,7 @@ Include WAV header in the PCM data (makes it a valid WAV file)
 
 > `optional` **length**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)
+Defined in: [src/ExpoAudioStream.types.ts:575](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L575)
 
 Length in bytes to extract (for byte-based range)
 
@@ -94,7 +94,7 @@ Length in bytes to extract (for byte-based range)
 
 > `optional` **logger**: [`ConsoleLike`](../type-aliases/ConsoleLike.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:583](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L583)
+Defined in: [src/ExpoAudioStream.types.ts:583](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L583)
 
 Logger for debugging - can pass console directly.
 
@@ -104,7 +104,7 @@ Logger for debugging - can pass console directly.
 
 > `optional` **position**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:573](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L573)
+Defined in: [src/ExpoAudioStream.types.ts:573](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L573)
 
 Start position in bytes (for byte-based range)
 
@@ -114,6 +114,6 @@ Start position in bytes (for byte-based range)
 
 > `optional` **startTimeMs**: `number`
 
-Defined in: [src/ExpoAudioStream.types.ts:569](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L569)
+Defined in: [src/ExpoAudioStream.types.ts:569](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L569)
 
 Start time in milliseconds (for time-based range)

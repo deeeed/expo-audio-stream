@@ -8,7 +8,7 @@
 
 > **getFallbackBitDepth**(`requestedBitDepth`): [`BitDepth`](../type-aliases/BitDepth.md)
 
-Defined in: [src/constants/platformLimitations.ts:79](https://github.com/deeeed/expo-audio-stream/blob/34c8c0f2f587ecde9adf97c539289b128f0bccc1/packages/expo-audio-studio/src/constants/platformLimitations.ts#L79)
+Defined in: [src/constants/platformLimitations.ts:79](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/constants/platformLimitations.ts#L79)
 
 Get a fallback bit depth if the requested one is not supported
 
