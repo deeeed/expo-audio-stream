@@ -13756,7 +13756,7 @@ __metadata:
     eslint-plugin-promise: "npm:^7.2.1"
     eslint-plugin-react-hooks: "npm:^5.2.0"
     eslint-plugin-unused-imports: "npm:^4.1.4"
-    expo: "npm:^53.0.19"
+    expo: "npm:^53.0.20"
     expo-application: "npm:~6.1.5"
     expo-av: "npm:~15.1.7"
     expo-background-task: "npm:~0.2.8"
@@ -13769,7 +13769,7 @@ __metadata:
     expo-file-system: "npm:~18.1.11"
     expo-linking: "npm:~7.1.7"
     expo-localization: "npm:~16.1.6"
-    expo-router: "npm:~5.1.3"
+    expo-router: "npm:~5.1.4"
     expo-sharing: "npm:~13.1.5"
     expo-status-bar: "npm:~2.2.3"
     expo-task-manager: "npm:~13.1.6"
@@ -20579,12 +20579,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-modules-core@npm:2.4.2":
-  version: 2.4.2
-  resolution: "expo-modules-core@npm:2.4.2"
+"expo-modules-core@npm:2.5.0":
+  version: 2.5.0
+  resolution: "expo-modules-core@npm:2.5.0"
   dependencies:
     invariant: "npm:^2.2.4"
-  checksum: 10/c8992dcd7e9a3124c245beb65333add2c1955200724ac5b0a3fc5214f8da2b7779f6f88474b284be5dc9bc4030369c2189ea14200b97854758e086c0ee10c6bf
+  checksum: 10/ad34d71571bcfbff166da47fa3847ab03886b691b80079d9a3d111e5061cccbaa785c55eb48451ce7d300ce725d32f844492b0109d069dc89f70864b9de2c1c6
   languageName: node
   linkType: hard
 
@@ -20706,9 +20706,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-router@npm:~5.1.3":
-  version: 5.1.3
-  resolution: "expo-router@npm:5.1.3"
+"expo-router@npm:~5.1.4":
+  version: 5.1.4
+  resolution: "expo-router@npm:5.1.4"
   dependencies:
     "@expo/metro-runtime": "npm:5.0.4"
     "@expo/server": "npm:^0.6.3"
@@ -20739,7 +20739,7 @@ __metadata:
       optional: true
     react-native-reanimated:
       optional: true
-  checksum: 10/8393b7c668795cd4c13b98fd6ff38cc689449c59d509b0bc0bdf937c813f0124ea5b2d703ca6763404b057617eb57b6305f3c93064e0d07911ea2b72f31f2ad5
+  checksum: 10/ca7f7835df413791d0f831f9045822d974b82fc78cfa08c4519e0be709c0e85e50a4d58c9172955e0bd2f935c1ab43bd33fdaa97c619adf14aabd51386e4bf6b
   languageName: node
   linkType: hard
 
@@ -20970,9 +20970,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo@npm:^53.0.19":
-  version: 53.0.19
-  resolution: "expo@npm:53.0.19"
+"expo@npm:^53.0.20":
+  version: 53.0.20
+  resolution: "expo@npm:53.0.20"
   dependencies:
     "@babel/runtime": "npm:^7.20.0"
     "@expo/cli": "npm:0.24.20"
@@ -20988,7 +20988,7 @@ __metadata:
     expo-font: "npm:~13.3.2"
     expo-keep-awake: "npm:~14.1.4"
     expo-modules-autolinking: "npm:2.1.14"
-    expo-modules-core: "npm:2.4.2"
+    expo-modules-core: "npm:2.5.0"
     react-native-edge-to-edge: "npm:1.6.0"
     whatwg-url-without-unicode: "npm:8.0.0-3"
   peerDependencies:
@@ -21008,7 +21008,7 @@ __metadata:
     expo: bin/cli
     expo-modules-autolinking: bin/autolinking
     fingerprint: bin/fingerprint
-  checksum: 10/e48538498158176e2af9ed3105cd7547f47dffd50045c3ac8d61181cd93cafc44d56107e7bfdcc0de849ce44b0155fd91949989151805d03ae4ad6c2e66c7561
+  checksum: 10/73cb5ad2e3eb8927390ff685b3f53b0a496fdaa99ec73f6cc3faa732534ad5ec0b5378abdf3da2d0c692397b758eadeed1eabad7f412f0b7576c29f2518e6f93
   languageName: node
   linkType: hard
 
@@ -37778,11 +37778,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^4.6.4 || ^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.2.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.3.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.4.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.8.3#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A~5.8.3#optional!builtin<compat/typescript>":
   version: 5.8.3
-  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=5786d5"
+  resolution: "typescript@patch:typescript@npm%3A5.8.3#optional!builtin<compat/typescript>::version=5.8.3&hash=b45daf"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/b9b1e73dabac5dc730c041325dbd9c99467c1b0d239f1b74ec3b90d831384af3e2ba973946232df670519147eb51a2c20f6f96163cea2b359f03de1e2091cc4f
+  checksum: 10/98470634034ec37fd9ea61cc82dcf9a27950d0117a4646146b767d085a2ec14b137aae9642a83d1c62732d7fdcdac19bb6288b0bb468a72f7a06ae4e1d2c72c9
   languageName: node
   linkType: hard
 
