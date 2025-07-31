@@ -14,7 +14,7 @@ import React, {
     useState,
 } from 'react'
 import { LayoutChangeEvent, View } from 'react-native'
-import { useSharedValue } from 'react-native-reanimated'
+import { cancelAnimation, useSharedValue } from 'react-native-reanimated'
 
 import {
     AmplitudeScalingMode,
@@ -571,6 +571,14 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             handleReset()
         }
     }, [resetTrigger, handleReset])
+
+    // Cleanup animations on unmount
+    useEffect(() => {
+        return () => {
+            // Cancel any ongoing animations to prevent memory leaks
+            cancelAnimation(translateX)
+        }
+    }, [])
 
     return (
         <View

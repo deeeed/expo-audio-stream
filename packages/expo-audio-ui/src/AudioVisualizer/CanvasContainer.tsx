@@ -86,7 +86,17 @@ const CanvasContainer: React.FC<CanvasContainerProps> = ({
     }
 
     const groupTransform = useDerivedValue(() => {
-        return [{ translateX: translateX.value }]
+        'worklet'
+        try {
+            // Add null check for translateX
+            if (translateX && typeof translateX.value === 'number') {
+                return [{ translateX: translateX.value }]
+            }
+            return [{ translateX: 0 }]
+        } catch (error) {
+            console.error('Error in groupTransform derived value:', error)
+            return [{ translateX: 0 }]
+        }
     })
 
     // Use refs to store the scaling factors
