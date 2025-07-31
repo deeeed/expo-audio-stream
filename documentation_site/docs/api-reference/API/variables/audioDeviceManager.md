@@ -8,4 +8,4 @@
 
 > `const` **audioDeviceManager**: [`AudioDeviceManager`](../classes/AudioDeviceManager.md)
 
-Defined in: [src/AudioDeviceManager.ts:801](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/AudioDeviceManager.ts#L801)
+Defined in: [src/AudioDeviceManager.ts:801](https://github.com/deeeed/expo-audio-stream/blob/8a303b4d96988b97604123d74daaa406d9ec517c/packages/expo-audio-studio/src/AudioDeviceManager.ts#L801)

@@ -8,7 +8,7 @@
 
 > **validateRecordingConfig**(`config`): `object`
 
-Defined in: [src/constants/platformLimitations.ts:91](https://github.com/deeeed/expo-audio-stream/blob/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a/packages/expo-audio-studio/src/constants/platformLimitations.ts#L91)
+Defined in: [src/constants/platformLimitations.ts:91](https://github.com/deeeed/expo-audio-stream/blob/8a303b4d96988b97604123d74daaa406d9ec517c/packages/expo-audio-studio/src/constants/platformLimitations.ts#L91)
 
 Validate and adjust recording configuration based on platform limitations
 
