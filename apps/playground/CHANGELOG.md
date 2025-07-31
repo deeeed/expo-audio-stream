@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.6.0] - 2025-07-31
+
+### Added
+- implement comprehensive Storybook setup for React Native and Web
+- upgrade Storybook to v9.0.8 and establish UI development (#273)
+
+### Changed
+- release 0.7.0
+- update api references for v2.17.0
+- release @siteed/expo-audio-studio@2.17.0
+- update api references for v2.16.2
+- release @siteed/expo-audio-studio@2.16.2
+- release @siteed/expo-audio-studio@2.16.1
+- lockfile update
+- update api references for v2.16.0
+- release @siteed/expo-audio-studio@2.16.0
+- update expo and expo-router versions in package.json and yarn.lock to 53.0.20 and 5.1.4 respectively
+- update api references for v2.15.0
+- release @siteed/expo-audio-studio@2.15.0
+- update api references for v2.14.9
+- release @siteed/expo-audio-studio@2.14.9
+- release @siteed/expo-audio-studio@2.14.8
+- release @siteed/expo-audio-studio@2.14.7
+- release @siteed/expo-audio-studio@2.14.6
+- release @siteed/expo-audio-studio@2.14.5
+- release @siteed/expo-audio-studio@2.14.4
+- add mandatory TypeScript validation to agent memory system
+- add AI agent memory system to prevent implementation mistakes
+- lockfile update
+- update api references for v2.14.3
+- release @siteed/expo-audio-studio@2.14.3
+- update to latest expo
+- changelog
+- remove analysis bit depth logging for cleaner debug output
+- release 0.6.0
+
+### Fixed
+- fix OutOfMemoryError by tracking stream position correctly
+-  fix(expo-audio-studio): fix Android audio analysis accumulation showing 0 bytes
+- resolve Storybook bundling conflicts in normal app mode
+- resolve TypeScript Jest globals errors in Storybook validation test
+
+
 ## [1.5.1] - 2025-06-11
 
 ### Changed
@@ -134,7 +177,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.1...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.6.0...HEAD
+[1.6.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.1...audio-playground@1.6.0
 [1.5.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.0...audio-playground@1.5.1
 [1.5.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.4.0...audio-playground@1.5.0
 [1.4.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.3.0...audio-playground@1.4.0
