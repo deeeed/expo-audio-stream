@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.17.0] - 2025-07-31
+### Changed
+- fix(expo-audio-studio): fix OutOfMemoryError by tracking stream position correctly ([b67e521](https://github.com/deeeed/expo-audio-stream/commit/b67e52142154d07873c5c1ec9c183d524d61e528))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.16.2 ([c4291a8](https://github.com/deeeed/expo-audio-stream/commit/c4291a82cc740b4d4790c69ae7e7cc07f1e8fb1a))
 ## [2.16.2] - 2025-07-27
 ### Changed
 - chore(expo-audio-studio): release @siteed/expo-audio-studio@2.16.1 ([c9614d4](https://github.com/deeeed/expo-audio-stream/commit/c9614d4ebf87d73c3c5b2f7d6e60492fd5e45e64))
@@ -364,7 +368,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.2...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.17.0...HEAD
+[2.17.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.2...@siteed/expo-audio-studio@2.17.0
 [2.16.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.1...@siteed/expo-audio-studio@2.16.2
 [2.16.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.0...@siteed/expo-audio-studio@2.16.1
 [2.16.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.15.0...@siteed/expo-audio-studio@2.16.0
