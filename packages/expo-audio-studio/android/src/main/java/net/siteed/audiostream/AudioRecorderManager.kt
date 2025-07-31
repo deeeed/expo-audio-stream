@@ -90,6 +90,7 @@ class AudioRecorderManager(
     private var pausedDuration = 0L
     private var lastEmittedSize = 0L
     private var lastEmittedCompressedSize = 0L
+    private var streamPosition = 0L  // Track total bytes processed in the stream
     private val mainHandler = Handler(Looper.getMainLooper())
     private val audioRecordLock = Any()
     private var audioFileHandler: AudioFileHandler = AudioFileHandler(filesDir)
@@ -942,6 +943,7 @@ class AudioRecorderManager(
                     val bytesRead = audioRecord?.read(remainingData, 0, bufferSizeInBytes) ?: -1
                     if (bytesRead > 0) {
                         emitAudioData(remainingData.copyOfRange(0, bytesRead), bytesRead)
+                        streamPosition += bytesRead  // Update stream position for final data
                     }
                 }
 
@@ -966,6 +968,7 @@ class AudioRecorderManager(
                 if (bytesRead > 0) {
                     val emitStartTime = System.currentTimeMillis()
                     emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
+                    streamPosition += bytesRead  // Update stream position for final data
                 }
 
                 LogUtils.d(CLASS_NAME, "Stopping recording state = ${audioRecord?.state}")
@@ -1468,6 +1471,7 @@ class AudioRecorderManager(
                                 accumulatedAudioData.toByteArray(),
                                 accumulatedAudioData.size()
                             )
+                            streamPosition += accumulatedAudioData.size()  // Update stream position
                             lastEmitTime = currentTime
                             accumulatedAudioData.reset() // Clear the accumulator
                         }
@@ -1549,9 +1553,15 @@ class AudioRecorderManager(
         val from = lastEmittedSize
         lastEmittedSize = fileSize
 
-        // Calculate position in milliseconds
-        val positionInMs =
-            (from * 1000) / (recordingConfig.sampleRate * recordingConfig.channels * (if (recordingConfig.encoding == "pcm_8bit") 8 else 16) / 8)
+        // Calculate position in milliseconds using stream position
+        val bytesPerSample = when (recordingConfig.encoding) {
+            "pcm_8bit" -> 1
+            "pcm_16bit" -> 2
+            "pcm_32bit" -> 4
+            else -> 2
+        }
+        val byteRate = recordingConfig.sampleRate * recordingConfig.channels * bytesPerSample
+        val positionInMs = (streamPosition * 1000) / byteRate
 
         val compressionBundle = if (recordingConfig.output.compressed.enabled) {
             // For compressed files, we need to get actual size as MediaRecorder handles the writing
@@ -1700,6 +1710,7 @@ class AudioRecorderManager(
                 totalRecordedTime = 0
                 pausedDuration = 0
                 lastEmittedSize = 0
+                streamPosition = 0
                 recordingStartTime = 0
                 
                 // Update the WAV header if needed
