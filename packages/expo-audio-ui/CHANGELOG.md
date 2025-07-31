@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.7.0] - 2025-07-31
+### Changed
+- fix(expo-audio-ui): prevent Reanimated crashes in AudioVisualizer animations ([ea01bb3](https://github.com/deeeed/expo-audio-stream/commit/ea01bb3ac3b41bf655a7ac5efa513a07f7836dff))
+- chore(root): release 0.6.0 ([ce81ffb](https://github.com/deeeed/expo-audio-stream/commit/ce81ffbd89fe73c1b36ed0d2989a86915f990ee0))
 ## [0.6.0] - 2025-06-12
 ### Changed
 - feat: upgrade Storybook to v9.0.8 and establish UI development (#273) ([76cb02f](https://github.com/deeeed/expo-audio-stream/commit/76cb02fc50caafa05f0215a5364d7d109f3df359))
@@ -70,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Seamless integration with @siteed/expo-audio-studio
 - Feature: Support for iOS, Android, and web platforms
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.6.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.0...HEAD
+[0.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.6.0...@siteed/expo-audio-ui@0.7.0
 [0.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.5.0...@siteed/expo-audio-ui@0.6.0
 [0.5.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.4.0...@siteed/expo-audio-ui@0.5.0
 [0.4.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.3.0...@siteed/expo-audio-ui@0.4.0
