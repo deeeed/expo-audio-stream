@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.18.0] - 2025-08-01
+### Changed
+- feat(expo-audio-studio): optimize buffer size on android to prevent oom ([32fcb9b](https://github.com/deeeed/expo-audio-stream/commit/32fcb9b0a965669b3a37c9860998ae46a1d26cd8))
+- fix(expo-audio-studio): invalid paused duration on android ([c107258](https://github.com/deeeed/expo-audio-stream/commit/c107258054ebdbc733298c84b8d84b0f9f416e6e))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.17.0 ([8a303b4](https://github.com/deeeed/expo-audio-stream/commit/8a303b4d96988b97604123d74daaa406d9ec517c))
 ## [2.17.0] - 2025-07-31
 ### Changed
 - fix(expo-audio-studio): fix OutOfMemoryError by tracking stream position correctly ([b67e521](https://github.com/deeeed/expo-audio-stream/commit/b67e52142154d07873c5c1ec9c183d524d61e528))
@@ -368,7 +373,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.17.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.0...HEAD
+[2.18.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.17.0...@siteed/expo-audio-studio@2.18.0
 [2.17.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.2...@siteed/expo-audio-studio@2.17.0
 [2.16.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.1...@siteed/expo-audio-studio@2.16.2
 [2.16.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.16.0...@siteed/expo-audio-studio@2.16.1
