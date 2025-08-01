@@ -709,18 +709,28 @@ class AudioRecorderManager(
             )
             
             // Calculate buffer size based on bufferDurationSeconds if provided
-            bufferSizeInBytes = recordingConfig.bufferDurationSeconds?.let { bufferDuration ->
+            var requestedBufferSize = recordingConfig.bufferDurationSeconds?.let { bufferDuration ->
                 val bytesPerSample = when (recordingConfig.encoding) {
                     "pcm_8bit" -> 1
                     "pcm_16bit" -> 2
                     "pcm_32bit" -> 4
                     else -> 2
                 }
-                val requestedSize = (bufferDuration * recordingConfig.sampleRate * 
-                                   bytesPerSample * recordingConfig.channels).toInt()
-                // Use the larger of requested size or minimum buffer size
-                maxOf(requestedSize, minBufferSize)
+                (bufferDuration * recordingConfig.sampleRate * bytesPerSample * recordingConfig.channels).toInt()
             } ?: minBufferSize
+
+            LogUtils.d(CLASS_NAME, "Calculated minBufferSize: $minBufferSize bytes")
+            LogUtils.d(CLASS_NAME, "Requested buffer size: $requestedBufferSize bytes")
+
+            // Cap the buffer size to prevent OOM
+            val MAX_BUFFER_SIZE = 10485760 // 10MB
+            if (requestedBufferSize > MAX_BUFFER_SIZE) {
+                LogUtils.w(CLASS_NAME, "Requested buffer size $requestedBufferSize exceeds max limit of $MAX_BUFFER_SIZE, capping to max")
+                requestedBufferSize = MAX_BUFFER_SIZE
+            }
+
+            bufferSizeInBytes = maxOf(requestedBufferSize, minBufferSize)
+            LogUtils.d(CLASS_NAME, "Final bufferSizeInBytes: $bufferSizeInBytes (after capping and min check)")
 
             when {
                 bufferSizeInBytes == AudioRecord.ERROR -> {
@@ -1430,7 +1440,7 @@ class AudioRecorderManager(
                 while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
                     loopCount++
                     if (loopCount % 100 == 0) {
-                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}")
+                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData.size()}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
                     }
                     if (isPaused.get()) {
                         Thread.sleep(100) // Add small delay when paused
