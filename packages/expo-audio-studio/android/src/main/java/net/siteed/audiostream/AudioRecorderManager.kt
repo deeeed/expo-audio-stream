@@ -1253,7 +1253,14 @@ class AudioRecorderManager(
 
             // Use cached file size instead of file system call
             val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
-            val duration = if (!recordingConfig.output.primary.enabled) {
+            val duration = if (isPaused.get()) {
+                // Return frozen duration when paused using lastPauseTime
+                if (lastPauseTime > 0) {
+                    lastPauseTime - recordingStartTime - pausedDuration
+                } else {
+                    0L
+                }
+            } else if (!recordingConfig.output.primary.enabled) {
                 // For streaming-only mode, calculate duration from actual recording time
                 val actualRecordingTime = if (recordingStartTime > 0) {
                     System.currentTimeMillis() - recordingStartTime - pausedDuration
