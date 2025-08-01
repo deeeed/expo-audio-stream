@@ -5,15 +5,12 @@ import {
 } from '@siteed/expo-audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 import { useAudioPlayer } from 'expo-audio'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, StyleSheet, Text, View } from 'react-native'
 
 const STOP_BUTTON_COLOR = 'red'
 
 const logger = getLogger('MinimalApp')
-
-// @ts-expect-error
-const isTurboModuleEnabled = global.__turboModuleProxy != null
 
 const styles = StyleSheet.create({
     container: {
@@ -181,11 +178,6 @@ export default function App() {
 
     return (
         <>
-            <Text>
-                {isTurboModuleEnabled
-                    ? 'Using New Architecture'
-                    : 'Using Old Architecture'}
-            </Text>
             {isRecording
                 ? renderRecording()
                 : isPaused

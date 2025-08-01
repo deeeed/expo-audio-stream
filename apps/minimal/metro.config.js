@@ -5,7 +5,7 @@ const { getDefaultConfig } = require('expo/metro-config')
 const exclusionList = require('metro-config/src/defaults/exclusionList')
 const path = require('node:path')
 
-const pakLib = require('../../packages/expo-audio-stream/package.json')
+const pakLib = require('../../packages/expo-audio-studio/package.json')
 const pakUI = require('../../packages/expo-audio-ui/package.json')
 
 // Find the project and workspace directories
@@ -13,7 +13,7 @@ const projectRoot = __dirname
 // This can be replaced with `find-yarn-workspace-root`
 const monorepoRoot = path.resolve(projectRoot, '../..')
 const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
-const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-stream')
+const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-studio')
 
 const modules = [
     'react-native-paper',
@@ -80,7 +80,7 @@ config.resolver = {
         } else if (moduleName === '@siteed/expo-audio-studio') {
             return {
                 filePath:
-                    monorepoRoot + '/packages/expo-audio-stream/src/index.ts',
+                    monorepoRoot + '/packages/expo-audio-studio/src/index.ts',
                 type: 'sourceFile',
             }
         }

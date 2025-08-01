@@ -32,7 +32,7 @@
     },
     "plugins": [
       "expo-router",
-      "../../packages/expo-audio-studio/app.plugin.js",
+      "../../packages/expo-audio-studio/app.plugin.cjs",
       "expo-audio",
       "expo-font"
     ],
