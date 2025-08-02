@@ -75,6 +75,9 @@ class AudioRecorderManager(
         }
     }
     
+    // Maximum size for analysis buffer to prevent OOM on low-RAM devices with extreme configs
+    private val MAX_ANALYSIS_BUFFER_SIZE = 20 * 1024 * 1024 // 20MB
+    
     private var audioRecord: AudioRecord? = null
     private var bufferSizeInBytes = 0
     private val _isRecording = AtomicBoolean(false)
@@ -1477,9 +1480,14 @@ class AudioRecorderManager(
                         
                         accumulatedAudioData.write(audioData, 0, bytesRead)
                         
-                        // Also accumulate data for analysis if enabled
-                        if (shouldProcessAnalysis) {
-                            accumulatedAnalysisData.write(audioData, 0, bytesRead)
+                        // Always accumulate data for analysis if enabled (moved outside shouldProcessAnalysis check)
+                        if (recordingConfig.enableProcessing) {
+                            // Check buffer size to prevent OOM on low-RAM devices with extreme configs
+                            if (accumulatedAnalysisData.size() + bytesRead <= MAX_ANALYSIS_BUFFER_SIZE) {
+                                accumulatedAnalysisData.write(audioData, 0, bytesRead)
+                            } else {
+                                LogUtils.w(CLASS_NAME, "Analysis buffer size limit reached (${accumulatedAnalysisData.size()} bytes). Skipping data to prevent OOM.")
+                            }
                         }
 
                         // Handle regular audio data emission
@@ -1507,31 +1515,37 @@ class AudioRecorderManager(
                             if (analysisDataSize > 0) {
                                 // Add this check to enforce minimum interval
                                 if (isFirstAnalysis || (currentTime - lastEmissionTimeAnalysis) >= recordingConfig.intervalAnalysis) {
-                                    // Process and emit analysis data
-                                    val analysisData = audioProcessor.processAudioData(
-                                        accumulatedAnalysisData.toByteArray(),
-                                        recordingConfig
-                                    )
-                                    
-                                    LogUtils.d(CLASS_NAME, """
-                                        Analysis data details:
-                                        - Raw data size: ${accumulatedAnalysisData.size()} bytes
-                                    """.trimIndent())
-                                    
-                                    mainHandler.post {
-                                        try {
-                                            eventSender.sendExpoEvent(
-                                                Constants.AUDIO_ANALYSIS_EVENT_NAME,
-                                                analysisData.toBundle()
-                                            )
-                                        } catch (e: Exception) {
-                                            LogUtils.e(CLASS_NAME, "Failed to send audio analysis event", e)
+                                    try {
+                                        // Process and emit analysis data
+                                        val analysisData = audioProcessor.processAudioData(
+                                            accumulatedAnalysisData.toByteArray(),
+                                            recordingConfig
+                                        )
+                                        
+                                        LogUtils.d(CLASS_NAME, """
+                                            Analysis data details:
+                                            - Raw data size: ${accumulatedAnalysisData.size()} bytes
+                                        """.trimIndent())
+                                        
+                                        mainHandler.post {
+                                            try {
+                                                eventSender.sendExpoEvent(
+                                                    Constants.AUDIO_ANALYSIS_EVENT_NAME,
+                                                    analysisData.toBundle()
+                                                )
+                                            } catch (e: Exception) {
+                                                LogUtils.e(CLASS_NAME, "Failed to send audio analysis event", e)
+                                            }
                                         }
+                                        
+                                        lastEmissionTimeAnalysis = currentTime
+                                        isFirstAnalysis = false
+                                    } catch (e: Exception) {
+                                        LogUtils.e(CLASS_NAME, "Failed to process audio analysis data", e)
+                                    } finally {
+                                        // Always reset the buffer to prevent unbounded growth
+                                        accumulatedAnalysisData.reset()
                                     }
-                                    
-                                    lastEmissionTimeAnalysis = currentTime
-                                    accumulatedAnalysisData.reset()  // Clear the analysis accumulator
-                                    isFirstAnalysis = false
                                 }
                             }
                         }
@@ -1637,8 +1651,13 @@ class AudioRecorderManager(
             }
         }
 
-        if (recordingConfig.enableProcessing) {
-            processAudioData(audioData)
+        // Analysis is already handled in recordingProcess method to avoid duplicate processing
+        // and prevent memory issues from accumulating data in multiple buffers
+        
+        // Update notification waveform if needed (moved from processAudioData)
+        if (recordingConfig.showNotification && recordingConfig.showWaveformInNotification) {
+            val floatArray = convertByteArrayToFloatArray(audioData)
+            notificationManager.updateNotification(floatArray)
         }
     }
 
@@ -1649,55 +1668,6 @@ class AudioRecorderManager(
             floatArray[i] = buffer.short.toFloat()
         }
         return floatArray
-    }
-
-    private fun processAudioData(audioData: ByteArray) {
-        // Skip the WAV header only for the first chunk
-        val dataToProcess = if (isFirstChunk && audioData.size > Constants.WAV_HEADER_SIZE) {
-            audioData.copyOfRange(Constants.WAV_HEADER_SIZE, audioData.size)
-        } else {
-            audioData
-        }
-
-        // Accumulate data for analysis
-        if (recordingConfig.enableProcessing) {
-            synchronized(analysisBuffer) {
-                analysisBuffer.write(dataToProcess)
-            }
-            
-            val currentTime = SystemClock.elapsedRealtime()
-            if (isFirstAnalysis || (currentTime - lastEmissionTimeAnalysis) >= recordingConfig.intervalAnalysis) {
-                synchronized(analysisBuffer) {
-                    if (analysisBuffer.size() > 0) {
-                        val analysisData = audioProcessor.processAudioData(
-                            analysisBuffer.toByteArray(),
-                            recordingConfig
-                        )
-                        
-                        mainHandler.post {
-                            eventSender.sendExpoEvent(
-                                Constants.AUDIO_ANALYSIS_EVENT_NAME,
-                                analysisData.toBundle()
-                            )
-                        }
-                        
-                        // Reset buffer after processing
-                        analysisBuffer.reset()
-                        lastEmissionTimeAnalysis = currentTime
-                        isFirstAnalysis = false
-                    }
-                }
-            }
-        }
-
-        // Only update notification if needed
-        if (recordingConfig.showNotification && recordingConfig.showWaveformInNotification) {
-            val floatArray = convertByteArrayToFloatArray(audioData)
-            notificationManager.updateNotification(floatArray)
-        }
-
-        // Reset isFirstChunk after processing
-        isFirstChunk = false
     }
 
     fun cleanup() {

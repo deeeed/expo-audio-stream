@@ -53,7 +53,8 @@ import { isWeb } from '../../utils/utils'
 
 import type { TranscriptionModeSettings } from '../../component/TranscriptionModeConfig'
 
-const CHUNK_DURATION_MS = 500 // 500 ms chunks
+const CHUNK_DURATION_MS = 5000 // 5000 ms chunks
+const ANALYSIS_INTERVAL_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5 // 5 seconds of audio at 48kHz
 
 const logger = baseLogger.extend('RecordScreen')
@@ -63,7 +64,7 @@ const baseRecordingConfig: RecordingConfig = {
     interval: CHUNK_DURATION_MS,
     sampleRate: WhisperSampleRate,
     keepAwake: true,
-    intervalAnalysis: CHUNK_DURATION_MS,
+    intervalAnalysis: ANALYSIS_INTERVAL_MS,
     showNotification: Platform.OS === 'ios' ? false : true,
     showWaveformInNotification: true,
     encoding: 'pcm_32bit',
@@ -254,7 +255,7 @@ export default function RecordScreen() {
         resumeRecording,
         prepareRecording,
         isPaused,
-        durationMs: duration,
+        durationMs,
         size,
         compression,
         isRecording,
@@ -527,8 +528,6 @@ export default function RecordScreen() {
         }
     }, [defaultDirectory, requestPermissions, customFileName, startRecordingConfig, prepareRecording, show])
 
-    // Now define the useEffect that depends on handlePrepareRecording
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Using conditional dependencies based on platform
     useEffect(() => {
         if (!isRecordingPrepared || isRecording || isPaused) return
         
@@ -955,7 +954,7 @@ export default function RecordScreen() {
                 />
             )}
             <RecordingStats
-                duration={duration}
+                duration={durationMs}
                 size={size}
                 sampleRate={streamConfig?.sampleRate}
                 bitDepth={streamConfig?.bitDepth}
@@ -1005,7 +1004,7 @@ style={{
                 liveWebAudio && (
                     <LiveTranscriber
                         transcripts={transcripts}
-                        duration={duration}
+                        duration={durationMs}
                         activeTranscript={activeTranscript?.text ?? ''}
                         sampleRate={
                             startRecordingConfig.sampleRate ?? WhisperSampleRate
@@ -1067,7 +1066,7 @@ style={{
                 />
             )}
             <RecordingStats
-                duration={duration}
+                duration={durationMs}
                 size={size}
                 sampleRate={streamConfig?.sampleRate}
                 bitDepth={streamConfig?.bitDepth}
