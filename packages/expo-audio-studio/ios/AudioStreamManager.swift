@@ -1184,23 +1184,16 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
         
         do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            
             // Check and reinstall tap with hardware format
             _ = installTapWithHardwareFormat()
             Logger.debug("Tap reinstalled for resume")
             
-            // Try to restart the engine
-            try audioEngine.start()
-            
-            // Resume the compressed recorder if active
-            compressedRecorder?.record()
-            
             // Update state
             isPaused = false
-            
-            // Update notification state if enabled
-            if recordingSettings?.showNotification == true {
-                updateNotificationState(isPaused: false)
-            }
             
             // Clear the stored valid duration
             lastValidDuration = nil
@@ -1208,6 +1201,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // Reset emission timers to ensure emission starts immediately after resume
             lastEmissionTime = Date()
             lastEmissionTimeAnalysis = Date()
+            
+            // Try to restart the engine
+            try audioEngine.start()
+            
+            // Resume the compressed recorder if active
+            compressedRecorder?.record()
+            
+            // Update notification state if enabled
+            if recordingSettings?.showNotification == true {
+                updateNotificationState(isPaused: false)
+            }
             
             // Notify delegate
             delegate?.audioStreamManager(self, didResumeRecording: Date())
