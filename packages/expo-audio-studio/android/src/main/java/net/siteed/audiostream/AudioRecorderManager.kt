@@ -985,15 +985,6 @@ class AudioRecorderManager(
                     }
                 }
 
-                val finalReadStartTime = System.currentTimeMillis()
-                val audioData = ByteArray(bufferSizeInBytes)
-                val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-                if (bytesRead > 0) {
-                    val emitStartTime = System.currentTimeMillis()
-                    emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
-                    streamPosition += bytesRead  // Update stream position for final data
-                }
-
                 LogUtils.d(CLASS_NAME, "Stopping recording state = ${audioRecord?.state}")
                 if (audioRecord != null && audioRecord!!.state == AudioRecord.STATE_INITIALIZED) {
                     val audioStopStartTime = System.currentTimeMillis()
