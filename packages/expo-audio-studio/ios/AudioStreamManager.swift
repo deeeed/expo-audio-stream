@@ -59,6 +59,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     private var wasIdleTimerDisabled: Bool = false  // Track previous idle timer state
     private var isWakeLockEnabled: Bool = false     // Track current wake lock state
 
+    // Voice processing for echo cancellation (AEC)
+    // When enabled, uses Apple's VoiceProcessingIO to filter out speaker audio from mic input
+    private var isVoiceProcessingEnabled: Bool = false
+    private var voiceProcessingConfigurationObserver: Any?
+
     // Data emission for onAudioStream
     internal var lastEmissionTime: Date?
     internal var lastEmittedSize: Int64 = 0
@@ -146,20 +151,26 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     deinit {
         // Ensure wake lock is disabled when the manager is deallocated
         disableWakeLock()
-        
+
         // Stop any active recording to properly release resources
         if isRecording {
             audioEngine.stop()
             audioEngine.reset()
         }
-        
+
+        // Remove voice processing configuration observer
+        if let observer = voiceProcessingConfigurationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            voiceProcessingConfigurationObserver = nil
+        }
+
         // Remove ALL notification observers properly
         NotificationCenter.default.removeObserver(self)
-        
+
         // Clean up notification manager
         notificationManager?.stopUpdates()
         notificationManager = nil
-        
+
         // Cleanup media timer
         mediaInfoUpdateTimer?.invalidate()
         mediaInfoUpdateTimer = nil
@@ -693,11 +704,18 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         customTapBlock: ((AVAudioPCMBuffer, AVAudioTime) -> Void)? = nil,
         prepareEngine: Bool = true
     ) -> AVAudioFormat {
-        // Get the hardware input format
         let inputNode = audioEngine.inputNode
+
+        // IMPORTANT: Enable voice processing BEFORE getting formats or installing tap
+        // Voice processing changes the input node's format, so we must enable it first
+        if isVoiceProcessingEnabled {
+            enableVoiceProcessingOnNodes()
+        }
+
+        // Get the hardware input format (after voice processing is configured)
         let inputHardwareFormat = inputNode.inputFormat(forBus: 0)
         let nodeOutputFormat = inputNode.outputFormat(forBus: 0)
-        
+
         // Log format information for diagnostic purposes
         Logger.debug("AudioStreamManager", "Installing tap - Hardware input format: \(describeAudioFormat(inputHardwareFormat))")
         Logger.debug("AudioStreamManager", "Node output format: \(describeAudioFormat(nodeOutputFormat))")
@@ -739,16 +757,68 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Install the tap with hardware format
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputHardwareFormat, block: tapBlock)
         Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
-        
+
         // Prepare the engine if requested
         if prepareEngine {
             audioEngine.prepare()
             Logger.debug("AudioStreamManager", "Engine prepared after tap installation")
         }
-        
+
         return inputHardwareFormat
     }
-    
+
+    /// Enables voice processing on the audio engine's input and output nodes.
+    /// This activates Apple's acoustic echo cancellation (AEC) to prevent the microphone
+    /// from picking up audio that is being played through the speaker.
+    /// Note: This only works on physical devices, not the iOS simulator.
+    private func enableVoiceProcessingOnNodes() {
+        do {
+            // Enable voice processing on input node (microphone)
+            try audioEngine.inputNode.setVoiceProcessingEnabled(true)
+            Logger.debug("AudioStreamManager", "Voice processing enabled on input node")
+
+            // Enable voice processing on output node (speaker) if available
+            if #available(iOS 13.0, *) {
+                try audioEngine.outputNode.setVoiceProcessingEnabled(true)
+                Logger.debug("AudioStreamManager", "Voice processing enabled on output node")
+            }
+
+            // Observe configuration changes - voice processing may cause engine to reconfigure
+            observeAudioEngineConfigurationChanges()
+
+        } catch {
+            Logger.debug("AudioStreamManager", "Failed to enable voice processing: \(error). This is expected on simulator.")
+        }
+    }
+
+    /// Observes AVAudioEngine configuration changes.
+    /// When voice processing is enabled, the engine may stop itself and need to be restarted.
+    private func observeAudioEngineConfigurationChanges() {
+        // Remove existing observer if any
+        if let observer = voiceProcessingConfigurationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        voiceProcessingConfigurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: audioEngine,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            Logger.debug("AudioStreamManager", "Audio engine configuration changed (voice processing)")
+
+            // If we're recording and the engine stopped, restart it
+            if self.isRecording && !self.audioEngine.isRunning {
+                do {
+                    try self.audioEngine.start()
+                    Logger.debug("AudioStreamManager", "Audio engine restarted after configuration change")
+                } catch {
+                    Logger.debug("AudioStreamManager", "Failed to restart audio engine after configuration change: \(error)")
+                }
+            }
+        }
+    }
+
     /// Prepares the audio recording with the specified settings without starting it.
     /// This reduces latency when startRecording is called later.
     /// - Parameters:
@@ -785,6 +855,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
         // Update auto-resume preference from settings
         autoResumeAfterInterruption = settings.autoResumeAfterInterruption
+
+        // Enable voice processing for echo cancellation if requested
+        isVoiceProcessingEnabled = settings.voiceProcessing
+        if isVoiceProcessingEnabled {
+            Logger.debug("AudioStreamManager", "Voice processing (AEC) enabled for this recording")
+        }
         
         // Enforce minimum interval to prevent excessive CPU usage
         emissionInterval = max(10.0, Double(settings.interval ?? 1000)) / 1000.0
@@ -2188,16 +2264,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     private func configureAudioSession(for settings: RecordingSettings) throws {
         let session = AVAudioSession.sharedInstance()
-        
+
         // Get base configuration from user settings or defaults
         var category: AVAudioSession.Category = .playAndRecord
         var mode: AVAudioSession.Mode = .default
         var options: AVAudioSession.CategoryOptions = [.allowBluetooth, .mixWithOthers]
-        
+
         if let audioSessionConfig = settings.ios?.audioSession {
             category = audioSessionConfig.category
             mode = audioSessionConfig.mode
             options = audioSessionConfig.categoryOptions
+        }
+
+        // When voice processing is enabled, use voiceChat mode for optimal AEC
+        // This configures the audio session for bidirectional voice communication
+        if settings.voiceProcessing {
+            mode = .voiceChat
+            Logger.debug("AudioStreamManager", "Voice processing enabled - using voiceChat mode for AEC")
         }
         
         // Append necessary options for background recording if keepAwake is enabled

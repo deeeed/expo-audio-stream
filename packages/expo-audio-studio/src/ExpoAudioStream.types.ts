@@ -484,6 +484,28 @@ export interface RecordingConfig {
      * Optimal iOS: >= 0.1 seconds
      */
     bufferDurationSeconds?: number
+
+    /**
+     * Enable voice processing for echo cancellation (AEC).
+     * When enabled, uses Apple's VoiceProcessingIO on iOS to filter out
+     * speaker audio from microphone input, preventing echo in bidirectional
+     * voice communication applications.
+     *
+     * Platform Notes:
+     * - iOS: Uses AVAudioEngine's setVoiceProcessingEnabled(true) on input/output nodes
+     *   and sets audio session mode to .voiceChat for optimal AEC
+     * - Android: Not yet implemented (planned)
+     * - Web: Uses browser's built-in echo cancellation via getUserMedia constraints
+     *
+     * Use this when:
+     * - Building voice chat applications where speaker and mic are active simultaneously
+     * - User speaks while AI/assistant audio is playing
+     * - You need to prevent the microphone from picking up speaker output
+     *
+     * @default false
+     * @platform iOS (Android planned)
+     */
+    voiceProcessing?: boolean
 }
 
 export interface NotificationConfig {

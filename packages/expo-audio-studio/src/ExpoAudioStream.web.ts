@@ -124,9 +124,11 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
             }
 
             // Get media with detailed audio constraints for better diagnostics
+            // When voiceProcessing is enabled, we enable echo cancellation for AEC
+            const enableEchoCancellation = this.recordingConfig?.voiceProcessing ?? true
             const constraints = {
                 audio: {
-                    echoCancellation: true,
+                    echoCancellation: enableEchoCancellation,
                     noiseSuppression: true,
                     autoGainControl: true,
                     // Add deviceId constraint if specified
