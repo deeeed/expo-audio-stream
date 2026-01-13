@@ -894,3 +894,64 @@ export interface TrimAudioResult {
         durationMs: number
     }
 }
+
+// ============================================================================
+// Playback Types (iOS only)
+// ============================================================================
+
+/**
+ * Configuration for initializing audio playback.
+ * Used with the expo-audio-studio playback functions to enable
+ * audio output through the same AVAudioEngine as recording.
+ *
+ * This allows both recording and playback to use the same audio engine,
+ * which is required for hardware echo cancellation (VoiceProcessingIO) to
+ * work correctly on iOS.
+ *
+ * @platform iOS
+ */
+export interface PlaybackConfig {
+    /**
+     * Sample rate for playback in Hz.
+     * Should match the audio source's sample rate.
+     * @default 24000 (Gemini Live API output rate)
+     */
+    sampleRate?: number
+
+    /**
+     * Gain/volume multiplier for playback.
+     * Values > 1.0 increase volume, < 1.0 decrease.
+     * @default 1.0
+     */
+    gain?: number
+}
+
+/**
+ * Interface for playback state and controls.
+ * @platform iOS
+ */
+export interface PlaybackState {
+    /** Whether playback is currently active */
+    isPlaying: boolean
+    /** Whether playback has been initialized */
+    isInitialized: boolean
+}
+
+/**
+ * Return type for useAudioPlayback hook.
+ * @platform iOS
+ */
+export interface UseAudioPlaybackReturn {
+    /** Initialize the playback system. Call before playing audio. */
+    initialize: (config?: PlaybackConfig) => void
+    /** Play a chunk of base64-encoded PCM16 audio */
+    playChunk: (base64Audio: string) => void
+    /** Clear all queued audio. Use when user interrupts. */
+    clearQueue: () => void
+    /** Clean up resources. Call when leaving voice mode. */
+    cleanup: () => void
+    /** Whether audio is currently playing */
+    isPlaying: boolean
+    /** Register callback for playback state changes */
+    onPlaybackStateChange: (callback: (isPlaying: boolean) => void) => void
+}

@@ -36,6 +36,9 @@ export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
 // Export useAudioDevices hook
 export { useAudioDevices } from './hooks/useAudioDevices'
 
+// Export useAudioPlayback hook (iOS only - for playing audio through same AVAudioEngine as recorder)
+export { useAudioPlayback } from './hooks/useAudioPlayback'
+
 export {
     AudioRecorderProvider,
     ExpoAudioStreamModule,

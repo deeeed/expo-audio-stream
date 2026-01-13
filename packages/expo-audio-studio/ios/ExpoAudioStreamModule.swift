@@ -791,6 +791,67 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                 }
             }
         }
+
+        // MARK: - Playback Functions
+        // These functions enable audio playback through the same AVAudioEngine used for recording,
+        // which is critical for hardware echo cancellation (AEC) to work properly.
+
+        /// Initializes the playback system.
+        /// Call this before playing any audio. If not called explicitly,
+        /// playBuffer will automatically initialize with default settings.
+        /// - Parameter sampleRate: The sample rate of audio to be played (default: 24000 for Gemini)
+        Function("initializePlayback") { (sampleRate: Double?) in
+            Logger.debug("ExpoAudioStreamModule", "initializePlayback called with sampleRate: \(sampleRate ?? 24000)")
+            self.streamManager.initializePlayback(sampleRate: sampleRate ?? 24000)
+        }
+
+        /// Plays a buffer of PCM16 audio data.
+        /// The audio is queued for playback and will play as soon as possible.
+        /// This is designed for streaming audio from sources like Gemini Live API.
+        /// - Parameters:
+        ///   - base64Audio: Base64-encoded PCM16 audio data (Int16 samples, little-endian)
+        ///   - sampleRate: Sample rate of the audio data (default: 24000 for Gemini)
+        Function("playBuffer") { (base64Audio: String, sampleRate: Double?) in
+            guard let data = Data(base64Encoded: base64Audio) else {
+                Logger.error("ExpoAudioStreamModule", "playBuffer: Invalid base64 audio data")
+                return
+            }
+            self.streamManager.playBuffer(data: data, sampleRate: sampleRate ?? 24000)
+        }
+
+        /// Stops playback and clears any queued audio.
+        Function("stopPlayback") {
+            Logger.debug("ExpoAudioStreamModule", "stopPlayback called")
+            self.streamManager.stopPlayback()
+        }
+
+        /// Clears all queued audio without fully stopping the player.
+        /// New audio can continue to be queued after this call.
+        /// Useful for handling interruptions where you want to discard pending audio
+        /// but continue playing new audio.
+        Function("clearPlaybackQueue") {
+            Logger.debug("ExpoAudioStreamModule", "clearPlaybackQueue called")
+            self.streamManager.clearPlaybackQueue()
+        }
+
+        /// Cleans up playback resources.
+        /// Call this when done with playback to free resources.
+        Function("cleanupPlayback") {
+            Logger.debug("ExpoAudioStreamModule", "cleanupPlayback called")
+            self.streamManager.cleanupPlayback()
+        }
+
+        /// Sets the playback volume.
+        /// - Parameter volume: Volume level from 0.0 (silent) to 1.0 (full volume). Values > 1.0 will amplify.
+        Function("setPlaybackVolume") { (volume: Float) in
+            Logger.debug("ExpoAudioStreamModule", "setPlaybackVolume called with volume: \(volume)")
+            self.streamManager.setPlaybackVolume(volume)
+        }
+
+        /// Gets whether playback is currently active.
+        Function("isPlaybackActive") { () -> Bool in
+            return self.streamManager.isPlaybackActive
+        }
     }
     
     func audioStreamManager(_ manager: AudioStreamManager, didReceiveInterruption info: [String: Any]) {

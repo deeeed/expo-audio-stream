@@ -62,7 +62,18 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     // Voice processing for echo cancellation (AEC)
     // When enabled, uses Apple's VoiceProcessingIO to filter out speaker audio from mic input
     private var isVoiceProcessingEnabled: Bool = false
+    private var voiceProcessingActuallyEnabled: Bool = false  // True after enableVoiceProcessingOnNodes() succeeds
     private var voiceProcessingConfigurationObserver: Any?
+
+    // Playback support - allows playing audio through the same AVAudioEngine
+    // This enables hardware echo cancellation to work properly since both
+    // recording and playback use the same audio unit
+    private var playerNode: AVAudioPlayerNode?
+    private var playbackMixerNode: AVAudioMixerNode?
+    private var isPlaybackInitialized: Bool = false
+    private var playbackNodesPreAttached: Bool = false  // True if nodes were attached before engine start
+    private var playbackSampleRate: Double = 24000  // Default for Gemini output
+    private var playbackFormat: AVAudioFormat?
 
     // Data emission for onAudioStream
     internal var lastEmissionTime: Date?
@@ -767,21 +778,33 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         return inputHardwareFormat
     }
 
-    /// Enables voice processing on the audio engine's input and output nodes.
+    /// Enables voice processing on the audio engine's input node.
     /// This activates Apple's acoustic echo cancellation (AEC) to prevent the microphone
     /// from picking up audio that is being played through the speaker.
     /// Note: This only works on physical devices, not the iOS simulator.
+    ///
+    /// IMPORTANT: We only enable voice processing on the INPUT node, not the output node.
+    /// Enables voice processing on both input and output nodes for echo cancellation.
+    ///
+    /// When expo-audio-studio handles BOTH recording and playback, we need VoiceProcessingIO
+    /// enabled on BOTH nodes for proper AEC. This must be done BEFORE the engine starts
+    /// to avoid kAudioUnitErr_InvalidPropertyValue (-10867) errors.
     private func enableVoiceProcessingOnNodes() {
-        do {
-            // Enable voice processing on input node (microphone)
-            try audioEngine.inputNode.setVoiceProcessingEnabled(true)
-            Logger.debug("AudioStreamManager", "Voice processing enabled on input node")
+        // Skip if already enabled (can be called from preAttachPlaybackNodes or installTapWithHardwareFormat)
+        guard !voiceProcessingActuallyEnabled else {
+            Logger.debug("AudioStreamManager", "Voice processing already enabled, skipping")
+            return
+        }
 
-            // Enable voice processing on output node (speaker) if available
-            if #available(iOS 13.0, *) {
-                try audioEngine.outputNode.setVoiceProcessingEnabled(true)
-                Logger.debug("AudioStreamManager", "Voice processing enabled on output node")
-            }
+        do {
+            // Enable voice processing on BOTH input and output nodes
+            // This is required when expo-audio-studio handles both recording and playback
+            // The output node voice processing enables the VoiceProcessingIO audio unit
+            // to reference the playback audio for echo cancellation
+            try audioEngine.inputNode.setVoiceProcessingEnabled(true)
+            try audioEngine.outputNode.setVoiceProcessingEnabled(true)
+            voiceProcessingActuallyEnabled = true
+            Logger.debug("AudioStreamManager", "Voice processing enabled on input and output nodes")
 
             // Observe configuration changes - voice processing may cause engine to reconfigure
             observeAudioEngineConfigurationChanges()
@@ -937,7 +960,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             // often prevents the input node's tap from receiving any buffers.
             // Instead, we let the session negotiate the rate.
             // Resampling to the desired settings.sampleRate happens later in processAudioBuffer.
-            try session.setPreferredIOBufferDuration(1024 / Double(settings.sampleRate)) // Use desired rate for buffer duration hint
+            // Set buffer duration that works for both recording (16kHz) and playback (24kHz)
+            // Using a fixed 0.02s (20ms) ensures consistent behavior:
+            // - At 48kHz hardware: 960 frames (safe size)
+            // - At 16kHz: 320 frames (recording)
+            // - At 24kHz: 480 frames (playback)
+            // This prevents kAudioUnitErr_TooManyFramesToProcess (-10874) when playback is added
+            try session.setPreferredIOBufferDuration(0.02)
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             // Log session config details as single lines for clarity
@@ -954,7 +983,14 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "  - bit depth: \(settings.bitDepth)-bit")
             Logger.debug("AudioStreamManager", "  - compression enabled: \(settings.output.compressed.enabled)")
 
-            // Use our shared tap installation method
+            recordingSettings = newSettings  // Keep original settings with desired sample rate
+
+            // Pre-attach AND pre-connect playback nodes BEFORE installing tap and preparing engine
+            // This is critical for VoiceProcessingIO - all nodes must be attached and connected
+            // BEFORE installTapWithHardwareFormat() which calls audioEngine.prepare()
+            preAttachPlaybackNodes()
+
+            // Use our shared tap installation method (this prepares the engine after tap is installed)
             let tapFormat = installTapWithHardwareFormat()
 
             // Log tap configuration
@@ -962,10 +998,6 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             Logger.debug("AudioStreamManager", "  - Tap Format: \(describeAudioFormat(tapFormat))")
             Logger.debug("AudioStreamManager", "  - Session Rate: \(session.sampleRate) Hz")
             Logger.debug("AudioStreamManager", "  - Requested Output Format: \(settings.bitDepth)-bit at \(settings.sampleRate)Hz")
-
-            recordingSettings = newSettings  // Keep original settings with desired sample rate
-
-            audioEngine.prepare() // Prepare the engine without starting it
             
             // Setup compressed recording if enabled
             if settings.output.compressed.enabled {
@@ -2373,5 +2405,247 @@ extension AudioStreamManager: AVAudioRecorderDelegate {
             Logger.debug("Compressed recording encode error: \(error)")
             delegate?.audioStreamManager(self, didFailWithError: "Compressed recording encode error: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Playback Support
+    // These methods enable audio playback through the same AVAudioEngine used for recording.
+    // This is critical for hardware echo cancellation (AEC) to work properly - when both
+    // recording and playback use the same audio engine, iOS's VoiceProcessingIO can
+    // effectively cancel echoes from the speaker output.
+
+    /// Pre-attaches AND pre-connects playback nodes to the audio engine BEFORE it starts.
+    /// This MUST be called before audioEngine.prepare()/start() when VoiceProcessingIO is enabled,
+    /// otherwise modifying the audio graph (attach/connect) on a running engine causes -10867 errors.
+    /// Called automatically during prepareRecording when voice processing is enabled.
+    private func preAttachPlaybackNodes() {
+        guard !playbackNodesPreAttached else {
+            Logger.debug("AudioStreamManager", "Playback nodes already pre-attached")
+            return
+        }
+
+        // Enable voice processing FIRST, before attaching any nodes
+        // Voice processing changes the audio unit configuration, so it must be done
+        // before the audio graph is set up
+        if isVoiceProcessingEnabled {
+            enableVoiceProcessingOnNodes()
+            Logger.debug("AudioStreamManager", "PRE-CONNECT-V2: Voice processing enabled before node attachment")
+        }
+
+        // Create player node
+        playerNode = AVAudioPlayerNode()
+
+        // Create mixer node for volume control and format conversion
+        playbackMixerNode = AVAudioMixerNode()
+
+        guard let player = playerNode, let mixer = playbackMixerNode else {
+            Logger.debug("AudioStreamManager", "Failed to create playback nodes for pre-attach")
+            return
+        }
+
+        // Attach nodes to the engine BEFORE it starts
+        audioEngine.attach(player)
+        audioEngine.attach(mixer)
+
+        // Create playback format with default sample rate (24000 Hz for Gemini)
+        // This format will be used for connections; it can handle rate conversion
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: playbackSampleRate,
+            channels: 1,
+            interleaved: false
+        ) else {
+            Logger.debug("AudioStreamManager", "Failed to create playback format for pre-attach")
+            return
+        }
+        playbackFormat = format
+
+        // Connect nodes BEFORE engine starts - this is critical for VoiceProcessingIO
+        // Connect: playerNode -> mixer -> mainMixerNode -> outputNode
+        audioEngine.connect(player, to: mixer, format: format)
+        audioEngine.connect(mixer, to: audioEngine.mainMixerNode, format: nil)
+
+        playbackNodesPreAttached = true
+        Logger.debug("AudioStreamManager", "PRE-CONNECT-V2: Pre-attached and pre-connected playback nodes before engine start")
+    }
+
+    /// Initializes the playback nodes and attaches them to the audio engine.
+    /// Call this before attempting to play any audio.
+    /// - Parameter sampleRate: The sample rate of audio to be played (default: 24000 for Gemini)
+    func initializePlayback(sampleRate: Double = 24000) {
+        guard !isPlaybackInitialized else {
+            Logger.debug("AudioStreamManager", "Playback already initialized")
+            return
+        }
+
+        // If nodes were pre-attached and pre-connected (during prepareRecording), we just need to start the player
+        // This avoids modifying the audio graph while the engine is running with VoiceProcessingIO
+        if playbackNodesPreAttached {
+            guard let player = playerNode else {
+                Logger.debug("AudioStreamManager", "Pre-attached player node not available")
+                return
+            }
+
+            // Just start the player - nodes are already attached and connected
+            player.play()
+
+            isPlaybackInitialized = true
+            Logger.debug("AudioStreamManager", "Playback initialized (using pre-attached nodes) at \(playbackSampleRate) Hz")
+            return
+        }
+
+        // Fallback: late attachment (will likely fail with VoiceProcessingIO if engine is running)
+        playbackSampleRate = sampleRate
+
+        // Create the playback format
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: sampleRate,
+            channels: 1,
+            interleaved: false
+        ) else {
+            Logger.debug("AudioStreamManager", "Failed to create playback format")
+            return
+        }
+        playbackFormat = format
+
+        // Create player node
+        playerNode = AVAudioPlayerNode()
+
+        // Create mixer node for volume control and format conversion
+        playbackMixerNode = AVAudioMixerNode()
+
+        guard let player = playerNode, let mixer = playbackMixerNode else {
+            Logger.debug("AudioStreamManager", "Failed to create playback nodes")
+            return
+        }
+
+        audioEngine.attach(player)
+        audioEngine.attach(mixer)
+        Logger.debug("AudioStreamManager", "Attached playback nodes (late attachment - may fail with VoiceProcessingIO)")
+
+        // Connect: playerNode -> mixer -> mainMixerNode -> outputNode
+        audioEngine.connect(player, to: mixer, format: format)
+        audioEngine.connect(mixer, to: audioEngine.mainMixerNode, format: nil)
+
+        // Start the player node
+        player.play()
+
+        isPlaybackInitialized = true
+        Logger.debug("AudioStreamManager", "Playback initialized at \(sampleRate) Hz")
+    }
+
+    /// Plays a buffer of PCM audio data.
+    /// The audio is queued for playback and will play as soon as possible.
+    /// - Parameters:
+    ///   - data: PCM16 audio data (Int16 samples, little-endian)
+    ///   - sampleRate: Sample rate of the audio data
+    func playBuffer(data: Data, sampleRate: Double = 24000) {
+        // Initialize playback if needed
+        if !isPlaybackInitialized || playbackSampleRate != sampleRate {
+            // If sample rate changed, we need to reinitialize
+            if isPlaybackInitialized && playbackSampleRate != sampleRate {
+                cleanupPlayback()
+            }
+            initializePlayback(sampleRate: sampleRate)
+        }
+
+        guard let player = playerNode,
+              let format = playbackFormat else {
+            Logger.debug("AudioStreamManager", "Playback not initialized, cannot play buffer")
+            return
+        }
+
+        // Convert PCM16 (Int16) data to Float32
+        let numSamples = data.count / 2  // 2 bytes per Int16 sample
+        guard numSamples > 0 else { return }
+
+        // Create Float32 array from Int16 data
+        var float32Data = [Float](repeating: 0, count: numSamples)
+        data.withUnsafeBytes { (rawBuffer: UnsafeRawBufferPointer) in
+            let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
+            for i in 0..<numSamples {
+                let int16Value = Int16(littleEndian: int16Buffer[i])
+                // Normalize to -1.0 to 1.0 range
+                float32Data[i] = Float(int16Value) / 32768.0
+            }
+        }
+
+        // Create AVAudioPCMBuffer
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(numSamples)) else {
+            Logger.debug("AudioStreamManager", "Failed to create audio buffer")
+            return
+        }
+
+        buffer.frameLength = AVAudioFrameCount(numSamples)
+
+        // Copy data to buffer
+        if let channelData = buffer.floatChannelData?[0] {
+            float32Data.withUnsafeBufferPointer { ptr in
+                channelData.update(from: ptr.baseAddress!, count: numSamples)
+            }
+        }
+
+        // Schedule buffer for playback
+        player.scheduleBuffer(buffer, completionHandler: nil)
+
+        // Ensure player is playing
+        if !player.isPlaying {
+            player.play()
+        }
+    }
+
+    /// Stops playback and clears any queued audio.
+    func stopPlayback() {
+        guard let player = playerNode else { return }
+
+        player.stop()
+        Logger.debug("AudioStreamManager", "Playback stopped")
+    }
+
+    /// Clears all queued audio without stopping the player.
+    /// New audio can continue to be queued after this call.
+    func clearPlaybackQueue() {
+        guard let player = playerNode else { return }
+
+        // Stop and immediately restart to clear the queue
+        player.stop()
+        player.play()
+        Logger.debug("AudioStreamManager", "Playback queue cleared")
+    }
+
+    /// Cleans up playback resources.
+    /// Call this when done with playback to free resources.
+    func cleanupPlayback() {
+        guard isPlaybackInitialized else { return }
+
+        if let player = playerNode {
+            player.stop()
+            audioEngine.detach(player)
+        }
+
+        if let mixer = playbackMixerNode {
+            audioEngine.detach(mixer)
+        }
+
+        playerNode = nil
+        playbackMixerNode = nil
+        playbackFormat = nil
+        isPlaybackInitialized = false
+        playbackNodesPreAttached = false
+        voiceProcessingActuallyEnabled = false  // Reset for next session
+
+        Logger.debug("AudioStreamManager", "Playback cleaned up")
+    }
+
+    /// Sets the playback volume.
+    /// - Parameter volume: Volume level from 0.0 (silent) to 1.0 (full volume). Values > 1.0 will amplify.
+    func setPlaybackVolume(_ volume: Float) {
+        playbackMixerNode?.outputVolume = volume
+        Logger.debug("AudioStreamManager", "Playback volume set to \(volume)")
+    }
+
+    /// Returns whether playback is currently active (has audio playing or queued).
+    var isPlaybackActive: Bool {
+        return playerNode?.isPlaying ?? false
     }
 }
