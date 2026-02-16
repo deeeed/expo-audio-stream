@@ -2,7 +2,7 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
 const escape = require('escape-string-regexp')
 const { getDefaultConfig } = require('expo/metro-config')
-const exclusionList = require('metro-config/src/defaults/exclusionList')
+const { default: exclusionList } = require('metro-config/private/defaults/exclusionList')
 const path = require('node:path')
 
 const pakLib = require('../../packages/expo-audio-studio/package.json')
