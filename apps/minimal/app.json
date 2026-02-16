@@ -34,8 +34,7 @@
       "expo-router",
       "../../packages/expo-audio-studio/app.plugin.cjs",
       "expo-audio",
-      "expo-font",
-      "expo-web-browser"
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

@@ -10,7 +10,7 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { formatBytes } from '../utils/formatters';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';

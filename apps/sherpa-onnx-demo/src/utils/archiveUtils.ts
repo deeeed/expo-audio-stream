@@ -1,5 +1,5 @@
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
 /**
