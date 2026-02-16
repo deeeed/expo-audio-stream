@@ -177,14 +177,14 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
         ///       - `bitrate`: The compression bitrate in bps (default is 128000).
         ///   - promise: A promise to resolve with the recording settings or reject with an error.
         AsyncFunction("startRecording") { (options: [String: Any], promise: Promise) in
-            Logger.debug("ExpoAudioStreamModule", "startRecording called with options: \(options)")
+            Logger.debug("ExpoAudioStreamModule", "startRecording called")
             self.checkMicrophonePermission { granted in
                 guard granted else {
                     Logger.warn("ExpoAudioStreamModule", "startRecording: Permission denied.")
                     promise.reject("PERMISSION_DENIED", "Recording permission has not been granted")
                     return
                 }
-                
+
                 // Check if output.compressed is enabled and format is Opus
                 var modifiedOptions = options
                 if let output = options["output"] as? [String: Any],
@@ -192,25 +192,24 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                    let enabled = compressed["enabled"] as? Bool, enabled,
                    let format = compressed["format"] as? String,
                    format.lowercased() == "opus" {
-                    
+
                     // Create mutable copies
                     var modifiedOutput = output
                     var modifiedCompressed = compressed
-                    
+
                     // Change format to AAC and log warning
                     modifiedCompressed["format"] = "aac"
                     modifiedOutput["compressed"] = modifiedCompressed
                     modifiedOptions["output"] = modifiedOutput
-                    
+
                     Logger.warn("ExpoAudioStreamModule", "startRecording: Opus format is not supported on iOS. Falling back to AAC format.")
                 }
-                
+
                 // Create settings with validation using the potentially modified options
                 let settingsResult = RecordingSettings.fromDictionary(modifiedOptions)
-                
+
                 switch settingsResult {
                 case .success(let settings):
-                    Logger.debug("ExpoAudioStreamModule", "startRecording: Settings parsed successfully. ShowNotification=\(settings.showNotification)")
                     // Initialize notification if enabled
                     if settings.showNotification {
                         Task {
@@ -220,8 +219,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                             }
                         }
                     }
-                    
-                    Logger.debug("ExpoAudioStreamModule", "startRecording: Calling streamManager.startRecording")
+
                     if let result = self.streamManager.startRecording(settings: settings) {
                         var resultDict: [String: Any] = [
                             "fileUri": result.fileUri,
@@ -230,7 +228,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                             "sampleRate": result.sampleRate,
                             "mimeType": result.mimeType,
                         ]
-                        
+
                         // Add compression info if available
                         if let compression = result.compression {
                             resultDict["compression"] = [
@@ -240,16 +238,16 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                                 "format": compression.format
                             ]
                         }
-                        
-                        Logger.info("ExpoAudioStreamModule", "startRecording: Recording started successfully. fileUri: \(result.fileUri)")
+
+                        Logger.info("ExpoAudioStreamModule", "Recording started successfully")
                         promise.resolve(resultDict)
                     } else {
-                        Logger.error("ExpoAudioStreamModule", "startRecording: streamManager.startRecording returned nil.")
+                        Logger.error("ExpoAudioStreamModule", "Failed to start recording")
                         promise.reject("ERROR", "Failed to start recording.")
                     }
-                    
+
                 case .failure(let error):
-                    Logger.error("ExpoAudioStreamModule", "startRecording: Invalid settings - \(error.localizedDescription)")
+                    Logger.error("ExpoAudioStreamModule", "Invalid settings - \(error.localizedDescription)")
                     promise.reject("INVALID_SETTINGS", error.localizedDescription)
                 }
             }
@@ -918,9 +916,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
     private func checkMicrophonePermission(completion: @escaping (Bool) -> Void) {
         switch AVAudioSession.sharedInstance().recordPermission {
         case .granted:
-            completion(true)
+            DispatchQueue.main.async { completion(true) }
         case .denied:
-            completion(false)
+            DispatchQueue.main.async { completion(false) }
         case .undetermined:
             AVAudioSession.sharedInstance().requestRecordPermission { granted in
                 DispatchQueue.main.async {
@@ -928,7 +926,7 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
                 }
             }
         @unknown default:
-            completion(false)
+            DispatchQueue.main.async { completion(false) }
         }
     }
     
