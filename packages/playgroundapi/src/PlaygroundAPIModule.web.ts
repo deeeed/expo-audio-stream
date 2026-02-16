@@ -39,4 +39,4 @@ class PlaygroundAPIModule extends NativeModule<PlaygroundAPIModuleEvents> {
   }
 }
 
-export default registerWebModule(PlaygroundAPIModule);
+export default registerWebModule(PlaygroundAPIModule, 'PlaygroundAPI');
