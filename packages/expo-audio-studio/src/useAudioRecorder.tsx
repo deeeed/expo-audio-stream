@@ -515,8 +515,10 @@ export function useAudioRecorder({
                 logger?.warn(`onAudioStream is not a function`, onAudioStream)
                 onAudioStreamRef.current = null
             }
+            // Strip undefined values and functions that can't cross the native bridge
+            const cleanOptions = JSON.parse(JSON.stringify(options))
             const startResult: StartRecordingResult =
-                await ExpoAudioStream.startRecording(options)
+                await ExpoAudioStream.startRecording(cleanOptions)
             dispatch({ type: 'START' })
 
             startResultRef.current = startResult
@@ -569,8 +571,10 @@ export function useAudioRecorder({
                 onAudioStreamRef.current = null
             }
 
+            // Strip undefined values and functions that can't cross the native bridge
+            const cleanOptions = JSON.parse(JSON.stringify(options))
             // Call the native prepareRecording method
-            await ExpoAudioStream.prepareRecording(options)
+            await ExpoAudioStream.prepareRecording(cleanOptions)
             logger?.debug(`recording prepared successfully`)
         },
         []
