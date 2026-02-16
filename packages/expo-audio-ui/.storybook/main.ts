@@ -33,7 +33,7 @@ const config: StorybookConfig = {
                 modulesToTranspile: ['react-native-reanimated', '@gorhom/bottom-sheet'],
                 babelPlugins: [
                 '@babel/plugin-proposal-export-namespace-from',
-                'react-native-reanimated/plugin',
+                'react-native-worklets/plugin',
                 ],
             },
         }

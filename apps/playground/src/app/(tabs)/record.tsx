@@ -1,8 +1,7 @@
 // playground/src/app/(tabs)/index.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { Stack, useRouter } from 'expo-router'
 import { Image, Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
@@ -53,7 +52,7 @@ import { isWeb } from '../../utils/utils'
 
 import type { TranscriptionModeSettings } from '../../component/TranscriptionModeConfig'
 
-const CHUNK_DURATION_MS = 5000 // 5000 ms chunks
+const CHUNK_DURATION_MS = Platform.OS === 'web' ? 500 : 5000
 const ANALYSIS_INTERVAL_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5 // 5 seconds of audio at 48kHz
 
@@ -275,26 +274,18 @@ export default function RecordScreen() {
 
     const requestPermissions = useCallback(async () => {
         try {
-            if (Platform.OS === 'android') {
-                const recordingPermission =
-                    await ExpoAudioStreamModule.requestPermissionsAsync()
-                if (recordingPermission.status !== 'granted') {
-                    showPermissionError('Microphone')
-                    return false
-                }
+            const recordingPermission =
+                await ExpoAudioStreamModule.requestPermissionsAsync()
+            if (recordingPermission.status !== 'granted') {
+                showPermissionError('Microphone')
+                return false
+            }
 
-                if (Platform.Version >= 33) {
-                    const notificationPermission =
-                        await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
-                    if (notificationPermission.status !== 'granted') {
-                        showPermissionError('Notification')
-                        return false
-                    }
-                }
-            } else {
-                const { granted } = await Audio.requestPermissionsAsync()
-                if (!granted) {
-                    showPermissionError('Microphone')
+            if (Platform.OS === 'android' && Platform.Version >= 33) {
+                const notificationPermission =
+                    await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
+                if (notificationPermission.status !== 'granted') {
+                    showPermissionError('Notification')
                     return false
                 }
             }
@@ -739,9 +730,9 @@ export default function RecordScreen() {
                 },
             }
 
-            logger.debug(`Starting recording with config:`, finalConfig)
+            logger.debug('Starting recording with config:', finalConfig)
             const streamConfig: StartRecordingResult = await startRecording(finalConfig)
-            logger.debug(`Recording started:`, streamConfig)
+            logger.debug('Recording started:', streamConfig)
             setStreamConfig(streamConfig)
             setIsRecordingPrepared(false) // Reset prepared state after starting
 
