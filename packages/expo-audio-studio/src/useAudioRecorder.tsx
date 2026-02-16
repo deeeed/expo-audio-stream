@@ -14,6 +14,7 @@ import {
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+import { validateRecordingConfig } from './constants/platformLimitations'
 import {
     addAudioAnalysisListener,
     addAudioEventListener,
@@ -473,11 +474,6 @@ export function useAudioRecorder({
 
     const startRecording = useCallback(
         async (recordingOptions: RecordingConfig) => {
-            // Import validation function
-            const { validateRecordingConfig } = await import(
-                './constants/platformLimitations'
-            )
-
             // Validate the encoding configuration
             const validationResult = validateRecordingConfig({
                 encoding: recordingOptions.encoding,
@@ -519,8 +515,10 @@ export function useAudioRecorder({
                 logger?.warn(`onAudioStream is not a function`, onAudioStream)
                 onAudioStreamRef.current = null
             }
+            // Strip undefined values and functions that can't cross the native bridge
+            const cleanOptions = JSON.parse(JSON.stringify(options))
             const startResult: StartRecordingResult =
-                await ExpoAudioStream.startRecording(options)
+                await ExpoAudioStream.startRecording(cleanOptions)
             dispatch({ type: 'START' })
 
             startResultRef.current = startResult
@@ -573,8 +571,10 @@ export function useAudioRecorder({
                 onAudioStreamRef.current = null
             }
 
+            // Strip undefined values and functions that can't cross the native bridge
+            const cleanOptions = JSON.parse(JSON.stringify(options))
             // Call the native prepareRecording method
-            await ExpoAudioStream.prepareRecording(options)
+            await ExpoAudioStream.prepareRecording(cleanOptions)
             logger?.debug(`recording prepared successfully`)
         },
         []

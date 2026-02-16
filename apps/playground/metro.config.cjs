@@ -2,7 +2,7 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
 const escape = require('escape-string-regexp')
 const { getDefaultConfig } = require('expo/metro-config')
-const exclusionList = require('metro-config/src/defaults/exclusionList')
+const { default: exclusionList } = require('metro-config/private/defaults/exclusionList')
 const path = require('node:path')
 const withStorybook = require('@storybook/react-native/metro/withStorybook')
 
@@ -15,6 +15,9 @@ const projectRoot = __dirname
 const monorepoRoot = path.resolve(projectRoot, '../..')
 const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
 const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-studio')
+const playgroundApiRoot = path.resolve(monorepoRoot, 'packages/playgroundapi')
+const essentiaRoot = path.resolve(monorepoRoot, 'packages/react-native-essentia')
+const sherpaRoot = path.resolve(monorepoRoot, 'packages/sherpa-onnx.rn')
 
 const modules = [
     'react-native-paper',
@@ -35,23 +38,17 @@ const extraNodeModules = modules.reduce((acc, name) => {
     return acc
 }, {})
 
-// Prevent metro from resolving duplicate packages
+// Prevent metro from resolving duplicate packages in all workspace packages
+const packageRoots = [uiRoot, libRoot, playgroundApiRoot, essentiaRoot, sherpaRoot]
 const blacklistRE = exclusionList(
-    modules
-        .map(
+    packageRoots.flatMap((pkgRoot) =>
+        modules.map(
             (m) =>
                 new RegExp(
-                    `^${escape(path.join(uiRoot, 'node_modules', m))}\\/.*$`
+                    `^${escape(path.join(pkgRoot, 'node_modules', m))}\\/.*$`
                 )
         )
-        .concat(
-            modules.map(
-                (m) =>
-                    new RegExp(
-                        `^${escape(path.join(libRoot, 'node_modules', m))}\\/.*$`
-                    )
-            )
-        )
+    )
 )
 
 /** @type {import('expo/metro-config').MetroConfig} */
@@ -61,6 +58,45 @@ const config = getDefaultConfig(__dirname)
 config.watchFolders = [monorepoRoot]
 
 config.server.port = 7365
+
+// Wrap rewriteRequestUrl to fix web HMR URLs that crash Metro 0.83.
+// The HMR client sends location.href as the entry point when document.currentScript
+// is unavailable (e.g. after SPA navigation). This produces URLs like
+// "http://localhost:7365/?platform=web" or "http://localhost:7365/record?platform=web"
+// which are not valid bundle entry points. The root-only path case also crashes
+// jsc-safe-url. Fix: detect non-bundle URLs and rewrite to the actual web entry point.
+const originalRewriteRequestUrl = config.server.rewriteRequestUrl
+config.server.rewriteRequestUrl = (url) => {
+    const rewritten = originalRewriteRequestUrl(url)
+    try {
+        const parsed = new URL(rewritten, 'https://placeholder.dev')
+        // Check if the pathname looks like a real bundle/source file
+        // Valid paths have extensions like .bundle, .js, .ts, .tsx, .map, etc.
+        const hasSourceExt = /\.\w+$/.test(parsed.pathname)
+        const isAssetRequest = parsed.pathname.startsWith('/assets')
+        if (!hasSourceExt && !isAssetRequest && parsed.protocol !== 'resolve:') {
+            // Only rewrite if the URL has a "platform" query param — this indicates
+            // a bundle/HMR request (Expo's HMR client always adds ?platform=web).
+            // Without "platform", it's a direct browser navigation (e.g. user opens
+            // /record in the address bar). Let those pass through so Metro calls
+            // next() and Expo's HistoryFallbackMiddleware serves the HTML shell.
+            if (!parsed.searchParams.has('platform')) {
+                return rewritten
+            }
+            // HMR/bundle request with a SPA route pathname (no file extension).
+            // Rewrite to the actual web entry point, relative to monorepo root
+            // (matching what Expo's rewriteRequestUrl produces for .virtual-metro-entry URLs).
+            const entryPath = '/apps/playground/src/index.web.bundle'
+            if (parsed.host) {
+                return parsed.protocol + '//' + parsed.host + entryPath + parsed.search
+            }
+            return entryPath + parsed.search
+        }
+    } catch {
+        // If URL parsing fails, return as-is
+    }
+    return rewritten
+}
 
 config.transformer = {
     ...config.transformer,
