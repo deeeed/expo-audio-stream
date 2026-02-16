@@ -95,7 +95,7 @@ update_version() {
   COMMIT_CHANGES=${COMMIT_CHANGES:-y}  # Default to yes
 
   if [[ "$COMMIT_CHANGES" == "y" || "$COMMIT_CHANGES" == "Y" ]]; then
-    git add package.json
+    git add package.json CHANGELOG.md
     git commit -m "chore: bump minimal app version to $NEW_VERSION"
     echo -e "${GREEN}✅ Changes committed to git${NC}"
   fi

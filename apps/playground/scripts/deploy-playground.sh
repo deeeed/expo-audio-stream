@@ -192,7 +192,7 @@ update_version() {
   COMMIT_CHANGES=${COMMIT_CHANGES:-y}  # Default to yes
 
   if [[ "$COMMIT_CHANGES" == "y" || "$COMMIT_CHANGES" == "Y" ]]; then
-    git add package.json app.config.ts
+    git add package.json app.config.ts CHANGELOG.md
     git commit -m "chore: bump version to $NEW_VERSION"
     
     # Ask if user wants to tag this version
