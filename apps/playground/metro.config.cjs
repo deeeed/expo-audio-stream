@@ -15,6 +15,9 @@ const projectRoot = __dirname
 const monorepoRoot = path.resolve(projectRoot, '../..')
 const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
 const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-studio')
+const playgroundApiRoot = path.resolve(monorepoRoot, 'packages/playgroundapi')
+const essentiaRoot = path.resolve(monorepoRoot, 'packages/react-native-essentia')
+const sherpaRoot = path.resolve(monorepoRoot, 'packages/sherpa-onnx.rn')
 
 const modules = [
     'react-native-paper',
@@ -35,23 +38,17 @@ const extraNodeModules = modules.reduce((acc, name) => {
     return acc
 }, {})
 
-// Prevent metro from resolving duplicate packages
+// Prevent metro from resolving duplicate packages in all workspace packages
+const packageRoots = [uiRoot, libRoot, playgroundApiRoot, essentiaRoot, sherpaRoot]
 const blacklistRE = exclusionList(
-    modules
-        .map(
+    packageRoots.flatMap((pkgRoot) =>
+        modules.map(
             (m) =>
                 new RegExp(
-                    `^${escape(path.join(uiRoot, 'node_modules', m))}\\/.*$`
+                    `^${escape(path.join(pkgRoot, 'node_modules', m))}\\/.*$`
                 )
         )
-        .concat(
-            modules.map(
-                (m) =>
-                    new RegExp(
-                        `^${escape(path.join(libRoot, 'node_modules', m))}\\/.*$`
-                    )
-            )
-        )
+    )
 )
 
 /** @type {import('expo/metro-config').MetroConfig} */
@@ -76,7 +73,8 @@ config.server.rewriteRequestUrl = (url) => {
         // Check if the pathname looks like a real bundle/source file
         // Valid paths have extensions like .bundle, .js, .ts, .tsx, .map, etc.
         const hasSourceExt = /\.\w+$/.test(parsed.pathname)
-        if (!hasSourceExt && parsed.protocol !== 'resolve:') {
+        const isAssetRequest = parsed.pathname.startsWith('/assets')
+        if (!hasSourceExt && !isAssetRequest && parsed.protocol !== 'resolve:') {
             // Only rewrite if the URL has a "platform" query param — this indicates
             // a bundle/HMR request (Expo's HMR client always adds ?platform=web).
             // Without "platform", it's a direct browser navigation (e.g. user opens
