@@ -673,7 +673,54 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         return status
     }
-    
+
+    /// Builds compression info dictionary with incremental compressed data for streaming events.
+    /// Mirrors the Android pattern (AudioRecorderManager.kt) for consistent cross-platform behavior.
+    /// - Returns: A dictionary containing compression metadata and base64-encoded data chunk, or nil if compression is disabled.
+    private func buildCompressionInfo() -> [String: Any]? {
+        guard let settings = recordingSettings,
+              settings.output.compressed.enabled,
+              let compressedURL = compressedFileURL,
+              FileManager.default.fileExists(atPath: compressedURL.path) else {
+            return nil
+        }
+
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: compressedURL.path)
+            guard let compressedSize = attributes[.size] as? Int64 else { return nil }
+
+            let eventDataSize = compressedSize - lastEmittedCompressedSize
+
+            var info: [String: Any] = [
+                "position": lastEmittedCompressedSize,
+                "fileUri": compressedURL.absoluteString,
+                "eventDataSize": eventDataSize,
+                "totalSize": compressedSize,
+                "size": compressedSize,
+                "mimeType": compressedFormat == "aac" ? "audio/aac" : "audio/opus",
+                "bitrate": compressedBitRate,
+                "format": compressedFormat
+            ]
+
+            // Read incremental chunk if there is new data
+            if eventDataSize > 0 {
+                let fileHandle = try FileHandle(forReadingFrom: compressedURL)
+                defer { fileHandle.closeFile() }
+                fileHandle.seek(toFileOffset: UInt64(lastEmittedCompressedSize))
+                let chunkData = fileHandle.readData(ofLength: Int(eventDataSize))
+                info["data"] = chunkData.base64EncodedString()
+            }
+
+            lastEmittedCompressedSize = compressedSize
+            cachedCompressedFileSize = compressedSize
+
+            return info
+        } catch {
+            Logger.debug("AudioStreamManager", "Error building compression info: \(error)")
+            return nil
+        }
+    }
+
     /// Detects if a phone call is active without using CallKit.
     /// We avoid CallKit because its usage prevents apps from being available in China's App Store.
     /// This is a workaround that uses AVAudioSession to detect phone calls instead.
@@ -797,6 +844,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         totalDataSizeAnalysis = 0
         totalPausedDuration = 0
         lastEmittedSize = 0
+        lastEmittedCompressedSize = 0
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
         
@@ -1139,10 +1187,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 didReceiveAudioData: finalData,
                 recordingTime: recordingTime,
                 totalDataSize: finalTotalSize,
-                compressionInfo: nil
+                compressionInfo: buildCompressionInfo()
             )
         }
-        
+
         // Store when we paused
         currentPauseStart = Date()
         
@@ -1516,7 +1564,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 self.lastEmissionTime = currentTime
                 self.lastEmittedSize = currentTotalSize
                 accumulatedData.removeAll()
-                let compressionInfo: [String: Any]? = nil
+                let compressionInfo = buildCompressionInfo()
                 
                 Logger.debug("EMISSION SUCCESS: Emitting \(dataToEmit.count) bytes at recording time \(recordingTime)s")
                 
@@ -1685,10 +1733,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 didReceiveAudioData: finalData,
                 recordingTime: recordingTime,
                 totalDataSize: finalTotalSize,
-                compressionInfo: nil
+                compressionInfo: buildCompressionInfo()
             )
         }
-        
+
         disableWakeLock()
         
         // Handle audio engine operations directly - no need for try-catch
@@ -2113,7 +2161,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     didReceiveAudioData: finalData,
                     recordingTime: recordingTime,
                     totalDataSize: finalTotalSize,
-                    compressionInfo: nil
+                    compressionInfo: buildCompressionInfo()
                 )
             }
             
@@ -2149,7 +2197,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                             didReceiveAudioData: dataToEmit,
                             recordingTime: recordingTime,
                             totalDataSize: totalSize,
-                            compressionInfo: nil
+                            compressionInfo: self.buildCompressionInfo()
                         )
                     }
                     
