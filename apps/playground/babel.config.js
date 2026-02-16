@@ -3,7 +3,7 @@ module.exports = (api) => {
     return {
         presets: ['babel-preset-expo'],
         plugins: [
-            'react-native-reanimated/plugin',
+            'react-native-worklets/plugin',
             [
                 'module-resolver',
                 {
@@ -24,7 +24,7 @@ module.exports = (api) => {
             production: {
                 plugins: [
                     'react-native-paper/babel',
-                    'react-native-reanimated/plugin',
+                    'react-native-worklets/plugin',
                 ],
             },
         },
