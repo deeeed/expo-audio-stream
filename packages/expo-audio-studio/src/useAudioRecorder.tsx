@@ -14,6 +14,7 @@ import {
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+import { validateRecordingConfig } from './constants/platformLimitations'
 import {
     addAudioAnalysisListener,
     addAudioEventListener,
@@ -473,11 +474,6 @@ export function useAudioRecorder({
 
     const startRecording = useCallback(
         async (recordingOptions: RecordingConfig) => {
-            // Import validation function
-            const { validateRecordingConfig } = await import(
-                './constants/platformLimitations'
-            )
-
             // Validate the encoding configuration
             const validationResult = validateRecordingConfig({
                 encoding: recordingOptions.encoding,
