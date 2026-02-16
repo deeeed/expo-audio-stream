@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { initWhisper } from 'whisper.rn'
 
 import type { WhisperContext } from 'whisper.rn'

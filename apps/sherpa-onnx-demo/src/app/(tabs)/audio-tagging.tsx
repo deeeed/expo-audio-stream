@@ -5,7 +5,7 @@ import type {
 import { AudioTagging } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
