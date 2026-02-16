@@ -1,8 +1,7 @@
 // playground/src/app/(tabs)/index.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { Stack, useRouter } from 'expo-router'
 import { Image, Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'

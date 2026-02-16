@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Platform , InteractionManager } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { extractTarBz2 } from '../../utils/archiveUtils';
