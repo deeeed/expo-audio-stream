@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.18.4] - 2026-02-16
+### Changed
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.18.3 ([61d58e5](https://github.com/deeeed/expo-audio-stream/commit/61d58e57fd624182aef9983745bf82f584ffc2c7))
+- fix(expo-audio-studio): include compression data in iOS onAudioStream events ([e0444f3](https://github.com/deeeed/expo-audio-stream/commit/e0444f321803deee1aa5fc4259a3e160a668869f))
+- chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#305) ([f8ff916](https://github.com/deeeed/expo-audio-stream/commit/f8ff916865ae9139282cad088c6b920adb59f6c2))
+- Revert "chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#303)" (#304) ([6ef8a2f](https://github.com/deeeed/expo-audio-stream/commit/6ef8a2f91973055fc026c3190355bb375052b699))
+- chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#303) ([822d82c](https://github.com/deeeed/expo-audio-stream/commit/822d82c007da13fdb8dc85698a7b87f8613e5383))
+- feat: properly emit final chunk of audio data in android (#293) ([b468495](https://github.com/deeeed/expo-audio-stream/commit/b46849595562cbc2a0914240e60ebcc225bbb889))
 ## [2.18.3] - 2026-02-16
 
 ## [2.18.2] - 2026-02-16
@@ -382,7 +390,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.3...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.4...HEAD
+[2.18.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.3...@siteed/expo-audio-studio@2.18.4
 [2.18.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.2...@siteed/expo-audio-studio@2.18.3
 [2.18.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.1...@siteed/expo-audio-studio@2.18.2
 [2.18.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.0...@siteed/expo-audio-studio@2.18.1
