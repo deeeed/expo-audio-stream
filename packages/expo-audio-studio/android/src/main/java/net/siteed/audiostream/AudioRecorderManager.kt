@@ -94,6 +94,7 @@ class AudioRecorderManager(
     private var lastEmittedSize = 0L
     private var lastEmittedCompressedSize = 0L
     private var streamPosition = 0L  // Track total bytes processed in the stream
+    private var accumulatedAudioData: ByteArrayOutputStream? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val audioRecordLock = Any()
     private var audioFileHandler: AudioFileHandler = AudioFileHandler(filesDir)
@@ -975,13 +976,13 @@ class AudioRecorderManager(
                 val threadJoinStartTime = System.currentTimeMillis()
                 recordingThread?.join(timeoutMs)
 
-                val finalReadStartTime = System.currentTimeMillis()
-                val audioData = ByteArray(bufferSizeInBytes)
-                val bytesRead = audioRecord?.read(audioData, 0, bufferSizeInBytes) ?: -1
-                if (bytesRead > 0) {
-                    val emitStartTime = System.currentTimeMillis()
-                    emitAudioData(audioData.copyOfRange(0, bytesRead), bytesRead)
-                    streamPosition += bytesRead  // Update stream position for final data
+                // This ensures complete audio data is captured even when stopped before interval threshold
+                accumulatedAudioData?.let { audioData ->
+                    if (audioData.size() > 0) {
+                        LogUtils.d(CLASS_NAME, "Emitting final accumulated audio chunk of ${audioData.size()} bytes before stopping")
+                        emitAudioData(audioData.toByteArray(), audioData.size())
+                        streamPosition += audioData.size()  // Update stream position for final data
+                    }
                 }
 
                 LogUtils.d(CLASS_NAME, "Stopping recording state = ${audioRecord?.state}")
@@ -1410,10 +1411,10 @@ class AudioRecorderManager(
                 LogUtils.d(CLASS_NAME, "Entering recording loop")
                 
                 // Buffer to accumulate data
-                val accumulatedAudioData = ByteArrayOutputStream()
+                accumulatedAudioData = ByteArrayOutputStream()
                 val accumulatedAnalysisData = ByteArrayOutputStream()  // Separate buffer for analysis
                 audioFileHandler.writeWavHeader(
-                    accumulatedAudioData,
+                    accumulatedAudioData!!,
                     recordingConfig.sampleRate,
                     recordingConfig.channels,
                     when (recordingConfig.encoding) {
@@ -1443,7 +1444,7 @@ class AudioRecorderManager(
                 while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
                     loopCount++
                     if (loopCount % 100 == 0) {
-                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData.size()}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
+                        LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData?.size() ?: 0}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
                     }
                     if (isPaused.get()) {
                         Thread.sleep(100) // Add small delay when paused
@@ -1478,7 +1479,7 @@ class AudioRecorderManager(
                         }
                         totalDataSize += bytesRead
                         
-                        accumulatedAudioData.write(audioData, 0, bytesRead)
+                        accumulatedAudioData?.write(audioData, 0, bytesRead)
                         
                         // Always accumulate data for analysis if enabled (moved outside shouldProcessAnalysis check)
                         if (recordingConfig.enableProcessing) {
@@ -1492,13 +1493,15 @@ class AudioRecorderManager(
 
                         // Handle regular audio data emission
                         if (currentTime - lastEmitTime >= recordingConfig.interval) {
-                            emitAudioData(
-                                accumulatedAudioData.toByteArray(),
-                                accumulatedAudioData.size()
-                            )
-                            streamPosition += accumulatedAudioData.size()  // Update stream position
-                            lastEmitTime = currentTime
-                            accumulatedAudioData.reset() // Clear the accumulator
+                            accumulatedAudioData?.let { audioData ->
+                                emitAudioData(
+                                    audioData.toByteArray(),
+                                    audioData.size()
+                                )
+                                streamPosition += audioData.size()  // Update stream position
+                                lastEmitTime = currentTime
+                                audioData.reset() // Clear the accumulator
+                            }
                         }
                         
                         // Handle analysis emission separately
@@ -1699,6 +1702,10 @@ class AudioRecorderManager(
                 lastEmittedSize = 0
                 streamPosition = 0
                 recordingStartTime = 0
+                
+                // Clean up accumulated audio data
+                accumulatedAudioData?.close()
+                accumulatedAudioData = null
                 
                 // Update the WAV header if needed
                 audioFile?.let { file ->
