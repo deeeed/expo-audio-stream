@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button as PaperButton, Text } from 'react-native-paper'
 

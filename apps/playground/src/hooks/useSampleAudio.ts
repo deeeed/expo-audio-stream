@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 
 import { Asset } from 'expo-asset'
 import { Audio } from 'expo-av'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 
 import { baseLogger } from '../config'
 import { isWeb } from '../utils/utils'

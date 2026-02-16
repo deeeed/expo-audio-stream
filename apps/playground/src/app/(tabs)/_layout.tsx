@@ -82,7 +82,7 @@ export default function TabLayout() {
                     title: 'Transcription',
                     tabBarIcon: ({ color }) => (
                         <MaterialCommunityIcons
-                            name="microphone-message"
+                            name="text-to-speech"
                             size={28}
                             color={color}
                         />

@@ -9,7 +9,7 @@ import React, {
     useState,
 } from 'react'
 
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { fromByteArray } from 'react-native-quick-base64'
 import {
     initWhisper,

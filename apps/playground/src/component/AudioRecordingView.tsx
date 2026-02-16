@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
