@@ -34,6 +34,7 @@ export default function App() {
         isRecording,
         isPaused,
         analysisData,
+        compression,
     } = useAudioRecorder({
         logger: console,
     })
@@ -70,9 +71,17 @@ export default function App() {
             const startResult = await startRecording({
                 interval: 500,
                 enableProcessing: true,
+                output: {
+                    compressed: {
+                        enabled: true,
+                        format: 'aac',
+                        bitrate: 128000,
+                    },
+                },
                 onAudioStream: async (event) => {
                     setStreamEvents((prev) => prev + 1)
                     console.log(`onAudioStream event received`, event)
+                    console.log(`  compression:`, event.compression)
                 },
             })
             return startResult
@@ -125,6 +134,7 @@ export default function App() {
             <Text>Size: {size} bytes</Text>
             <Text>Stream Events: {streamEvents}</Text>
             <Text>Analysis Events: {analysisEvents}</Text>
+            <Text>Compression: {compression ? `${compression.format} - ${compression.size} bytes` : 'null'}</Text>
             <Button
                 title={isActive ? 'Pause Recording' : 'Resume Recording'}
                 onPress={() => setIsActive(!isActive)}
@@ -143,6 +153,7 @@ export default function App() {
             <Text>Size: {size} bytes</Text>
             <Text>Stream Events: {streamEvents}</Text>
             <Text>Analysis Events: {analysisEvents}</Text>
+            <Text>Compression: {compression ? `${compression.format} - ${compression.size} bytes` : 'null'}</Text>
             <Button title="Resume Recording" onPress={resumeRecording} />
             <Button
                 title="Stop Recording"
@@ -161,6 +172,7 @@ export default function App() {
             <Text>Size: {size} bytes</Text>
             <Text>Stream Events: {streamEvents}</Text>
             <Text>Analysis Events: {analysisEvents}</Text>
+            <Text>Compression: {compression ? `${compression.format} - ${compression.size} bytes` : 'null'}</Text>
             <Button title="Start Recording" onPress={handleStart} />
             {audioResult && (
                 <View>

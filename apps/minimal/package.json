@@ -7,6 +7,7 @@
         "start": "yarn build:deps && EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --dev-client",
         "android": "expo run:android",
         "ios": "expo run:ios --device",
+        "ios:sim": "expo run:ios",
         "web": "expo start --web",
         "test": "jest --watchAll",
         "lint": "expo lint",
