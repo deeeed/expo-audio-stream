@@ -55,8 +55,9 @@ yarn-error.*
 # Detox and Fastlane artifacts
 fastlane/detox/
 
-# Agent validation logs (prevent git contamination)
+# Agent validation logs and runtime artifacts
 logs/
+.agent/
 
 # But keep our organized screenshots
 !screenshots/
