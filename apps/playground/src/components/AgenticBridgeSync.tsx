@@ -11,6 +11,7 @@ import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
 
 import {
     setAgenticAudioState,
+    setAgenticRecorder,
     setAgenticRouteInfo,
 } from '../agentic-bridge'
 
@@ -23,8 +24,20 @@ export function AgenticBridgeSync() {
 function AgenticBridgeSyncInner() {
     const pathname = usePathname()
     const segments = useSegments()
-    const { isRecording, isPaused, durationMs, size } =
-        useSharedAudioRecorder()
+    const recorder = useSharedAudioRecorder()
+    const {
+        isRecording,
+        isPaused,
+        durationMs,
+        size,
+        analysisData,
+        compression,
+    } = recorder
+
+    // Wire the recorder instance into the bridge on mount
+    useEffect(() => {
+        setAgenticRecorder(recorder)
+    }, [recorder])
 
     useEffect(() => {
         setAgenticRouteInfo(pathname, segments)
@@ -36,8 +49,10 @@ function AgenticBridgeSyncInner() {
             isPaused,
             durationMs,
             size,
+            analysisData,
+            compression,
         })
-    }, [isRecording, isPaused, durationMs, size])
+    }, [isRecording, isPaused, durationMs, size, analysisData, compression])
 
     return null
 }

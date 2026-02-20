@@ -138,6 +138,17 @@ config.resolver = {
         'm4b',
     ],
     resolveRequest: (context, moduleName, platform) => {
+        // Shim Node.js built-in modules that Storybook's CJS bundles try to require.
+        // Metro resolves dynamic import() targets statically, so even though Storybook
+        // is only loaded when EXPO_PUBLIC_STORYBOOK=true, Metro still resolves the full
+        // dependency tree including these Node builtins.
+        const nodeBuiltins = ['tty', 'os', 'fs', 'path', 'util', 'stream', 'events',
+            'buffer', 'crypto', 'http', 'https', 'net', 'child_process', 'module',
+            'assert', 'url', 'querystring', 'string_decoder', 'zlib', 'vm',
+            'perf_hooks', 'worker_threads', 'inspector']
+        if (nodeBuiltins.includes(moduleName)) {
+            return { type: 'empty' }
+        }
         if (moduleName === '@siteed/expo-audio-ui') {
             return {
                 filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',

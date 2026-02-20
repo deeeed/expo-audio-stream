@@ -12,7 +12,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-PORT="${WATCHER_PORT:-8110}"
+PORT="${WATCHER_PORT:-7365}"
 PIDFILE=".agent/metro.pid"
 
 stopped=false

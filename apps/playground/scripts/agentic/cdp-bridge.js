@@ -17,7 +17,7 @@
  *   go-back                            Navigate back
  *
  * Environment:
- *   WATCHER_PORT    Metro port (default: 8110)
+ *   WATCHER_PORT    Metro port (default: 7365)
  *   CDP_TIMEOUT     Connection timeout in ms (default: 5000)
  *   IOS_SIMULATOR   Filter targets by iOS simulator name
  *   ANDROID_DEVICE  Filter targets by Android device/emulator serial
@@ -31,8 +31,10 @@ const http = require('http');
 // Configuration
 // ---------------------------------------------------------------------------
 
+const DEFAULT_PORT = 7365;
+
 function loadPort() {
-  return parseInt(process.env.WATCHER_PORT || '8110', 10);
+  return parseInt(process.env.WATCHER_PORT || String(DEFAULT_PORT), 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -84,7 +86,8 @@ async function probeTarget(wsUrl) {
     try {
       const result = await cdpEval(
         client,
-        'typeof globalThis.__AGENTIC__ !== "undefined"'
+        'typeof globalThis.__AGENTIC__ !== "undefined"',
+        2000
       );
       return result === true;
     } finally {
@@ -96,11 +99,12 @@ async function probeTarget(wsUrl) {
 }
 
 /**
- * Discover the best WebSocket debug target.
- * Filters by simulator/device name when env vars are set,
- * then probes candidates for the __AGENTIC__ bridge.
+ * Discover ALL WebSocket debug targets that have __AGENTIC__ installed.
+ * Returns an array of { wsUrl, deviceName } objects, one per device.
+ * Deduplicates by deviceName so we don't open multiple connections to the
+ * same device (Hermes can expose several pages per device).
  */
-async function discoverTarget(port) {
+async function discoverAllTargets(port) {
   const targets = await fetchTargets(port);
 
   if (!Array.isArray(targets) || targets.length === 0) {
@@ -140,23 +144,38 @@ async function discoverTarget(port) {
     );
   }
 
-  // Sort by page number descending (JS runtime has higher page number than C++ native)
+  // Sort by page number descending (JS runtime has higher page number)
   candidates.sort((a, b) => {
     const aPage = Number.parseInt((a.id || '').split('-').pop() || '0', 10);
     const bPage = Number.parseInt((b.id || '').split('-').pop() || '0', 10);
     return bPage - aPage;
   });
 
-  // Probe candidates to find the one with __AGENTIC__ installed (the JS runtime)
+  // Probe each candidate, collecting the first match per deviceName
+  const results = [];
+  const seen = new Set();
   for (const candidate of candidates) {
+    const name = candidate.deviceName || '';
+    if (seen.has(name)) continue; // already found agentic target for this device
     const hasAgentic = await probeTarget(candidate.webSocketDebuggerUrl);
     if (hasAgentic) {
-      return candidate.webSocketDebuggerUrl;
+      seen.add(name);
+      results.push({
+        wsUrl: candidate.webSocketDebuggerUrl,
+        deviceName: name,
+      });
     }
   }
 
-  // Fallback: return highest page number (most likely the JS runtime)
-  return candidates[0].webSocketDebuggerUrl;
+  // Fallback: if no agentic target found, return highest page number candidate
+  if (results.length === 0) {
+    results.push({
+      wsUrl: candidates[0].webSocketDebuggerUrl,
+      deviceName: candidates[0].deviceName || '',
+    });
+  }
+
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,10 +218,25 @@ function createWSClient(wsUrl, timeout) {
       clearTimeout(timer);
       resolve({
         /** Send a CDP command and wait for the response */
-        send(method, params = {}) {
+        send(method, params = {}, sendTimeout) {
           return new Promise((res, rej) => {
             const id = ++msgId;
-            pending.set(id, { resolve: res, reject: rej });
+            const sendTimer = sendTimeout
+              ? setTimeout(() => {
+                  pending.delete(id);
+                  rej(new Error(`CDP send timeout after ${sendTimeout}ms`));
+                }, sendTimeout)
+              : null;
+            pending.set(id, {
+              resolve: (v) => {
+                if (sendTimer) clearTimeout(sendTimer);
+                res(v);
+              },
+              reject: (e) => {
+                if (sendTimer) clearTimeout(sendTimer);
+                rej(e);
+              },
+            });
             const msg = JSON.stringify({ id, method, params });
             ws.send(msg);
           });
@@ -256,14 +290,18 @@ function createWSClient(wsUrl, timeout) {
  * Evaluate a JS expression in the app's Hermes runtime via CDP Runtime.evaluate.
  * Returns the evaluated value (primitives and JSON-serialisable objects).
  */
-async function cdpEval(client, expression) {
+async function cdpEval(client, expression, evalTimeout) {
   const wrapped = `(function() { return (${expression}); })()`;
-  const result = await client.send('Runtime.evaluate', {
-    expression: wrapped,
-    returnByValue: true,
-    awaitPromise: false,
-    generatePreview: false,
-  });
+  const result = await client.send(
+    'Runtime.evaluate',
+    {
+      expression: wrapped,
+      returnByValue: true,
+      awaitPromise: false,
+      generatePreview: false,
+    },
+    evalTimeout
+  );
 
   if (result.exceptionDetails) {
     const desc =
@@ -281,19 +319,22 @@ async function cdpEval(client, expression) {
 // ---------------------------------------------------------------------------
 
 const COMMANDS = {
-  async navigate(client, args) {
+  async navigate(client, args, { deviceName, platform } = {}) {
     const routePath = args[0];
     if (!routePath) {
       throw new Error('Usage: navigate <path>  (e.g. /(tabs)/record, /minimal)');
     }
+
+    // Capture route before navigation
+    const previousRoute = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
 
     const expr = `globalThis.__AGENTIC__?.navigate(${JSON.stringify(routePath)})`;
     await cdpEval(client, expr);
 
     // Small delay for navigation to settle, then return current route
     await new Promise((r) => setTimeout(r, 500));
-    const route = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
-    return { navigated: routePath, currentRoute: route };
+    const currentRoute = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
+    return { navigated: routePath, previousRoute, currentRoute, deviceName, platform };
   },
 
   async 'get-route'(client) {
@@ -322,6 +363,7 @@ const COMMANDS = {
     const route = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
     return { currentRoute: route };
   },
+
 };
 
 // ---------------------------------------------------------------------------
@@ -363,11 +405,17 @@ Routes:
   /download               Download screen
   /wasm-demo              WebAssembly demo
 
+Multi-device:
+  When multiple devices are connected, commands are sent to ALL of them.
+  Single device  → outputs the result directly (backwards compatible).
+  Multiple devices → outputs { "devices": [ ...results ] }.
+  Use IOS_SIMULATOR or ANDROID_DEVICE to target a single device.
+
 Environment:
-  WATCHER_PORT    Metro port (default: 8110)
+  WATCHER_PORT    Metro port (default: ${DEFAULT_PORT})
   CDP_TIMEOUT     Connection timeout in ms (default: 5000)
-  IOS_SIMULATOR   Filter targets by iOS simulator name
-  ANDROID_DEVICE  Filter targets by Android device/emulator serial`);
+  IOS_SIMULATOR   Filter targets by iOS simulator name (single-device mode)
+  ANDROID_DEVICE  Filter targets by Android device/emulator serial (single-device mode)`);
     process.exit(0);
   }
 
@@ -381,14 +429,30 @@ Environment:
   const port = loadPort();
   const timeout = Number.parseInt(process.env.CDP_TIMEOUT || '5000', 10);
 
-  const wsUrl = await discoverTarget(port);
-  const client = await createWSClient(wsUrl, timeout);
+  const allTargets = await discoverAllTargets(port);
+  const results = [];
 
-  try {
-    const result = await handler(client, args.slice(1));
-    console.log(JSON.stringify(result, null, 2));
-  } finally {
-    client.close();
+  for (const target of allTargets) {
+    const client = await createWSClient(target.wsUrl, timeout);
+    try {
+      // Detect platform from the running app
+      const platform = await cdpEval(client, 'globalThis.__AGENTIC__?.platform').catch(() => '') || '';
+      const result = await handler(client, args.slice(1), {
+        deviceName: target.deviceName,
+        platform,
+      });
+      results.push(result);
+    } finally {
+      client.close();
+    }
+  }
+
+  // Single device: print result directly (backwards compatible)
+  // Multiple devices: wrap in { devices: [...] }
+  if (results.length === 1) {
+    console.log(JSON.stringify(results[0], null, 2));
+  } else {
+    console.log(JSON.stringify({ devices: results }, null, 2));
   }
 }
 

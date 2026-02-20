@@ -60,13 +60,15 @@ print_usage() {
     echo "Platforms:"
     echo "  android - Test on Android device/emulator (default)"
     echo "  ios     - Test on iOS simulator (macOS only)"
-    echo "  both    - Test on both platforms"
+    echo "  web     - Test in Chromium browser via Playwright"
+    echo "  both    - Test on both native platforms"
     echo ""
     echo "Examples:"
     echo "  ./scripts/agent.sh dev compression android"
     echo "  ./scripts/agent.sh dev basic ios"
     echo "  ./scripts/agent.sh dev custom android 'sampleRate=16000&channels=1'"
     echo "  ./scripts/agent.sh dev compression android --screenshots  # UI development"
+    echo "  ./scripts/agent.sh dev basic web                         # Web validation"
     echo "  ./scripts/agent.sh full"
 }
 
@@ -155,6 +157,12 @@ check_platform_device() {
             exit 1
         fi
         print_success "iOS simulator ready"
+    elif [ "$platform" = "web" ]; then
+        if ! npx playwright --version >/dev/null 2>&1; then
+            print_error "Playwright not installed. Run: yarn add -D @playwright/test && yarn playwright install chromium"
+            exit 1
+        fi
+        print_success "Playwright ready"
     fi
 }
 
@@ -223,11 +231,93 @@ run_dev_validation() {
     fi
     
     check_platform_device "$platform"
-    
+
+    # -- Web platform: separate flow using Playwright --
+    if [ "$platform" = "web" ]; then
+        print_status "Starting web validation..."
+
+        # Start Metro if not running (same server serves web)
+        print_status "Ensuring Metro server is running..."
+        scripts/agentic/start-metro.sh
+
+        # Launch browser (headless for automated validation)
+        print_status "Launching browser..."
+        WEB_HEADLESS=true node scripts/agentic/web-browser.js launch &
+        BROWSER_PID=$!
+
+        # Wait for browser to be ready
+        BROWSER_WAIT=0
+        while [ $BROWSER_WAIT -lt 30 ]; do
+            if [ -f ".agent/web-browser.json" ]; then
+                break
+            fi
+            sleep 1
+            BROWSER_WAIT=$((BROWSER_WAIT + 1))
+        done
+
+        if [ ! -f ".agent/web-browser.json" ]; then
+            print_error "Browser failed to start within 30s"
+            kill "$BROWSER_PID" 2>/dev/null || true
+            exit 1
+        fi
+
+        print_success "Browser ready"
+
+        # Run Playwright tests
+        mkdir -p logs/agent-validation
+        LOG_FILE="logs/agent-validation/${feature}-web-$(date +%Y%m%d-%H%M%S).log"
+
+        print_status "Running Playwright E2E tests..."
+        if timeout 120 yarn playwright test e2e-web/agent-validation-web.spec.ts > "$LOG_FILE" 2>&1; then
+            print_success "Web validation PASSED: $feature"
+
+            # Show console log tail
+            if [ -f ".agent/web-console.log" ] && [ -s ".agent/web-console.log" ]; then
+                echo ""
+                print_status "Recent console logs:"
+                tail -10 .agent/web-console.log
+            fi
+
+            rm -f "$LOG_FILE"
+        else
+            print_error "Web validation FAILED: $feature"
+            echo ""
+            print_error "Test output:"
+            tail -30 "$LOG_FILE" 2>/dev/null || echo "No log output"
+
+            if [ -f ".agent/web-console.log" ] && [ -s ".agent/web-console.log" ]; then
+                echo ""
+                print_error "Recent console logs:"
+                tail -20 .agent/web-console.log
+            fi
+
+            echo ""
+            echo "Full logs: $LOG_FILE"
+
+            # Cleanup
+            node scripts/agentic/web-browser.js close 2>/dev/null || true
+            kill "$BROWSER_PID" 2>/dev/null || true
+            exit 1
+        fi
+
+        # Cleanup browser
+        node scripts/agentic/web-browser.js close 2>/dev/null || true
+        kill "$BROWSER_PID" 2>/dev/null || true
+
+        echo ""
+        print_success "DEVELOPMENT VALIDATION COMPLETE"
+        print_status "Feature '$feature' validated successfully on web"
+        print_status "Duration: < 2 minutes"
+        echo ""
+        return
+    fi
+
+    # -- Native platform flow (android/ios) --
+
     # Generate test URL
     TEST_URL=$(generate_test_url "$feature" "$custom_params")
     print_status "Test URL: $TEST_URL"
-    
+
     # Create screenshot directory only if screenshots enabled
     SCREENSHOT_DIR=""
     if [ "$enable_screenshots" = "true" ]; then
@@ -235,13 +325,13 @@ run_dev_validation() {
         mkdir -p "$SCREENSHOT_DIR"
         print_status "Screenshots will be saved to: $SCREENSHOT_DIR"
     fi
-    
+
     # Export environment variables for E2E test
     export AGENT_FEATURE=$feature
     export AGENT_PLATFORM=$platform
     export AGENT_TEST_URL="$TEST_URL"
     export AGENT_SCREENSHOT_DIR="$SCREENSHOT_DIR"
-    
+
     # Build if needed (check for existing build)
     if [ "$platform" = "android" ]; then
         APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
@@ -257,14 +347,14 @@ run_dev_validation() {
         fi
         TEST_COMMAND="yarn detox test e2e/agent-validation.test.ts --configuration ios.sim.debug"
     fi
-    
+
     # Run targeted E2E test
     print_status "Running feature validation..."
-    
+
     # Create log file for detailed output (project-relative)
     mkdir -p logs/agent-validation
     LOG_FILE="logs/agent-validation/${feature}-${platform}-$(date +%Y%m%d-%H%M%S).log"
-    
+
     if timeout 120 $TEST_COMMAND > "$LOG_FILE" 2>&1; then
         print_success "✅ Feature validation PASSED: $feature"
         if [ "$enable_screenshots" = "true" ] && [ -n "$SCREENSHOT_DIR" ]; then

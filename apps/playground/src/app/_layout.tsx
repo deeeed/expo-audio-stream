@@ -18,9 +18,8 @@ import { WebAppBanner } from '../components/WebAppBanner'
 import { AgenticBridgeSync } from '../components/AgenticBridgeSync'
 
 // Install the __AGENTIC__ bridge on globalThis in dev mode
-if (__DEV__) {
-    require('../agentic-bridge')
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (__DEV__) require('../agentic-bridge')
 
 const logger = getLogger('RootLayout')
 

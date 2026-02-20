@@ -59,5 +59,9 @@ fastlane/detox/
 logs/
 .agent/
 
+# Playwright artifacts
+playwright-report/
+test-results/
+
 # But keep our organized screenshots
 !screenshots/

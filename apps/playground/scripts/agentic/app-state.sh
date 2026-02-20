@@ -15,21 +15,30 @@ cd "$(dirname "$0")/../.."
 COMMAND="${1:-route}"
 shift || true
 
+EFFECTIVE_PLATFORM="${PLATFORM:-}"
+
+# Choose bridge: web-browser.js for web, cdp-bridge.js for native
+if [ "$EFFECTIVE_PLATFORM" = "web" ]; then
+  BRIDGE="node scripts/agentic/web-browser.js"
+else
+  BRIDGE="node scripts/agentic/cdp-bridge.js"
+fi
+
 case "$COMMAND" in
   route)
-    node scripts/agentic/cdp-bridge.js get-route
+    $BRIDGE get-route
     ;;
   state)
-    node scripts/agentic/cdp-bridge.js get-state
+    $BRIDGE get-state
     ;;
   eval)
-    node scripts/agentic/cdp-bridge.js eval "$@"
+    $BRIDGE eval "$@"
     ;;
   can-go-back)
-    node scripts/agentic/cdp-bridge.js can-go-back
+    $BRIDGE can-go-back
     ;;
   go-back)
-    node scripts/agentic/cdp-bridge.js go-back
+    $BRIDGE go-back
     ;;
   *)
     echo "Usage: app-state.sh <command> [args...]"
@@ -40,6 +49,9 @@ case "$COMMAND" in
     echo "  eval <expression>      Evaluate arbitrary JS in app context"
     echo "  can-go-back            Check if navigation can go back"
     echo "  go-back                Navigate back"
+    echo ""
+    echo "Environment:"
+    echo "  PLATFORM=web           Use web bridge instead of native CDP"
     exit 1
     ;;
 esac
