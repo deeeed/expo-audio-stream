@@ -195,30 +195,6 @@ Env: `WEB_HEADLESS=true` for CI, `CDP_PORT=9222` (default).
 
 Console logs are captured to `.agent/web-console.log` (all `console.*` + uncaught errors).
 
-## E2E Tests (CI Use)
-
-Detox and Playwright E2E tests exist for CI pipelines. They are not required for agent dev-loop validation but can be run when needed:
-
-```bash
-# Detox (requires app build)
-yarn e2e:android:agent-validation
-yarn e2e:ios:agent-validation
-
-# Playwright (no build needed, just Metro)
-yarn playwright test e2e-web/agent-validation-web.spec.ts
-```
-
-### Validation Features
-
-| Feature | Description | Config |
-|---------|-------------|--------|
-| `basic` | Standard recording workflow | `{ sampleRate: 44100, channels: 1 }` |
-| `compression` | Compressed audio output | `{ sampleRate: 44100, channels: 1, output: { compressed: { enabled: true, format: 'aac' } } }` |
-| `high-frequency` | High-frequency dual timing | `{ sampleRate: 48000, intervalAnalysis: 25, interval: 10 }` |
-| `multi-channel` | Stereo recording | `{ sampleRate: 44100, channels: 2 }` |
-| `pause-resume` | Pause/resume workflow | Start → pause → resume → stop via CDP |
-| `error-handling` | Error scenarios | `{ sampleRate: 999999 }` |
-
 ## Development Iteration Loop
 
 ```
@@ -255,7 +231,6 @@ yarn playwright test e2e-web/agent-validation-web.spec.ts
 | `/(tabs)/transcription` | Speech-to-text |
 | `/(tabs)/files` | Recorded files |
 | `/(tabs)/more` | Settings & options |
-| `/(tabs)/agent-validation` | Agent test page |
 | `/minimal` | Minimal recording |
 | `/trim` | Audio trimmer |
 | `/decibel` | Decibel meter |
