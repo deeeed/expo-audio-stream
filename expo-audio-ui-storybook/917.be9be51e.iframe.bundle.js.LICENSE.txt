@@ -1,0 +1,89 @@
+/**
+ * @license React
+ * react.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+//!< brighten destination to reflect source
+
+//!< darken destination to reflect source
+
+//!< destination
+
+//!< exclusive-or the two paths
+
+//!< fuzzy inside and outside
+
+//!< fuzzy inside, nothing outside
+
+//!< hue and saturation of source with luminosity of destination
+
+//!< hue of source with saturation and luminosity of destination
+
+//!< intersect the two paths
+
+//!< lighten or darken, depending on source
+
+//!< luminosity of source with hue and saturation of
+
+//!< multiply or screen, depending on destination
+
+//!< multiply or screen, depending on source
+
+//!< nothing inside, fuzzy outside
+
+//!< r = 0
+
+//!< r = d
+
+//!< r = d * (1-sa)
+
+//!< r = d * sa
+
+//!< r = d + (1-da)*s
+
+//!< r = d*sa + s*(1-da)
+
+//!< r = min(s + d, 1)
+
+//!< r = s
+
+//!< r = s * (1-da)
+
+//!< r = s * da
+
+//!< r = s + (1-sa)*d
+
+//!< r = s + d - s*d
+
+//!< r = s*(1-da) + d*(1-sa)
+
+//!< r = s*(1-da) + d*(1-sa) + s*d
+
+//!< r = s*d
+
+//!< r = s*da + d*(1-sa)
+
+//!< rc = max(0, 1 - ((1-dst) + (1-src))), similar to iOS kCGBlendModePlusDarker
+
+//!< rc = min(1, dst + src), similar to iOS kCGBlendModePlusLighter
+
+//!< rc = s + d - 2*(min(s*da, d*sa)), ra = kSrcOver
+
+//!< rc = s + d - max(s*da, d*sa), ra = kSrcOver
+
+//!< rc = s + d - min(s*da, d*sa), ra = kSrcOver
+
+//!< rc = s + d - two(s*d), ra = kSrcOver
+
+//!< saturation of source with hue and luminosity of
+
+//!< solid inside, fuzzy outside
+
+//!< subtract the op path from the first path
+
+//!< union (inclusive-or) the two paths
