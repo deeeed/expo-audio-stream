@@ -115,28 +115,6 @@ export default function TabLayout() {
                     ),
                 }}
             />
-            {__DEV__ && (
-                <Tabs.Screen
-                    name="agent-validation"
-                    options={{
-                        title: 'Agent Tests',
-                        tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons 
-                                name="robot" 
-                                size={28} 
-                                color={color} 
-                            />
-                        ),
-                        tabBarStyle: {
-                            backgroundColor: colors.error, // Red background to indicate dev-only
-                            borderTopColor: colors.border,
-                            paddingBottom: insets.bottom,
-                        },
-                        tabBarActiveTintColor: '#fff',
-                        tabBarInactiveTintColor: 'rgba(255,255,255,0.8)',
-                    }}
-                />
-            )}
         </Tabs>
     )
 }

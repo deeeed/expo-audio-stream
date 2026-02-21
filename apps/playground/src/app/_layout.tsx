@@ -15,6 +15,11 @@ import { ApplicationContextProvider } from '../context/ApplicationProvider'
 import { AudioFilesProvider } from '../context/AudioFilesProvider'
 import { TranscriptionProvider } from '../context/TranscriptionProvider'
 import { WebAppBanner } from '../components/WebAppBanner'
+import { AgenticBridgeSync } from '../components/AgenticBridgeSync'
+
+// Install the __AGENTIC__ bridge on globalThis in dev mode
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (__DEV__) require('../agentic-bridge')
 
 const logger = getLogger('RootLayout')
 
@@ -56,7 +61,8 @@ export default function RootLayout() {
                                 
                                 {/* WebAppBanner appears above all content on web platform */}
                                 <WebAppBanner />
-                                
+                                <AgenticBridgeSync />
+
                                 <Stack
                                     screenOptions={{
                                         headerBackButtonMenuEnabled: false,

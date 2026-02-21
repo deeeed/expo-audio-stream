@@ -31,9 +31,10 @@ For those using AI agents or seeking 10x productivity gains through automated fe
 **Quick Commands:**
 ```bash
 cd apps/playground
-yarn agent:setup              # Setup devices (first time)
-yarn agent:dev <feature>      # Validate feature works (< 2 minutes)
-yarn agent:full               # Optional comprehensive testing
+scripts/agentic/start-metro.sh                                            # Start Metro
+scripts/agentic/app-state.sh eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"  # Start recording
+scripts/agentic/app-state.sh state                                        # Check state
+scripts/agentic/app-state.sh eval "__AGENTIC__.stopRecording()"           # Stop recording
 ```
 
 **Agent Constraints:**
@@ -261,7 +262,7 @@ Example additions for a new feature:
 
 Choose the validation approach that fits your development style:
 
-### 🤖 Agentic Validation Workflow (Fast & Modern)
+### CDP Bridge Validation Workflow (Fast & Modern)
 
 For AI-assisted development with fast feedback loops:
 
@@ -269,19 +270,22 @@ For AI-assisted development with fast feedback loops:
 # 1. Create feature branch
 git checkout -b feature/audio-pitch-detection
 
-# 2. Implement feature with fast validation
-# Edit iOS/Android implementations
+# 2. Implement feature
 
-# 3. Validate functionality works (< 2 minutes)
+# 3. Start Metro and navigate to test screen
 cd apps/playground
-yarn agent:dev pitch-detection android
+scripts/agentic/start-metro.sh
+scripts/agentic/app-navigate.sh "/(tabs)/record"
 
-# 4. Cross-platform validation
-yarn agent:dev pitch-detection ios
-yarn agent:dev pitch-detection both
+# 4. Validate via CDP bridge (< 2 minutes)
+scripts/agentic/app-state.sh eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
+scripts/agentic/app-state.sh state
+scripts/agentic/app-state.sh eval "__AGENTIC__.stopRecording()"
+scripts/agentic/screenshot.sh validation-result
 
-# 5. Optional comprehensive testing
-yarn agent:full
+# 5. Optional: Run E2E tests
+yarn e2e:android:agent-validation
+yarn e2e:ios:agent-validation
 ```
 
 **Benefits:**
