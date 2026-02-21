@@ -209,7 +209,14 @@ export async function extractAudioAnalysis(
             throw error
         }
     } else {
-        return await ExpoAudioStreamModule.extractAudioAnalysis(props)
+        // Strip non-serializable fields — logger and arrayBuffer cause
+        // "Cannot convert '[object Object]' to a Kotlin type" on Android.
+        const {
+            logger: _logger,
+            arrayBuffer: _arrayBuffer,
+            ...nativeOptions
+        } = props
+        return await ExpoAudioStreamModule.extractAudioAnalysis(nativeOptions)
     }
 }
 

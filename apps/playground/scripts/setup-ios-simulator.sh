@@ -42,7 +42,7 @@ fi
 if xcrun simctl list devices | grep -q "iPhone.*Booted"; then
     RUNNING_SIM=$(xcrun simctl list devices | grep "iPhone.*Booted" | head -1 | sed 's/^[[:space:]]*//' | cut -d'(' -f1 | sed 's/[[:space:]]*$//')
     print_success "iPhone simulator already running: $RUNNING_SIM"
-    print_status "You can now run: yarn agent:validate:ios"
+    print_status "You can now run: scripts/agentic/app-state.sh state"
     exit 0
 fi
 
@@ -95,10 +95,10 @@ if xcrun simctl boot "$CHOSEN_SIM"; then
         print_success "iOS simulator is ready for agent validation!"
         echo ""
         print_status "You can now run:"
-        echo "  yarn agent:storybook:ios"
+        echo "  scripts/agentic/app-state.sh state"
+        echo "  scripts/agentic/app-navigate.sh \"/(tabs)/record\""
         echo "  yarn e2e:ios:storybook"
-        echo "  yarn agent:dev compression ios"
-        echo "  yarn agent:full ios"
+        echo "  yarn e2e:ios:agent-validation"
     else
         print_warning "Simulator may still be booting. Please wait a moment and try again."
     fi

@@ -6,6 +6,7 @@
 # Usage:
 #   scripts/agentic/app-navigate.sh <route-path>
 #   scripts/agentic/app-navigate.sh --screenshot <route-path>
+#   scripts/agentic/app-navigate.sh --device "Pixel 6a" /(tabs)/record
 #   scripts/agentic/app-navigate.sh /(tabs)/record
 #   scripts/agentic/app-navigate.sh /minimal
 #   scripts/agentic/app-navigate.sh /(tabs)/agent-validation
@@ -16,20 +17,26 @@ cd "$(dirname "$0")/../.."
 
 # -- Parse flags -----------------------------------------------------------
 TAKE_SCREENSHOT=false
+DEVICE_FLAG=""
 POSITIONAL=()
-for arg in "$@"; do
-  case "$arg" in
-    --screenshot) TAKE_SCREENSHOT=true ;;
-    *) POSITIONAL+=("$arg") ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --screenshot) TAKE_SCREENSHOT=true; shift ;;
+    --device)
+      DEVICE_FLAG="--device $2"
+      shift 2
+      ;;
+    *) POSITIONAL+=("$1"); shift ;;
   esac
 done
 
 ROUTE="${POSITIONAL[0]:-}"
 if [ -z "$ROUTE" ]; then
-  echo "Usage: app-navigate.sh [--screenshot] <route-path>"
+  echo "Usage: app-navigate.sh [--screenshot] [--device <name>] <route-path>"
   echo ""
   echo "Options:"
   echo "  --screenshot           Take a verification screenshot after navigating"
+  echo "  --device <name>        Target a specific device (substring match)"
   echo ""
   echo "Common routes:"
   echo "  /(tabs)/record            Record tab (default)"
@@ -46,34 +53,18 @@ if [ -z "$ROUTE" ]; then
   exit 1
 fi
 
-# -- Navigate via bridge (CDP for native, Playwright for web) ---------------
-EFFECTIVE_PLATFORM="${PLATFORM:-}"
+# -- Navigate via unified CDP bridge ----------------------------------------
 echo "Navigating to $ROUTE..."
 
-if [ "$EFFECTIVE_PLATFORM" = "web" ]; then
-  RESULT=$(node scripts/agentic/web-browser.js navigate "$ROUTE" 2>&1)
-else
-  RESULT=$(node scripts/agentic/cdp-bridge.js navigate "$ROUTE" 2>&1)
-fi
+# shellcheck disable=SC2086
+RESULT=$(node scripts/agentic/cdp-bridge.mjs $DEVICE_FLAG navigate "$ROUTE" 2>&1)
 echo "$RESULT"
 
 # -- Optional screenshot (opt-in with --screenshot) ------------------------
 if [ "$TAKE_SCREENSHOT" = true ]; then
   sleep 1
-
-  # Detect platform from result to pass to screenshot.sh
-  if [ "$EFFECTIVE_PLATFORM" = "web" ]; then
-    PLATFORM_FLAG="web"
-  else
-    PLATFORM_FLAG=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('platform',''))" 2>/dev/null || echo "")
-  fi
-
-  if [ -n "$PLATFORM_FLAG" ]; then
-    SCREENSHOT=$(scripts/agentic/screenshot.sh "nav-${ROUTE//\//_}" "$PLATFORM_FLAG" 2>&1) || true
-  else
-    SCREENSHOT=$(scripts/agentic/screenshot.sh "nav-${ROUTE//\//_}" 2>&1) || true
-  fi
-
+  # shellcheck disable=SC2086
+  SCREENSHOT=$(scripts/agentic/screenshot.sh $DEVICE_FLAG "nav-${ROUTE//\//_}" 2>&1) || true
   if [ -n "$SCREENSHOT" ]; then
     echo "Screenshot: $SCREENSHOT"
   fi

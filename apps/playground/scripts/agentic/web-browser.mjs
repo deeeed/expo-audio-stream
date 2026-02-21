@@ -3,7 +3,7 @@
  * Web Browser Bridge — Playwright-based browser lifecycle manager for web
  * agentic feedback loop.
  *
- * Mirrors the command interface of cdp-bridge.js but uses Playwright's
+ * Mirrors the command interface of cdp-bridge.mjs but uses Playwright's
  * page.evaluate() to call globalThis.__AGENTIC__ methods.
  *
  * Two modes:
@@ -14,7 +14,7 @@
  *     connectOverCDP, execute command, print JSON result, exit.
  *
  * Usage:
- *   node scripts/agentic/web-browser.js <command> [args...]
+ *   node scripts/agentic/web-browser.mjs <command> [args...]
  *
  * Commands:
  *   launch                    Start browser, navigate to app, begin log capture
@@ -35,20 +35,22 @@
  *   CDP_PORT        Chrome remote debugging port (default: 9222)
  */
 
-'use strict';
+import { chromium } from 'playwright';
+import path from 'node:path';
+import fs from 'node:fs';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const { chromium } = require('playwright');
-const path = require('path');
-const fs = require('fs');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-const PORT = parseInt(process.env.WATCHER_PORT || '7365', 10);
+const PORT = Number.parseInt(process.env.WATCHER_PORT || '7365', 10);
 const HEADLESS = process.env.WEB_HEADLESS === 'true';
-const TIMEOUT = parseInt(process.env.WEB_TIMEOUT || '30000', 10);
-const CDP_PORT = parseInt(process.env.CDP_PORT || '9222', 10);
+const TIMEOUT = Number.parseInt(process.env.WEB_TIMEOUT || '30000', 10);
+const CDP_PORT = Number.parseInt(process.env.CDP_PORT || '9222', 10);
 
 const PLAYGROUND_ROOT = path.resolve(__dirname, '../..');
 const AGENT_DIR = path.join(PLAYGROUND_ROOT, '.agent');
@@ -76,7 +78,7 @@ function saveConnection(cdpPort) {
 function loadConnection() {
   if (!fs.existsSync(CONNECTION_FILE)) {
     throw new Error(
-      'No running browser found. Start one with: node scripts/agentic/web-browser.js launch'
+      'No running browser found. Start one with: node scripts/agentic/web-browser.mjs launch'
     );
   }
   return JSON.parse(fs.readFileSync(CONNECTION_FILE, 'utf8'));
@@ -115,7 +117,7 @@ function setupConsoleCapture(page) {
 
 async function waitForBridge(page) {
   await page.waitForFunction(
-    () => typeof globalThis.__AGENTIC__ !== 'undefined',
+    () => globalThis.__AGENTIC__ !== undefined,
     { timeout: TIMEOUT }
   );
 }
@@ -126,6 +128,24 @@ async function waitForBridge(page) {
 
 async function cmdLaunch() {
   ensureDirs();
+
+  // If not already running as the daemon, re-spawn detached and exit.
+  // This ensures yarn/npm don't keep the terminal busy regardless of how
+  // the script was invoked (&, foreground, etc.).
+  if (!process.env._WEB_BROWSER_DAEMON) {
+    const logFile = path.join(AGENT_DIR, 'web-browser.log');
+    // Open the log file synchronously so the fd is ready before spawn
+    const logFd = fs.openSync(logFile, 'a');
+    const child = spawn(process.execPath, process.argv.slice(1), {
+      detached: true,
+      stdio: ['ignore', logFd, logFd],
+      env: { ...process.env, _WEB_BROWSER_DAEMON: '1' },
+    });
+    fs.closeSync(logFd);
+    child.unref();
+    console.log('Browser launching in background. Logs → .agent/web-browser.log');
+    process.exit(0);
+  }
 
   const baseURL = `http://localhost:${PORT}`;
 
@@ -173,8 +193,6 @@ async function cmdLaunch() {
 
   // Save connection info
   saveConnection(CDP_PORT);
-  console.log(`Connection saved to ${CONNECTION_FILE}`);
-  console.log(`Console logs → ${CONSOLE_LOG_FILE}`);
   console.log('Browser running. Use other commands to interact, or "close" to stop.');
 
   // Keep process alive — the browser + console capture runs in this process
@@ -308,7 +326,7 @@ async function cmdScreenshot(args) {
   const label = args[0] || 'screenshot';
   const timestamp = new Date()
     .toISOString()
-    .replace(/[:.]/g, '-')
+    .replaceAll(/[:.]/g, '-')
     .replace('T', '_')
     .slice(0, 19);
   const filename = `${timestamp}_${label}.png`;
@@ -372,15 +390,14 @@ const COMMANDS = {
   close: { fn: cmdClose, printRaw: false },
 };
 
-async function main() {
-  const args = process.argv.slice(2);
-  const command = args[0];
+const args = process.argv.slice(2);
+const command = args[0];
 
-  if (!command || command === '--help' || command === '-h') {
-    console.log(`Web Browser Bridge — Playwright-based browser manager for web agentic loop
+if (!command || command === '--help' || command === '-h') {
+  console.log(`Web Browser Bridge — Playwright-based browser manager for web agentic loop
 
 Usage:
-  node scripts/agentic/web-browser.js <command> [args...]
+  node scripts/agentic/web-browser.mjs <command> [args...]
 
 Commands:
   launch                    Start browser, navigate to app, begin log capture
@@ -399,22 +416,20 @@ Environment:
   WEB_HEADLESS    Run browser headless (default: false, set to "true" for CI)
   WEB_TIMEOUT     Navigation/wait timeout in ms (default: 30000)
   CDP_PORT        Chrome remote debugging port (default: 9222)`);
-    process.exit(0);
-  }
+  process.exit(0);
+}
 
-  const cmd = COMMANDS[command];
-  if (!cmd) {
-    console.error(`Unknown command: ${command}`);
-    console.error(`Available: ${Object.keys(COMMANDS).join(', ')}`);
-    process.exit(1);
-  }
+const cmd = COMMANDS[command];
+if (!cmd) {
+  console.error(`Unknown command: ${command}`);
+  console.error(`Available: ${Object.keys(COMMANDS).join(', ')}`);
+  process.exit(1);
+}
 
-  // launch is special — it doesn't return a result to print
-  if (command === 'launch') {
-    await cmd.fn();
-    return;
-  }
-
+// launch is special — it doesn't return a result to print
+if (command === 'launch') {
+  await cmd.fn();
+} else {
   const result = await cmd.fn(args.slice(1));
 
   if (cmd.printRaw) {
@@ -423,8 +438,3 @@ Environment:
     console.log(JSON.stringify(result, null, 2));
   }
 }
-
-main().catch((err) => {
-  console.error(`ERROR: ${err.message}`);
-  process.exit(1);
-});

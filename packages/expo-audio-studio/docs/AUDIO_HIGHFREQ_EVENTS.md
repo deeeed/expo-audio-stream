@@ -120,15 +120,14 @@ const config = {
 
 ## Testing Infrastructure
 
-### Agent Validation
+### CDP Bridge Validation
 ```bash
-# Test high-frequency capabilities on Android
-yarn agent:dev high-frequency android
-# Results: Analysis ~41ms actual, Stream ~21ms actual
-
-# Test iOS system limitations  
-yarn agent:dev high-frequency ios
-# Results: Both Analysis and Stream ~100ms actual (expected)
+# Test high-frequency capabilities via CDP bridge
+scripts/agentic/app-state.sh eval "__AGENTIC__.startRecording({ sampleRate: 48000, intervalAnalysis: 25, interval: 10 })"
+scripts/agentic/app-state.sh state
+# Android results: Analysis ~41ms actual, Stream ~21ms actual
+# iOS results: Both Analysis and Stream ~100ms actual (expected)
+scripts/agentic/app-state.sh eval "__AGENTIC__.stopRecording()"
 ```
 
 ### E2E Testing

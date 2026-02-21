@@ -1,12 +1,13 @@
 // packages/expo-audio-ui/src/AudioVisualizer/GestureHandler.tsx
 import { DataPoint } from '@siteed/expo-audio-studio'
-import React, { useRef } from 'react'
+import React from 'react'
 import { Platform } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import {
     SharedValue,
     cancelAnimation,
     runOnJS,
+    useFrameCallback,
     useSharedValue,
 } from 'react-native-reanimated'
 
@@ -45,111 +46,85 @@ export const GestureHandler: React.FC<GestureHandlerProps> = ({
     enableInertia = false,
     disableTapSelection = false,
 }) => {
-    const initialTranslateX = useRef(0)
     const velocity = useSharedValue(0)
     const isDecelerating = useSharedValue(false)
+
+    // Inertia deceleration loop — runs on the UI thread via useFrameCallback
+    // (requestAnimationFrame is not available in Reanimated worklets on Android/Hermes)
+    useFrameCallback(() => {
+        'worklet'
+        if (!isDecelerating.value) return
+
+        velocity.value *= 0.85
+        const newTranslateX = translateX.value + velocity.value * 0.016
+
+        if (Math.abs(velocity.value) < 5) {
+            isDecelerating.value = false
+            runOnJS(onDragEnd)({ newTranslateX: translateX.value })
+            return
+        }
+
+        translateX.value = Math.max(
+            -maxTranslateX,
+            Math.min(0, newTranslateX)
+        )
+    })
 
     if (playing || mode === 'live') {
         return <>{children}</>
     }
 
     const panGesture = Gesture.Pan()
-        .onStart((_e) => {
+        .onStart(() => {
             'worklet'
-            try {
-                cancelAnimation(translateX)
-                initialTranslateX.current = translateX.value
-                velocity.value = 0
-                isDecelerating.value = false
-            } catch (error) {
-                console.error('Error in pan gesture onStart:', error)
-            }
+            cancelAnimation(translateX)
+            velocity.value = 0
+            isDecelerating.value = false
         })
         .onChange((e) => {
             'worklet'
-            try {
-                const newTranslateX = translateX.value + e.changeX
-                translateX.value = Math.max(
-                    -maxTranslateX,
-                    Math.min(0, newTranslateX)
-                )
-                velocity.value = e.velocityX
-            } catch (error) {
-                console.error('Error in pan gesture onChange:', error)
-            }
+            const newTranslateX = translateX.value + e.changeX
+            translateX.value = Math.max(
+                -maxTranslateX,
+                Math.min(0, newTranslateX)
+            )
+            velocity.value = e.velocityX
         })
-        .onEnd((_e) => {
+        .onEnd(() => {
             'worklet'
-            try {
-                if (enableInertia) {
-                    isDecelerating.value = true
-                    const decelerate = () => {
-                        'worklet'
-                        try {
-                            if (!isDecelerating.value) return
-
-                            const newVelocity = velocity.value * 0.85 // decreasing velocity value to make it slower
-                            const newTranslateX = translateX.value + newVelocity * 0.016 // Assuming 60fps
-
-                            if (Math.abs(newVelocity) < 5) {
-                                isDecelerating.value = false
-                                runOnJS(onDragEnd)({ newTranslateX: translateX.value })
-                                return
-                            }
-
-                            translateX.value = Math.max(
-                                -maxTranslateX,
-                                Math.min(0, newTranslateX)
-                            )
-                            velocity.value = newVelocity
-
-                            requestAnimationFrame(decelerate)
-                        } catch (error) {
-                            console.error('Error in decelerate:', error)
-                            isDecelerating.value = false
-                        }
-                    }
-
-                    requestAnimationFrame(decelerate)
-                } else {
-                    runOnJS(onDragEnd)({ newTranslateX: translateX.value })
-                }
-            } catch (error) {
-                console.error('Error in pan gesture onEnd:', error)
+            if (enableInertia) {
+                isDecelerating.value = true
+            } else {
+                runOnJS(onDragEnd)({ newTranslateX: translateX.value })
             }
         })
 
     const tapGesture = Gesture.Tap().onEnd((event) => {
         'worklet'
-        try {
-            if (disableTapSelection || !onSelection) {
-                return
-            }
-
-            const { x } = event
-            if (x < 0 || x > canvasWidth) {
-                return
-            }
-
-            const plotStart = canvasWidth / 2 + translateX.value
-            const plotEnd = plotStart + totalCandleWidth
-
-            if (x < plotStart || x > plotEnd) {
-                return
-            }
-
-            const adjustedX = x - plotStart
-            const index = Math.floor(adjustedX / (candleWidth + candleSpace))
-            const candle = activePoints[index]
-            if (!candle) {
-                return
-            }
-
-            // Dispatch action to update the selected candle
-            runOnJS(onSelection)(candle)
-        } catch (error) {
-            console.error('Error in tap gesture:', error)
+        if (disableTapSelection || !onSelection) {
+            return
         }
+
+        const { x } = event
+        if (x < 0 || x > canvasWidth) {
+            return
+        }
+
+        const plotStart = canvasWidth / 2 + translateX.value
+        const plotEnd = plotStart + totalCandleWidth
+
+        if (x < plotStart || x > plotEnd) {
+            return
+        }
+
+        const adjustedX = x - plotStart
+        const index = Math.floor(adjustedX / (candleWidth + candleSpace))
+        const candle = activePoints[index]
+        if (!candle) {
+            return
+        }
+
+        runOnJS(onSelection)(candle)
     })
 
     // Modify the composedGesture to include the tapGesture only if tap selection is not disabled

@@ -35,7 +35,7 @@ if [ -f "$PIDFILE" ]; then
     fi
     stopped=true
   else
-    echo "PID $PID from $PIDFILE is not running."
+    echo "PID $PID from $PIDFILE is not running (stale PID file)."
   fi
   rm -f "$PIDFILE"
 fi
@@ -52,10 +52,12 @@ if [ -n "$PORT_PID" ]; then
     kill -9 "$REMAINING" 2>/dev/null || true
   fi
   stopped=true
+else
+  [ "$stopped" = false ] && echo "Nothing listening on port $PORT."
 fi
 
 if [ "$stopped" = true ]; then
   echo "Metro stopped."
 else
-  echo "Metro was not running."
+  echo "Metro was not running (no PID, no process on port $PORT)."
 fi

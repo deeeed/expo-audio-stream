@@ -20,8 +20,7 @@ Every platform exposes `globalThis.__AGENTIC__` in dev mode with the same API:
 .resumeRecording()       → true | { error }
 ```
 
-**Native (Android/iOS):** `cdp-bridge.js` connects to Hermes via Metro's `/json/list` WebSocket targets.
-**Web:** `web-browser.js` launches Chromium and uses `page.evaluate()` via Playwright CDP.
+**All platforms:** `cdp-bridge.mjs` is the single entry point. It discovers native (Android/iOS) targets via Metro's `/json/list` and web (Chrome) targets via Chrome's `--remote-debugging-port` (connection info from `.agent/web-browser.json`). `web-browser.mjs` is only used for browser lifecycle (`launch`, `close`, `logs`).
 
 ## Platform Setup
 
@@ -49,47 +48,71 @@ scripts/agentic/start-metro.sh    # Start Metro on :7365 (auto-detects if runnin
 
 ### Navigate
 ```bash
-# Native (auto-detects platform)
+# All platforms (auto-discovers connected devices)
 scripts/agentic/app-navigate.sh "/(tabs)/record"
 scripts/agentic/app-navigate.sh --screenshot "/(tabs)/files"
 
-# Web
-PLATFORM=web scripts/agentic/app-navigate.sh "/(tabs)/record"
+# Target a specific device
+scripts/agentic/app-navigate.sh --device "Pixel 6a" "/(tabs)/record"
+scripts/agentic/app-navigate.sh --device "web" "/(tabs)/record"
 ```
 
 ### Query State
 ```bash
-# Native
+# All platforms
 scripts/agentic/app-state.sh route
 scripts/agentic/app-state.sh state
 
-# Web
-PLATFORM=web scripts/agentic/app-state.sh route
-PLATFORM=web scripts/agentic/app-state.sh state
+# Target a specific device
+scripts/agentic/app-state.sh --device "iPhone" state
+scripts/agentic/app-state.sh --device "web" state
 ```
 
 ### Screenshot
 ```bash
-scripts/agentic/screenshot.sh my-label              # Auto-detect platform
-scripts/agentic/screenshot.sh my-label android       # Explicit
-scripts/agentic/screenshot.sh my-label ios
-scripts/agentic/screenshot.sh my-label web
+scripts/agentic/screenshot.sh my-label                    # All connected devices
+scripts/agentic/screenshot.sh --device "Pixel 6a" my-label  # Specific device
+scripts/agentic/screenshot.sh --device "web" my-label       # Web only
 ```
 
-Output: absolute path to `.agent/screenshots/<timestamp>_<label>.png`
+Output: JSON with `{ screenshot: "<absolute-path>", deviceName, platform }`
 
 ### Reload After Code Change
 ```bash
 scripts/agentic/reload-metro.sh    # Hot-reload all connected clients
 ```
 
+### Native Logs (Kotlin/Swift)
+```bash
+# Android: dump recent native logs (filtered by ExpoAudioStudio tags)
+scripts/agentic/native-logs.sh android
+
+# Android: last 50 lines only
+scripts/agentic/native-logs.sh android 50
+
+# Android: follow in real-time (Ctrl+C to stop)
+scripts/agentic/native-logs.sh android follow
+
+# Android: clear logcat buffer (useful before a test run)
+scripts/agentic/native-logs.sh android clear
+
+# iOS: stream simulator logs for 5 seconds
+scripts/agentic/native-logs.sh ios
+
+# iOS: last 30 lines
+scripts/agentic/native-logs.sh ios 30
+```
+
+Filter tags:
+- **Android**: `ExpoAudioStudio` (LogUtils), `ExpoAudioStream` (Constants.TAG), `AudioTrimmer`, `AudioDeviceManager`
+- **iOS**: `[ExpoAudioStudio:ClassName]` format from `Logger.swift`
+
+Use native logs to debug crashes, native module errors, and audio pipeline issues that don't surface in JS.
+
 ### Eval Arbitrary JS
 ```bash
-# Native
 scripts/agentic/app-state.sh eval "document.title"
-
-# Web
-PLATFORM=web scripts/agentic/app-state.sh eval "document.title"
+scripts/agentic/app-state.sh --device "web" eval "document.title"
 ```
 
 ## Recording Control via CDP
@@ -128,9 +151,10 @@ scripts/agentic/app-state.sh state
 ### Web equivalent
 
 ```bash
-node scripts/agentic/web-browser.js eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
-node scripts/agentic/web-browser.js get-state
-node scripts/agentic/web-browser.js eval "__AGENTIC__.stopRecording()"
+# Same commands — just target the web device
+scripts/agentic/app-state.sh --device "web" eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
+scripts/agentic/app-state.sh --device "web" state
+scripts/agentic/app-state.sh --device "web" eval "__AGENTIC__.stopRecording()"
 ```
 
 ### Config examples
@@ -151,64 +175,49 @@ node scripts/agentic/web-browser.js eval "__AGENTIC__.stopRecording()"
 
 ## Web-Specific: Browser Lifecycle
 
-The web bridge requires a controllable browser (regular Chrome tabs aren't accessible via CDP).
+`web-browser.mjs` manages browser lifecycle only. Once launched, all commands go through `cdp-bridge.mjs` (which auto-discovers the web target).
 
 ```bash
 # Launch browser (opens visible Chrome window, stays running)
-node scripts/agentic/web-browser.js launch &
+node scripts/agentic/web-browser.mjs launch &
 
-# All commands connect to the running browser
-node scripts/agentic/web-browser.js get-route
-node scripts/agentic/web-browser.js navigate "/(tabs)/files"
-node scripts/agentic/web-browser.js get-state
-node scripts/agentic/web-browser.js screenshot "my-label"
-node scripts/agentic/web-browser.js logs           # Console log capture
-node scripts/agentic/web-browser.js eval "1+1"
+# All commands go through the unified cdp-bridge.mjs
+scripts/agentic/app-state.sh --device "web" route
+scripts/agentic/app-navigate.sh --device "web" "/(tabs)/files"
+scripts/agentic/screenshot.sh --device "web" my-label
 
-# Done
-node scripts/agentic/web-browser.js close
+# web-browser.mjs still handles lifecycle + logs
+node scripts/agentic/web-browser.mjs logs           # Console log capture
+node scripts/agentic/web-browser.mjs close           # Shutdown browser
 ```
 
 Env: `WEB_HEADLESS=true` for CI, `CDP_PORT=9222` (default).
 
 Console logs are captured to `.agent/web-console.log` (all `console.*` + uncaught errors).
 
-## Automated Validation (E2E)
+## E2E Tests (CI Use)
 
-One-command validation per platform:
+Detox and Playwright E2E tests exist for CI pipelines. They are not required for agent dev-loop validation but can be run when needed:
 
 ```bash
-# Android — Detox E2E (requires app build)
-./scripts/agent.sh dev basic android
+# Detox (requires app build)
+yarn e2e:android:agent-validation
+yarn e2e:ios:agent-validation
 
-# iOS — Detox E2E (requires app build)
-./scripts/agent.sh dev basic ios
-
-# Web — Playwright E2E (no build needed, just Metro)
-./scripts/agent.sh dev basic web
-```
-
-Run Playwright tests directly:
-```bash
+# Playwright (no build needed, just Metro)
 yarn playwright test e2e-web/agent-validation-web.spec.ts
 ```
 
 ### Validation Features
 
-| Feature | Description | Deep Link Parameters |
-|---------|-------------|---------------------|
-| `basic` | Standard recording workflow | `sampleRate=44100&channels=1` |
-| `compression` | Compressed audio output | `compressedOutput=true&compressedFormat=aac` |
-| `high-frequency` | High-frequency dual timing measurement | `intervalAnalysis=25&interval=10&measurePrecision=true&sampleRate=48000` |
-| `multi-channel` | Stereo recording | `channels=2&sampleRate=44100` |
-| `pause-resume` | Pause/resume workflow | `testPauseResume=true` |
-| `error-handling` | Error scenarios | `sampleRate=999999&testErrors=true` |
-
-### Platform Options
-- `android` (default) — Test on Android device/emulator
-- `ios` — Test on iOS simulator (macOS only)
-- `web` — Test in Chromium via Playwright
-- `both` — Test on both native platforms sequentially
+| Feature | Description | Config |
+|---------|-------------|--------|
+| `basic` | Standard recording workflow | `{ sampleRate: 44100, channels: 1 }` |
+| `compression` | Compressed audio output | `{ sampleRate: 44100, channels: 1, output: { compressed: { enabled: true, format: 'aac' } } }` |
+| `high-frequency` | High-frequency dual timing | `{ sampleRate: 48000, intervalAnalysis: 25, interval: 10 }` |
+| `multi-channel` | Stereo recording | `{ sampleRate: 44100, channels: 2 }` |
+| `pause-resume` | Pause/resume workflow | Start → pause → resume → stop via CDP |
+| `error-handling` | Error scenarios | `{ sampleRate: 999999 }` |
 
 ## Development Iteration Loop
 
@@ -231,30 +240,11 @@ yarn playwright test e2e-web/agent-validation-web.spec.ts
  screenshot.sh label          <- visual verification
      |
      v
+ native-logs.sh android/ios   <- check native logs (if needed)
+     |
+     v
  Iterate or run E2E
 ```
-
-## Log Management
-
-### Development Validation Logs
-**Location**: `apps/playground/logs/agent-validation/`
-**Generated by**: `yarn agent:dev <feature> <platform>`
-**Retention**: Automatically deleted on success, preserved on failure
-
-Example: `logs/agent-validation/basic-android-20250607-182502.log`
-
-### Full Validation Logs
-**Location**: `apps/playground/logs/full-validation/`
-**Generated by**: `yarn agent:full <platform>`
-
-Example: `logs/full-validation/android-unit-tests-20250607-183045.log`
-
-### Log Features
-- Project-relative paths (no permission issues)
-- Git-ignored (never committed)
-- Specific test failures with line numbers and error messages
-- Automatic cleanup on success, preserved on failure
-- Manual cleanup: `yarn agent:cleanup`
 
 ## Available Routes
 
@@ -276,12 +266,9 @@ Example: `logs/full-validation/android-unit-tests-20250607-183045.log`
 
 | Variable | Default | Scope |
 |----------|---------|-------|
-| `WATCHER_PORT` | `7365` | All |
-| `PLATFORM` | auto-detect | Native scripts |
-| `CDP_TIMEOUT` | `5000` | Native CDP |
-| `IOS_SIMULATOR` | -- | iOS target filter |
-| `ANDROID_DEVICE` | -- | Android target filter |
-| `WEB_HEADLESS` | `false` | Web browser |
+| `WATCHER_PORT` | `7365` | All (Metro port) |
+| `CDP_TIMEOUT` | `5000` | CDP bridge connection timeout |
+| `WEB_HEADLESS` | `false` | Web browser launch mode |
 | `CDP_PORT` | `9222` | Web browser CDP port |
 
 ## Architecture
@@ -291,20 +278,22 @@ Example: `logs/full-validation/android-unit-tests-20250607-183045.log`
 |  AI Agent                                        |
 |                                                  |
 |  app-navigate.sh / app-state.sh / screenshot.sh  |
-|       |                        |                 |
-|       v                        v                 |
-|  cdp-bridge.js           web-browser.js          |
-|  (WebSocket CDP)         (Playwright CDP)        |
-+-------+------------------------+-----------------+
-        |                        |
-        v                        v
-   Metro :7365              Chromium :9222
-   /json/list               connectOverCDP
-        |                        |
-        v                        v
-   Hermes Runtime           Browser JS Runtime
-        |                        |
-        +------------+-----------+
+|                      |                           |
+|                      v                           |
+|               cdp-bridge.mjs                     |
+|          (unified CDP entry point)               |
+|              /            \                      |
++-------------/--------------\---------------------+
+             /                \
+            v                  v
+       Metro :7365        Chrome :9222
+       /json/list         /json/list
+            |                  |
+            v                  v
+    Hermes Runtime      Browser JS Runtime
+    (Android/iOS)            (Web)
+            |                  |
+            +--------+---------+
                      v
            globalThis.__AGENTIC__
            (navigate, getRoute, getState, goBack,
@@ -313,12 +302,14 @@ Example: `logs/full-validation/android-unit-tests-20250607-183045.log`
                      |
            AgenticBridgeSync (React)
            syncs route + audio state + recorder
+
+   web-browser.mjs → browser lifecycle only (launch/close/logs)
 ```
 
 ## Agent Rules
 
 ### Required for All Work
-- Always validate features with `yarn agent:dev` or the CDP bridge
+- Validate features via CDP bridge or shell utility scripts
 - Test on at least one platform
 - Fix issues immediately when found
 - Include actual command output in responses
@@ -343,6 +334,9 @@ Example: `logs/full-validation/android-unit-tests-20250607-183045.log`
 | `Playwright not installed` | `yarn playwright install chromium` |
 | Browser crash (non-headless) | Uses system Chrome -- verify Chrome is installed |
 | Web route not updating | Wait for `AgenticBridgeSync` render cycle (~1s after navigate) |
-| Wrong native target selected | Set `IOS_SIMULATOR` or `ANDROID_DEVICE` env var |
+| Wrong native target selected | Use `--device <name>` flag to target specific device |
 | `Recorder not available` | `AgenticBridgeSync` not mounted -- ensure app is on a screen with the provider |
 | Recording config error | Check config is JSON-serializable (no function callbacks) |
+| Native crash / Kotlin type error | `scripts/agentic/native-logs.sh android` — check for serialization errors |
+| No Android targets in `/json/list` | CDP bridge retries up to 5 times; ensure app is running and connected to Metro |
+| Web not discovered | Ensure browser was launched with `web-browser.mjs launch` and `.agent/web-browser.mjson` exists |

@@ -171,7 +171,7 @@ export function useAudioTranscription() {
           } else {
             // Use the PCM data directly since it already has a WAV header
             transcribeParams.audioUri = URL.createObjectURL(
-              new Blob([audioData.pcmData], { type: 'audio/wav' })
+              new Blob([audioData.pcmData as Uint8Array<ArrayBuffer>], { type: 'audio/wav' })
             )
           }
         } else {

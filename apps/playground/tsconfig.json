@@ -20,7 +20,8 @@
                 "../../packages/react-native-essentia/src/*"
             ],
             "@siteed/expo-audio-ui": ["../../packages/expo-audio-ui/src/index"],
-            "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"]
+            "@siteed/expo-audio-ui/*": ["../../packages/expo-audio-ui/src/*"],
+            "whisper.rn": ["./node_modules/whisper.rn/lib/typescript/index.d.ts"]
         },
         "module": "esnext"
     },

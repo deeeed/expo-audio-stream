@@ -209,9 +209,9 @@ yarn storybook:ios
 yarn storybook:android
 yarn storybook:web
 
-# Run agent validation
-yarn agent:storybook:ios
-yarn agent:storybook:android
+# Run E2E validation
+yarn e2e:ios:storybook
+yarn e2e:android:storybook
 ```
 
 ### Step 8: Update Imports

@@ -7,22 +7,32 @@
 #   scripts/agentic/app-state.sh eval "1+1"               # Arbitrary JS
 #   scripts/agentic/app-state.sh can-go-back              # Can navigate back?
 #   scripts/agentic/app-state.sh go-back                  # Navigate back
+#   scripts/agentic/app-state.sh --device "Pixel 6a" state  # Target specific device
 
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-COMMAND="${1:-route}"
-shift || true
+# -- Parse --device flag ---------------------------------------------------
+DEVICE_FLAG=""
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --device)
+      DEVICE_FLAG="--device $2"
+      shift 2
+      ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
 
-EFFECTIVE_PLATFORM="${PLATFORM:-}"
+COMMAND="${POSITIONAL[0]:-route}"
+# Remaining positional args after the command
+EXTRA_ARGS=("${POSITIONAL[@]:1}")
 
-# Choose bridge: web-browser.js for web, cdp-bridge.js for native
-if [ "$EFFECTIVE_PLATFORM" = "web" ]; then
-  BRIDGE="node scripts/agentic/web-browser.js"
-else
-  BRIDGE="node scripts/agentic/cdp-bridge.js"
-fi
+# All platforms go through cdp-bridge.mjs (unified entry point)
+# shellcheck disable=SC2086
+BRIDGE="node scripts/agentic/cdp-bridge.mjs $DEVICE_FLAG"
 
 case "$COMMAND" in
   route)
@@ -32,7 +42,7 @@ case "$COMMAND" in
     $BRIDGE get-state
     ;;
   eval)
-    $BRIDGE eval "$@"
+    $BRIDGE eval "${EXTRA_ARGS[@]}"
     ;;
   can-go-back)
     $BRIDGE can-go-back
@@ -41,7 +51,7 @@ case "$COMMAND" in
     $BRIDGE go-back
     ;;
   *)
-    echo "Usage: app-state.sh <command> [args...]"
+    echo "Usage: app-state.sh [--device <name>] <command> [args...]"
     echo ""
     echo "Commands:"
     echo "  route                  Current route path"
@@ -50,8 +60,8 @@ case "$COMMAND" in
     echo "  can-go-back            Check if navigation can go back"
     echo "  go-back                Navigate back"
     echo ""
-    echo "Environment:"
-    echo "  PLATFORM=web           Use web bridge instead of native CDP"
+    echo "Options:"
+    echo "  --device <name>        Target a specific device (substring match)"
     exit 1
     ;;
 esac

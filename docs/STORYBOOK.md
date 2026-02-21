@@ -111,21 +111,17 @@ yarn storybook                       # Library web (localhost:6068)
 ```
 
 
-### Agent Validation Commands
+### Validation Commands
 ```bash
 cd apps/playground
-
-# Fast validation (< 1 minute)
-yarn agent:storybook                 # Complete validation pipeline
-yarn validate:storybook              # Alias for above
-
-# Platform-specific validation with screenshots
-yarn agent:storybook:ios             # iOS validation + screenshots
-yarn agent:storybook:android         # Android validation + screenshots
 
 # E2E testing
 yarn e2e:android:storybook           # Android Detox tests
 yarn e2e:ios:storybook               # iOS Detox tests
+
+# CDP bridge validation
+scripts/agentic/app-navigate.sh "/(tabs)/record"
+scripts/agentic/screenshot.sh storybook-check
 ```
 
 ### Individual Validation Steps
@@ -194,7 +190,7 @@ Stories are automatically loaded from:
 ### Critical Files
 - **DO NOT DELETE**: Root `/index.js` - Required for module resolution
 - **Auto-generated**: `.rnstorybook/storybook.requires.ts` - Run `sb-rn-get-stories`
-- **Protected**: `scripts/agent.sh` - Core validation framework
+- **Protected**: `scripts/agentic/cdp-bridge.mjs` - Core CDP bridge
 
 ## Current Story Inventory
 
@@ -326,5 +322,5 @@ cat logs/storybook-validation/validation-*.log
 ## Related Documentation
 
 - [Migration Guide](./STORYBOOK_MIGRATION_GUIDE.md) - Step-by-step component migration
-- [Agent Workflow](./AGENT_WORKFLOW.md) - Complete agentic framework documentation
+- [Agentic Feedback Loops](../apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md) - Complete agentic framework documentation
 - [Testing Strategy](../packages/expo-audio-studio/docs/TESTING_STRATEGY.md) - Overall testing approach
