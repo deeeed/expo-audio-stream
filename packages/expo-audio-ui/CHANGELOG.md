@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.7.1] - 2026-02-21
+### Changed
+- feat(playground): CDP agentic bridge for multi-platform automation ([48d7dda](https://github.com/deeeed/expo-audio-stream/commit/48d7dda2b017c9b9029c716ea1c0b4dc18a135c9))
+- chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#305) ([f8ff916](https://github.com/deeeed/expo-audio-stream/commit/f8ff916865ae9139282cad088c6b920adb59f6c2))
+- Revert "chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#303)" (#304) ([6ef8a2f](https://github.com/deeeed/expo-audio-stream/commit/6ef8a2f91973055fc026c3190355bb375052b699))
+- chore: upgrade to Expo SDK 54 (React Native 0.81, React 19.1) (#303) ([822d82c](https://github.com/deeeed/expo-audio-stream/commit/822d82c007da13fdb8dc85698a7b87f8613e5383))
+- chore(root): release 0.7.0 ([3a700e3](https://github.com/deeeed/expo-audio-stream/commit/3a700e3691b194931dfd38d9828c77f3c65cb1c6))
 ## [0.7.0] - 2025-07-31
 ### Changed
 - fix(expo-audio-ui): prevent Reanimated crashes in AudioVisualizer animations ([ea01bb3](https://github.com/deeeed/expo-audio-stream/commit/ea01bb3ac3b41bf655a7ac5efa513a07f7836dff))
@@ -74,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Seamless integration with @siteed/expo-audio-studio
 - Feature: Support for iOS, Android, and web platforms
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.0...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.1...HEAD
+[0.7.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.0...@siteed/expo-audio-ui@0.7.1
 [0.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.6.0...@siteed/expo-audio-ui@0.7.0
 [0.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.5.0...@siteed/expo-audio-ui@0.6.0
 [0.5.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.4.0...@siteed/expo-audio-ui@0.5.0
