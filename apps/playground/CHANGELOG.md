@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.8.0] - 2026-02-21
+
+### Changed
+- add compressed recording support for validation
+
+### Fixed
+- feat(playground): fix cdp-bridge bugs and add wake-devices script
+- include CHANGELOG.md in deploy script version commits
+
+
 ## [1.7.0] - 2026-02-16
 
 ### Added
@@ -189,7 +199,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.7.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.0...HEAD
+[1.8.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.7.0...audio-playground@1.8.0
 [1.7.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.6.0...audio-playground@1.7.0
 [1.6.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.1...audio-playground@1.6.0
 [1.5.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.0...audio-playground@1.5.1
