@@ -13,6 +13,7 @@
         "web": "NODE_ENV=development bash scripts/agentic/start-metro.sh && node scripts/agentic/web-browser.mjs launch",
         "devices": "node scripts/agentic/cdp-bridge.mjs list-devices",
         "reload": "bash scripts/agentic/device-cmd.sh reload",
+        "wake": "bash scripts/agentic/wake-devices.sh",
         "debug": "bash scripts/agentic/device-cmd.sh debug",
         "dev-menu": "bash scripts/agentic/device-cmd.sh dev-menu",
         "typecheck": "bash scripts/typecheck.sh",

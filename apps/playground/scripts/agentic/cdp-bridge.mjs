@@ -38,6 +38,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { Buffer } from 'node:buffer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -72,7 +73,8 @@ function parseArgs(argv) {
 
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === '--device' && i + 1 < raw.length) {
-      deviceFilter = raw[++i];
+      i += 1;
+      deviceFilter = raw[i];
     } else {
       rest.push(raw[i]);
     }
@@ -233,7 +235,19 @@ async function discoverWebTargets(metroPort, WebSocketImpl) {
  * are found — handles the race condition where Android connects to Metro
  * but Hermes hasn't reported pages yet.
  */
-async function discoverAllTargets(port, WebSocketImpl) {
+async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
+  // Fast-path: if the caller explicitly wants the web device, skip native
+  // discovery entirely — native probes hang for 10s+ when the native app
+  // doesn't have __AGENTIC__ installed.
+  if (deviceFilter && deviceFilter.toLowerCase() === 'web') {
+    const webTargets = await discoverWebTargets(port, WebSocketImpl);
+    if (webTargets.length > 0) return webTargets;
+    throw new Error(
+      'No web device found. Start the browser with: yarn web\n' +
+      '(or: node scripts/agentic/web-browser.mjs launch)'
+    );
+  }
+
   const targets = await fetchTargets(port);
 
   if (!Array.isArray(targets) || targets.length === 0) {
@@ -379,7 +393,7 @@ function createWSClient(wsUrl, timeout, WebSocketImpl) {
       clearTimeout(timer);
       resolve({
         /** Send a CDP command and wait for the response */
-        send(method, params = {}, sendTimeout) {
+        send(method, params, sendTimeout) {
           return new Promise((resolve, reject) => {
             const id = ++msgId;
             const sendTimer = sendTimeout
@@ -534,15 +548,15 @@ const COMMANDS = {
     const label = args[0] || 'screenshot';
     const timestamp = new Date()
       .toISOString()
-      .replace(/[:.]/g, '-')
-      .replace('T', '_')
+      .replaceAll(/[:.]/g, '-')
+      .replaceAll('T', '_')
       .slice(0, 19);
 
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
     // Build filename including device name for multi-device disambiguation
     const safeName = (deviceName || 'unknown')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replaceAll(/[^a-zA-Z0-9_-]/g, '_')
       .substring(0, 30);
     const filename = `${timestamp}_${label}_${safeName}.png`;
     const filepath = path.join(SCREENSHOT_DIR, filename);
@@ -643,7 +657,7 @@ function resolveAndroidSerial(deviceName) {
   for (const line of lines) {
     const modelMatch = line.match(/model:(\S+)/);
     if (modelMatch) {
-      const model = modelMatch[1].toLowerCase().replace(/_/g, ' ');
+      const model = modelMatch[1].toLowerCase().replaceAll(/_/g, ' ');
       if (filter.includes(model) || model.includes(filter.split(' ')[0].toLowerCase())) {
         return line.split(/\s+/)[0];
       }
@@ -788,13 +802,21 @@ if (command === 'list-devices') {
       devices.push(name);
     }
   }
+  // Also check for web browser target
+  const webTargets = await discoverWebTargets(port, WebSocketImpl);
+  for (const wt of webTargets) {
+    if (!seen.has(wt.deviceName)) {
+      seen.add(wt.deviceName);
+      devices.push(wt.deviceName);
+    }
+  }
   console.log(JSON.stringify({ devices, count: devices.length }, null, 2));
   process.exit(0);
 }
 
 try {
   // Discover all agentic targets (no filtering yet)
-  const allTargets = await discoverAllTargets(port, WebSocketImpl);
+  const allTargets = await discoverAllTargets(port, WebSocketImpl, deviceFilter);
 
   const handler = COMMANDS[command];
   if (!handler) {
