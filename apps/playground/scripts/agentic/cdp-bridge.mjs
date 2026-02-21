@@ -315,12 +315,16 @@ async function discoverAllTargets(port, WebSocketImpl) {
 
   // Final fallback: if still no agentic target, use highest page number candidate
   if (results.length === 0) {
+    const fallbackTarget = candidates[0];
+    const fallbackName = fallbackTarget.deviceName || '(unnamed)';
     process.stderr.write(
-      `[cdp-bridge] Warning: No target with __AGENTIC__ found after retries. Using best candidate.\n`
+      `[cdp-bridge] Warning: No __AGENTIC__ target found after ${DISCOVERY_RETRIES} retries ` +
+      `(${DISCOVERY_RETRIES * DISCOVERY_RETRY_DELAY_MS / 1000}s). ` +
+      `Falling back to best candidate: "${fallbackName}" (${fallbackTarget.webSocketDebuggerUrl})\n`
     );
     results.push({
-      wsUrl: candidates[0].webSocketDebuggerUrl,
-      deviceName: candidates[0].deviceName || '',
+      wsUrl: fallbackTarget.webSocketDebuggerUrl,
+      deviceName: fallbackName,
     });
   }
 
@@ -741,7 +745,6 @@ Routes:
   /(tabs)/transcription   Transcription tab
   /(tabs)/files           Files tab
   /(tabs)/more            More tab
-  /(tabs)/agent-validation  Agent validation page
   /minimal                Minimal recording test
   /trim                   Audio trimming
   /decibel                Decibel meter

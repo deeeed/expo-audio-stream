@@ -9,7 +9,6 @@
 #   scripts/agentic/app-navigate.sh --device "Pixel 6a" /(tabs)/record
 #   scripts/agentic/app-navigate.sh /(tabs)/record
 #   scripts/agentic/app-navigate.sh /minimal
-#   scripts/agentic/app-navigate.sh /(tabs)/agent-validation
 
 set -euo pipefail
 
@@ -44,7 +43,6 @@ if [ -z "$ROUTE" ]; then
   echo "  /(tabs)/transcription     Transcription"
   echo "  /(tabs)/files             Recorded files"
   echo "  /(tabs)/more              More options"
-  echo "  /(tabs)/agent-validation  Agent test page"
   echo "  /minimal                  Minimal recording test"
   echo "  /trim                     Audio trimming"
   echo "  /decibel                  Decibel meter"

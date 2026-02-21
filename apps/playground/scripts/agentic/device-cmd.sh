@@ -36,6 +36,7 @@ case "${CMD:-}" in
       echo '{"opened":true,"method":"metro-http"}'
     else
       # Fallback: trigger via CDP eval
+      echo "[device-cmd] Metro HTTP failed, falling back to CDP eval" >&2
       node scripts/agentic/cdp-bridge.mjs "${DEVICE_FLAG[@]}" eval \
         "NativeModules?.DevSettings?.openDebugger?.() ?? 'not supported'"
     fi
@@ -47,6 +48,7 @@ case "${CMD:-}" in
       echo '{"opened":true,"method":"metro-http"}'
     else
       # Fallback: platform-specific or CDP eval
+      echo "[device-cmd] Metro HTTP failed, falling back to CDP eval" >&2
       node scripts/agentic/cdp-bridge.mjs "${DEVICE_FLAG[@]}" eval \
         "NativeModules?.DevSettings?.show?.() ?? 'not supported'"
     fi

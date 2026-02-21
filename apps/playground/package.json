@@ -47,14 +47,12 @@
         "e2e:android:record": "detox test -c android.att.debug -o e2e/record.test.ts",
         "e2e:android:screenshots": "detox test -c android.att.debug -o e2e/screenshots.test.ts",
         "e2e:android:import": "detox test -c android.att.debug -o e2e/import.test.ts",
-        "e2e:android:agent-validation": "detox test -c android.att.debug -o e2e/agent-validation.test.ts",
         "e2e:android:high-frequency": "detox test -c android.att.debug -o e2e/high-frequency.test.ts",
         "e2e:android:performance": "detox test -c android.att.debug -o e2e/stop-recording-performance.test.ts",
         "detox:build:ios": "detox build -c ios.sim.debug",
         "e2e:ios:record": "detox test -c ios.sim.debug -o e2e/record.test.ts",
         "e2e:ios:screenshots": "detox test -c ios.sim.debug -o e2e/screenshots.test.ts",
         "e2e:ios:import": "detox test -c ios.sim.debug -o e2e/import.test.ts",
-        "e2e:ios:agent-validation": "detox test -c ios.sim.debug -o e2e/agent-validation.test.ts",
         "e2e:ios:high-frequency": "detox test -c ios.sim.debug -o e2e/high-frequency.test.ts",
         "e2e:ios:performance": "detox test -c ios.sim.debug -o e2e/stop-recording-performance.test.ts",
         "e2e:ios:storybook": "EXPO_PUBLIC_STORYBOOK=true detox test -c ios.sim.debug -o e2e/storybook-validation.test.ts",
@@ -82,8 +80,7 @@
         "build-storybook": "storybook build",
         "test:stories": "jest --config jest.config.stories.js",
         "test:stories:watch": "jest --config jest.config.stories.js --watch",
-        "test:stories:coverage": "jest --config jest.config.stories.js --coverage",
-        "e2e:web:agent-validation": "yarn playwright test e2e-web/agent-validation-web.spec.ts"
+        "test:stories:coverage": "jest --config jest.config.stories.js --coverage"
     },
     "dependencies": {
         "@expo/metro-runtime": "~6.1.2",
@@ -137,7 +134,7 @@
         "react-native": "0.81.5",
         "react-native-edge-to-edge": "1.6.0",
         "react-native-gesture-handler": "~2.28.0",
-        "react-native-paper": "^5.14.5",
+        "react-native-paper": "^5.15.0",
         "react-native-paper-dates": "^0.22.26",
         "react-native-quick-base64": "^2.1.2",
         "react-native-reanimated": "~4.1.1",

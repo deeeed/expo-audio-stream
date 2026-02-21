@@ -10,13 +10,13 @@
 #   4. Save screenshot to .agent/screenshots/
 #
 # Environment:
-#   WATCHER_PORT   Dev server port (default: 8110)
+#   WATCHER_PORT   Dev server port (default: 7365)
 
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-PORT="${WATCHER_PORT:-8110}"
+PORT="${WATCHER_PORT:-7365}"
 LABEL="${1:-web-smoke}"
 DIR=".agent/screenshots"
 mkdir -p "$DIR"
@@ -68,7 +68,7 @@ if command -v npx &>/dev/null && npx playwright --version &>/dev/null 2>&1; then
 const { chromium } = require('playwright');
 
 (async () => {
-  const port = process.env.WATCHER_PORT || '8110';
+  const port = process.env.WATCHER_PORT || '7365';
   const filepath = process.argv[2];
 
   const browser = await chromium.launch({ headless: true });

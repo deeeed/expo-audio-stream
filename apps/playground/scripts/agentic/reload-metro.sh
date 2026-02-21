@@ -1,4 +1,5 @@
 #!/bin/bash
-# Thin wrapper for backwards compatibility. Use device-cmd.sh for full command set.
+# Reload the JS bundle on connected device(s) via CDP Page.reload.
+# Supports --device <name> flag for multi-device targeting.
 cd "$(dirname "$0")/../.."
-exec scripts/agentic/device-cmd.sh "$@" reload
+exec node scripts/agentic/cdp-bridge.mjs "$@" reload
