@@ -6,7 +6,7 @@ import React from 'react';
 let skiaLoaded = false;
 const skiaPromise = LoadSkiaWeb({
     locateFile: (path) => {
-        const SkiaVersion = '0.39.1'
+        const SkiaVersion = '0.40.0'
         const url = `https://cdn.jsdelivr.net/npm/canvaskit-wasm@${SkiaVersion}/bin/full/${path}`;
         console.log(`Loading Skia: ${url}`);
         return url;

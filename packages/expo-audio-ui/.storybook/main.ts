@@ -1,8 +1,13 @@
+// This file has been automatically migrated to valid ESM format by Storybook.
+import { createRequire } from "node:module";
 import * as path from 'path';
 import { join, dirname } from 'path';
 import type { StorybookConfig } from '@storybook/react-webpack5';
 import type { Configuration as WebpackConfig } from 'webpack';
-import * as webpack from 'webpack';
+import webpack from 'webpack';
+
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 const production = process.env.NODE_ENV === 'production';
 
