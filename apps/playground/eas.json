@@ -80,7 +80,9 @@
       },
       "cache": {
         "disabled": false,
-        "paths": ["node_modules"]
+        "paths": [
+          "node_modules"
+        ]
       }
     }
   },
@@ -91,6 +93,12 @@
       },
       "android": {
         "track": "internal",
+        "releaseStatus": "draft"
+      }
+    },
+    "open-testing": {
+      "android": {
+        "track": "beta",
         "releaseStatus": "draft"
       }
     }

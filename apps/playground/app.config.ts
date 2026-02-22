@@ -209,7 +209,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                             LSApplicationCategoryType: "public.app-category.utilities"
                         }
                     },
-                    android: {},
+                    android: {
+                        // Keep .so files uncompressed so AGP 8.5+ can zipalign them at 16KB boundaries
+                        // Required for Google Play's 16KB page size alignment check (Android 15+)
+                        useLegacyPackaging: false,
+                    },
                 },
             ],
             'onnxruntime-react-native',

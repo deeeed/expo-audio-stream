@@ -61,7 +61,7 @@
         "e2e:android:storybook": "EXPO_PUBLIC_STORYBOOK=true detox test -c android.att.debug -o e2e/storybook-validation.test.ts",
         "e2e:performance:compare": "./scripts/run-performance-comparison.sh",
         "e2e:performance:test": "./scripts/run-e2e-performance-tests.sh",
-        "open:ios": "open -a /Applications/Xcode-26.2.0.app ios/AudioDevPlayground.xcworkspace",
+        "open:ios": "open -a Xcode ios/AudioDevPlayground.xcworkspace 2>/dev/null || $(dirname $(dirname $(xcode-select -p)))/Contents/MacOS/Xcode $(pwd)/ios/AudioDevPlayground.xcworkspace &",
         "open:android": "open -a \"Android Studio\" android",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
         "serve:dev": "yarn clean && NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/",
