@@ -21,6 +21,9 @@ add_library(sherpa-onnx-dummy SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/dummy/dummy.cpp
 )
 
+# 16KB page size alignment for Android 15+ (required for Play Store)
+target_link_options(sherpa-onnx-dummy PRIVATE "-Wl,-z,max-page-size=16384")
+
 # Check if we should include TurboModule support
 if(${NEW_ARCHITECTURE_ENABLED})
     # These paths would be needed for TurboModule implementation

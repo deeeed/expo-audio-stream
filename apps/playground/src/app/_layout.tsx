@@ -21,6 +21,11 @@ import { AgenticBridgeSync } from '../components/AgenticBridgeSync'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 if (__DEV__) require('../agentic-bridge')
 
+// NOTE: @expo/vector-icons has NO app.plugin and does NOT auto-embed fonts.
+// Icon fonts (MaterialCommunityIcons, Ionicons, etc.) are explicitly embedded
+// via the expo-font plugin in app.config.ts. If you add a new icon set, add
+// its .ttf to the fonts list there — otherwise icons will be blank in production.
+
 const logger = getLogger('RootLayout')
 
 export default function RootLayout() {

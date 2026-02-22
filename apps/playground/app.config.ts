@@ -158,7 +158,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             [
                 'expo-font',
                 {
-                    fonts: ['./assets/Roboto/Roboto-Regular.ttf'],
+                    fonts: [
+                        './assets/Roboto/Roboto-Regular.ttf',
+                        // @expo/vector-icons fonts used in this app (must be explicitly embedded — no auto-plugin)
+                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf',
+                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf',
+                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf',
+                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf',
+                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Entypo.ttf',
+                    ],
                 },
             ],
             [

@@ -123,6 +123,8 @@ ${newConfigurations}
         setProperty('org.gradle.daemon', 'true');
         setProperty('org.gradle.configureondemand', 'true');
         setProperty('org.gradle.caching', 'true');
+        // 16KB page size alignment for Android 15+ (Play Store requirement)
+        setProperty('android.experimental.enablePageSizeAlignment', 'true');
         
         return config;
     });

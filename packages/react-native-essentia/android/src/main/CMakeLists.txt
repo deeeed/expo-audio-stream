@@ -91,5 +91,8 @@ add_library(react-native-essentia SHARED
 # Ensure C++17 is used for the wrapper code
 target_compile_features(react-native-essentia PRIVATE cxx_std_17)
 
+# 16KB page size alignment for Android 15+ (required for Play Store)
+target_link_options(react-native-essentia PRIVATE "-Wl,-z,max-page-size=16384")
+
 # Link libraries to react-native-essentia
 target_link_libraries(react-native-essentia essentia android log)

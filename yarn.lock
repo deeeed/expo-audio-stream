@@ -12048,7 +12048,7 @@ __metadata:
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-paper: "npm:^5.15.0"
     react-native-paper-dates: "npm:^0.22.26"
-    react-native-quick-base64: "npm:^2.1.2"
+    react-native-quick-base64: "npm:2.2.2"
     react-native-reanimated: "npm:~4.1.1"
     react-native-safe-area-context: "npm:~5.6.0"
     react-native-screens: "npm:~4.16.0"
@@ -30224,15 +30224,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-quick-base64@npm:^2.1.2":
-  version: 2.1.2
-  resolution: "react-native-quick-base64@npm:2.1.2"
-  dependencies:
-    base64-js: "npm:^1.5.1"
+"react-native-quick-base64@npm:2.2.2":
+  version: 2.2.2
+  resolution: "react-native-quick-base64@npm:2.2.2"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 10/20b205612417a6c39452ad3ebd205d74fcfaa244832ec9e717b87ee075bf28076bf2445e8f690aad8cf0be6f3da89b4148eb8379d0b71d1c953bd06f66cc7c56
+  checksum: 10/aeebf6f520830dc042201e2a72a381fb29d1376fe0acdf9e266c8a7e3499f45534b11b27b2241bf6cf007ff82874b6def9fa52d62f0027953fc2e6f8d0009266
   languageName: node
   linkType: hard
 
