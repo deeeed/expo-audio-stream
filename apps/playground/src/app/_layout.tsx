@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import Constants from 'expo-constants'
+import { requireNativeModule } from 'expo-modules-core'
+import { Platform } from 'react-native'
 import { Stack } from 'expo-router/stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { SystemBars } from 'react-native-edge-to-edge'
@@ -21,10 +23,28 @@ import { AgenticBridgeSync } from '../components/AgenticBridgeSync'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 if (__DEV__) require('../agentic-bridge')
 
-// NOTE: @expo/vector-icons has NO app.plugin and does NOT auto-embed fonts.
-// Icon fonts (MaterialCommunityIcons, Ionicons, etc.) are explicitly embedded
-// via the expo-font plugin in app.config.ts. If you add a new icon set, add
-// its .ttf to the fonts list there — otherwise icons will be blank in production.
+// WHY this is needed on Android production only:
+// In dev, Metro serves fonts as real file URIs so Font.loadAsync works normally.
+// In production Hermes bundles, require('font.ttf') returns a numeric asset registry
+// ID — Font.loadAsync routes all sources through expo-asset's downloadAsync, which
+// cannot resolve those IDs on Android and fails with an android_res:// URI error.
+//
+// The expo-font plugin (app.config.ts) already embeds fonts in assets/fonts/ and
+// ReactFontManager registers them under their filename (MaterialCommunityIcons, etc.),
+// but @expo/vector-icons looks up different family names (material-community, etc.).
+// Fix: call ExpoFontLoader.loadAsync directly to register aliases, bypassing expo-asset.
+// Triple-slash (asset:///) is required: FontLoaderModule strips 9 chars from the URI,
+// so 'asset:///fonts/Name.ttf' → 'fonts/Name.ttf' for Typeface.createFromAsset().
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ExpoFontLoader: any = null
+if (Platform.OS === 'android') {
+    try {
+        ExpoFontLoader = requireNativeModule('ExpoFontLoader')
+    } catch {
+        // not available
+    }
+}
 
 const logger = getLogger('RootLayout')
 
@@ -32,7 +52,22 @@ export default function RootLayout() {
     const baseUrl = Constants.expoConfig?.experiments?.baseUrl ?? ''
     const theme = useTheme()
 
-    // No longer checking for updates on app startup
+    useEffect(() => {
+        if (Platform.OS !== 'android' || !ExpoFontLoader?.loadAsync) return
+        async function loadIconFonts() {
+            try {
+                await ExpoFontLoader.loadAsync('material-community', 'asset:///fonts/MaterialCommunityIcons.ttf')
+                await ExpoFontLoader.loadAsync('ionicons',           'asset:///fonts/Ionicons.ttf')
+                await ExpoFontLoader.loadAsync('material',           'asset:///fonts/MaterialIcons.ttf')
+                await ExpoFontLoader.loadAsync('FontAwesome',        'asset:///fonts/FontAwesome.ttf')
+                await ExpoFontLoader.loadAsync('entypo',             'asset:///fonts/Entypo.ttf')
+            } catch (e) {
+                logger.error('Failed to register icon font aliases:', e)
+            }
+        }
+        loadIconFonts()
+    }, [])
+
     useEffect(() => {
         logger.log(`Base URL: ${baseUrl}`)
     }, [baseUrl])
