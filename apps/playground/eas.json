@@ -67,6 +67,11 @@
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "autoIncrement": true,
+      "ios": {
+        "env": {
+          "RNWHISPER_BUILD_FROM_SOURCE": "1"
+        }
+      },
       "android": {
         "buildType": "app-bundle",
         "cache": {
@@ -81,6 +86,9 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6739774966"
+      },
       "android": {
         "track": "internal",
         "releaseStatus": "draft"

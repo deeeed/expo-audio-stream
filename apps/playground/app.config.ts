@@ -160,13 +160,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 {
                     fonts: [
                         './assets/Roboto/Roboto-Regular.ttf',
-                        // @expo/vector-icons fonts used in this app (must be explicitly embedded — no auto-plugin)
-                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf',
-                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf',
-                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf',
-                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf',
-                        './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Entypo.ttf',
                     ],
+                    // @expo/vector-icons fonts: Android only — on iOS these are already
+                    // bundled by react-native-vector-icons CocoaPods resources.
+                    // Adding them here for iOS causes "Multiple commands produce" archive errors.
+                    android: {
+                        fonts: [
+                            './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf',
+                            './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf',
+                            './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf',
+                            './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf',
+                            './node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Entypo.ttf',
+                        ],
+                    },
                 },
             ],
             [
