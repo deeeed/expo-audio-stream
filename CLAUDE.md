@@ -103,6 +103,15 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ✅ `yarn workspace <pkg> build` (~1.5s) for single-package changes
 - ❌ Full monorepo `tsc --noEmit` for single-file changes — floods output with unrelated errors
 
+**EAS / prebuild — critical rules**
+- ❌ `expo prebuild` from monorepo root — creates spurious `/app.json` and `/eas.json` at root and contaminates the workspace
+- ✅ All prebuild/build commands run from `apps/playground/` only
+- ❌ `expo prebuild --clean` manually before a local EAS build — EAS local builds manage their own temp dir; manual prebuild is only for Xcode/screenshots workflows
+- ✅ Local builds: `yarn build:ios:production:local` / `yarn build:android:production:local` (both run `eas build --local`)
+- ✅ Switch ios/ variant via setup scripts only: `yarn setup:development` / `yarn setup:production`
+- ✅ After accidental production prebuild, restore dev workspace: `git checkout -- apps/playground/ios/`
+- ios/ workspace name reveals current variant: `AudioDevPlayground.*` = dev/preview, `AudioPlayground.*` = production
+
 ## Documentation
 
 - **Agentic workflow**: `apps/playground/docs/AGENT_STARTING_TEMPLATE.md`
