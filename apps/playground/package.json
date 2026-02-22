@@ -44,6 +44,7 @@
         "build:ios:development": "APP_VARIANT=development NODE_ENV=development npx eas build --platform ios --profile development --local",
         "build:ios:preview": "APP_VARIANT=preview NODE_ENV=development npx eas build --platform ios --profile preview --local",
         "build:ios:production": "NODE_ENV=production APP_VARIANT=production npx eas build --platform ios --profile production",
+        "build:ios:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform ios --profile production --local --no-wait",
         "detox:build:android": "detox build -c android.att.debug",
         "e2e:android:record": "detox test -c android.att.debug -o e2e/record.test.ts",
         "e2e:android:screenshots": "detox test -c android.att.debug -o e2e/screenshots.test.ts",
