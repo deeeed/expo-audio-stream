@@ -1,5 +1,6 @@
 package net.siteed.audiostream
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothProfile
@@ -7,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -1042,6 +1044,15 @@ class AudioDeviceManager(
      */
     private fun isBluetoothHeadsetConnected(): Boolean {
         try {
+            // BLUETOOTH_CONNECT permission is required on API 31+ for Bluetooth API access.
+            // Without it, BluetoothAdapter calls throw SecurityException.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    return false
+                }
+            }
+
             val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter() ?: return false
             if (!bluetoothAdapter.isEnabled) {
                 return false
