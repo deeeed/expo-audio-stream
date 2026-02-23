@@ -8,7 +8,7 @@
 
 > **useAudioDevices**(): `object`
 
-Defined in: [src/hooks/useAudioDevices.ts:9](https://github.com/deeeed/expo-audio-stream/blob/8a303b4d96988b97604123d74daaa406d9ec517c/packages/expo-audio-studio/src/hooks/useAudioDevices.ts#L9)
+Defined in: [src/hooks/useAudioDevices.ts:9](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/hooks/useAudioDevices.ts#L9)
 
 React hook for managing audio input devices
 
