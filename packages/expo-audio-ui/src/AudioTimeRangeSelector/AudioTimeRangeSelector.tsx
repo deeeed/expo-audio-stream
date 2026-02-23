@@ -27,7 +27,7 @@ interface AudioTimeRangeSelectorTheme {
 const DEFAULT_THEME: AudioTimeRangeSelectorTheme = {
     container: {
         backgroundColor: '#E5E5E5',
-        height: 40,
+        height: 48,
         borderRadius: 8,
     },
     selectedRange: {
@@ -36,7 +36,7 @@ const DEFAULT_THEME: AudioTimeRangeSelectorTheme = {
     },
     handle: {
         backgroundColor: '#007AFF',
-        width: 16,
+        width: 20,
     },
 }
 
@@ -145,7 +145,9 @@ export function AudioTimeRangeSelector({
                 'worklet'
                 const position = isStart ? startPosition : endPosition
                 const handleWidth = theme.handle.width
-                const maxX = containerWidth - handleWidth
+                const maxX = isStart
+                    ? containerWidth - handleWidth
+                    : containerWidth
 
                 const newPosition = position.value + event.changeX
                 const clampedX = Math.min(Math.max(0, newPosition), maxX)
