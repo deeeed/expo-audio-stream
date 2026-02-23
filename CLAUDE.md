@@ -145,3 +145,29 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - **Agentic workflow**: `apps/playground/docs/AGENT_STARTING_TEMPLATE.md`
 - **CDP bridge details**: `apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md`
 - **Testing strategy**: `packages/expo-audio-studio/docs/TESTING_STRATEGY.md`
+
+## Task Tracking
+
+Maintain a `.task.md` file in the project root. Update it:
+- **START** of any task → status: `working`, describe what you're doing
+- When **BLOCKED** → status: `blocked`, describe why
+- When **DONE** → status: `done`, summarize what was completed
+- When **IDLE** → status: `idle`
+
+Format:
+```
+## Current Task
+<one-liner>
+
+## Status
+working|blocked|done|idle
+
+## Progress
+- bullet 1
+- bullet 2 (3 max)
+
+## Last Updated
+<timestamp>
+```
+
+This file is read by the orchestrator to track progress across sessions. Keep it high-level.
