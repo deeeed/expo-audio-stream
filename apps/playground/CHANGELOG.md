@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.8.1] - 2026-02-23
+
+### Fixed
+- enlarge AudioTimeRangeSelector handles and fix end-handle clamping
+
+
 ## [1.8.0] - 2026-02-21
 
 ### Changed
@@ -200,7 +206,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.1...HEAD
+[1.8.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.0...audio-playground@1.8.1
 [1.8.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.7.0...audio-playground@1.8.0
 [1.7.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.6.0...audio-playground@1.7.0
 [1.6.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.5.1...audio-playground@1.6.0
