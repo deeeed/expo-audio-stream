@@ -531,29 +531,28 @@ export default function TrimScreen() {
                 </Button>
             </View>
             
-            <AudioTimeRangeSelector
-                durationMs={currentFile?.durationMs || 60000}
-                startTime={startTime}
-                endTime={endTime}
-                onRangeChange={handleRangeChange}
-                disabled={isProcessing}
-                theme={{
-                    container: {
-                        backgroundColor: colors.surfaceVariant,
-                        height: 40,
-                        borderRadius: 8,
-                    },
-                    selectedRange: {
-                        backgroundColor: colors.primary,
-                        opacity: 0.5,
-                    },
-                    handle: {
-                        backgroundColor: colors.primary,
-                        width: 12,
-                    },
-                }}
-            />
-            
+            <View style={{ paddingHorizontal: 16 }}>
+                <AudioTimeRangeSelector
+                    durationMs={currentFile?.durationMs || 60000}
+                    startTime={startTime}
+                    endTime={endTime}
+                    onRangeChange={handleRangeChange}
+                    disabled={isProcessing}
+                    theme={{
+                        container: {
+                            backgroundColor: colors.surfaceVariant,
+                        },
+                        selectedRange: {
+                            backgroundColor: colors.primary,
+                            opacity: 0.5,
+                        },
+                        handle: {
+                            backgroundColor: colors.primary,
+                        },
+                    }}
+                />
+            </View>
+
             {showManualInput && (
                 <View style={{ gap: 12, marginTop: 16 }}>
                     <NumberAdjuster
@@ -601,29 +600,28 @@ export default function TrimScreen() {
                 </View>
             </View>
             
-            <AudioTimeRangeSelector
-                durationMs={currentFile?.durationMs || 60000}
-                startTime={startTime}
-                endTime={endTime}
-                onRangeChange={handleRangeChange}
-                disabled={isProcessing}
-                theme={{
-                    container: {
-                        backgroundColor: colors.surfaceVariant,
-                        height: 40,
-                        borderRadius: 8,
-                    },
-                    selectedRange: {
-                        backgroundColor: colors.primary,
-                        opacity: 0.5,
-                    },
-                    handle: {
-                        backgroundColor: colors.primary,
-                        width: 12,
-                    },
-                }}
-            />
-            
+            <View style={{ paddingHorizontal: 16 }}>
+                <AudioTimeRangeSelector
+                    durationMs={currentFile?.durationMs || 60000}
+                    startTime={startTime}
+                    endTime={endTime}
+                    onRangeChange={handleRangeChange}
+                    disabled={isProcessing}
+                    theme={{
+                        container: {
+                            backgroundColor: colors.surfaceVariant,
+                        },
+                        selectedRange: {
+                            backgroundColor: colors.primary,
+                            opacity: 0.5,
+                        },
+                        handle: {
+                            backgroundColor: colors.primary,
+                        },
+                    }}
+                />
+            </View>
+
             {showManualInput && (
                 <View style={{ gap: 12, marginTop: 16, marginBottom: 16 }}>
                     <NumberAdjuster

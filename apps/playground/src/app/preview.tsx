@@ -300,8 +300,6 @@ export default function PreviewScreen() {
                 theme={{
                     container: {
                         backgroundColor: colors.surfaceVariant,
-                        height: 40,
-                        borderRadius: 8,
                     },
                     selectedRange: {
                         backgroundColor: colors.primary,
@@ -309,7 +307,6 @@ export default function PreviewScreen() {
                     },
                     handle: {
                         backgroundColor: colors.primary,
-                        width: 12,
                     },
                 }}
             />
