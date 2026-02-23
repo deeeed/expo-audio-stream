@@ -29,6 +29,7 @@ import android.media.AudioManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.telephony.PhoneStateListener
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.app.ActivityManager
 import java.util.UUID
@@ -116,6 +117,7 @@ class AudioRecorderManager(
     private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
     private var audioFocusRequest: Any? = null  // Type Any to handle both old and new APIs
     private var phoneStateListener: PhoneStateListener? = null
+    private var telephonyCallback: Any? = null  // TelephonyCallback for API 31+, typed as Any to avoid class verification issues on older APIs
     private var telephonyManager: TelephonyManager? = null
         get() {
             if (field == null) {
@@ -387,81 +389,102 @@ class AudioRecorderManager(
     val isRecording: Boolean
         get() = _isRecording.get()
 
+    /**
+     * Shared handler for call state changes, used by both the modern TelephonyCallback (API 31+)
+     * and the legacy PhoneStateListener (API < 31).
+     */
+    private fun handleCallStateChanged(state: Int) {
+        val stateStr = when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> "RINGING"
+            TelephonyManager.CALL_STATE_OFFHOOK -> "OFFHOOK"
+            TelephonyManager.CALL_STATE_IDLE -> "IDLE"
+            else -> "UNKNOWN"
+        }
+        LogUtils.d(CLASS_NAME, "Phone state changed to: $stateStr")
+
+        when (state) {
+            TelephonyManager.CALL_STATE_RINGING,
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                if (_isRecording.get() && !isPaused.get()) {
+                    LogUtils.d(CLASS_NAME, "Pausing recording due to incoming/ongoing call")
+                    mainHandler.post {
+                        pauseRecording(object : Promise {
+                            override fun resolve(value: Any?) {
+                                LogUtils.d(CLASS_NAME, "Successfully paused recording due to call")
+                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                    "reason" to "phoneCall",
+                                    "isPaused" to true
+                                ))
+                            }
+                            override fun reject(code: String, message: String?, cause: Throwable?) {
+                                LogUtils.e(CLASS_NAME, "Failed to pause recording on phone call", cause)
+                            }
+                        })
+                    }
+                }
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                if (_isRecording.get() && isPaused.get()) {
+                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
+                    LogUtils.d(CLASS_NAME, "Call ended, handling auto-resume (enabled: $autoResume)")
+                    if (autoResume) {
+                        mainHandler.post {
+                            resumeRecording(object : Promise {
+                                override fun resolve(value: Any?) {
+                                    LogUtils.d(CLASS_NAME, "Successfully resumed recording after call")
+                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                                        "reason" to "phoneCallEnded",
+                                        "isPaused" to false
+                                    ))
+                                }
+                                override fun reject(code: String, message: String?, cause: Throwable?) {
+                                    LogUtils.e(CLASS_NAME, "Failed to resume recording after phone call", cause)
+                                }
+                            })
+                        }
+                    } else {
+                        LogUtils.d(CLASS_NAME, "Auto-resume disabled, staying paused")
+                        eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
+                            "reason" to "phoneCallEnded",
+                            "isPaused" to true
+                        ))
+                    }
+                }
+            }
+        }
+    }
+
     private fun initializePhoneStateListener() {
         try {
             LogUtils.d(CLASS_NAME, "Initializing phone state listener...")
-            
+
             if (permissionUtils.checkPhoneStatePermission()) {
                 LogUtils.d(CLASS_NAME, "Phone state permission granted")
-                
-                phoneStateListener = object : PhoneStateListener() {
-                    override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                        val stateStr = when (state) {
-                            TelephonyManager.CALL_STATE_RINGING -> "RINGING"
-                            TelephonyManager.CALL_STATE_OFFHOOK -> "OFFHOOK"
-                            TelephonyManager.CALL_STATE_IDLE -> "IDLE"
-                            else -> "UNKNOWN"
-                        }
-                        LogUtils.d(CLASS_NAME, "Phone state changed to: $stateStr")
-
-                        when (state) {
-                            TelephonyManager.CALL_STATE_RINGING,
-                            TelephonyManager.CALL_STATE_OFFHOOK -> {
-                                if (_isRecording.get() && !isPaused.get()) {
-                                    LogUtils.d(CLASS_NAME, "Pausing recording due to incoming/ongoing call")
-                                    mainHandler.post {
-                                        pauseRecording(object : Promise {
-                                            override fun resolve(value: Any?) {
-                                                LogUtils.d(CLASS_NAME, "Successfully paused recording due to call")
-                                                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                                    "reason" to "phoneCall",
-                                                    "isPaused" to true
-                                                ))
-                                            }
-                                            override fun reject(code: String, message: String?, cause: Throwable?) {
-                                                LogUtils.e(CLASS_NAME, "Failed to pause recording on phone call", cause)
-                                            }
-                                        })
-                                    }
-                                }
-                            }
-                            TelephonyManager.CALL_STATE_IDLE -> {
-                                if (_isRecording.get() && isPaused.get()) {
-                                    val autoResume = if (::recordingConfig.isInitialized) recordingConfig.autoResumeAfterInterruption else false
-                                    LogUtils.d(CLASS_NAME, "Call ended, handling auto-resume (enabled: $autoResume)")
-                                    if (autoResume) {
-                                        mainHandler.post {
-                                            resumeRecording(object : Promise {
-                                                override fun resolve(value: Any?) {
-                                                    LogUtils.d(CLASS_NAME, "Successfully resumed recording after call")
-                                                    eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                                        "reason" to "phoneCallEnded",
-                                                        "isPaused" to false
-                                                    ))
-                                                }
-                                                override fun reject(code: String, message: String?, cause: Throwable?) {
-                                                    LogUtils.e(CLASS_NAME, "Failed to resume recording after phone call", cause)
-                                                }
-                                            })
-                                        }
-                                    } else {
-                                        LogUtils.d(CLASS_NAME, "Auto-resume disabled, staying paused")
-                                        eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
-                                            "reason" to "phoneCallEnded",
-                                            "isPaused" to true
-                                        ))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
 
                 val localTelephonyManager = telephonyManager
                 if (localTelephonyManager != null) {
                     try {
-                        localTelephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
-                        LogUtils.d(CLASS_NAME, "Successfully registered phone state listener")
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            // API 31+: Use modern TelephonyCallback which reliably fires on Android 12+
+                            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                                override fun onCallStateChanged(state: Int) {
+                                    handleCallStateChanged(state)
+                                }
+                            }
+                            telephonyCallback = callback
+                            localTelephonyManager.registerTelephonyCallback(context.mainExecutor, callback)
+                            LogUtils.d(CLASS_NAME, "Successfully registered TelephonyCallback (API 31+)")
+                        } else {
+                            // Legacy: PhoneStateListener for API < 31
+                            phoneStateListener = object : PhoneStateListener() {
+                                @Deprecated("Deprecated in API 31")
+                                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                                    handleCallStateChanged(state)
+                                }
+                            }
+                            localTelephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                            LogUtils.d(CLASS_NAME, "Successfully registered PhoneStateListener (legacy)")
+                        }
                     } catch (e: SecurityException) {
                         LogUtils.w(CLASS_NAME, "Missing permission for phone state listener: ${e.message}")
                     } catch (e: Exception) {
@@ -475,6 +498,30 @@ class AudioRecorderManager(
             }
         } catch (e: Exception) {
             LogUtils.e(CLASS_NAME, "Failed to initialize phone state listener", e)
+        }
+    }
+
+    /**
+     * Unregisters the phone state listener/callback, using the appropriate API for the device.
+     */
+    private fun unregisterPhoneStateListener() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val callback = telephonyCallback
+                if (callback != null) {
+                    telephonyManager?.unregisterTelephonyCallback(callback as TelephonyCallback)
+                    telephonyCallback = null
+                    LogUtils.d(CLASS_NAME, "Unregistered TelephonyCallback (API 31+)")
+                }
+            } else {
+                if (phoneStateListener != null) {
+                    telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+                    phoneStateListener = null
+                    LogUtils.d(CLASS_NAME, "Unregistered PhoneStateListener (legacy)")
+                }
+            }
+        } catch (e: Exception) {
+            LogUtils.w(CLASS_NAME, "Failed to unregister phone state listener: ${e.message}")
         }
     }
 
@@ -594,11 +641,7 @@ class AudioRecorderManager(
 
         } catch (e: Exception) {
             releaseAudioFocus()
-            try {
-                telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
-            } catch (e: Exception) {
-                LogUtils.w(CLASS_NAME, "Failed to unregister phone state listener: ${e.message}")
-            }
+            unregisterPhoneStateListener()
             promise.reject("UNEXPECTED_ERROR", "Unexpected error: ${e.message}", e)
         }
     }
@@ -1693,6 +1736,7 @@ class AudioRecorderManager(
 
                 releaseWakeLock()
                 releaseAudioFocus()
+                unregisterPhoneStateListener()
                 audioRecord?.release()
                 audioRecord = null
                 
