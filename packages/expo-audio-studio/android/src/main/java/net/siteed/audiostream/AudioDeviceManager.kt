@@ -38,7 +38,10 @@ interface AudioDeviceManagerDelegate {
 /**
  * Manages audio device detection, selection and capabilities for Android
  */
-class AudioDeviceManager(private val context: Context) {
+class AudioDeviceManager(
+    private val context: Context,
+    private val enableDeviceDetection: Boolean = true
+) {
     
     companion object {
         private const val TAG = "AudioDeviceManager"
@@ -82,8 +85,10 @@ class AudioDeviceManager(private val context: Context) {
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
     
     init {
-        // Start monitoring device changes
-        startMonitoringDeviceChanges()
+        // Start monitoring device changes only if BT_CONNECT permission is available (#294)
+        if (enableDeviceDetection) {
+            startMonitoringDeviceChanges()
+        }
     }
     
     /**

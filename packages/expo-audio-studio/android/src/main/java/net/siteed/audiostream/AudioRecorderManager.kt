@@ -860,7 +860,7 @@ class AudioRecorderManager(
                 LogUtils.d(CLASS_NAME, "Skipping primary file creation - primary output is disabled")
             }
 
-            if (recordingConfig.showNotification) {
+            if (recordingConfig.showNotification && enableBackgroundAudio) {
                 notificationManager.initialize(recordingConfig)
                 notificationManager.startUpdates(System.currentTimeMillis())
                 AudioRecordingService.startService(context)
@@ -920,8 +920,8 @@ class AudioRecorderManager(
 
             recordingThread = Thread { recordingProcess() }.apply { start() }
             
-            // Start service if keepAwake is true, regardless of notification settings
-            if (recordingConfig.keepAwake) {
+            // Start service if keepAwake is true, but only if background audio is enabled (#288)
+            if (recordingConfig.keepAwake && enableBackgroundAudio) {
                 AudioRecordingService.startService(context)
             }
             

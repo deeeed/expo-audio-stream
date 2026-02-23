@@ -942,7 +942,7 @@ class ExpoAudioStreamModule : Module(), EventSender {
         // Initialize AudioDeviceManager
         LogUtils.d(CLASS_NAME, "🔧 Initializing AudioDeviceManager...")
         LogUtils.d(CLASS_NAME, "🔧 Device detection enabled: $enableDeviceDetection")
-        audioDeviceManager = AudioDeviceManager(context)
+        audioDeviceManager = AudioDeviceManager(context, enableDeviceDetection)
         LogUtils.d(CLASS_NAME, "🔧 AudioDeviceManager initialized")
         
         // Initialize AudioRecorderManager with AudioDeviceManager integration

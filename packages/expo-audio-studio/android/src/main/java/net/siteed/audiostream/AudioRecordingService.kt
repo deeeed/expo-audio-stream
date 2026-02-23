@@ -70,6 +70,7 @@ class AudioRecordingService : Service() {
             }
         } catch (e: Exception) {
             Log.e(Constants.TAG, "Failed to start foreground service: ${e.message}", e)
+            stopSelf()  // Don't leave service in broken state (#288)
         }
     }
 
