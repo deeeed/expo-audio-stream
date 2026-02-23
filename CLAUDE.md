@@ -53,6 +53,34 @@ scripts/agentic/start-metro.sh                        # Start Metro (:7365)
 
 All scripts accept `--device <name>` for multi-device targeting.
 
+### Native Module Validation (fire-and-store pattern)
+
+The agentic bridge exposes test methods for validating native module calls on-device. Since CDP uses `awaitPromise: false`, async results are stored and polled via `getLastResult()`.
+
+```bash
+# Test extractPreview (also exercises extractAudioAnalysis)
+scripts/agentic/app-state.sh eval "__AGENTIC__.testExtractPreview()"
+sleep 5
+scripts/agentic/app-state.sh eval "__AGENTIC__.getLastResult()"
+
+# Test extractAudioData
+scripts/agentic/app-state.sh eval "__AGENTIC__.testExtractAudioData()"
+sleep 3
+scripts/agentic/app-state.sh eval "__AGENTIC__.getLastResult()"
+
+# Test trimAudio
+scripts/agentic/app-state.sh eval "__AGENTIC__.testTrimAudio()"
+sleep 5
+scripts/agentic/app-state.sh eval "__AGENTIC__.getLastResult()"
+
+# Test extractMelSpectrogram (Android only)
+scripts/agentic/app-state.sh eval "__AGENTIC__.testExtractMelSpectrogram()"
+sleep 5
+scripts/agentic/app-state.sh eval "__AGENTIC__.getLastResult()"
+```
+
+Each returns `{ op, status: 'pending' }` immediately. Poll `getLastResult()` for `status: 'success'` or `status: 'error'`. Always check `native-logs.sh android` for Kotlin bridge crashes after running these.
+
 ## Important Notes
 
 - Always run `yarn build:deps` in playground before development
