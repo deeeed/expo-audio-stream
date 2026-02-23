@@ -783,6 +783,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             bufferSize = 1024 // Default
         }
         
+        // Validate hardware format before installing tap (#223)
+        if inputHardwareFormat.channelCount == 0 || inputHardwareFormat.sampleRate == 0 {
+            Logger.debug("AudioStreamManager", "Invalid hardware format: channels=\(inputHardwareFormat.channelCount), sampleRate=\(inputHardwareFormat.sampleRate). Using fallback.")
+            let fallbackSampleRate = Double(recordingSettings?.sampleRate ?? 16000)
+            let fallbackChannels = AVAudioChannelCount(recordingSettings?.numberOfChannels ?? 1)
+            guard let fallbackFormat = AVAudioFormat(standardFormatWithSampleRate: fallbackSampleRate, channels: fallbackChannels) else {
+                Logger.debug("AudioStreamManager", "Failed to create fallback format")
+                return inputHardwareFormat
+            }
+            inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: fallbackFormat, block: tapBlock)
+            Logger.debug("AudioStreamManager", "Tap installed with fallback format")
+            if prepareEngine {
+                audioEngine.prepare()
+            }
+            return fallbackFormat
+        }
+
         // Install the tap with hardware format
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputHardwareFormat, block: tapBlock)
         Logger.debug("AudioStreamManager", "Tap installed with hardware-compatible format")
@@ -847,12 +864,6 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         lastEmittedCompressedSize = 0
         lastEmittedCompressedSizeAnalysis = 0
         isPaused = false
-        
-        // Initialize startTime early to prevent duration being 0
-        // This will be updated when recording actually starts
-        if startTime == nil {
-            startTime = Date()
-        }
 
         // Create recording file first (unless primary output is disabled)
         if settings.output.primary.enabled {
@@ -1063,10 +1074,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             enableWakeLock()
             
             // Set recording state *before* starting engine to avoid race condition
-            // Set startTime as early as possible to ensure duration calculation works
-            if startTime == nil {
-                startTime = Date()
-            }
+            // Always reset startTime to now — ensures duration reflects actual recording,
+            // not time since prepareRecording() was called (#298)
+            startTime = Date()
             totalPausedDuration = 0
             currentPauseStart = nil
             lastEmissionTime = Date()
