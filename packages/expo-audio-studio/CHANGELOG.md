@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.18.5] - 2026-02-23
+### Changed
+- fix(expo-audio-studio): guard Bluetooth API calls behind permission check on API 31+ (#294) ([05d6e5a](https://github.com/deeeed/expo-audio-stream/commit/05d6e5adb0b8aff35d88aea264d8b75ebb1ae1e4))
+- fix(expo-audio-studio): migrate phone state listener to TelephonyCallback on API 31+ (#275) ([cace0e7](https://github.com/deeeed/expo-audio-stream/commit/cace0e77854c9f5d98abcd320c3759cd765c22da))
+- fix(expo-audio-studio): reset startTime in startRecording and validate hardware format (#298, #223) ([9eee59f](https://github.com/deeeed/expo-audio-stream/commit/9eee59fdb0bb0c3435c728a37880541914a181d0))
+- fix(expo-audio-studio): gate foreground service on enableBackgroundAudio (#288, #294) ([ea6ff85](https://github.com/deeeed/expo-audio-stream/commit/ea6ff855cf6e333cdddd8be0d9581cb7481d7d6f))
+- fix(expo-audio-studio): sanitize options before native bridge calls to prevent Android crash ([5af91d6](https://github.com/deeeed/expo-audio-stream/commit/5af91d6bae0bee92013dc21023e38765cbbd94f3))
+- feat(playground): CDP agentic bridge for multi-platform automation ([48d7dda](https://github.com/deeeed/expo-audio-stream/commit/48d7dda2b017c9b9029c716ea1c0b4dc18a135c9))
+- chore(expo-audio-studio): release @siteed/expo-audio-studio@2.18.4 ([d93ceae](https://github.com/deeeed/expo-audio-stream/commit/d93ceae943c98322d34d38f5e76f2da91bd739a2))
 ## [2.18.4] - 2026-02-16
 ### Changed
 - chore(expo-audio-studio): release @siteed/expo-audio-studio@2.18.3 ([61d58e5](https://github.com/deeeed/expo-audio-stream/commit/61d58e57fd624182aef9983745bf82f584ffc2c7))
@@ -390,7 +399,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.4...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.5...HEAD
+[2.18.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.4...@siteed/expo-audio-studio@2.18.5
 [2.18.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.3...@siteed/expo-audio-studio@2.18.4
 [2.18.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.2...@siteed/expo-audio-studio@2.18.3
 [2.18.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.1...@siteed/expo-audio-studio@2.18.2
