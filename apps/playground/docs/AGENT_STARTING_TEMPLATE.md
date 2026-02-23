@@ -21,6 +21,15 @@ node scripts/agentic/cdp-bridge.mjs list-devices
 | iOS first run / fresh install | `yarn setup:ios-simulator && yarn ios` |
 | Web | `node scripts/agentic/web-browser.mjs launch & && scripts/agentic/start-metro.sh` |
 
+**0 devices + physical hardware:**
+
+| Platform | Steps |
+|----------|-------|
+| Android (USB) | 1. `adb devices` (verify) 2. `adb disconnect <wifi-ip>:5555` (if duplicate) 3. `scripts/agentic/start-metro.sh` 4. Deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` 5. If permissions lost: `adb shell pm grant net.siteed.audioplayground.development android.permission.RECORD_AUDIO` |
+| iOS (USB) | 1. `scripts/agentic/start-metro.sh` 2. Get UDID: `xcrun devicectl list devices` 3. Get LAN IP: `ipconfig getifaddr en0` 4. Launch: `xcrun devicectl device process launch --device <UDID> --terminate-existing net.siteed.audioplayground.development -- --initialUrl "http://<LAN_IP>:7365"` |
+
+**Key**: Physical devices CANNOT use `localhost` — always use Mac's LAN IP.
+
 ---
 
 ## Step 2 — Define your feedback loop

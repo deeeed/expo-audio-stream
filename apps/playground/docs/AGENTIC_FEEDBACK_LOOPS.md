@@ -315,3 +315,10 @@ Console logs are captured to `.agent/web-console.log` (all `console.*` + uncaugh
 | Native crash / Kotlin type error | `scripts/agentic/native-logs.sh android` — check for serialization errors |
 | No Android targets in `/json/list` | CDP bridge retries up to 5 times; ensure app is running and connected to Metro |
 | Web not discovered | Ensure browser was launched with `web-browser.mjs launch` and `.agent/web-browser.mjson` exists |
+| Android dev launcher shows error screen | Deep link with LAN IP: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
+| `isMetroRunning(): false` on Android | ADB reverse unreliable — use LAN IP. Verify: `aapt dump resources app-debug.apk \| grep react_native_dev_server_port` (0x1cc5 = 7365) |
+| iOS physical device "no dev servers found" | Launch with `--initialUrl`: `xcrun devicectl device process launch --device <UDID> -- --initialUrl "http://<LAN_IP>:7365"` |
+| `ClassNotFoundException` after `prebuild --clean` | Missing autolinked dependency. `npx expo prebuild --platform android` (without --clean) to re-link |
+| `expo run:android` resets ADB reverse | Re-run `adb reverse tcp:7365 tcp:7365` after install, or use LAN IP deep link |
+| Multiple ADB devices / command hangs | `adb disconnect <wifi-ip>:5555` — WiFi ADB auto-reconnects and causes device selection prompts |
+| App data cleared, recording fails silently | `adb shell pm grant <pkg> android.permission.RECORD_AUDIO` |

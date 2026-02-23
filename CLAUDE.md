@@ -122,10 +122,28 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ✅ Only pass plain objects with primitive values, arrays, and nested plain objects
 - ✅ Use `native-logs.sh android|ios` to check native-side errors on any native crash
 
-**Android ADB port mapping** (Metro runs on :7365, not :8081)
-- ❌ `adb reverse tcp:8081 tcp:7365` — conflicts with other RN apps
-- ✅ `adb reverse tcp:7365 tcp:7365`
+**Android physical device connectivity** (Metro on :7365)
+- ❌ `adb reverse tcp:8081 tcp:7365` — conflicts with other RN apps; also `expo run:android` resets this mapping
+- ❌ Rely on ADB reverse for Metro connectivity — tunneling is unreliable for HTTP/WebSocket
+- ✅ `adb reverse tcp:7365 tcp:7365` — but prefer LAN IP approach below
+- ✅ Connect via LAN IP deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<MAC_LAN_IP>:7365"`
+- ✅ After `expo run:android`, re-run `adb reverse` (it resets port mappings)
+- ✅ Disconnect WiFi ADB before commands: `adb disconnect <ip>:5555` (auto-reconnects and causes device selection hangs)
+- ✅ After clearing app data: `adb shell pm grant <pkg> android.permission.RECORD_AUDIO`
 - ✅ Plain `adb shell am start <package>/.MainActivity` to relaunch after force-stop
+
+**iOS physical device connectivity** (Metro on :7365)
+- ❌ Patch `RCTDefines.h` / `setPort.sh` — React-Core is prebuilt binary in Expo 54+, header patches have zero effect
+- ❌ Use `localhost` for physical devices — that's the phone's own loopback, not the Mac
+- ✅ Config plugin `withMetroPortIOS.cjs` injects `RCTBundleURLProvider.sharedSettings().jsLocation` with LAN IP
+- ✅ Launch with `--initialUrl`: `xcrun devicectl device process launch --device <UDID> --terminate-existing <bundle-id> -- --initialUrl "http://<MAC_LAN_IP>:7365"`
+- ✅ Verify after prebuild: check `ios/<Scheme>/AppDelegate.swift` contains `jsLocation` with correct IP
+
+**Metro port resource override (Android)**
+- ReactAndroid ships static `values.xml` with `react_native_dev_server_port = 8081` — this wins over `resValue()` in cached builds
+- `withMetroPort.cjs` writes `app/src/main/res/values/dev_server_port.xml` to override at app level (app resources always beat library resources)
+- After changing port config: `./gradlew :app:clean :app:installDebug` (incremental builds serve stale resources)
+- Verify with: `aapt dump resources app-debug.apk | grep react_native_dev_server_port` — check hex value (0x1cc5 = 7365, 0x1f91 = 8081)
 
 **Builds / type-checking**
 - ✅ `yarn workspace <pkg> build` (~1.5s) for single-package changes
@@ -135,6 +153,9 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ❌ `expo prebuild` from monorepo root — creates spurious `/app.json` and `/eas.json` at root and contaminates the workspace
 - ✅ All prebuild/build commands run from `apps/playground/` only
 - ❌ `expo prebuild --clean` manually before a local EAS build — EAS local builds manage their own temp dir; manual prebuild is only for Xcode/screenshots workflows
+- ❌ `expo prebuild --clean --platform android` to "fix" build issues — it nukes the platform dir (gitignored, no recovery) and can remove autolinked dependencies (e.g. expo-splash-screen → ClassNotFoundException)
+- ✅ `npx expo prebuild --platform android` (without --clean) to re-link modules after dependency changes
+- ✅ After prebuild --clean: verify no ClassNotFoundException in logcat before debugging further
 - ✅ Local builds: `yarn build:ios:production:local` / `yarn build:android:production:local` (both run `eas build --local`)
 - ✅ Switch ios/ variant via setup scripts only: `yarn setup:development` / `yarn setup:production`
 - ✅ After accidental production prebuild, restore dev workspace: `git checkout -- apps/playground/ios/`
@@ -175,3 +196,9 @@ working|blocked|done|idle
 ```
 
 This file is read by the orchestrator to track progress across sessions. Keep it high-level.
+
+IMPORTANT: A fix is NOT done until validated on-device via the feedback loop. Do not mark status as done until:
+- Code changes are built and deployed to the device(s)
+- The bug scenario is reproduced and confirmed fixed
+- Regressions are checked
+Use status: `needs-validation` for code-complete but unverified fixes.
