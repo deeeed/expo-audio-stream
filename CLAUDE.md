@@ -157,14 +157,18 @@ Maintain a `.task.md` file in the project root. Update it:
 Format:
 ```
 ## Current Task
-<one-liner>
+<one-liner describing the goal>
 
 ## Status
 working|blocked|done|idle
 
+## Approach
+<1-2 sentences on HOW you're solving it — enough to judge direction>
+
 ## Progress
 - bullet 1
-- bullet 2 (3 max)
+- bullet 2
+- bullet 3 (3-5 max)
 
 ## Last Updated
 <timestamp>
