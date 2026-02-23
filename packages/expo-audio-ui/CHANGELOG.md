@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.7.2] - 2026-02-23
+### Changed
+- fix(expo-audio-ui): enlarge AudioTimeRangeSelector handles and fix end-handle clamping ([036ebf2](https://github.com/deeeed/expo-audio-stream/commit/036ebf2c5f2e946c97d5eee159fc062582282e0a))
+- chore(root): release 0.7.1 ([112efe8](https://github.com/deeeed/expo-audio-stream/commit/112efe89058b9c61dfb0f136c51c83ec8a9593d6))
 ## [0.7.1] - 2026-02-21
 ### Changed
 - feat(playground): CDP agentic bridge for multi-platform automation ([48d7dda](https://github.com/deeeed/expo-audio-stream/commit/48d7dda2b017c9b9029c716ea1c0b4dc18a135c9))
@@ -81,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Seamless integration with @siteed/expo-audio-studio
 - Feature: Support for iOS, Android, and web platforms
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.1...HEAD
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.2...HEAD
+[0.7.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.1...@siteed/expo-audio-ui@0.7.2
 [0.7.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.0...@siteed/expo-audio-ui@0.7.1
 [0.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.6.0...@siteed/expo-audio-ui@0.7.0
 [0.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.5.0...@siteed/expo-audio-ui@0.6.0
