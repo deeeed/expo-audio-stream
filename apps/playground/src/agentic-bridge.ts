@@ -153,6 +153,19 @@ if (__DEV__) {
             }
         },
 
+        prepareRecording: async (config: Record<string, unknown> = {}) => {
+            if (!_recorder) {
+                return { error: 'Recorder not available (AgenticBridgeSync not mounted)' }
+            }
+            try {
+                const safeConfig = stripFunctions(config)
+                await _recorder.prepareRecording(safeConfig as never)
+                return { prepared: true }
+            } catch (e) {
+                return { error: String(e) }
+            }
+        },
+
         // --- Native module validation tests (fire-and-store pattern) ---
 
         getLastResult: () => {

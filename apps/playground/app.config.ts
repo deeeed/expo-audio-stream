@@ -242,6 +242,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 },
             ],
             ["./plugins/withMetroPort.cjs", { port: 7365 }],
+            ["./plugins/withMetroPortIOS.cjs", { port: 7365 }],
             "expo-background-task",
             'expo-localization',
             // [

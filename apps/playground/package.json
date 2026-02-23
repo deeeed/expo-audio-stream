@@ -121,6 +121,7 @@
         "expo-localization": "~17.0.8",
         "expo-router": "~6.0.23",
         "expo-sharing": "~14.0.8",
+        "expo-splash-screen": "~31.0.13",
         "expo-status-bar": "~3.0.9",
         "expo-task-manager": "~14.0.9",
         "expo-updates": "~29.0.16",
