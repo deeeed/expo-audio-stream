@@ -53,7 +53,7 @@ export default function RootLayout() {
     const theme = useTheme()
 
     useEffect(() => {
-        if (Platform.OS !== 'android' || !ExpoFontLoader?.loadAsync) return
+        if (__DEV__ || Platform.OS !== 'android' || !ExpoFontLoader?.loadAsync) return
         async function loadIconFonts() {
             try {
                 await ExpoFontLoader.loadAsync('material-community', 'asset:///fonts/MaterialCommunityIcons.ttf')
@@ -62,7 +62,7 @@ export default function RootLayout() {
                 await ExpoFontLoader.loadAsync('FontAwesome',        'asset:///fonts/FontAwesome.ttf')
                 await ExpoFontLoader.loadAsync('entypo',             'asset:///fonts/Entypo.ttf')
             } catch (e) {
-                logger.error('Failed to register icon font aliases:', e)
+                logger.warn('Failed to register icon font aliases:', e)
             }
         }
         loadIconFonts()
