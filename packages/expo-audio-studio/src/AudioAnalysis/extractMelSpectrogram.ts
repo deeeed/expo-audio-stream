@@ -13,6 +13,7 @@ import {
     processAudioBuffer,
     ProcessedAudioData,
 } from '../utils/audioProcessing'
+import { cleanNativeOptions } from '../utils/cleanNativeOptions'
 
 /**
  * Extracts a mel spectrogram from audio data
@@ -100,7 +101,16 @@ export async function extractMelSpectrogram(
             await audioContext.close()
         }
     }
-    return ExpoAudioStreamModule.extractMelSpectrogram(options)
+    // Strip logger/arrayBuffer (non-serializable) then clean undefined values
+    // to avoid Android "Cannot convert '[object Object]' to Kotlin type" crash
+    const {
+        logger: _logger,
+        arrayBuffer: _arrayBuffer,
+        ...nativeOptions
+    } = options
+    return ExpoAudioStreamModule.extractMelSpectrogram(
+        cleanNativeOptions(nativeOptions)
+    )
 }
 
 /**

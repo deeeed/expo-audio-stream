@@ -1,6 +1,7 @@
-import { isWeb } from '../constants'
 import { ExtractAudioDataOptions } from '../ExpoAudioStream.types'
 import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
+import { isWeb } from '../constants'
+import { cleanNativeOptions } from '../utils/cleanNativeOptions'
 
 export const extractAudioData = async (props: ExtractAudioDataOptions) => {
     if (isWeb) {
@@ -9,5 +10,8 @@ export const extractAudioData = async (props: ExtractAudioDataOptions) => {
     }
     // Native: only pass serializable fields — logger causes crash on Android
     const { logger: _logger, ...nativeOptions } = props
-    return await ExpoAudioStreamModule.extractAudioData(nativeOptions)
+    // Clean undefined values to avoid Android Kotlin bridge crash
+    return await ExpoAudioStreamModule.extractAudioData(
+        cleanNativeOptions(nativeOptions)
+    )
 }

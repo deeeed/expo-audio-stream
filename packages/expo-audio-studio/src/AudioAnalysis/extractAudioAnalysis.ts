@@ -15,6 +15,7 @@ import {
     DecodingConfig,
 } from './AudioAnalysis.types'
 import { processAudioBuffer } from '../utils/audioProcessing'
+import { cleanNativeOptions } from '../utils/cleanNativeOptions'
 import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import crc32 from '../utils/crc32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
@@ -216,7 +217,10 @@ export async function extractAudioAnalysis(
             arrayBuffer: _arrayBuffer,
             ...nativeOptions
         } = props
-        return await ExpoAudioStreamModule.extractAudioAnalysis(nativeOptions)
+        // Clean undefined values to avoid Android Kotlin bridge crash
+        return await ExpoAudioStreamModule.extractAudioAnalysis(
+            cleanNativeOptions(nativeOptions)
+        )
     }
 }
 

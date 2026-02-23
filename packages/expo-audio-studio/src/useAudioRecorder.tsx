@@ -21,6 +21,7 @@ import {
     AudioEventPayload,
     addRecordingInterruptionListener,
 } from './events'
+import { cleanNativeOptions } from './utils/cleanNativeOptions'
 
 export interface UseAudioRecorderProps {
     logger?: ConsoleLike
@@ -516,7 +517,7 @@ export function useAudioRecorder({
                 onAudioStreamRef.current = null
             }
             // Strip undefined values and functions that can't cross the native bridge
-            const cleanOptions = JSON.parse(JSON.stringify(options))
+            const cleanOptions = cleanNativeOptions(options)
             const startResult: StartRecordingResult =
                 await ExpoAudioStream.startRecording(cleanOptions)
             dispatch({ type: 'START' })
@@ -572,7 +573,7 @@ export function useAudioRecorder({
             }
 
             // Strip undefined values and functions that can't cross the native bridge
-            const cleanOptions = JSON.parse(JSON.stringify(options))
+            const cleanOptions = cleanNativeOptions(options)
             // Call the native prepareRecording method
             await ExpoAudioStream.prepareRecording(cleanOptions)
             logger?.debug(`recording prepared successfully`)
