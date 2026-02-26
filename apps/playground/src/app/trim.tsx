@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Audio } from 'expo-av'
+import { createAudioPlayer, AudioPlayer, AudioStatus } from 'expo-audio'
 import * as DocumentPicker from 'expo-document-picker'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button, ProgressBar, SegmentedButtons, Text } from 'react-native-paper'
@@ -17,7 +17,6 @@ import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
 import { useScreenHeader } from '../hooks/useScreenHeader'
 
-import type { AVPlaybackStatus } from 'expo-av'
 
 const logger = baseLogger.extend('TrimScreen')
 
@@ -89,7 +88,7 @@ export default function TrimScreen() {
     const [error, setError] = useState<string>()
     const [progress, setProgress] = useState(0)
     const [trimResult, setTrimResult] = useState<TrimAudioResult | null>(null)
-    const [sound, setSound] = useState<Audio.Sound | null>(null)
+    const playerRef = useRef<AudioPlayer | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [playbackPosition, setPlaybackPosition] = useState(0)
     const playbackPositionRef = useRef(0)
@@ -138,28 +137,30 @@ export default function TrimScreen() {
                 message: 'Loading audio file...',
             })
             
-            // Get audio duration by loading the file with Expo AV
+            // Get audio duration by loading the file with expo-audio
             let durationMs = 0
-            
-            // Create a temporary sound object to get metadata
-            const { sound: tempSound } = await Audio.Sound.createAsync(
-                { uri: fileUri },
-                { shouldPlay: false },
-                null,
-                true // Download first for accurate metadata
-            )
-            
+
+            // Create a temporary player to get metadata
+            const tempPlayer = createAudioPlayer({ uri: fileUri })
+
             try {
-                // Play and immediately stop to get accurate duration
-                await tempSound.playAsync()
-                await tempSound.stopAsync()
-                
-                // Get the loaded status to access metadata
-                const loadedStatus = await tempSound.getStatusAsync()
-                
-                if (loadedStatus.isLoaded) {
-                    durationMs = loadedStatus.durationMillis || 0
-                    
+                // Wait for the player to load
+                await new Promise<void>((resolve) => {
+                    const timeout = setTimeout(() => resolve(), 5000)
+                    const checkLoaded = () => {
+                        if (tempPlayer.isLoaded) {
+                            clearTimeout(timeout)
+                            resolve()
+                        } else {
+                            setTimeout(checkLoaded, 50)
+                        }
+                    }
+                    checkLoaded()
+                })
+
+                if (tempPlayer.isLoaded) {
+                    durationMs = tempPlayer.duration * 1000 // convert seconds to ms
+
                     console.log('Audio metadata loaded', {
                         durationMs,
                         filename,
@@ -168,8 +169,7 @@ export default function TrimScreen() {
             } catch (error) {
                 console.warn('Error getting audio metadata:', error)
             } finally {
-                // Always unload the temporary sound
-                await tempSound.unloadAsync()
+                tempPlayer.remove()
             }
             
             const newFile = {
@@ -323,10 +323,10 @@ export default function TrimScreen() {
             setError(undefined)
             setTrimResult(null)
             
-            // Unload any existing sound
-            if (sound) {
-                await sound.unloadAsync()
-                setSound(null)
+            // Remove any existing player
+            if (playerRef.current) {
+                playerRef.current.remove()
+                playerRef.current = null
                 setIsPlaying(false)
             }
 
@@ -424,24 +424,19 @@ export default function TrimScreen() {
         } finally {
             setIsProcessing(false)
         }
-    }, [currentFile, sound, startTime, endTime, trimMode, outputFormat, outputSampleRate, customFileName, show, timeRanges])
+    }, [currentFile, startTime, endTime, trimMode, outputFormat, outputSampleRate, customFileName, show, timeRanges])
 
 
-    // Add this function to handle playback status updates
-    const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-        if (!status.isLoaded) return
-        
+    // Handle playback status updates
+    const onPlaybackStatusUpdate = useCallback((status: AudioStatus) => {
         // Update position for progress tracking
-        if (status.positionMillis !== undefined) {
-            playbackPositionRef.current = status.positionMillis
-            setPlaybackPosition(status.positionMillis)
-        }
-        
+        const posMs = status.currentTime * 1000
+        playbackPositionRef.current = posMs
+        setPlaybackPosition(posMs)
+
         // Handle playback state
-        if (status.isPlaying !== undefined) {
-            setIsPlaying(status.isPlaying)
-        }
-        
+        setIsPlaying(status.playing)
+
         // Handle playback completion
         if (status.didJustFinish) {
             setIsPlaying(false)
@@ -451,32 +446,41 @@ export default function TrimScreen() {
     }, [])
     
 
-    // Add this function to handle audio playback
+    // Handle audio playback
     const playTrimmedAudio = useCallback(async () => {
         try {
-            // If sound is already loaded, unload it first
-            if (sound) {
-                await sound.unloadAsync()
-                setSound(null)
+            // If player already exists, remove it first
+            if (playerRef.current) {
+                playerRef.current.remove()
+                playerRef.current = null
                 setIsPlaying(false)
                 setPlaybackPosition(0)
                 playbackPositionRef.current = 0
             }
-            
-            // Create and load the sound
-            const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri: trimResult?.uri || '' },
-                { shouldPlay: true },
-                onPlaybackStatusUpdate
-            )
-            
-            // Set the sound state
-            setSound(newSound)
+
+            // Create a new player
+            const player = createAudioPlayer({ uri: trimResult?.uri || '' })
+            playerRef.current = player
+
+            player.addListener('playbackStatusUpdate', onPlaybackStatusUpdate)
+
+            // Wait for load
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => resolve(), 5000)
+                const checkLoaded = () => {
+                    if (player.isLoaded) {
+                        clearTimeout(timeout)
+                        resolve()
+                    } else {
+                        setTimeout(checkLoaded, 50)
+                    }
+                }
+                checkLoaded()
+            })
+
+            player.play()
             setIsPlaying(true)
-            
-            // Play the sound
-            await newSound.playAsync()
-            
+
         } catch (err) {
             console.error('Error playing audio:', err)
             show({
@@ -485,37 +489,39 @@ export default function TrimScreen() {
                 duration: 3000,
             })
         }
-    }, [trimResult, sound, onPlaybackStatusUpdate, show])
+    }, [trimResult, onPlaybackStatusUpdate, show])
     
-    // Add this function to toggle play/pause
+    // Toggle play/pause
     const togglePlayback = useCallback(async () => {
-        if (!sound) return
-        
+        if (!playerRef.current) return
+
         if (isPlaying) {
-            await sound.pauseAsync()
+            playerRef.current.pause()
         } else {
-            await sound.playAsync()
+            playerRef.current.play()
         }
-    }, [sound, isPlaying])
-    
-    // Add this function to stop playback
+    }, [isPlaying])
+
+    // Stop playback
     const stopPlayback = useCallback(async () => {
-        if (!sound) return
-        
-        await sound.stopAsync()
-        await sound.setPositionAsync(0)
+        if (!playerRef.current) return
+
+        playerRef.current.pause()
+        playerRef.current.seekTo(0)
         setPlaybackPosition(0)
         playbackPositionRef.current = 0
-    }, [sound])
-    
-    // Clean up sound when component unmounts
+        setIsPlaying(false)
+    }, [])
+
+    // Clean up player when component unmounts
     useEffect(() => {
         return () => {
-            if (sound) {
-                sound.unloadAsync()
+            if (playerRef.current) {
+                playerRef.current.remove()
+                playerRef.current = null
             }
         }
-    }, [sound])
+    }, [])
 
     const renderSingleModeControls = () => (
         <View>
@@ -936,7 +942,7 @@ style={{
                                     <Text variant="titleSmall">Playback</Text>
                                     
                                     {/* Progress bar */}
-                                    {sound && (
+                                    {playerRef.current && (
                                         <View>
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                                 <Text>{(playbackPosition / 1000).toFixed(1)}s</Text>
@@ -951,7 +957,7 @@ style={{
                                     
                                     {/* Playback buttons */}
                                     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
-                                        {!sound ? (
+                                        {!playerRef.current ? (
                                             <Button 
                                                 mode="contained" 
                                                 onPress={playTrimmedAudio}

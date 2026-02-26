@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { Audio } from 'expo-av'
+import { createAudioPlayer, AudioPlayer, AudioStatus } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Platform, StyleSheet, View } from 'react-native'
 import { Button as PaperButton, Text } from 'react-native-paper'
@@ -56,30 +56,31 @@ function formatDuration(ms: number): string {
     const minutes = Math.floor(ms / 60000)
     const seconds = Math.floor((ms % 60000) / 1000)
     const milliseconds = Math.floor(ms % 1000)
-    
+
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`
 }
 
-export function PCMPlayer({ 
-    data, 
-    sampleRate, 
+export function PCMPlayer({
+    data,
+    sampleRate,
     bitDepth,
     channels = 1,
     hasWavHeader = false,
 }: PCMPlayerProps) {
     const theme = useTheme()
     const styles = getStyles(theme)
-    const [sound, setSound] = useState<Audio.Sound>()
+    const playerRef = useRef<AudioPlayer | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [position, setPosition] = useState(0)
     const { show } = useToast()
+    const tempUriRef = useRef<string | null>(null)
 
     // Memoize the duration calculation to avoid recalculating on every render
     const totalDurationMs = useMemo(() => {
         const bytesPerSample = bitDepth / 8
         const totalSamples = data.length / bytesPerSample
         const durationMs = (totalSamples / (sampleRate * channels)) * 1000
-        
+
         logger?.debug('PCM Player duration calculation (memoized):', {
             dataLength: data.length,
             bytesPerSample,
@@ -88,20 +89,20 @@ export function PCMPlayer({
             channels,
             totalDurationMs: durationMs,
         })
-        
+
         return durationMs
     }, [data.length, bitDepth, sampleRate, channels])
 
     const handlePlayPause = useCallback(async () => {
         try {
-            if (sound) {
+            if (playerRef.current) {
                 if (isPlaying) {
                     logger.debug('Pausing playback')
-                    await sound.pauseAsync()
+                    playerRef.current.pause()
                     setIsPlaying(false)
                 } else {
                     logger.debug('Resuming playback')
-                    await sound.playAsync()
+                    playerRef.current.play()
                     setIsPlaying(true)
                 }
                 return
@@ -116,13 +117,11 @@ export function PCMPlayer({
             })
 
             let wavBuffer: ArrayBuffer
-            
+
             if (hasWavHeader) {
-                // If data already has a WAV header, use it directly
                 wavBuffer = data.buffer.slice(0, data.length) as ArrayBuffer
                 logger.debug('Using existing WAV header')
             } else {
-                // Otherwise, create a WAV header
                 const pcmBuffer = data.buffer.slice(0) as ArrayBuffer
                 wavBuffer = writeWavHeader({
                     buffer: pcmBuffer.slice(0, data.length),
@@ -151,44 +150,56 @@ export function PCMPlayer({
                 logger.debug('Created temporary file for native playback:', uri)
             }
 
-            const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri },
-                { shouldPlay: true }
-            )
+            tempUriRef.current = uri
+            const player = createAudioPlayer({ uri })
+            playerRef.current = player
 
-            newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded) {
-                    setPosition(status.positionMillis)
-                    
-                    if (!status.isPlaying && status.didJustFinish) {
-                        logger.debug('Playback ended, cleaning up resources')
-                        setIsPlaying(false)
-                        setPosition(0)
-                        if (Platform.OS === 'web') {
-                            URL.revokeObjectURL(uri)
-                        } else {
-                            FileSystem.deleteAsync(uri, { idempotent: true })
-                        }
+            player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+                setPosition(status.currentTime * 1000) // convert to ms
+
+                if (status.didJustFinish) {
+                    logger.debug('Playback ended, cleaning up resources')
+                    setIsPlaying(false)
+                    setPosition(0)
+                    if (Platform.OS === 'web' && tempUriRef.current) {
+                        URL.revokeObjectURL(tempUriRef.current)
+                    } else if (tempUriRef.current) {
+                        FileSystem.deleteAsync(tempUriRef.current, { idempotent: true })
                     }
                 }
             })
 
-            setSound(newSound)
+            // Wait for load
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => resolve(), 5000)
+                const checkLoaded = () => {
+                    if (player.isLoaded) {
+                        clearTimeout(timeout)
+                        resolve()
+                    } else {
+                        setTimeout(checkLoaded, 50)
+                    }
+                }
+                checkLoaded()
+            })
+
+            player.play()
             setIsPlaying(true)
             logger.debug('Started playback successfully')
         } catch (error) {
             logger.error('Failed to play audio:', error)
             show({ type: 'error', message: 'Failed to play audio segment' })
         }
-    }, [data, sampleRate, channels, bitDepth, hasWavHeader, sound, isPlaying, show])
+    }, [data, sampleRate, channels, bitDepth, hasWavHeader, isPlaying, show])
 
     useEffect(() => {
         return () => {
-            if (sound) {
-                sound.unloadAsync()
+            if (playerRef.current) {
+                playerRef.current.remove()
+                playerRef.current = null
             }
         }
-    }, [sound])
+    }, [])
 
     return (
         <View style={styles.container}>
@@ -206,7 +217,7 @@ export function PCMPlayer({
                         />
                     </View>
                 </PaperButton>
-                
+
                 <View style={styles.timeInfo}>
                     <Text style={styles.timeText}>
                         {formatDuration(position)}
@@ -227,4 +238,4 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
         binary += String.fromCharCode(bytes[i])
     }
     return btoa(binary)
-} 
+}

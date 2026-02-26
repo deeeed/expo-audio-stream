@@ -116,7 +116,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
         assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx'],
         ios: {
-            newArchEnabled: true,
             supportsTablet: true,
             bundleIdentifier: APP_IDENTIFIER,
             appleTeamId: validatedEnv.APPLE_TEAM_ID,
@@ -125,7 +124,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
         },
         android: {
-            newArchEnabled: true,
             adaptiveIcon: {
                 foregroundImage: './assets/adaptive-icon.png',
                 backgroundColor:
@@ -252,6 +250,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             //     },
             // ],
             'expo-router',
+            'expo-audio',
+            '@react-native-community/datetimepicker',
+            'expo-sharing',
         ],
         extra: {
             eas: {

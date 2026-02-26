@@ -11,7 +11,7 @@ function getLanIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === "IPv4" && !iface.internal) {
+      if (iface.family === "IPv4" && !iface.internal && !iface.address.startsWith("169.254.")) {
         // Prefer en0/en1 (WiFi/Ethernet), skip VPN/tunnel interfaces
         if (name.startsWith("en") || name.startsWith("eth")) {
           return iface.address;
@@ -19,10 +19,10 @@ function getLanIP() {
       }
     }
   }
-  // Fallback: any non-internal IPv4
+  // Fallback: any non-internal IPv4 (skip link-local and VPN)
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === "IPv4" && !iface.internal) {
+      if (iface.family === "IPv4" && !iface.internal && !iface.address.startsWith("169.254.") && !name.startsWith("utun")) {
         return iface.address;
       }
     }

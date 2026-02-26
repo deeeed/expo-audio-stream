@@ -1,7 +1,7 @@
 // playground/src/hooks/useAudio.tsx
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Audio } from 'expo-av'
+import { createAudioPlayer, AudioPlayer, AudioStatus } from 'expo-audio'
 
 import { useToast } from '@siteed/design-system'
 import type {
@@ -15,7 +15,6 @@ import { baseLogger } from '../config'
 import { fetchArrayBuffer, isWeb } from '../utils/utils'
 
 import type { SelectedAnalysisConfig } from '../component/AudioRecordingAnalysisConfig'
-import type { AVPlaybackStatus } from 'expo-av'
 
 interface PlayOptions {
     audioUri?: string
@@ -42,12 +41,12 @@ export interface UseAudioProps {
 const logger = baseLogger.extend('useAudio')
 
 export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
-    const [sound, setSound] = useState<Audio.Sound | null>(null)
+    const playerRef = useRef<AudioPlayer | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [position, setPosition] = useState(0)
     const [soundLoaded, setSoundLoaded] = useState(false)
-    const [speed, setSpeed] = useState(1) // Add state for speed
+    const [speed, setSpeed] = useState(1)
     const [arrayBuffer, setArrayBuffer] = useState<ArrayBuffer>()
     const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis | null>(
         null
@@ -56,9 +55,12 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
 
     useEffect(() => {
         return () => {
-            sound?.unloadAsync()
+            if (playerRef.current) {
+                playerRef.current.remove()
+                playerRef.current = null
+            }
         }
-    }, [sound])
+    }, [])
 
     useEffect(() => {
         if (!audioUri) return
@@ -99,7 +101,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
                             },
                         })
 
-                    
+
                     setAudioAnalysis(analysis)
                 }
             } catch (error) {
@@ -131,57 +133,67 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         show,
     ])
 
-    const updatePlaybackStatus = useCallback((status: AVPlaybackStatus) => {
-        if (!status.isLoaded) {
-            if ('error' in status) {
-                logger.error(`Playback Error: ${status.error}`)
-            }
-            return
-        }
-
-        setPosition(status.positionMillis)
-        setSoundLoaded(true)
+    const handleStatusUpdate = useCallback((status: AudioStatus) => {
+        setPosition(status.currentTime * 1000) // convert seconds to ms
+        setSoundLoaded(status.isLoaded)
 
         if (status.didJustFinish) {
             setIsPlaying(false)
-            setPosition(0) // Reset position when playback finishes
+            setPosition(0)
         }
     }, [])
 
     const play = async (options?: PlayOptions) => {
         const uriToPlay = options?.audioUri || audioUri
         if (!uriToPlay) return
-        
-        try {
-            if (!sound) {
-                // Handle URI differently for web vs native platforms
-                const normalizedUri = isWeb 
-                    ? uriToPlay.replace('file://', '') // Remove file:// prefix for web blobs
-                    : !uriToPlay.startsWith('file://') 
-                        ? `file://${uriToPlay}` 
-                        : uriToPlay
-                
-                logger.debug(`Playing audio from ${normalizedUri}`)
-                const { sound: newSound } = await Audio.Sound.createAsync(
-                    { uri: normalizedUri },
-                    {
-                        shouldPlay: true,
-                        positionMillis: options?.position || position,
-                    }
-                )
-                newSound.setOnPlaybackStatusUpdate(updatePlaybackStatus)
-                setSound(newSound)
-                setIsPlaying(true)
 
-                // Apply stored options
-                if (speed !== 1) {
-                    await newSound.setRateAsync(speed, false)
+        try {
+            if (!playerRef.current) {
+                // Handle URI differently for web vs native platforms
+                const normalizedUri = isWeb
+                    ? uriToPlay.replace('file://', '')
+                    : !uriToPlay.startsWith('file://')
+                        ? `file://${uriToPlay}`
+                        : uriToPlay
+
+                logger.debug(`Playing audio from ${normalizedUri}`)
+                const player = createAudioPlayer({ uri: normalizedUri })
+                playerRef.current = player
+
+                player.addListener('playbackStatusUpdate', handleStatusUpdate)
+
+                // Wait for load
+                await new Promise<void>((resolve) => {
+                    const checkLoaded = () => {
+                        if (player.isLoaded) {
+                            resolve()
+                        } else {
+                            setTimeout(checkLoaded, 50)
+                        }
+                    }
+                    checkLoaded()
+                })
+
+                setSoundLoaded(true)
+
+                // Seek to position if specified
+                const seekMs = options?.position || position
+                if (seekMs > 0) {
+                    player.seekTo(seekMs / 1000)
                 }
+
+                // Apply stored speed
+                if (speed !== 1) {
+                    player.setPlaybackRate(speed)
+                }
+
+                player.play()
+                setIsPlaying(true)
             } else {
                 if (options?.position !== undefined) {
-                    await sound.setPositionAsync(options.position)
+                    playerRef.current.seekTo(options.position / 1000)
                 }
-                await sound.playAsync()
+                playerRef.current.play()
                 setIsPlaying(true)
             }
         } catch (error) {
@@ -191,9 +203,9 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
     }
 
     const pause = async () => {
-        if (!audioUri || !sound) return
+        if (!audioUri || !playerRef.current) return
         try {
-            await sound.pauseAsync()
+            playerRef.current.pause()
             setIsPlaying(false)
         } catch (error) {
             logger.error('Failed to pause the audio:', error)
@@ -206,16 +218,15 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         if (options.position !== undefined) {
             logger.debug(`Set playback position to ${options.position}`)
             setPosition(options.position)
-            if (sound && soundLoaded) {
-                // Check if sound is loaded before updating position
-                await sound.setPositionAsync(options.position)
+            if (playerRef.current && soundLoaded) {
+                playerRef.current.seekTo(options.position / 1000)
             }
         }
         if (options.speed !== undefined) {
             logger.debug(`Set playback speed to ${options.speed}`)
             setSpeed(options.speed)
-            if (sound) {
-                await sound.setRateAsync(options.speed, false)
+            if (playerRef.current) {
+                playerRef.current.setPlaybackRate(options.speed)
             }
         }
     }
@@ -227,7 +238,7 @@ export const useAudio = ({ audioUri, recording, options }: UseAudioProps) => {
         position,
         processing,
         soundLoaded,
-        sound,
+        sound: playerRef.current,
         play,
         pause,
         updatePlaybackOptions,

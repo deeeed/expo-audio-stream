@@ -136,7 +136,7 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ❌ Patch `RCTDefines.h` / `setPort.sh` — React-Core is prebuilt binary in Expo 54+, header patches have zero effect
 - ❌ Use `localhost` for physical devices — that's the phone's own loopback, not the Mac
 - ✅ Config plugin `withMetroPortIOS.cjs` injects `RCTBundleURLProvider.sharedSettings().jsLocation` with LAN IP
-- ✅ Launch with `--initialUrl`: `xcrun devicectl device process launch --device <UDID> --terminate-existing <bundle-id> -- --initialUrl "http://<MAC_LAN_IP>:7365"`
+- ✅ Launch with `--payload-url`: `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground://expo-development-client/?url=http%3A%2F%2F<MAC_LAN_IP>%3A7365" <bundle-id>`
 - ✅ Verify after prebuild: check `ios/<Scheme>/AppDelegate.swift` contains `jsLocation` with correct IP
 
 **Metro port resource override (Android)**
