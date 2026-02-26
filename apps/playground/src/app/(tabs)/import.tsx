@@ -20,11 +20,11 @@ import {
     SampleRate
 } from '@siteed/expo-audio-studio'
 import { AudioVisualizer } from '@siteed/expo-audio-ui'
-import { Audio } from 'expo-av'
+import { createAudioPlayer, AudioPlayer } from 'expo-audio'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useRouter } from 'expo-router'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
@@ -110,7 +110,7 @@ export const ImportPage = () => {
     const { bottom, top } = useSafeAreaInsets()
     const styles = useMemo(() => getStyles(theme, { bottom, top }), [theme, bottom, top])
     const [audioUri, setAudioUri] = useState<string | null>(null)
-    const [sound, setSound] = useState<Audio.Sound | null>(null)
+    const playerRef = useRef<AudioPlayer | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
     const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysis>()
     const [isPlaying, setIsPlaying] = useState<boolean>(false)
@@ -145,7 +145,6 @@ export const ImportPage = () => {
 
     const resetUIState = useCallback(() => {
         setAudioUri(null)
-        setSound(null)
         setFileName(null)
         setAudioAnalysis(undefined)
         setIsPlaying(false)
@@ -153,11 +152,12 @@ export const ImportPage = () => {
         setProcessing(false)
         setShowVisualizer(true)
         setPreviewStats(null)
-        
-        if (sound) {
-            sound.unloadAsync()
+
+        if (playerRef.current) {
+            playerRef.current.remove()
+            playerRef.current = null
         }
-    }, [sound])
+    }, [])
 
     const generatePreview = useCallback(async (fileUri: string) => {
         try {
@@ -236,8 +236,9 @@ export const ImportPage = () => {
                     throw new Error('File size not available')
                 }
 
-                if (sound) {
-                    setSound(null)
+                if (playerRef.current) {
+                    playerRef.current.remove()
+                    playerRef.current = null
                 }
 
                 setFileName(name)
@@ -262,42 +263,49 @@ export const ImportPage = () => {
     const handleSeekEnd = (timeSeconds: number) => {
         logger.debug('handleSeekEnd', timeSeconds * 1000)
         const timeMs = timeSeconds * 1000
-        if (sound?._loaded) {
-            sound.setPositionAsync(timeMs)
+        if (playerRef.current?.isLoaded) {
+            playerRef.current.seekTo(timeSeconds)
         } else {
             setCurrentTimeMs(timeMs)
         }
     }
 
     const playPauseAudio = useCallback(async () => {
-        if (sound) {
-            const status = await sound.getStatusAsync()
-            if (status.isLoaded) {
-                if (status.isPlaying) {
-                    await sound.pauseAsync()
-                    setIsPlaying(false)
-                } else {
-                    await sound.playAsync()
-                    setIsPlaying(true)
-                }
+        if (playerRef.current) {
+            if (playerRef.current.playing) {
+                playerRef.current.pause()
+                setIsPlaying(false)
+            } else {
+                playerRef.current.play()
+                setIsPlaying(true)
             }
         } else if (audioUri) {
-            const { sound: newSound } = await Audio.Sound.createAsync({
-                uri: audioUri,
-            })
-            setSound(newSound)
-            
-            await newSound.playAsync()
-            setIsPlaying(true)
+            const player = createAudioPlayer({ uri: audioUri })
+            playerRef.current = player
 
-            newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded) {
-                    setCurrentTimeMs(status.positionMillis)
-                    setIsPlaying(status.isPlaying)
-                }
+            player.addListener('playbackStatusUpdate', (status) => {
+                setCurrentTimeMs(status.currentTime * 1000)
+                setIsPlaying(status.playing)
             })
+
+            // Wait for load
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => resolve(), 5000)
+                const checkLoaded = () => {
+                    if (player.isLoaded) {
+                        clearTimeout(timeout)
+                        resolve()
+                    } else {
+                        setTimeout(checkLoaded, 50)
+                    }
+                }
+                checkLoaded()
+            })
+
+            player.play()
+            setIsPlaying(true)
         }
-    }, [audioUri, sound])
+    }, [audioUri])
 
     const saveToFiles = useCallback(async () => {
         if (isSaving || !fileName || !audioUri) {
@@ -460,13 +468,14 @@ export const ImportPage = () => {
     }, [generatePreview, loadSampleAudio, show])
 
     useEffect(() => {
-        return sound
-            ? () => {
-                  logger.log('Unloading sound')
-                  sound.unloadAsync()
-              }
-            : undefined
-    }, [sound])
+        return () => {
+            if (playerRef.current) {
+                logger.log('Removing player')
+                playerRef.current.remove()
+                playerRef.current = null
+            }
+        }
+    }, [])
 
     return (
         <ScreenWrapper 

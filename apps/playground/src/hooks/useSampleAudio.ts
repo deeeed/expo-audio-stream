@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 
 import { Asset } from 'expo-asset'
-import { Audio } from 'expo-av'
+import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 
 import { baseLogger } from '../config'
@@ -31,24 +31,24 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
   const loadSampleAudio = useCallback(async (assetModule: AssetSourceType, customFileName?: string) => {
     try {
       setIsLoading(true)
-      
+
       // Load the audio file using Expo Asset
       const asset = Asset.fromModule(assetModule)
       await asset.downloadAsync()
-      
+
       if (!asset.localUri) {
         throw new Error('Failed to load sample audio file')
       }
-      
+
       // Get the file extension from the asset URI or default to mp3
       const sourceExtension = asset.localUri.split('.').pop()?.toLowerCase() || 'mp3'
-      
+
       // Get the filename from the asset or use the custom name
       let fileName = customFileName || asset.name || 'sample.audio'
       if (!fileName.toLowerCase().endsWith(`.${sourceExtension}`)) {
         fileName = fileName.replace(/\.\w+$/, '') + `.${sourceExtension}`
       }
-      
+
       // Initialize fileUri with the asset's localUri
       let fileUri = asset.localUri
 
@@ -59,47 +59,49 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
           from: asset.localUri,
           to: destinationUri,
         })
-        
-        // For iOS, ensure we keep the 'file://' prefix for Audio.Sound
+
+        // For iOS, ensure we keep the 'file://' prefix for Audio
         fileUri = destinationUri
         logger.debug('Copied sample audio to cache directory', { from: asset.localUri, to: fileUri })
-        
-        // Only remove 'file://' prefix for Essentia operations, not for Audio.Sound
+
+        // Only remove 'file://' prefix for Essentia operations, not for Audio
         const essentiaPath = fileUri.startsWith('file://') ? fileUri.substring(7) : fileUri
         logger.debug('Adjusted file path for Essentia', { path: essentiaPath })
       }
-      
-      // Get audio metadata using Expo AV
+
+      // Get audio metadata using expo-audio
       let size = 0
       let durationMs = 0
-      
-      // Create sound object with the full file:// URI
-      const { sound: tempSound } = await Audio.Sound.createAsync(
-        { uri: fileUri },
-        { shouldPlay: false },
-        null,
-        true
-      )
-      
+
+      // Create a temporary player to get metadata
+      const tempPlayer = createAudioPlayer({ uri: fileUri })
+
       try {
-        if (isWeb) {
-          // For web: play and immediately stop to get accurate duration
-          // This forces the browser to load the audio metadata
-          await tempSound.playAsync()
-          await tempSound.stopAsync()
-        }
-        
-        // Get the loaded status to access metadata
-        const loadedStatus = await tempSound.getStatusAsync()
-        
-        if (loadedStatus.isLoaded) {
-          durationMs = loadedStatus.durationMillis || 0
-          
+        // Wait for the player to load
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            resolve() // resolve anyway after timeout
+          }, 5000)
+
+          const checkLoaded = () => {
+            if (tempPlayer.isLoaded) {
+              clearTimeout(timeout)
+              resolve()
+            } else {
+              setTimeout(checkLoaded, 50)
+            }
+          }
+          checkLoaded()
+        })
+
+        if (tempPlayer.isLoaded) {
+          durationMs = tempPlayer.duration * 1000 // convert seconds to ms
+
           // For MP3 files, estimate size based on duration (128kbps bitrate)
           // 128 kilobits per second = 16 kilobytes per second
           const durationSec = durationMs / 1000
           size = Math.round(durationSec * 16 * 1024)
-          
+
           logger.debug('Audio metadata loaded', {
             durationMs,
             estimatedSize: size,
@@ -109,10 +111,10 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
       } catch (error) {
         logger.warn('Error getting audio metadata:', error)
       } finally {
-        // Always unload the temporary sound
-        await tempSound.unloadAsync()
+        // Always remove the temporary player
+        tempPlayer.remove()
       }
-      
+
       // If we couldn't determine size from audio metadata, try file system methods
       if (size === 0) {
         if (isWeb) {
@@ -133,7 +135,7 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
           }
         }
       }
-      
+
       const sampleAudioFile: SampleAudioFile = {
         uri: fileUri,
         name: fileName,
@@ -141,10 +143,10 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
         durationMs,
         isLoaded: true,
       }
-      
+
       setSampleFile(sampleAudioFile)
       return sampleAudioFile
-      
+
     } catch (error) {
       logger.error('Error loading sample audio file:', error)
       options?.onError?.(error instanceof Error ? error : new Error('Failed to load sample audio'))
@@ -159,4 +161,4 @@ export function useSampleAudio(options?: UseSampleAudioOptions) {
     sampleFile,
     loadSampleAudio,
   }
-} 
+}

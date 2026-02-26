@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 
-import { Audio } from 'expo-av'
+import { createAudioPlayer } from 'expo-audio'
 import * as DocumentPicker from 'expo-document-picker'
 
 import type { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData } from '@siteed/expo-audio-studio'
@@ -368,32 +368,34 @@ export function useAudioTranscription() {
           audioUri = URL.createObjectURL(blob)
         }
 
-        // Load the audio file
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: false },
-          (status) => {
-            logger.debug('Audio status update:', status)
-          }
-        )
+        // Load the audio file to get duration metadata
+        const tempPlayer = createAudioPlayer({ uri: audioUri })
 
-        // Play and immediately stop to get accurate duration
-        await sound.playAsync()
-        await sound.stopAsync()
-
-        // Get the status after playing
-        const status = await sound.getStatusAsync()
-
-        // Get duration and unload
         let fileDuration = 0
-        if (status.isLoaded && status.durationMillis) {
-          fileDuration = status.durationMillis / 1000
-        }
-        await sound.unloadAsync()
+        try {
+          // Wait for the player to load
+          await new Promise<void>((resolve) => {
+            const timeout = setTimeout(() => resolve(), 5000)
+            const checkLoaded = () => {
+              if (tempPlayer.isLoaded) {
+                clearTimeout(timeout)
+                resolve()
+              } else {
+                setTimeout(checkLoaded, 50)
+              }
+            }
+            checkLoaded()
+          })
 
-        // Clean up blob URL if we created one
-        if (isWeb && audioUri !== uri) {
-          URL.revokeObjectURL(audioUri)
+          if (tempPlayer.isLoaded) {
+            fileDuration = tempPlayer.duration // already in seconds
+          }
+        } finally {
+          tempPlayer.remove()
+          // Clean up blob URL if we created one
+          if (isWeb && audioUri !== uri) {
+            URL.revokeObjectURL(audioUri)
+          }
         }
 
         logger.debug('Selected file details:', {
@@ -402,7 +404,7 @@ export function useAudioTranscription() {
           extension: fileExtension,
           uri,
           durationSeconds: fileDuration,
-          status: status.isLoaded ? status : 'not loaded',
+          playerLoaded: tempPlayer.isLoaded,
         })
 
         const fileInfo = {
