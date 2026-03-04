@@ -72,7 +72,10 @@ class AudioDeviceManager {
         }
     }
     
-    /// Prepares the audio session to detect all available devices, including Bluetooth
+    /// Prepares the audio session to detect all available devices, including Bluetooth.
+    /// If the session is already configured as `.playAndRecord` (i.e. during an active recording),
+    /// the existing category options are preserved to avoid overriding user settings like
+    /// disabling Bluetooth (whisper mode).
     private func prepareAudioSession(force: Bool = false) -> Bool {
         // Skip preparation if already prepared and not forcing
         let now = Date().timeIntervalSince1970
@@ -87,14 +90,18 @@ class AudioDeviceManager {
         do {
             let session = AVAudioSession.sharedInstance()
             
-            // Configure with options needed for Bluetooth detection
-            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
-            
-            // Activate the session
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            if session.category == .playAndRecord {
+                // Session already configured for recording -- just ensure it's active.
+                // Avoid reconfiguring category options so user settings (e.g. no .allowBluetooth) are preserved.
+                Logger.debug("AudioDeviceManager", "Session already .playAndRecord, preserving current categoryOptions: \(session.categoryOptions)")
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            } else {
+                // Initial setup: configure with Bluetooth detection options
+                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            }
             
             // Give the system a moment to detect Bluetooth devices if needed
-            // Minimal delay that still allows devices to be detected
             Thread.sleep(forTimeInterval: 0.1)
             
             // Mark as prepared

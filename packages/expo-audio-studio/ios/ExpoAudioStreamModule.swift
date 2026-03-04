@@ -759,9 +759,11 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
         AsyncFunction("selectInputDevice") { (deviceId: String, promise: Promise) in
             Logger.debug("ExpoAudioStreamModule", "selectInputDevice called with ID: \(deviceId)")
             self.deviceManager.selectInputDevice(deviceId, promise: promise)
-            // Update the audio recorder if recording is in progress or prepared
+            // Sync recordingSettings.deviceId so updateAudioSessionWithCurrentSettings
+            // applies the NEW device instead of reverting to the old one
             if self.streamManager.isRecording || self.streamManager.isPrepared {
-                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
+                self.streamManager.recordingSettings?.deviceId = deviceId
+                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Updated recordingSettings.deviceId to \(deviceId), calling updateAudioSessionWithCurrentSettings.")
                 self.streamManager.updateAudioSessionWithCurrentSettings()
             } else {
                 Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
@@ -777,7 +779,9 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
             self.deviceManager.resetToDefaultDevice { success, error in
                 if success {
                     if self.streamManager.isRecording || self.streamManager.isPrepared {
-                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
+                        // nil means "system default" — must be set before updateAudioSession reads it
+                        self.streamManager.recordingSettings?.deviceId = nil
+                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Cleared recordingSettings.deviceId, calling updateAudioSessionWithCurrentSettings.")
                         self.streamManager.updateAudioSessionWithCurrentSettings()
                     } else {
                         Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")

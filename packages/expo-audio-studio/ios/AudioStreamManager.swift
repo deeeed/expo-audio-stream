@@ -214,10 +214,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                         guard let self = self else { return }
                         Logger.debug("AudioStreamManager", "Attempting to auto-resume recording after phone call")
                         
-                        // Configure audio session
+                        // Configure audio session using user-configured options instead of hardcoded defaults
                         do {
                             let session = AVAudioSession.sharedInstance()
-                            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+                            let options = self.recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
+                            try session.setCategory(.playAndRecord, mode: .default, options: options)
                             try session.setActive(true, options: .notifyOthersOnDeactivation)
                             
                             // Resume if we're still recording and paused
@@ -251,10 +252,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     private func setupNowPlayingInfo() {
-        // Configure audio session for background audio
+        // Configure audio session for background audio using user-configured options
         audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession?.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+            let options = recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
+            try audioSession?.setCategory(.playAndRecord, mode: .default, options: options)
             try audioSession?.setActive(true)
         } catch {
             Logger.debug("AudioStreamManager", "Failed to configure audio session: \(error)")
@@ -1685,7 +1687,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     /// Attempts to update the audio session with the preferred input device from current settings.
     /// Called externally when the device selection changes.
-    /// Note: Avoids changing sample rate or buffer duration while engine might be running.
+    /// Performs a full engine stop -> set preferred input -> reinstall tap -> restart cycle
+    /// so the new hardware format is picked up and audio buffers keep flowing.
     public func updateAudioSessionWithCurrentSettings() {
         guard let settings = self.recordingSettings, let deviceId = settings.deviceId else {
             Logger.debug("Cannot update audio session preference, settings or deviceId missing")
@@ -1696,23 +1699,59 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         
         // Find the requested device port
         let selectedPort = session.availableInputs?.first { port in
-            // Normalize IDs for comparison, especially for Bluetooth
             let portNormalizedId = deviceManager.normalizeBluetoothDeviceId(port.uid)
             let requestedNormalizedId = deviceManager.normalizeBluetoothDeviceId(deviceId)
             return portNormalizedId == requestedNormalizedId
         }
         
-        if let portToSet = selectedPort {
-            do {
-                try session.setPreferredInput(portToSet)
-                Logger.debug("Attempted to set preferred input to: \(portToSet.portName) (ID: \(portToSet.uid))")
-                 // We add a small delay hoping the system applies the change before potential next operations
-                Thread.sleep(forTimeInterval: 0.1)
-            } catch {
-                Logger.debug("Failed to set preferred input device \(portToSet.portName): \(error.localizedDescription)")
-            }
-        } else {
+        guard let portToSet = selectedPort else {
             Logger.debug("Could not find device with ID \(deviceId) to set as preferred input.")
+            return
+        }
+        
+        let wasRunning = audioEngine.isRunning
+        
+        do {
+            // 1. Stop engine so the tap can be cleanly removed and the input node resets
+            if wasRunning {
+                Logger.debug("Stopping engine for device switch to \(portToSet.portName)")
+                audioEngine.stop()
+            }
+            audioEngine.inputNode.removeTap(onBus: 0)
+            
+            // 2. Apply the new preferred input
+            try session.setPreferredInput(portToSet)
+            Logger.debug("Set preferred input to: \(portToSet.portName) (ID: \(portToSet.uid))")
+            Thread.sleep(forTimeInterval: 0.15)
+            
+            // 3. Reset engine so inputNode picks up the new hardware format
+            audioEngine.reset()
+            
+            // 4. Reinstall the tap with the new hardware format
+            _ = installTapWithHardwareFormat()
+            Logger.debug("Tap reinstalled after device switch")
+            
+            // 5. Restart the engine if it was running before
+            if wasRunning {
+                try audioEngine.start()
+                Logger.debug("Engine restarted after device switch to \(portToSet.portName)")
+                
+                // Reset emission timers so new audio data is emitted promptly
+                lastEmissionTime = Date()
+                lastEmissionTimeAnalysis = Date()
+            }
+        } catch {
+            Logger.debug("Device switch failed: \(error.localizedDescription)")
+            // Try to recover by restarting the engine
+            if wasRunning {
+                do {
+                    audioEngine.prepare()
+                    try audioEngine.start()
+                    Logger.debug("Engine recovered after device switch error")
+                } catch {
+                    Logger.debug("Engine recovery failed: \(error.localizedDescription)")
+                }
+            }
         }
     }
 
@@ -2090,8 +2129,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 try session.setActive(false, options: .notifyOthersOnDeactivation)
                 try await Task.sleep(nanoseconds: 200_000_000) // Give system time to release resources
                 
-                // Reconfigure the session completely
-                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+                // Reconfigure the session using user-configured options
+                let options = recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
+                try session.setCategory(.playAndRecord, mode: .default, options: options)
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
                 try await Task.sleep(nanoseconds: 100_000_000) // Allow the session to activate fully
             } catch {
