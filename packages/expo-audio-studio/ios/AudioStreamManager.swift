@@ -217,9 +217,15 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                         // Configure audio session using user-configured options instead of hardcoded defaults
                         do {
                             let session = AVAudioSession.sharedInstance()
+                            let savedPreferredInput = session.preferredInput
                             let options = self.recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
                             try session.setCategory(.playAndRecord, mode: .default, options: options)
                             try session.setActive(true, options: .notifyOthersOnDeactivation)
+                            // Re-apply preferred input after session reconfiguration
+                            if let saved = savedPreferredInput,
+                               session.availableInputs?.contains(where: { $0.uid == saved.uid }) == true {
+                                try session.setPreferredInput(saved)
+                            }
                             
                             // Resume if we're still recording and paused
                             if self.isRecording && self.isPaused {
@@ -252,15 +258,11 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
     
     private func setupNowPlayingInfo() {
-        // Configure audio session for background audio using user-configured options
+        // The audio session is already configured by configureAudioSession().
+        // Do NOT call setCategory here -- it would override the user-configured
+        // mode (e.g. .measurement) with .default and reset the preferred input
+        // device, causing Bluetooth to be auto-selected over built-in mic.
         audioSession = AVAudioSession.sharedInstance()
-        do {
-            let options = recordingSettings?.ios?.audioSession?.categoryOptions ?? [.allowBluetooth, .mixWithOthers]
-            try audioSession?.setCategory(.playAndRecord, mode: .default, options: options)
-            try audioSession?.setActive(true)
-        } catch {
-            Logger.debug("AudioStreamManager", "Failed to configure audio session: \(error)")
-        }
         
         // Setup Now Playing info
         notificationView = MPNowPlayingInfoCenter.default()
@@ -2287,6 +2289,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     private func configureAudioSession(for settings: RecordingSettings) throws {
         let session = AVAudioSession.sharedInstance()
         
+        // Save the current preferred input before reconfiguring.
+        // setCategory triggers iOS to re-evaluate routing; when AllowBluetooth
+        // is present and a Bluetooth device is connected, iOS may override the
+        // preferred input and auto-select the Bluetooth device.
+        let savedPreferredInput = session.preferredInput
+        
         // Get base configuration from user settings or defaults
         var category: AVAudioSession.Category = .playAndRecord
         var mode: AVAudioSession.Mode = .default
@@ -2301,16 +2309,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // Append necessary options for background recording if keepAwake is enabled
         if settings.keepAwake {
             Logger.debug("AudioStreamManager", "keepAwake enabled - configuring for background recording")
-            // Set the category to PlayAndRecord with proper background options
             options.insert(.mixWithOthers)
-            // Add duckOthers to reduce volume of other apps instead of stopping them
             options.insert(.duckOthers)
             
-            // Configure audio session for background audio
             do {
                 try session.setCategory(.playAndRecord, mode: .default, options: options)
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
-                // Ensure the app has appropriate Info.plist settings for background audio
                 Logger.debug("AudioStreamManager", "Audio session configured for background recording with options: \(options)")
             } catch {
                 Logger.debug("AudioStreamManager", "Failed to configure audio session for background: \(error)")
@@ -2318,7 +2322,6 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             }
         } else {
             Logger.debug("AudioStreamManager", "keepAwake disabled - using standard session configuration")
-            // If keepAwake is false, don't add background audio options
             try session.setActive(true)
         }
         
@@ -2326,6 +2329,32 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         try session.setCategory(category, mode: mode, options: options)
         
         Logger.debug("AudioStreamManager", "Audio session configured with category: \(category), mode: \(mode), options: \(options)")
+        
+        // Resolve which preferred input to apply: explicit deviceId from config
+        // takes priority, then fall back to whatever was set before reconfiguration.
+        var portToRestore: AVAudioSessionPortDescription? = nil
+        
+        if let deviceId = settings.deviceId {
+            portToRestore = session.availableInputs?.first { port in
+                deviceManager.normalizeBluetoothDeviceId(port.uid) == deviceManager.normalizeBluetoothDeviceId(deviceId)
+            }
+            if portToRestore != nil {
+                Logger.debug("AudioStreamManager", "Will restore preferred input from settings.deviceId: \(portToRestore!.portName)")
+            }
+        }
+        
+        if portToRestore == nil, let saved = savedPreferredInput {
+            // Verify the saved port is still available after reconfiguration
+            portToRestore = session.availableInputs?.first { $0.uid == saved.uid }
+            if portToRestore != nil {
+                Logger.debug("AudioStreamManager", "Will restore previously saved preferred input: \(portToRestore!.portName)")
+            }
+        }
+        
+        if let port = portToRestore {
+            try session.setPreferredInput(port)
+            Logger.debug("AudioStreamManager", "Restored preferred input to: \(port.portName) (ID: \(port.uid))")
+        }
     }
 }
 
