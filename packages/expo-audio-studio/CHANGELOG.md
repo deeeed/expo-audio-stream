@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- fix(ios): `resetToDefaultDevice` now correctly resets the engine tap when switching back to the system default input (was a no-op due to `deviceId=nil` guard)
+- fix(ios): recovery path after a failed device switch no longer produces silent audio (missing tap reinstall before engine restart)
+- fix(ios): `setupNowPlayingInfo` no longer overrides user-configured audio session options (e.g. whisper-mode / no-Bluetooth configs)
+- fix(ios): `selectInputDevice` now syncs `deviceId` into `recordingSettings` before updating the engine, ensuring the port lookup succeeds
+- fix(ios): phone-call auto-resume handler respects user-configured `categoryOptions` instead of hardcoded `[.allowBluetooth, .mixWithOthers]`
+- fix(ios): `AudioDeviceManager.prepareAudioSession` preserves existing session options when already `.playAndRecord`
 
 ## [2.18.5] - 2026-02-23
 ### Changed

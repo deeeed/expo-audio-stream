@@ -19,6 +19,7 @@ import {
     extractAudioData,
     extractMelSpectrogram,
     trimAudio,
+    AudioDeviceManager,
 } from '@siteed/expo-audio-studio'
 
 // State holders updated by AgenticBridgeSync component
@@ -225,6 +226,55 @@ if (__DEV__) {
                     const fileUri = await loadSampleFileUri()
                     const result = await extractMelSpectrogram({ fileUri, windowSizeMs: 25, hopLengthMs: 10, nMels: 40, startTimeMs: 0, endTimeMs: 5000 })
                     _lastAsyncResult = { op, status: 'success', result: { timeSteps: result.timeSteps, nMels: result.nMels, durationMs: result.durationMs } }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        getDevices: () => {
+            const op = 'getDevices'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    const mgr = new AudioDeviceManager()
+                    const devices = await mgr.getAvailableDevices()
+                    _lastAsyncResult = { op, status: 'success', result: devices }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testSelectInputDevice: (deviceId: string) => {
+            const op = 'selectInputDevice'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    const mgr = new AudioDeviceManager()
+                    const success = await mgr.selectDevice(deviceId)
+                    await new Promise(r => setTimeout(r, 500))
+                    const state = _audioState
+                    _lastAsyncResult = { op, status: 'success', result: { success, isRecording: state.isRecording, deviceId } }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testResetToDefaultDevice: () => {
+            const op = 'resetToDefaultDevice'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    const mgr = new AudioDeviceManager()
+                    const success = await mgr.resetToDefaultDevice()
+                    await new Promise(r => setTimeout(r, 500))
+                    const state = _audioState
+                    _lastAsyncResult = { op, status: 'success', result: { success, isRecording: state.isRecording } }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
                 }
