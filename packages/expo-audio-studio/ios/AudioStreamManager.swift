@@ -113,6 +113,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     // Add the stopping flag to the class properties
     private var stopping: Bool = false
     
+    // Tracks the last time performDeviceSwitch completed, used to debounce
+    // route-change notifications that fire as a side effect of setPreferredInput.
+    private var lastDeviceSwitchTime: Date = .distantPast
+    
     // Performance optimization: Cache file sizes during recording
     private var cachedWavFileSize: Int64 = 0
     private var cachedCompressedFileSize: Int64 = 0
@@ -138,6 +142,12 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             self,
             selector: #selector(handleAppWillEnterForeground),
             name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRouteChange),
+            name: AVAudioSession.routeChangeNotification,
             object: nil
         )
 
@@ -250,7 +260,53 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             break
         }
     }
-    
+
+    /// Handles audio route changes during recording (e.g. AirPods connecting/disconnecting).
+    /// When the active input port changes, the existing engine tap format becomes invalid
+    /// and must be reinstalled with the new hardware format to keep audio flowing.
+    @objc private func handleRouteChange(_ notification: Notification) {
+        guard isRecording, !stopping else { return }
+
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+
+        // .oldDeviceUnavailable is already handled by the AudioDeviceManagerDelegate
+        // disconnection flow (handleDeviceDisconnection → pause or fallback).
+        guard reason == .newDeviceAvailable || reason == .override || reason == .routeConfigurationChange else {
+            Logger.debug("AudioStreamManager", "Route change reason \(reason.rawValue) during recording — not restarting engine")
+            return
+        }
+
+        // Debounce: performDeviceSwitch calls setPreferredInput which triggers another
+        // route change notification. Skip if we completed a switch very recently.
+        guard Date().timeIntervalSince(lastDeviceSwitchTime) > 0.5 else {
+            Logger.debug("AudioStreamManager", "Skipping route change — recent device switch (\(String(format: "%.2f", Date().timeIntervalSince(lastDeviceSwitchTime)))s ago)")
+            return
+        }
+
+        let session = AVAudioSession.sharedInstance()
+        guard let currentInput = session.currentRoute.inputs.first else {
+            Logger.debug("AudioStreamManager", "No current input port after route change")
+            return
+        }
+
+        // Only restart if the actual input port changed
+        let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription
+        let previousInput = previousRoute?.inputs.first
+
+        if currentInput.uid == previousInput?.uid {
+            Logger.debug("AudioStreamManager", "Route changed but input port unchanged (\(currentInput.portName)), skipping")
+            return
+        }
+
+        Logger.debug("AudioStreamManager", "Input port changed during recording: \(previousInput?.portName ?? "none") → \(currentInput.portName) (reason: \(reason.rawValue)). Restarting engine with new format.")
+
+        performDeviceSwitch(port: currentInput)
+    }
+
     private func setupNowPlayingInfo() {
         // Session is already configured by configureAudioSession(); do not override it here.
         audioSession = AVAudioSession.sharedInstance()
@@ -1078,6 +1134,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             lastEmissionTimeAnalysis = Date()
             isRecording = true
             isPaused = false
+            // Debounce route-change notifications triggered by configureAudioSession
+            // during prepareRecording — they arrive after isRecording is already true.
+            lastDeviceSwitchTime = Date()
             
             // Start the audio engine
             try audioEngine.start()
@@ -1697,11 +1756,13 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                 lastEmissionTimeAnalysis = Date()
                 Logger.debug("AudioStreamManager", "Device switch complete; engine restarted (port: \(port?.portName ?? "default"))")
             }
+            lastDeviceSwitchTime = Date()
         } catch {
             Logger.debug("AudioStreamManager", "Device switch failed: \(error.localizedDescription)")
+            lastDeviceSwitchTime = Date()
             if wasRunning {
                 do {
-                    _ = installTapWithHardwareFormat()  // Bug 2 fix: reinstall tap in recovery path
+                    _ = installTapWithHardwareFormat()
                     audioEngine.prepare()
                     try audioEngine.start()
                     Logger.debug("AudioStreamManager", "Engine recovery after device switch succeeded")
@@ -1771,6 +1832,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             audioEngine.stop()
         }
         audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.reset()
         
         // Stop compressed recording if active and update cached size
         if let recorder = compressedRecorder {
