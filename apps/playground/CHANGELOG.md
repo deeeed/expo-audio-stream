@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.9.0] - 2026-03-05
+
+### Added
+- upgrade monorepo from Expo SDK 54 to SDK 55
+
+
 ## [1.8.1] - 2026-02-23
 
 ### Fixed
@@ -207,7 +213,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.1...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.9.0...HEAD
+[1.9.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.1...audio-playground@1.9.0
 [1.8.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.0...audio-playground@1.8.1
 [1.8.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.7.0...audio-playground@1.8.0
 [1.7.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.6.0...audio-playground@1.7.0
