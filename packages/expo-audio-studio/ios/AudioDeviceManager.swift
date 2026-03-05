@@ -87,11 +87,15 @@ class AudioDeviceManager {
         do {
             let session = AVAudioSession.sharedInstance()
             
-            // Configure with options needed for Bluetooth detection
-            try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
-            
-            // Activate the session
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            // Preserve existing session configuration if already set up for recording
+            if session.category == .playAndRecord {
+                Logger.debug("AudioDeviceManager", "Session already .playAndRecord, preserving categoryOptions")
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            } else {
+                // Configure with options needed for Bluetooth detection
+                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
+                try session.setActive(true, options: .notifyOthersOnDeactivation)
+            }
             
             // Give the system a moment to detect Bluetooth devices if needed
             // Minimal delay that still allows devices to be detected

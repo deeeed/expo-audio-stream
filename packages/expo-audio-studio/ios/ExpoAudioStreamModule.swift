@@ -759,6 +759,8 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
         AsyncFunction("selectInputDevice") { (deviceId: String, promise: Promise) in
             Logger.debug("ExpoAudioStreamModule", "selectInputDevice called with ID: \(deviceId)")
             self.deviceManager.selectInputDevice(deviceId, promise: promise)
+            // Sync deviceId into recordingSettings so updateAudioSessionWithCurrentSettings can find the port
+            self.streamManager.recordingSettings?.deviceId = deviceId
             // Update the audio recorder if recording is in progress or prepared
             if self.streamManager.isRecording || self.streamManager.isPrepared {
                 Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
@@ -776,11 +778,15 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
             Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice called.")
             self.deviceManager.resetToDefaultDevice { success, error in
                 if success {
+                    // Clear stored deviceId so updateAudioSessionWithCurrentSettings won't bail early
+                    self.streamManager.recordingSettings?.deviceId = nil
                     if self.streamManager.isRecording || self.streamManager.isPrepared {
-                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
-                        self.streamManager.updateAudioSessionWithCurrentSettings()
+                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Performing device switch to system default.")
+                        // Bug 1 fix: call performDeviceSwitch(nil) directly — updateAudioSessionWithCurrentSettings
+                        // would bail immediately because deviceId is now nil.
+                        self.streamManager.performDeviceSwitch(port: nil)
                     } else {
-                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
+                        Logger.debug("ExpoAudioStreamModule", "resetToDefaultDevice: Not recording/prepared, no engine action needed.")
                     }
                     promise.resolve(true)
                 } else {
