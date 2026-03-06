@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.6] - 2026-03-06
 ### Fixed
 - fix(ios): `resetToDefaultDevice` now correctly resets the engine tap when switching back to the system default input (was a no-op due to `deviceId=nil` guard)
 - fix(ios): recovery path after a failed device switch no longer produces silent audio (missing tap reinstall before engine restart)
