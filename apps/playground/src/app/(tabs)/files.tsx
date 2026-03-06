@@ -30,6 +30,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
+            paddingTop: insets?.top ?? 0,
         },
         contentContainer: {
             gap: theme.spacing.gap ?? 10,

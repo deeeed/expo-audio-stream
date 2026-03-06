@@ -22,7 +22,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: 0,
+            paddingTop: insets?.top ?? 0,
         },
         progressContainer: {
             flexDirection: 'row',
@@ -254,7 +254,7 @@ export function TranscriptionScreen() {
     }, [handleExtractAudio, loadSampleAudio, resetTranscriptionState, isCustomDuration, customDuration, extractDuration])
 
     return (
-        <ScreenWrapper 
+        <ScreenWrapper
             withScrollView
             useInsets={false}
             contentContainerStyle={styles.container}

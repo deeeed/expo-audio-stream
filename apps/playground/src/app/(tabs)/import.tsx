@@ -43,7 +43,7 @@ const getStyles = (theme: AppTheme, insets?: { bottom: number, top: number }) =>
             gap: theme.spacing.gap ?? theme.padding.s,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom ?? 80,
-            paddingTop: 0,
+            paddingTop: insets?.top ?? 0,
         },
         controlsContainer: {
             backgroundColor: theme.colors.surfaceVariant,
@@ -478,9 +478,9 @@ export const ImportPage = () => {
     }, [])
 
     return (
-        <ScreenWrapper 
-            withScrollView 
-            useInsets={false} 
+        <ScreenWrapper
+            withScrollView
+            useInsets={false}
             contentContainerStyle={styles.container}
         >
             <Notice
