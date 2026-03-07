@@ -34,7 +34,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -67,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 : '',
     },
     plugins: [
+      ["./plugins/withMetroPort.cjs", { port: 7500 }],
       "expo-router",
       [
         "expo-av",

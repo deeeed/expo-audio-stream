@@ -564,6 +564,7 @@ export default function AsrScreen() {
               downloadedModels.map((model) => (
                 <TouchableOpacity
                   key={model.metadata.id}
+                  testID={`model-option-${model.metadata.id}`}
                   style={[
                     styles.modelOption,
                     selectedModelId === model.metadata.id && styles.modelOptionSelected
@@ -593,14 +594,16 @@ export default function AsrScreen() {
                     }
                   }}
                 >
-                  <Text 
-                    style={[
-                      styles.modelOptionText,
-                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
-                    ]}
-                  >
-                    {model.metadata.name}
-                  </Text>
+                  <View style={styles.modelOptionRow}>
+                    <Text
+                      style={[
+                        styles.modelOptionText,
+                        selectedModelId === model.metadata.id && styles.modelOptionTextSelected
+                      ]}
+                    >
+                      {model.metadata.name}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))
             )}
@@ -613,6 +616,11 @@ export default function AsrScreen() {
         {/* ASR Configuration */}
         <View style={styles.configSection}>
           <Text style={styles.sectionTitle}>2. ASR Configuration</Text>
+          {selectedModelId && asrConfig && (
+            <Text style={styles.configSubtitle}>
+              Options pre-configured for this model. Adjust threads for performance.
+            </Text>
+          )}
           
           <View style={styles.configRow}>
             <Text style={styles.configLabel}>Number of Threads:</Text>
@@ -635,34 +643,39 @@ export default function AsrScreen() {
             </View>
           </View>
           
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Decoding Method:</Text>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  decodingMethod === 'greedy_search' && styles.optionButtonSelected
-                ]}
-                onPress={() => setDecodingMethod('greedy_search')}
-              >
-                <Text style={[
-                  styles.optionButtonText,
-                  decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
-                ]}>Greedy Search</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  decodingMethod === 'beam_search' && styles.optionButtonSelected
-                ]}
-                onPress={() => setDecodingMethod('beam_search')}
-              >
-                <Text style={[
-                  styles.optionButtonText,
-                  decodingMethod === 'beam_search' && styles.optionButtonTextSelected
-                ]}>Beam Search</Text>
-              </TouchableOpacity>
+          <View style={styles.configBlock}>
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Decoding Method:</Text>
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[
+                    styles.optionButton,
+                    decodingMethod === 'greedy_search' && styles.optionButtonSelected
+                  ]}
+                  onPress={() => setDecodingMethod('greedy_search')}
+                >
+                  <Text style={[
+                    styles.optionButtonText,
+                    decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
+                  ]}>Greedy Search</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.optionButton,
+                    decodingMethod === 'beam_search' && styles.optionButtonSelected
+                  ]}
+                  onPress={() => setDecodingMethod('beam_search')}
+                >
+                  <Text style={[
+                    styles.optionButtonText,
+                    decodingMethod === 'beam_search' && styles.optionButtonTextSelected
+                  ]}>Beam Search</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+            {asrConfig && ['whisper', 'paraformer', 'sense_voice', 'moonshine', 'tdnn'].includes(asrConfig.modelType || '') && (
+              <Text style={styles.configHint}>Not used by this model type</Text>
+            )}
           </View>
           
           {decodingMethod === 'beam_search' && (
@@ -688,12 +701,18 @@ export default function AsrScreen() {
             </View>
           )}
           
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Streaming Mode:</Text>
-            <Switch
-              value={isStreaming}
-              onValueChange={setIsStreaming}
-            />
+          <View style={styles.configBlock}>
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Streaming Mode:</Text>
+              <Switch
+                value={isStreaming}
+                onValueChange={setIsStreaming}
+                disabled={!!asrConfig}
+              />
+            </View>
+            {asrConfig && (
+              <Text style={styles.configHint}>Determined by model architecture</Text>
+            )}
           </View>
           
           <View style={styles.configRow}>
@@ -737,24 +756,26 @@ export default function AsrScreen() {
 
         {/* ASR Controls */}
         <View style={styles.buttonRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
+            testID="btn-init-asr"
             style={[
-              styles.button, 
+              styles.button,
               styles.initButton,
               (!selectedModelId || loading) && styles.buttonDisabled
-            ]} 
+            ]}
             onPress={handleInitAsr}
             disabled={loading || !selectedModelId}
           >
             <Text style={styles.buttonText}>Initialize ASR</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
+            testID="btn-release-asr"
             style={[
-              styles.button, 
+              styles.button,
               styles.releaseButton,
               (!initialized || loading) && styles.buttonDisabled
-            ]} 
+            ]}
             onPress={handleReleaseAsr}
             disabled={loading || !initialized}
           >
@@ -773,6 +794,7 @@ export default function AsrScreen() {
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
+                  testID={`audio-option-${item.id}`}
                   style={[
                     styles.audioItem,
                     selectedAudio?.id === item.id && styles.selectedAudioItem
@@ -823,6 +845,7 @@ export default function AsrScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Recognize Speech</Text>
             <TouchableOpacity
+              testID="btn-recognize"
               style={[
                 styles.button,
                 styles.generateButton,
@@ -833,12 +856,12 @@ export default function AsrScreen() {
             >
               <Text style={styles.buttonText}>Recognize Speech</Text>
             </TouchableOpacity>
-            
+
             {recognitionResult !== '' && (
               <View style={styles.resultContainer}>
                 <Text style={styles.resultLabel}>Recognized Text:</Text>
                 <View style={styles.textContainer}>
-                  <Text style={styles.recognizedText}>{recognitionResult}</Text>
+                  <Text testID="text-recognition-result" style={styles.recognizedText}>{recognitionResult}</Text>
                 </View>
               </View>
             )}
@@ -943,6 +966,12 @@ const styles = StyleSheet.create({
   modelOptionSelected: {
     backgroundColor: '#2196F3',
   },
+  modelOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   modelOptionText: {
     fontSize: 16,
     color: '#333',
@@ -1028,10 +1057,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
   },
+  configSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  configBlock: {
+    marginBottom: 12,
+  },
   configRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  configHint: {
+    fontSize: 12,
+    color: '#aaa',
+    marginTop: -8,
+    marginBottom: 4,
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
   configLabel: {
     flex: 1,
