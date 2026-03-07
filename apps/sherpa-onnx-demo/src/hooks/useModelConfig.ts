@@ -79,8 +79,8 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       numThreads: 2,
       decodingMethod: 'greedy_search',
       maxActivePaths: 4,
-      streaming: false,
-      debug: true,
+      streaming: true,
+      debug: false,
       provider: 'cpu',
       modelFiles: {
         encoder: 'encoder-epoch-99-avg-1.int8.onnx',

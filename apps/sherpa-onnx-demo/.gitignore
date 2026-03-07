@@ -81,3 +81,6 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+
+# agentic scripts runtime
+.agent/

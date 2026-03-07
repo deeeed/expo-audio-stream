@@ -2,10 +2,10 @@ import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import React, { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   ScrollView,
@@ -49,6 +49,10 @@ const SAMPLE_AUDIO_FILES = [
  * 5. Perform speech recognition
  */
 export default function AsrScreen() {
+  // Deep-link params: /(tabs)/asr?model=<id>&autoInit=true&audioId=1&t=<timestamp>
+  // Pass t=<Date.now()> to force re-trigger effects when navigating to same screen
+  const params = useLocalSearchParams<{ model?: string; autoInit?: string; audioId?: string; t?: string }>();
+
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -94,6 +98,9 @@ export default function AsrScreen() {
   
   // Add new state for initialization status messages
   const [statusMessage, setStatusMessage] = useState<string>('');
+
+  // Track if autoInit has already fired for the current params
+  const autoInitFiredRef = useRef<string | null>(null);
   
   // Reset configuration when selected model or asrConfig changes
   useEffect(() => {
@@ -110,6 +117,36 @@ export default function AsrScreen() {
     }
   }, [selectedModelId, asrConfig]);
   
+  // Handle deep-link params: ?model=<id>&autoInit=true&audioId=<id>&t=<timestamp>
+  // Force-release and switch model without the Switch Model alert.
+  // Pass a fresh t=Date.now() each call to re-trigger even for the same model.
+  useEffect(() => {
+    if (!params.model || !params.t) return;
+    // Release native ASR, reset state, select model
+    ASR.release().catch(() => {}).finally(() => {
+      setInitialized(false);
+      setRecognitionResult('');
+      setSelectedModelId(params.model!);
+    });
+  }, [params.t]); // only re-run when t changes (fresh navigation)
+
+  useEffect(() => {
+    // autoInit: fire once per t value, after model is selected and not loading
+    if (params.autoInit !== 'true' || !params.model || !params.t) return;
+    if (autoInitFiredRef.current === params.t) return;
+    if (loading) return;
+    autoInitFiredRef.current = params.t;
+    const timer = setTimeout(() => handleInitAsr(), 1500);
+    return () => clearTimeout(timer);
+  }, [params.t, params.autoInit, params.model, loading]);
+
+  useEffect(() => {
+    if (params.audioId && loadedAudioFiles.length > 0) {
+      const audio = loadedAudioFiles.find(a => a.id === params.audioId);
+      if (audio) handleSelectAudio(audio);
+    }
+  }, [params.audioId, params.t, loadedAudioFiles]);
+
   // ASR cleanup - only on unmount (empty dependency array)
   useEffect(() => {
     return () => {
@@ -465,7 +502,6 @@ export default function AsrScreen() {
       
       setInitialized(false);
       setRecognitionResult('');
-      Alert.alert('Success', 'ASR resources released successfully');
     } catch (err) {
       setError(`Error releasing ASR resources: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -569,29 +605,11 @@ export default function AsrScreen() {
                     styles.modelOption,
                     selectedModelId === model.metadata.id && styles.modelOptionSelected
                   ]}
-                  onPress={() => {
+                  onPress={async () => {
                     if (initialized) {
-                      Alert.alert(
-                        "Switch Model?",
-                        "Switching models will release the currently initialized model. Any recognition progress will be lost.",
-                        [
-                          {
-                            text: "Cancel",
-                            style: "cancel"
-                          },
-                          {
-                            text: "Switch",
-                            style: "destructive",
-                            onPress: async () => {
-                              await handleReleaseAsr();
-                              setSelectedModelId(model.metadata.id);
-                            }
-                          }
-                        ]
-                      );
-                    } else {
-                      setSelectedModelId(model.metadata.id);
+                      await handleReleaseAsr();
                     }
+                    setSelectedModelId(model.metadata.id);
                   }}
                 >
                   <View style={styles.modelOptionRow}>

@@ -67,6 +67,66 @@ if (__DEV__) {
       return true
     },
 
+    // Force release ASR at native level — use before navigating to asr screen
+    // to ensure clean state regardless of previous JS-side initialized flag
+    releaseAsr: () => {
+      const op = 'releaseAsr'
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        try {
+          await ASR.release()
+          _lastAsyncResult = { op, status: 'success', result: 'released' }
+        } catch (e) {
+          // Ignore — may not be initialized
+          _lastAsyncResult = { op, status: 'success', result: 'not initialized' }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    pressTestId: (testId: string) => {
+      try {
+        const hook = (globalThis as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__ as Record<string, unknown> | undefined
+        if (!hook) return { ok: false, error: '__REACT_DEVTOOLS_GLOBAL_HOOK__ not found' }
+
+        const renderers = hook.renderers as Map<number, unknown> | undefined
+        if (!renderers) return { ok: false, error: 'No renderers found' }
+
+        const getFiberRoots = hook.getFiberRoots as ((id: number) => Set<Record<string, unknown>>) | undefined
+
+        const walkFiber = (fiber: Record<string, unknown> | null): boolean => {
+          if (!fiber) return false
+          const props = fiber.memoizedProps as Record<string, unknown> | null
+          if (props?.testID === testId) {
+            const onPress = props?.onPress as ((...args: unknown[]) => unknown) | undefined
+            if (typeof onPress === 'function') {
+              onPress()
+              return true
+            }
+          }
+          if (walkFiber(fiber.child as Record<string, unknown> | null)) return true
+          if (walkFiber(fiber.sibling as Record<string, unknown> | null)) return true
+          return false
+        }
+
+        for (let id = 1; id <= 3; id++) {
+          if (!renderers.get(id)) continue
+          const fiberRoots = getFiberRoots ? getFiberRoots(id) : undefined
+          if (!fiberRoots) continue
+          let found = false
+          fiberRoots.forEach((root) => {
+            if (!found) {
+              found = walkFiber(root.current as Record<string, unknown> | null)
+            }
+          })
+          if (found) return { ok: true, testId }
+        }
+        return { ok: false, error: `No component with testID="${testId}" found or no onPress prop` }
+      } catch (e) {
+        return { ok: false, error: String(e) }
+      }
+    },
+
     // --- Native module validation tests (fire-and-store pattern) ---
 
     getLastResult: () => {
