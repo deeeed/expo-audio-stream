@@ -148,7 +148,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap || 16,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: insets?.top ?? 0,
+            paddingTop: 0,
         },
         waveformContainer: {
             borderRadius: 10,

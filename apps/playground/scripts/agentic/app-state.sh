@@ -50,15 +50,24 @@ case "$COMMAND" in
   go-back)
     $BRIDGE go-back
     ;;
+  press)
+    $BRIDGE press-test-id "${EXTRA_ARGS[@]}"
+    ;;
+  scroll)
+    $BRIDGE scroll-view "${EXTRA_ARGS[@]}"
+    ;;
   *)
     echo "Usage: app-state.sh [--device <name>] <command> [args...]"
     echo ""
     echo "Commands:"
-    echo "  route                  Current route path"
-    echo "  state                  Audio recorder state (isRecording, isPaused, durationMs, etc.)"
-    echo "  eval <expression>      Evaluate arbitrary JS in app context"
-    echo "  can-go-back            Check if navigation can go back"
-    echo "  go-back                Navigate back"
+    echo "  route                          Current route path"
+    echo "  state                          Audio recorder state (isRecording, isPaused, durationMs, etc.)"
+    echo "  eval <expression>              Evaluate arbitrary JS in app context"
+    echo "  can-go-back                    Check if navigation can go back"
+    echo "  go-back                        Navigate back"
+    echo "  press <testId>                 Press a component by testID"
+    echo "  scroll [--test-id <id>] [--offset <n>] [--no-animated]"
+    echo "                                 Scroll a ScrollView/FlatList by testID or globally"
     echo ""
     echo "Options:"
     echo "  --device <name>        Target a specific device (substring match)"

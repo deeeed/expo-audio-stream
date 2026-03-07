@@ -1,324 +1,87 @@
 # Agentic Feedback Loops
 
-Closed-loop system for AI agents to develop, navigate, inspect, record, screenshot, and validate the Expo Audio Studio app across **Android, iOS, and Web** — without human intervention.
+All commands from `apps/playground/`. `cdp-bridge.mjs` is the single entry point for all platforms.
 
-All commands run from `apps/playground/`.
+## Setup
 
-## How It Works
-
-Every platform exposes `globalThis.__AGENTIC__` in dev mode with the same API:
-
-```
-.navigate(path)          → push route
-.getRoute()              → { pathname, segments }
-.getState()              → { isRecording, isPaused, durationMs, size, analysisData, compression }
-.canGoBack()             → boolean
-.goBack()                → true
-.startRecording(config)  → StartRecordingResult | { error }
-.stopRecording()         → AudioRecording | null | { error }
-.pauseRecording()        → true | { error }
-.resumeRecording()       → true | { error }
-```
-
-**All platforms:** `cdp-bridge.mjs` is the single entry point. It discovers native (Android/iOS) targets via Metro's `/json/list` and web (Chrome) targets via Chrome's `--remote-debugging-port` (connection info from `.agent/web-browser.json`). `web-browser.mjs` is only used for browser lifecycle (`launch`, `close`, `logs`).
-
-## Platform Setup
-
-### Android
 ```bash
-adb devices                    # Must show a "device" line
+scripts/agentic/start-metro.sh          # Start Metro :7365
+adb devices                             # Android: verify connected
+xcrun simctl boot "iPhone 16 Pro Max"   # iOS: boot simulator
+node scripts/agentic/web-browser.mjs launch &  # Web: launch Chrome
 ```
 
-### iOS
-```bash
-xcrun simctl boot "iPhone 16 Pro Max"
-```
+## Core Commands
 
-### Web
 ```bash
-yarn playwright install chromium   # First time only
-```
-
-### All platforms
-```bash
-scripts/agentic/start-metro.sh    # Start Metro on :7365 (auto-detects if running)
-```
-
-## Feedback Loop Commands
-
-### Navigate
-```bash
-# All platforms (auto-discovers connected devices)
+node scripts/agentic/cdp-bridge.mjs list-devices
 scripts/agentic/app-navigate.sh "/(tabs)/record"
-scripts/agentic/app-navigate.sh --screenshot "/(tabs)/files"
-
-# Target a specific device
-scripts/agentic/app-navigate.sh --device "Pixel 6a" "/(tabs)/record"
-scripts/agentic/app-navigate.sh --device "web" "/(tabs)/record"
+scripts/agentic/app-state.sh route|state|eval|can-go-back|go-back|press|scroll
+scripts/agentic/screenshot.sh <label>
+scripts/agentic/reload-metro.sh
+scripts/agentic/native-logs.sh android|ios [N|follow|clear]
 ```
 
-### Query State
-```bash
-# All platforms
-scripts/agentic/app-state.sh route
-scripts/agentic/app-state.sh state
+All accept `--device <name>` for multi-device targeting.
 
-# Target a specific device
-scripts/agentic/app-state.sh --device "iPhone" state
-scripts/agentic/app-state.sh --device "web" state
+## __AGENTIC__ API
+
+```
+.navigate(path)          .getRoute()        .getState()
+.canGoBack()             .goBack()
+.startRecording(config)  .stopRecording()   .pauseRecording()  .resumeRecording()
+.pressTestId(testId)     .scrollView({testId, offset, animated})
+.getLastResult()         .getDevices()      .testExtractPreview()  ...
 ```
 
-### Screenshot
-```bash
-scripts/agentic/screenshot.sh my-label                    # All connected devices
-scripts/agentic/screenshot.sh --device "Pixel 6a" my-label  # Specific device
-scripts/agentic/screenshot.sh --device "web" my-label       # Web only
-```
+Config: JSON-serializable only (no callbacks). Poll `getState()` for recording progress.
 
-Output: JSON with `{ screenshot: "<absolute-path>", deviceName, platform }`
-
-### Reload After Code Change
-```bash
-scripts/agentic/reload-metro.sh    # Hot-reload all connected clients
-```
-
-### Native Logs (Kotlin/Swift)
-```bash
-# Android: dump recent native logs (filtered by ExpoAudioStudio tags)
-scripts/agentic/native-logs.sh android
-
-# Android: last 50 lines only
-scripts/agentic/native-logs.sh android 50
-
-# Android: follow in real-time (Ctrl+C to stop)
-scripts/agentic/native-logs.sh android follow
-
-# Android: clear logcat buffer (useful before a test run)
-scripts/agentic/native-logs.sh android clear
-
-# iOS: stream simulator logs for 5 seconds
-scripts/agentic/native-logs.sh ios
-
-# iOS: last 30 lines
-scripts/agentic/native-logs.sh ios 30
-```
-
-Filter tags:
-- **Android**: `ExpoAudioStudio` (LogUtils), `ExpoAudioStream` (Constants.TAG), `AudioTrimmer`, `AudioDeviceManager`
-- **iOS**: `[ExpoAudioStudio:ClassName]` format from `Logger.swift`
-
-Use native logs to debug crashes, native module errors, and audio pipeline issues that don't surface in JS.
-
-### Eval Arbitrary JS
-```bash
-scripts/agentic/app-state.sh eval "document.title"
-scripts/agentic/app-state.sh --device "web" eval "document.title"
-```
-
-## Recording Control via CDP
-
-Agents can start/stop recordings entirely through the CDP bridge — no Detox needed for dev-session validation.
-
-### Design
-
-- **No callbacks in config**: `onAudioStream` and `onAudioAnalysis` are function callbacks that cannot be serialized over CDP. The bridge silently strips any function properties from the config object. Agents poll `getState()` to track recording progress.
-- **Config is a JSON-serializable subset of `RecordingConfig`**: only primitive/object values (sampleRate, channels, encoding, output, etc.).
-- **Error handling**: all methods return `{ error: string }` on failure.
-
-### Workflow
+## UI Interaction (press / scroll by testID)
 
 ```bash
-# Start recording (config is JSON-serializable subset of RecordingConfig)
-scripts/agentic/app-state.sh eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
+scripts/agentic/app-state.sh press start-recording-button
+# → { ok: true, testId: "..." }
 
-# Poll state during recording
-scripts/agentic/app-state.sh state
-# → { isRecording: true, durationMs: 1234, size: 56789, ... }
+scripts/agentic/app-state.sh scroll --test-id files-list --offset 300
+# → { ok: true, testId: "...", offset: 300, animated: false }
+# sleep 1 before screenshot to let UI settle
 
-# Pause / resume
-scripts/agentic/app-state.sh eval "__AGENTIC__.pauseRecording()"
-scripts/agentic/app-state.sh eval "__AGENTIC__.resumeRecording()"
-
-# Stop recording and get result
-scripts/agentic/app-state.sh eval "__AGENTIC__.stopRecording()"
-# → { fileUri: "...", durationMs: 5000, size: 220500, mimeType: "audio/wav", ... }
-
-# Verify final state
-scripts/agentic/app-state.sh state
-# → { isRecording: false, ... }
+scripts/agentic/app-state.sh scroll --offset 300   # global (first scrollable)
 ```
 
-### Web equivalent
+Uses React fiber tree (`__REACT_DEVTOOLS_GLOBAL_HOOK__`) — dev mode only. No depth cap.
 
-```bash
-# Same commands — just target the web device
-scripts/agentic/app-state.sh --device "web" eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
-scripts/agentic/app-state.sh --device "web" state
-scripts/agentic/app-state.sh --device "web" eval "__AGENTIC__.stopRecording()"
-```
+## testID Registry
 
-### Config examples
+| testID | Screen |
+|--------|--------|
+| `start-recording-button`, `stop-recording-button`, `pause-recording-button`, `resume-recording-button`, `prepare-recording-button`, `record-again-button` | `/record` |
+| `record-screen-wrapper` (scroll) | `/record` |
+| `files-list` (scroll), `clear-directory-button` | `/files` |
+| `transcription-scroll`, `select-audio-file-button`, `load-sample-audio-button`, `extract-audio-button`, `start-transcription-button`, `stop-transcription-button` | `/transcription` |
+| `more-scroll` | `/more` |
+| `load-sample-button`, `play-audio-button`, `pause-audio-button`, `save-to-files-button` | `/import` |
 
-```js
-// Basic recording
-{ sampleRate: 44100, channels: 1 }
+## Routes
 
-// Compressed output
-{ sampleRate: 44100, channels: 1, output: { compressed: { enabled: true, format: 'aac' } } }
+`/(tabs)/record` · `/(tabs)/files` · `/(tabs)/import` · `/(tabs)/transcription` · `/(tabs)/more`
+`/minimal` · `/trim` · `/decibel` · `/permissions` · `/audio-device-test`
 
-// High-frequency analysis
-{ sampleRate: 48000, intervalAnalysis: 25, interval: 10 }
+## Env
 
-// Stereo
-{ sampleRate: 44100, channels: 2 }
-```
-
-## Web-Specific: Browser Lifecycle
-
-`web-browser.mjs` manages browser lifecycle only. Once launched, all commands go through `cdp-bridge.mjs` (which auto-discovers the web target).
-
-```bash
-# Launch browser (opens visible Chrome window, stays running)
-node scripts/agentic/web-browser.mjs launch &
-
-# All commands go through the unified cdp-bridge.mjs
-scripts/agentic/app-state.sh --device "web" route
-scripts/agentic/app-navigate.sh --device "web" "/(tabs)/files"
-scripts/agentic/screenshot.sh --device "web" my-label
-
-# web-browser.mjs still handles lifecycle + logs
-node scripts/agentic/web-browser.mjs logs           # Console log capture
-node scripts/agentic/web-browser.mjs close           # Shutdown browser
-```
-
-Env: `WEB_HEADLESS=true` for CI, `CDP_PORT=9222` (default).
-
-Console logs are captured to `.agent/web-console.log` (all `console.*` + uncaught errors).
-
-## Development Iteration Loop
-
-```
- Edit code
-     |
-     v
- reload-metro.sh              <- hot-reload
-     |
-     v
- app-state.sh route           <- verify screen
-     |
-     v
- app-navigate.sh /path        <- go to target
-     |
-     v
- app-state.sh state           <- check app state
-     |
-     v
- screenshot.sh label          <- visual verification
-     |
-     v
- native-logs.sh android/ios   <- check native logs (if needed)
-     |
-     v
- Iterate or run E2E
-```
-
-## Available Routes
-
-| Route | Description |
-|-------|-------------|
-| `/(tabs)/record` | Record (default) |
-| `/(tabs)/import` | Import audio files |
-| `/(tabs)/transcription` | Speech-to-text |
-| `/(tabs)/files` | Recorded files |
-| `/(tabs)/more` | Settings & options |
-| `/minimal` | Minimal recording |
-| `/trim` | Audio trimmer |
-| `/decibel` | Decibel meter |
-| `/permissions` | Permissions |
-| `/audio-device-test` | Device testing |
-
-## Environment Variables
-
-| Variable | Default | Scope |
-|----------|---------|-------|
-| `WATCHER_PORT` | `7365` | All (Metro port) |
-| `CDP_TIMEOUT` | `5000` | CDP bridge connection timeout |
-| `WEB_HEADLESS` | `false` | Web browser launch mode |
-| `CDP_PORT` | `9222` | Web browser CDP port |
-
-## Architecture
-
-```
-+--------------------------------------------------+
-|  AI Agent                                        |
-|                                                  |
-|  app-navigate.sh / app-state.sh / screenshot.sh  |
-|                      |                           |
-|                      v                           |
-|               cdp-bridge.mjs                     |
-|          (unified CDP entry point)               |
-|              /            \                      |
-+-------------/--------------\---------------------+
-             /                \
-            v                  v
-       Metro :7365        Chrome :9222
-       /json/list         /json/list
-            |                  |
-            v                  v
-    Hermes Runtime      Browser JS Runtime
-    (Android/iOS)            (Web)
-            |                  |
-            +--------+---------+
-                     v
-           globalThis.__AGENTIC__
-           (navigate, getRoute, getState, goBack,
-            startRecording, stopRecording, ...)
-                     ^
-                     |
-           AgenticBridgeSync (React)
-           syncs route + audio state + recorder
-
-   web-browser.mjs → browser lifecycle only (launch/close/logs)
-```
-
-## Agent Rules
-
-### Required for All Work
-- Validate features via CDP bridge or shell utility scripts
-- Test on at least one platform
-- Fix issues immediately when found
-- Include actual command output in responses
-- Never skip validation and claim work is complete
-- Never simulate test results instead of running real tests
-
-### Never Do
-- Skip development validation
-- Simulate test results
-- Commit development screenshots
-- Bypass validation for any changes
+`WATCHER_PORT=7365` · `CDP_TIMEOUT=5000` · `WEB_HEADLESS=false` · `CDP_PORT=9222`
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `Cannot reach Metro` | `scripts/agentic/start-metro.sh` |
-| `No debug targets` | App not running on device/simulator |
-| `__AGENTIC__ undefined` | Not in dev mode, or bridge not loaded in `_layout.tsx` |
-| `No booted iOS simulator` | `xcrun simctl boot "iPhone 16 Pro Max"` |
-| `No Android device` | `adb devices` -- connect USB or start emulator |
-| `Playwright not installed` | `yarn playwright install chromium` |
-| Browser crash (non-headless) | Uses system Chrome -- verify Chrome is installed |
-| Web route not updating | Wait for `AgenticBridgeSync` render cycle (~1s after navigate) |
-| Wrong native target selected | Use `--device <name>` flag to target specific device |
-| `Recorder not available` | `AgenticBridgeSync` not mounted -- ensure app is on a screen with the provider |
-| Recording config error | Check config is JSON-serializable (no function callbacks) |
-| Native crash / Kotlin type error | `scripts/agentic/native-logs.sh android` — check for serialization errors |
-| No Android targets in `/json/list` | CDP bridge retries up to 5 times; ensure app is running and connected to Metro |
-| Web not discovered | Ensure browser was launched with `web-browser.mjs launch` and `.agent/web-browser.mjson` exists |
-| Android dev launcher shows error screen | Deep link with LAN IP: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
-| `isMetroRunning(): false` on Android | ADB reverse unreliable — use LAN IP. Verify: `aapt dump resources app-debug.apk \| grep react_native_dev_server_port` (0x1cc5 = 7365) |
-| iOS physical device "no dev servers found" | Launch with `--initialUrl`: `xcrun devicectl device process launch --device <UDID> -- --initialUrl "http://<LAN_IP>:7365"` |
-| `ClassNotFoundException` after `prebuild --clean` | Missing autolinked dependency. `npx expo prebuild --platform android` (without --clean) to re-link |
-| `expo run:android` resets ADB reverse | Re-run `adb reverse tcp:7365 tcp:7365` after install, or use LAN IP deep link |
-| Multiple ADB devices / command hangs | `adb disconnect <wifi-ip>:5555` — WiFi ADB auto-reconnects and causes device selection prompts |
-| App data cleared, recording fails silently | `adb shell pm grant <pkg> android.permission.RECORD_AUDIO` |
+| `No debug targets` | App not running; retry with deep link |
+| `__AGENTIC__ undefined` | Not dev mode, or bridge not loaded in `_layout.tsx` |
+| `{ ok: false }` on press/scroll | Wrong testID or component not on current screen |
+| Android stuck on dev launcher | `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
+| `expo run:android` resets ADB reverse | Re-run `adb reverse tcp:7365 tcp:7365` |
+| Multiple ADB devices / hangs | `adb disconnect <wifi-ip>:5555` |
+| iOS physical: "no dev servers found" | Use `--payload-url` with `xcrun devicectl device process launch` |
+| App data cleared, mic fails | `adb shell pm grant <pkg> android.permission.RECORD_AUDIO` |
+| `ClassNotFoundException` | `npx expo prebuild --platform android` (no `--clean`) |

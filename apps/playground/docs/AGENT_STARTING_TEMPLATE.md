@@ -1,10 +1,6 @@
 # Agent Starting Template
 
-Zero-prose mission briefing. Follow steps in order.
-
-All commands run from `apps/playground/`.
-
----
+All commands from `apps/playground/`.
 
 ## Step 1 — Verify app is running
 
@@ -12,115 +8,75 @@ All commands run from `apps/playground/`.
 node scripts/agentic/cdp-bridge.mjs list-devices
 ```
 
-**0 devices returned:**
+**0 devices:**
 
-| Situation | Command |
-|-----------|---------|
-| App installed, just needs Metro | `scripts/agentic/start-metro.sh` |
-| Android first run / fresh install | `yarn android` (builds + installs + starts Metro on :7365) |
-| iOS first run / fresh install | `yarn setup:ios-simulator && yarn ios` |
+| Situation | Fix |
+|-----------|-----|
+| App installed | `scripts/agentic/start-metro.sh` |
+| Android fresh install | `yarn android` |
+| iOS fresh install | `yarn setup:ios-simulator && yarn ios` |
 | Web | `node scripts/agentic/web-browser.mjs launch & && scripts/agentic/start-metro.sh` |
+| Android physical | `adb devices` → `adb disconnect <wifi-ip>:5555` → `start-metro.sh` → deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
+| iOS physical | `start-metro.sh` → `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground://expo-development-client/?url=http%3A%2F%2F<LAN_IP>%3A7365" <bundle-id>` |
 
-**0 devices + physical hardware:**
+Physical devices: always use Mac LAN IP (`ipconfig getifaddr en0`), never `localhost`.
 
-| Platform | Steps |
-|----------|-------|
-| Android (USB) | 1. `adb devices` (verify) 2. `adb disconnect <wifi-ip>:5555` (if duplicate) 3. `scripts/agentic/start-metro.sh` 4. Deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` 5. If permissions lost: `adb shell pm grant net.siteed.audioplayground.development android.permission.RECORD_AUDIO` |
-| iOS (USB) | 1. `scripts/agentic/start-metro.sh` 2. Get UDID: `xcrun devicectl list devices` 3. Get LAN IP: `ipconfig getifaddr en0` 4. Launch: `xcrun devicectl device process launch --device <UDID> --terminate-existing net.siteed.audioplayground.development -- --initialUrl "http://<LAN_IP>:7365"` |
+## Step 2 — Feedback channels
 
-**Key**: Physical devices CANNOT use `localhost` — always use Mac's LAN IP.
-
----
-
-## Step 2 — Define your feedback loop
-
-Pick the channels relevant to this task:
-
-| Channel | When to use | Command |
-|---------|-------------|---------|
-| JS/Hermes logs | React crashes, JS state bugs | `scripts/agentic/app-state.sh eval "..."` |
-| Native logs | Kotlin/Swift crashes, audio pipeline | `scripts/agentic/native-logs.sh android\|ios` |
-| Screenshots | UI layout, visual regression | `scripts/agentic/screenshot.sh <label>` |
-| State polling | Recording in progress | `scripts/agentic/app-state.sh state` |
-
----
+| Channel | Use when | Command |
+|---------|----------|---------|
+| JS eval | React bugs, state inspection | `app-state.sh eval "..."` |
+| Native logs | Kotlin/Swift crashes | `native-logs.sh android\|ios` |
+| Screenshots | UI layout, visual check | `screenshot.sh <label>` |
+| State poll | Recording in progress | `app-state.sh state` |
+| Press/scroll | UI interaction by testID | `app-state.sh press <id>` / `scroll --test-id <id>` |
 
 ## Step 3 — Baseline
 
-Before any change:
 ```bash
 scripts/agentic/app-navigate.sh "/(tabs)/record"
 scripts/agentic/screenshot.sh baseline
 ```
 
----
-
 ## Step 4 — Implement
 
-- Read the file before editing
-- Minimal diff — no unsolicited changes
-- After each edit: `scripts/agentic/reload-metro.sh`
-
----
+Read file before editing. Minimal diff. After each edit: `scripts/agentic/reload-metro.sh`
 
 ## Step 5 — Validate
 
-**JS features:**
 ```bash
+# Recording
 scripts/agentic/app-state.sh eval "__AGENTIC__.startRecording({ sampleRate: 44100, channels: 1 })"
 scripts/agentic/app-state.sh state
 scripts/agentic/app-state.sh eval "__AGENTIC__.stopRecording()"
-```
 
-**If native code was touched:**
-```bash
+# UI interaction
+scripts/agentic/app-state.sh press start-recording-button   # → { ok: true }
+scripts/agentic/app-state.sh scroll --test-id files-list --offset 300
+sleep 1 && scripts/agentic/screenshot.sh post-change
+
+# Native (if native code touched)
 scripts/agentic/native-logs.sh android   # look for ERROR / Exception
-scripts/agentic/native-logs.sh ios
 ```
-
-**Visual confirmation:**
-```bash
-scripts/agentic/screenshot.sh post-change
-```
-
----
 
 ## Step 6 — Type-check
 
-| Scope | Command | Speed |
-|-------|---------|-------|
-| Single package | `yarn workspace @siteed/<pkg> build` | ~1.5s |
-| Cross-package | `yarn typecheck && yarn lint:fix` | slow |
-
----
+```bash
+yarn workspace @siteed/<pkg> build   # single package (~1.5s)
+yarn typecheck && yarn lint:fix      # cross-package (slow)
+```
 
 ## Step 7 — Done criteria
 
-- [ ] Works on ≥1 platform (real device or simulator)
+- [ ] Works on ≥1 platform
 - [ ] No JS errors in CDP output
-- [ ] No native ERRORs in `native-logs` (if native code was touched)
+- [ ] No native ERRORs in `native-logs` (if native touched)
 - [ ] Screenshot confirms expected UI
 - [ ] TypeScript / lint clean
 
----
-
-## Ask me when
+## Ask before proceeding when
 
 - Requirements are ambiguous
-- A protected file needs changing (`scripts/agentic/`, `.detoxrc.js`, root `/index.js`)
-- A native build is required (pod install / gradle sync)
-- Task scope expands beyond the original request
-
----
-
-## Multi-device targeting
-
-```bash
-# Auto-selects when exactly 1 device connected (no flag needed)
-scripts/agentic/app-state.sh state
-
-# Explicit targeting when 2+ devices connected
-scripts/agentic/app-state.sh --device "Pixel 6a" state
-scripts/agentic/app-navigate.sh --device "iPhone" "/(tabs)/record"
-scripts/agentic/screenshot.sh --device "Pixel 6a" my-label android
-```
+- Protected file needs changing (`scripts/agentic/`, `.detoxrc.js`, root `/index.js`)
+- Native build required (pod install / gradle sync)
+- Scope expands beyond original request

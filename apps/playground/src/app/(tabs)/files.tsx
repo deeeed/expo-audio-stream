@@ -30,7 +30,6 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
-            paddingTop: insets?.top ?? 0,
         },
         contentContainer: {
             gap: theme.spacing.gap ?? 10,
@@ -150,6 +149,7 @@ const FilesScreen = () => {
     return (
         <View style={styles.listContainer}>
             <FlatList
+                testID="files-list"
                 data={files}
                 keyExtractor={(item, index) => `${item.fileUri}_${index}`}
                 contentContainerStyle={styles.contentContainer}
@@ -159,6 +159,7 @@ const FilesScreen = () => {
                 ListHeaderComponent={
                     <View style={styles.headerContainer}>
                         <Button
+                            testID="clear-directory-button"
                             onPress={clearFiles}
                             style={styles.clearButton}
                             textColor={styles.clearButtonText.color}

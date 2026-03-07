@@ -539,6 +539,38 @@ const COMMANDS = {
     return { currentRoute: route };
   },
 
+  async 'press-test-id'(client, args, { deviceName } = {}) {
+    const testId = args[0];
+    if (!testId) {
+      throw new Error('Usage: press-test-id <testId>');
+    }
+    const expr = `globalThis.__AGENTIC__?.pressTestId(${JSON.stringify(testId)})`;
+    const result = await cdpEval(client, expr);
+    return { ...result, testId, deviceName };
+  },
+
+  async 'scroll-view'(client, args, { deviceName } = {}) {
+    // Parse flags: --test-id <id>, --offset <n>, --animated / --no-animated
+    let testId = undefined;
+    let offset = 300;
+    let animated = false;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--test-id' && i + 1 < args.length) {
+        testId = args[++i];
+      } else if (args[i] === '--offset' && i + 1 < args.length) {
+        offset = Number(args[++i]);
+      } else if (args[i] === '--animated') {
+        animated = true;
+      } else if (args[i] === '--no-animated') {
+        animated = false;
+      }
+    }
+    const optsJson = JSON.stringify({ testId, offset, animated });
+    const expr = `globalThis.__AGENTIC__?.scrollView(${optsJson})`;
+    const result = await cdpEval(client, expr);
+    return { ...result, deviceName };
+  },
+
   async reload(client, _args, { deviceName } = {}) {
     await client.send('Page.reload', {}, 5000);
     return { reloaded: true, deviceName };
@@ -743,15 +775,18 @@ Usage:
   node scripts/agentic/cdp-bridge.mjs [--device <name>] <command> [args...]
 
 Commands:
-  navigate <path>         Navigate to a route (Expo Router URL path)
-  get-route               Get current route path
-  get-state               Get audio recorder state (isRecording, isPaused, durationMs, etc.)
-  eval <expression>       Evaluate arbitrary JS in app context
-  can-go-back             Check if navigation can go back
-  go-back                 Navigate back
-  reload                  Reload the JS bundle via Page.reload
-  screenshot [label]      Take a screenshot (dispatches per-platform)
-  list-devices            List all connected agentic devices
+  navigate <path>                    Navigate to a route (Expo Router URL path)
+  get-route                          Get current route path
+  get-state                          Get audio recorder state (isRecording, isPaused, durationMs, etc.)
+  eval <expression>                  Evaluate arbitrary JS in app context
+  can-go-back                        Check if navigation can go back
+  go-back                            Navigate back
+  press-test-id <testId>             Press a component by testID (walks React fiber tree)
+  scroll-view [--test-id <id>] [--offset <n>] [--animated|--no-animated]
+                                     Scroll a ScrollView/FlatList/FlashList (default: offset=300, no-animated)
+  reload                             Reload the JS bundle via Page.reload
+  screenshot [label]                 Take a screenshot (dispatches per-platform)
+  list-devices                       List all connected agentic devices
 
 Routes:
   /(tabs)/record          Record tab (default)
