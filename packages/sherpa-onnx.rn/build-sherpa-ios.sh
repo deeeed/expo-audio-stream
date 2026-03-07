@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # build-sherpa-ios.sh
-# Build Sherpa-onnx for iOS platforms
+# Build Sherpa-onnx for iOS platforms from k2-fsa/sherpa-onnx v1.12.28
+# Run ./setup.sh first to clone the upstream repository.
 
 set -e
 

@@ -13,4 +13,4 @@ class SherpaOnnxPackage : ReactPackage {
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
         return emptyList()
     }
-} 
+}

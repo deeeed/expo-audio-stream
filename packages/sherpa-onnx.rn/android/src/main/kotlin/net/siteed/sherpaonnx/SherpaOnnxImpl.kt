@@ -203,7 +203,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
         try {
             // React Native Architecture Info
             val archInfo = Arguments.createMap()
-            val isNewArchEnabled = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+            val isNewArchEnabled = true // New Architecture is always enabled (SDK 55+)
             
             // Check if JSI is available (for additional context)
             val isJSIAvailable = try {

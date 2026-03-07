@@ -173,21 +173,17 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   processAndComputeAudioTagging(
     filePath: string,
-    topK?: number
+    _topK?: number
   ): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath, topK);
+    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
   },
 
   processAndComputeAudioSamples(
     sampleRate: number,
     samples: number[],
-    topK?: number
+    _topK?: number
   ): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioSamples(
-      sampleRate,
-      samples,
-      topK
-    );
+    return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
   },
 
   releaseAudioTagging(): Promise<{ released: boolean }> {

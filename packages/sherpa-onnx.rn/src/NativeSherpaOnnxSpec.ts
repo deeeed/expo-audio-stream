@@ -1,5 +1,5 @@
 import type { TurboModule } from 'react-native';
-import { TurboModuleRegistry, NativeModules, Platform } from 'react-native';
+import { TurboModuleRegistry, Platform } from 'react-native';
 import type { NativeSherpaOnnxInterface } from './types/interfaces';
 
 /**
@@ -316,69 +316,14 @@ export interface Spec extends TurboModule {
 }
 
 /**
- * Get the native module, with proper handling for different architectures and platforms
+ * Get the native TurboModule (new architecture only).
+ * Returns null on web platform.
  */
 export function getNativeModule(): NativeSherpaOnnxInterface | null {
-  // Web platform gets a null module (for now)
   if (Platform.OS === 'web') {
     return null;
   }
-
-  // Debug: Check what modules are available
-  const sherpaModules = Object.keys(NativeModules).filter(k => k.includes('Sherpa'));
-  console.log('[SherpaOnnx] Available Sherpa modules:', sherpaModules);
-  
-  // Debug: Check all available modules 
-  const allModules = Object.keys(NativeModules);
-  console.log('[SherpaOnnx] Total available modules:', allModules.length);
-  console.log('[SherpaOnnx] First 10 modules:', allModules.slice(0, 10));
-  
-  // Check if our module is registered under any name
-  const onnxModules = allModules.filter(k => k.toLowerCase().includes('onnx') || k.toLowerCase().includes('sherpa'));
-  console.log('[SherpaOnnx] ONNX-related modules:', onnxModules);
-
-  // Try the new architecture first
-  try {
-    const turboModule = TurboModuleRegistry.getEnforcing<Spec>(
-      'SherpaOnnx'
-    ) as NativeSherpaOnnxInterface;
-    console.log('[SherpaOnnx] Loaded via TurboModule');
-    return turboModule;
-  } catch (e) {
-    console.warn('[SherpaOnnx] TurboModule failed:', e);
-    
-    // Try alternative TurboModule names
-    const possibleTurboNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx', 'SherpaOnnxSpec'];
-    for (const name of possibleTurboNames) {
-      try {
-        const turboModule = TurboModuleRegistry.getEnforcing<Spec>(name) as NativeSherpaOnnxInterface;
-        console.log(`[SherpaOnnx] Loaded via TurboModule with name: ${name}`);
-        return turboModule;
-      } catch (e2) {
-        console.warn(`[SherpaOnnx] TurboModule name ${name} failed:`, e2);
-      }
-    }
-    
-    // Fall back to old architecture if TurboModule not available
-    const bridgeModule = NativeModules.SherpaOnnx as NativeSherpaOnnxInterface;
-    if (bridgeModule) {
-      console.log('[SherpaOnnx] Loaded via Bridge');
-      return bridgeModule;
-    }
-    
-    // Try alternative Bridge module names
-    const possibleBridgeNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx'];
-    for (const name of possibleBridgeNames) {
-      const module = NativeModules[name] as NativeSherpaOnnxInterface;
-      if (module) {
-        console.log(`[SherpaOnnx] Loaded via Bridge with name: ${name}`);
-        return module;
-      }
-    }
-    
-    console.error('[SherpaOnnx] No native module found with any name!');
-    return null;
-  }
+  return TurboModuleRegistry.getEnforcing<Spec>('SherpaOnnx') as NativeSherpaOnnxInterface;
 }
 
 export default getNativeModule();

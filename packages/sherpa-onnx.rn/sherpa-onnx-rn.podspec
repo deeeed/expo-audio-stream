@@ -1,8 +1,7 @@
 require "json"
 
-# Folly compiler flags for React Native New Architecture, without disabling warnings
+# Folly compiler flags for React Native New Architecture
 folly_compiler_flags = '-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
-fabric_enabled = ENV['RCT_NEW_ARCH_ENABLED'] == '1'
 
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
@@ -14,37 +13,26 @@ Pod::Spec.new do |s|
   s.license      = package["license"]
   s.authors      = package["author"]
 
-  s.platforms    = { :ios => "11.0" }
+  s.platforms    = { :ios => "13.4" }
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
-  # Base source files for both architectures
-  base_source_files = [
-    "ios/*.{h,m,mm,swift}", 
-    "ios/bridge/*.{h,m,mm,swift}", 
+  # Source files (new architecture only)
+  s.source_files = [
+    "ios/*.{h,m,mm,swift}",
+    "ios/bridge/*.{h,m,mm,swift}",
     "ios/native/*.{h,m,mm,swift}",
     "ios/handlers/*.{h,m,mm,swift}",
-    "ios/utils/*.{h,m,mm,swift}"
-  ]
-
-  # New architecture specific source files
-  new_arch_source_files = [
+    "ios/utils/*.{h,m,mm,swift}",
     "ios/codegen/SherpaOnnxSpec/*.{h,mm}"
   ]
 
   # Initialize preserve_paths once
   preserve_paths = [
-    "prebuilt/include/**", 
+    "prebuilt/include/**",
     "prebuilt/include/module.modulemap",
     "prebuilt/ios/device/**",
     "prebuilt/ios/simulator/**"
   ]
-
-  # Set source files based on architecture
-  if fabric_enabled
-    s.source_files = base_source_files + new_arch_source_files
-  else
-    s.source_files = base_source_files
-  end
 
   s.preserve_paths = preserve_paths
 
@@ -71,22 +59,13 @@ Pod::Spec.new do |s|
   s.frameworks = "Foundation", "CoreML", "Accelerate", "CoreVideo"
   s.libraries = "c++", "bz2"
 
-  # Base xcconfig for both architectures
-  base_xcconfig = {
-    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\"",
+  s.xcconfig = {
+    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\" \"$(PODS_TARGET_SRCROOT)/ios/codegen\" \"$(PODS_ROOT)/Headers/Public/ReactCommon\" \"$(PODS_ROOT)/Headers/Public/React-Codegen\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-Codegen/React_Codegen.framework/Headers\"",
     "LIBRARY_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/prebuilt/ios/current",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
-  
-  # Add additional header paths for new architecture
-  if fabric_enabled
-    base_xcconfig["HEADER_SEARCH_PATHS"] += " \"$(PODS_TARGET_SRCROOT)/ios/codegen\" \"$(PODS_ROOT)/Headers/Public/ReactCommon\" \"$(PODS_ROOT)/Headers/Public/React-Codegen\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/boost-for-react-native\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-Codegen/React_Codegen.framework/Headers\""
-  end
-  
-  s.xcconfig = base_xcconfig
 
-  # Base pod target xcconfig
-  pod_target_xcconfig = {
+  s.pod_target_xcconfig = {
     "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
     "OTHER_LDFLAGS" => "-framework CoreML -framework Accelerate -framework CoreVideo",
     "DEFINES_MODULE" => "YES",
@@ -97,13 +76,6 @@ Pod::Spec.new do |s|
     "CLANG_ENABLE_MODULES" => "YES",
     "CLANG_ENABLE_CPP_STATIC_LIBRARY_TYPES" => "YES"
   }
-  
-  # Add compiler flags for new architecture
-  if fabric_enabled
-    pod_target_xcconfig["HEADER_SEARCH_PATHS"] = base_xcconfig["HEADER_SEARCH_PATHS"]
-  end
-  
-  s.pod_target_xcconfig = pod_target_xcconfig
 
   # Set up initial symlinks to device libraries - this runs during pod installation
   s.prepare_command = <<-CMD
@@ -218,22 +190,16 @@ Pod::Spec.new do |s|
     :output_files => sherpa_libraries.map { |lib| "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/#{lib}" }
   }
 
-  # Core dependency
-  s.dependency "React-Core"
+  # New Architecture (TurboModule) dependencies
+  s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
 
-  # For new architecture (Fabric)
-  if fabric_enabled
-    s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
-    
-    # New Architecture dependencies
-    s.dependency "React-RCTFabric"
-    s.dependency "React-Codegen"
-    s.dependency "RCT-Folly"
-    s.dependency "RCTRequired"
-    s.dependency "RCTTypeSafety"
-    s.dependency "ReactCommon/turbomodule/core"
-    
-    # Install TurboModule dependencies
-    install_modules_dependencies(s)
-  end
+  s.dependency "React-Core"
+  s.dependency "React-RCTFabric"
+  s.dependency "React-Codegen"
+  s.dependency "RCT-Folly"
+  s.dependency "RCTRequired"
+  s.dependency "RCTTypeSafety"
+  s.dependency "ReactCommon/turbomodule/core"
+
+  install_modules_dependencies(s)
 end

@@ -33,11 +33,16 @@ data class OnlineNeMoCtcModelConfig(
     var model: String = "",
 )
 
+data class OnlineToneCtcModelConfig(
+    var model: String = "",
+)
+
 data class OnlineModelConfig(
     var transducer: OnlineTransducerModelConfig = OnlineTransducerModelConfig(),
     var paraformer: OnlineParaformerModelConfig = OnlineParaformerModelConfig(),
     var zipformer2Ctc: OnlineZipformer2CtcModelConfig = OnlineZipformer2CtcModelConfig(),
     var neMoCtc: OnlineNeMoCtcModelConfig = OnlineNeMoCtcModelConfig(),
+    var toneCtc: OnlineToneCtcModelConfig = OnlineToneCtcModelConfig(),
     var tokens: String = "",
     var numThreads: Int = 1,
     var debug: Boolean = false,
@@ -63,6 +68,7 @@ data class OnlineRecognizerConfig(
     var modelConfig: OnlineModelConfig = OnlineModelConfig(),
     var lmConfig: OnlineLMConfig = OnlineLMConfig(),
     var ctcFstDecoderConfig: OnlineCtcFstDecoderConfig = OnlineCtcFstDecoderConfig(),
+    var hr: HomophoneReplacerConfig = HomophoneReplacerConfig(),
     var endpointConfig: EndpointConfig = EndpointConfig(),
     var enableEndpoint: Boolean = true,
     var decodingMethod: String = "greedy_search",
@@ -78,6 +84,7 @@ data class OnlineRecognizerResult(
     val text: String,
     val tokens: Array<String>,
     val timestamps: FloatArray,
+    val ysProbs: FloatArray,
     // TODO(fangjun): Add more fields
 )
 
@@ -114,13 +121,7 @@ class OnlineRecognizer(
     fun isEndpoint(stream: OnlineStream) = isEndpoint(ptr, stream.ptr)
     fun isReady(stream: OnlineStream) = isReady(ptr, stream.ptr)
     fun getResult(stream: OnlineStream): OnlineRecognizerResult {
-        val objArray = getResult(ptr, stream.ptr)
-
-        val text = objArray[0] as String
-        val tokens = objArray[1] as Array<String>
-        val timestamps = objArray[2] as FloatArray
-
-        return OnlineRecognizerResult(text = text, tokens = tokens, timestamps = timestamps)
+        return getResult(ptr, stream.ptr)
     }
 
     private external fun delete(ptr: Long)
@@ -139,7 +140,7 @@ class OnlineRecognizer(
     private external fun decode(ptr: Long, streamPtr: Long)
     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
     private external fun isReady(ptr: Long, streamPtr: Long): Boolean
-    private external fun getResult(ptr: Long, streamPtr: Long): Array<Any>
+    private external fun getResult(ptr: Long, streamPtr: Long): OnlineRecognizerResult
 
     companion object {
         init {
@@ -372,6 +373,54 @@ fun getModelConfig(type: Int): OnlineModelConfig? {
                 ),
                 tokens = "$modelDir/tokens.txt",
                 modelType = "zipformer",
+            )
+        }
+
+        15 -> {
+            val modelDir = "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01"
+            return OnlineModelConfig(
+                zipformer2Ctc = OnlineZipformer2CtcModelConfig(
+                    model = "$modelDir/model.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+            )
+        }
+
+        16 -> {
+            val modelDir = "sherpa-onnx-streaming-zipformer-small-ctc-zh-2025-04-01"
+            return OnlineModelConfig(
+                zipformer2Ctc = OnlineZipformer2CtcModelConfig(
+                    model = "$modelDir/model.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+            )
+        }
+
+        1000 -> {
+            val modelDir = "sherpa-onnx-rk3588-streaming-zipformer-bilingual-zh-en-2023-02-20"
+            return OnlineModelConfig(
+                transducer = OnlineTransducerModelConfig(
+                    encoder = "$modelDir/encoder.rknn",
+                    decoder = "$modelDir/decoder.rknn",
+                    joiner = "$modelDir/joiner.rknn",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "zipformer",
+                provider = "rknn",
+            )
+        }
+
+        1001 -> {
+            val modelDir = "sherpa-onnx-rk3588-streaming-zipformer-small-bilingual-zh-en-2023-02-16"
+            return OnlineModelConfig(
+                transducer = OnlineTransducerModelConfig(
+                    encoder = "$modelDir/encoder.rknn",
+                    decoder = "$modelDir/decoder.rknn",
+                    joiner = "$modelDir/joiner.rknn",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "zipformer",
+                provider = "rknn",
             )
         }
     }

@@ -9,6 +9,9 @@ data class OfflineRecognizerResult(
     val lang: String,
     val emotion: String,
     val event: String,
+
+    // valid only for TDT models
+    val durations: FloatArray,
 )
 
 data class OfflineTransducerModelConfig(
@@ -19,18 +22,25 @@ data class OfflineTransducerModelConfig(
 
 data class OfflineParaformerModelConfig(
     var model: String = "",
+    var qnnConfig: QnnConfig = QnnConfig(),
 )
 
 data class OfflineNemoEncDecCtcModelConfig(
     var model: String = "",
 )
 
+data class OfflineDolphinModelConfig(
+    var model: String = "",
+)
+
 data class OfflineWhisperModelConfig(
     var encoder: String = "",
     var decoder: String = "",
-    var language: String = "en", // Used with multilingual model
-    var task: String = "transcribe", // transcribe or translate
-    var tailPaddings: Int = 1000, // Padding added at the end of the samples
+    var language: String = "en",
+    var task: String = "transcribe",
+    var tailPaddings: Int = 1000,
+    var enableTokenTimestamps: Boolean = false,
+    var enableSegmentTimestamps: Boolean = false,
 )
 
 data class OfflineFireRedAsrModelConfig(
@@ -43,12 +53,59 @@ data class OfflineMoonshineModelConfig(
     var encoder: String = "",
     var uncachedDecoder: String = "",
     var cachedDecoder: String = "",
+    var mergedDecoder: String = "",
 )
 
 data class OfflineSenseVoiceModelConfig(
     var model: String = "",
     var language: String = "",
     var useInverseTextNormalization: Boolean = true,
+    var qnnConfig: QnnConfig = QnnConfig(),
+)
+
+data class OfflineZipformerCtcModelConfig(
+    var model: String = "",
+    var qnnConfig: QnnConfig = QnnConfig(),
+)
+
+data class OfflineWenetCtcModelConfig(
+    var model: String = "",
+)
+
+data class OfflineOmnilingualAsrCtcModelConfig(
+    var model: String = "",
+)
+
+data class OfflineMedAsrCtcModelConfig(
+    var model: String = "",
+)
+
+data class OfflineFunAsrNanoModelConfig(
+    var encoderAdaptor: String = "",
+    var llm: String = "",
+    var embedding: String = "",
+    var tokenizer: String = "",
+    var systemPrompt: String = "",
+    var userPrompt: String = "",
+    var language: String = "",
+    var itn: Boolean = false,
+    var hotwords: String = "",
+    var maxNewTokens: Int = 0,
+    var temperature: Float = 1.0f,
+    var topP: Float = 1.0f,
+    var seed: Int = 0,
+)
+
+data class OfflineFireRedAsrCtcModelConfig(
+    var model: String = "",
+)
+
+data class OfflineCanaryModelConfig(
+    var encoder: String = "",
+    var decoder: String = "",
+    var srcLang: String = "",
+    var tgtLang: String = "",
+    var usePnc: Boolean = false,
 )
 
 data class OfflineModelConfig(
@@ -59,6 +116,14 @@ data class OfflineModelConfig(
     var moonshine: OfflineMoonshineModelConfig = OfflineMoonshineModelConfig(),
     var nemo: OfflineNemoEncDecCtcModelConfig = OfflineNemoEncDecCtcModelConfig(),
     var senseVoice: OfflineSenseVoiceModelConfig = OfflineSenseVoiceModelConfig(),
+    var dolphin: OfflineDolphinModelConfig = OfflineDolphinModelConfig(),
+    var zipformerCtc: OfflineZipformerCtcModelConfig = OfflineZipformerCtcModelConfig(),
+    var wenetCtc: OfflineWenetCtcModelConfig = OfflineWenetCtcModelConfig(),
+    var omnilingual: OfflineOmnilingualAsrCtcModelConfig = OfflineOmnilingualAsrCtcModelConfig(),
+    var medasr: OfflineMedAsrCtcModelConfig = OfflineMedAsrCtcModelConfig(),
+    var funasrNano: OfflineFunAsrNanoModelConfig = OfflineFunAsrNanoModelConfig(),
+    var fireRedAsrCtc: OfflineFireRedAsrCtcModelConfig = OfflineFireRedAsrCtcModelConfig(),
+    var canary: OfflineCanaryModelConfig = OfflineCanaryModelConfig(),
     var teleSpeech: String = "",
     var numThreads: Int = 1,
     var debug: Boolean = false,
@@ -73,6 +138,7 @@ data class OfflineRecognizerConfig(
     var featConfig: FeatureConfig = FeatureConfig(),
     var modelConfig: OfflineModelConfig = OfflineModelConfig(),
     // var lmConfig: OfflineLMConfig(), // TODO(fangjun): enable it
+    var hr: HomophoneReplacerConfig = HomophoneReplacerConfig(),
     var decodingMethod: String = "greedy_search",
     var maxActivePaths: Int = 4,
     var hotwordsFile: String = "",
@@ -111,22 +177,7 @@ class OfflineRecognizer(
     }
 
     fun getResult(stream: OfflineStream): OfflineRecognizerResult {
-        val objArray = getResult(stream.ptr)
-
-        val text = objArray[0] as String
-        val tokens = objArray[1] as Array<String>
-        val timestamps = objArray[2] as FloatArray
-        val lang = objArray[3] as String
-        val emotion = objArray[4] as String
-        val event = objArray[5] as String
-        return OfflineRecognizerResult(
-            text = text,
-            tokens = tokens,
-            timestamps = timestamps,
-            lang = lang,
-            emotion = emotion,
-            event = event
-        )
+        return getResult(stream.ptr)
     }
 
     fun decode(stream: OfflineStream) = decode(ptr, stream.ptr)
@@ -146,7 +197,7 @@ class OfflineRecognizer(
 
     private external fun decode(ptr: Long, streamPtr: Long)
 
-    private external fun getResult(streamPtr: Long): Array<Any>
+    private external fun getResult(streamPtr: Long): OfflineRecognizerResult
 
     companion object {
         init {
@@ -479,6 +530,78 @@ fun getOfflineModelConfig(type: Int): OfflineModelConfig? {
                     decoder = "$modelDir/decoder.int8.onnx",
                 ),
                 tokens = "$modelDir/tokens.txt",
+            )
+        }
+
+        25 -> {
+            val modelDir = "sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02"
+            return OfflineModelConfig(
+                dolphin = OfflineDolphinModelConfig(
+                    model = "$modelDir/model.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+            )
+        }
+
+        26 -> {
+            val modelDir = "sherpa-onnx-zipformer-vi-int8-2025-04-20"
+            return OfflineModelConfig(
+                transducer = OfflineTransducerModelConfig(
+                    encoder = "$modelDir/encoder-epoch-12-avg-8.int8.onnx",
+                    decoder = "$modelDir/decoder-epoch-12-avg-8.onnx",
+                    joiner = "$modelDir/joiner-epoch-12-avg-8.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "transducer",
+            )
+        }
+
+        27 -> {
+            val modelDir = "sherpa-onnx-nemo-ctc-giga-am-v2-russian-2025-04-19"
+            return OfflineModelConfig(
+                nemo = OfflineNemoEncDecCtcModelConfig(
+                    model = "$modelDir/model.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+            )
+        }
+
+        28 -> {
+            val modelDir = "sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19"
+            return OfflineModelConfig(
+                transducer = OfflineTransducerModelConfig(
+                    encoder = "$modelDir/encoder.int8.onnx",
+                    decoder = "$modelDir/decoder.onnx",
+                    joiner = "$modelDir/joiner.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "nemo_transducer",
+            )
+        }
+
+        29 -> {
+            val modelDir = "sherpa-onnx-zipformer-ru-int8-2025-04-20"
+            return OfflineModelConfig(
+                transducer = OfflineTransducerModelConfig(
+                    encoder = "$modelDir/encoder.int8.onnx",
+                    decoder = "$modelDir/decoder.onnx",
+                    joiner = "$modelDir/joiner.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "transducer",
+            )
+        }
+
+        30 -> {
+            val modelDir = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
+            return OfflineModelConfig(
+                transducer = OfflineTransducerModelConfig(
+                    encoder = "$modelDir/encoder.int8.onnx",
+                    decoder = "$modelDir/decoder.int8.onnx",
+                    joiner = "$modelDir/joiner.int8.onnx",
+                ),
+                tokens = "$modelDir/tokens.txt",
+                modelType = "nemo_transducer",
             )
         }
     }
