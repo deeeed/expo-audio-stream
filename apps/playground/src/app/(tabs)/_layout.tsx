@@ -1,19 +1,32 @@
 // playground/src/app/(tabs)/_layout.tsx
 import React from 'react'
-import { Platform } from 'react-native'
+import { Platform, View } from 'react-native'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { Tabs } from 'expo-router'
+import { Tabs, useSegments } from 'expo-router'
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
 import { useTheme } from '@siteed/design-system'
 import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
 
+import { CustomHeader } from '../../components/CustomHeader'
+
 const recordingColor = 'rgba(255, 99, 71, 1)'
+
+const TAB_TITLES: Record<string, string> = {
+    record: 'Record',
+    import: 'Import',
+    transcription: 'Transcription',
+    files: 'Files',
+    more: 'More',
+}
 
 export default function TabLayout() {
     const { isRecording } = useSharedAudioRecorder()
     const { colors } = useTheme()
+    const segments = useSegments()
+    const currentTab = segments[segments.length - 1] ?? 'record'
+    const title = TAB_TITLES[currentTab] ?? currentTab
 
     if (Platform.OS === 'web') {
         return (
@@ -66,7 +79,7 @@ export default function TabLayout() {
                     options={{
                         title: 'Files',
                         tabBarIcon: ({ color }) => (
-                            <MaterialCommunityIcons name="cog" size={28} color={color} />
+                            <MaterialCommunityIcons name="folder-multiple" size={28} color={color} />
                         ),
                     }}
                 />
@@ -84,9 +97,12 @@ export default function TabLayout() {
     }
 
     return (
+        <View style={{ flex: 1 }}>
+            <CustomHeader title={isRecording ? `● ${title}` : title} />
         <NativeTabs
             tintColor={colors.primary}
             backgroundColor={colors.background}
+            labelVisibilityMode="labeled"
         >
             <NativeTabs.Trigger name="record">
                 <NativeTabs.Trigger.Label>{isRecording ? 'Recording' : 'Record'}</NativeTabs.Trigger.Label>
@@ -114,8 +130,8 @@ export default function TabLayout() {
             <NativeTabs.Trigger name="files">
                 <NativeTabs.Trigger.Label>Files</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
-                    md="settings"
+                    sf={{ default: 'doc.on.doc', selected: 'doc.on.doc.fill' }}
+                    md="folder"
                 />
             </NativeTabs.Trigger>
             <NativeTabs.Trigger name="more">
@@ -126,5 +142,6 @@ export default function TabLayout() {
                 />
             </NativeTabs.Trigger>
         </NativeTabs>
+        </View>
     )
 }

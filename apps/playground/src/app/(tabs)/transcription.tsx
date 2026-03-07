@@ -22,7 +22,7 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
             gap: theme.spacing.gap,
             paddingHorizontal: theme.padding.s,
             paddingBottom: insets?.bottom || 80,
-            paddingTop: insets?.top ?? 0,
+            paddingTop: 0,
         },
         progressContainer: {
             flexDirection: 'row',
@@ -258,6 +258,7 @@ export function TranscriptionScreen() {
             withScrollView
             useInsets={false}
             contentContainerStyle={styles.container}
+            testID="transcription-scroll"
         >
             <Notice
                 type="info"
@@ -282,6 +283,7 @@ export function TranscriptionScreen() {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button
+                    testID="select-audio-file-button"
                     mode="contained"
                     onPress={handleFileSelection}
                     disabled={isTranscribing}
@@ -290,8 +292,9 @@ export function TranscriptionScreen() {
                 >
                     Select Audio File
                 </Button>
-                
+
                 <Button
+                    testID="load-sample-audio-button"
                     mode="contained-tonal"
                     onPress={handleLoadSampleAudio}
                     disabled={isTranscribing || isSampleLoading}
@@ -382,6 +385,7 @@ export function TranscriptionScreen() {
                         )}
                         
                         <Button
+                            testID="extract-audio-button"
                             mode="contained-tonal"
                             onPress={() => handleExtractAudio({})}
                             loading={isExtracting}
@@ -413,11 +417,12 @@ export function TranscriptionScreen() {
                     )}
                     
                     <Button
+                        testID="start-transcription-button"
                         mode="contained"
                         onPress={startTranscription}
                         loading={isTranscribing}
                         disabled={
-                            isExtracting || isTranscribing || !selectedFile || 
+                            isExtracting || isTranscribing || !selectedFile ||
                             !audioExtracted || !extractedAudioData
                         }
                     >
@@ -428,6 +433,7 @@ export function TranscriptionScreen() {
 
             {isTranscribing && stopTranscription && (
                 <Button
+                    testID="stop-transcription-button"
                     mode="contained"
                     onPress={handleStop}
                     style={{ marginTop: 10 }}

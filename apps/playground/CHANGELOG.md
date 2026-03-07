@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [1.10.0] - 2026-03-06
+
+### Added
+- Add interactive Metro CLI for agentic development workflow
+
+### Changed
+- Migrate tab layout to native bottom tabs
+
+### Fixed
+- Apply safe area top inset across all tab screens
+
+
 ## [1.9.0] - 2026-03-05
 
 ### Added
