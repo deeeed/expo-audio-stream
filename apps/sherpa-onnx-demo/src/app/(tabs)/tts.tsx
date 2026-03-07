@@ -2,6 +2,7 @@ import type { ModelProvider, TtsGenerateResult, TtsInitResult, TtsModelConfig } 
 import { TTS } from '@siteed/sherpa-onnx.rn';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -54,6 +55,8 @@ export default function TtsScreen() {
   // State to track pending model selection (for confirmation flow)
   const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
 
+  const router = useRouter();
+
   // Use our new hooks
   const { downloadedModels } = useTtsModels();
   const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({ modelId: selectedModelId });
@@ -101,7 +104,7 @@ export default function TtsScreen() {
     }
   }, [selectedModelId, ttsConfig]);
 
-  // Auto-select the first model if none is selected
+  // Auto-select the first downloaded model if none is selected
   useEffect(() => {
     if (downloadedModels.length > 0 && !selectedModelId) {
       setSelectedModelId(downloadedModels[0].metadata.id);
@@ -460,29 +463,39 @@ export default function TtsScreen() {
           )}
           <View style={styles.pickerContainer}>
             {downloadedModels.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No TTS models downloaded. Please visit the Models screen to download a model.
-              </Text>
-            ) : (
-              downloadedModels.map((model) => (
+              <View style={styles.emptyModelContainer}>
+                <Text style={styles.emptyText}>No TTS models downloaded.</Text>
                 <TouchableOpacity
-                  key={model.metadata.id}
-                  style={[
-                    styles.modelOption,
-                    selectedModelId === model.metadata.id && styles.modelOptionSelected
-                  ]}
-                  onPress={() => handleModelSelect(model.metadata.id)}
+                  testID="download-models-inline-btn"
+                  style={styles.downloadButton}
+                  onPress={() => router.push('/(tabs)/models?type=tts')}
                 >
-                  <Text 
+                  <Text style={styles.downloadButtonText}>Download a model</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                {downloadedModels.map((model) => (
+                  <TouchableOpacity
+                    key={model.metadata.id}
                     style={[
+                      styles.modelOption,
+                      selectedModelId === model.metadata.id && styles.modelOptionSelected
+                    ]}
+                    onPress={() => handleModelSelect(model.metadata.id)}
+                  >
+                    <Text style={[
                       styles.modelOptionText,
                       selectedModelId === model.metadata.id && styles.modelOptionTextSelected
-                    ]}
-                  >
-                    {model.metadata.name}
-                  </Text>
+                    ]}>
+                      {model.metadata.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=tts')} style={styles.moreModelsLink}>
+                  <Text style={styles.linkText}>Download more models →</Text>
                 </TouchableOpacity>
-              ))
+              </>
             )}
           </View>
         </View>
@@ -725,6 +738,7 @@ export default function TtsScreen() {
           </View>
         )}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -845,6 +859,30 @@ const styles = StyleSheet.create({
   },
   modelOptionTextSelected: {
     color: '#fff',
+  },
+  emptyModelContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  downloadButton: {
+    marginTop: 12,
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  moreModelsLink: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  linkText: {
+    color: '#2196F3',
+    fontSize: 14,
   },
   providerContainer: {
     flex: 1,

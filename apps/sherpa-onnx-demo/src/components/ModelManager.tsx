@@ -495,8 +495,9 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
+            testID={`download-model-${model.id}`}
             style={[
-              cardStyles.button, 
+              cardStyles.button,
               cardStyles.downloadButton,
               Platform.OS === 'web' && cardStyles.buttonDisabled
             ]}
@@ -544,7 +545,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded'); // Start with downloaded expanded
+  const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded');
 
   // Memoized model lists (as before)
   const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
@@ -563,6 +564,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       : downloadedModels.filter((modelState) => modelState.metadata.type === filterType),
     [downloadedModels, filterType]
   );
+
 
   // Memoized handlers (as before)
   const handleDownload = useCallback(async (modelId: string) => {
@@ -633,6 +635,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       if (item.type === 'header') {
           return (
               <TouchableOpacity
+                  testID={`section-header-${item.id}`}
                   style={styles.sectionHeader}
                   onPress={() => toggleSection(item.id)}
               >

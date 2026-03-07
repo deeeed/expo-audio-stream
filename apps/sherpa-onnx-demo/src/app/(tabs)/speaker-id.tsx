@@ -2,6 +2,7 @@ import { IdentifySpeakerResult, SpeakerEmbeddingResult, SpeakerId, SpeakerIdMode
 import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -76,6 +77,8 @@ export default function SpeakerIdScreen() {
     isLoading: false
   });
   
+  const router = useRouter();
+
   // Hooks for model data
   const { downloadedModels } = useSpeakerIdModels();
   const { speakerIdConfig, localPath, isDownloaded } = useSpeakerIdModelWithConfig({ modelId: selectedModelId });
@@ -566,10 +569,16 @@ export default function SpeakerIdScreen() {
               )}
               <View style={styles.pickerContainer}>
                 {downloadedModels.length === 0 ? (
-                  <Text style={styles.emptyText}>
-                    No speaker identification models available.
-                    Please visit the Models screen to download a model.
-                  </Text>
+                  <View style={styles.emptyModelContainer}>
+                    <Text style={styles.emptyText}>No speaker identification models downloaded.</Text>
+                    <TouchableOpacity
+                      testID="download-models-inline-btn"
+                      style={styles.downloadButton}
+                      onPress={() => router.push('/(tabs)/models?type=speaker-id')}
+                    >
+                      <Text style={styles.downloadButtonText}>Download a model</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   downloadedModels.map((model) => (
                     <TouchableOpacity
@@ -878,6 +887,7 @@ export default function SpeakerIdScreen() {
         keyExtractor={(item) => item.key}
         contentContainerStyle={styles.scrollContent}
       />
+
     </SafeAreaView>
   );
 }
@@ -980,6 +990,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
+  },
+  emptyModelContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  downloadButton: {
+    marginTop: 12,
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   emptyText: {
     textAlign: 'center',

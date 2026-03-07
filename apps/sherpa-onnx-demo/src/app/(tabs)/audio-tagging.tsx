@@ -6,7 +6,8 @@ import { AudioTagging } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -66,7 +67,7 @@ function AudioTaggingScreen() {
     localUri: string;
   } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
+  const [needsReinit, setNeedsReinit] = useState(false);
   
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
@@ -95,49 +96,45 @@ function AudioTaggingScreen() {
   const [debugMode, setDebugMode] = useState<boolean>(true); // Default to true
   const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
   
+  const router = useRouter();
+
   // Use our new hooks
   const { downloadedModels } = useAudioTaggingModels();
   const { audioTaggingConfig, localPath, isDownloaded } = useAudioTaggingModelWithConfig({ modelId: selectedModelId });
   
-  // Add a new effect to log selected model and config changes
+  // Track the config snapshot that was used for the last successful init
+  const initedConfigRef = useRef<{
+    modelId: string | null;
+    topK: number;
+    numThreads: number;
+    debugMode: boolean;
+    provider: string;
+  } | null>(null);
+
+  // Reset UI config values when the selected model changes
   useEffect(() => {
-    console.log('[DEBUG] Selected model ID changed to:', selectedModelId);
-    console.log('[DEBUG] Audio tagging config received:', JSON.stringify(audioTaggingConfig, null, 2));
-    console.log('[DEBUG] Local path:', localPath);
-    console.log('[DEBUG] Is downloaded:', isDownloaded);
-  }, [selectedModelId, audioTaggingConfig, localPath, isDownloaded]);
-  
-  // Reset configuration when selected model or audioTaggingConfig changes
-  useEffect(() => {
-    console.log('[DEBUG] Config reset effect triggered');
-    console.log('[DEBUG] Current config values:', { topK, numThreads, debugMode, provider });
-    
     if (audioTaggingConfig) {
-      console.log('[DEBUG] Using audioTaggingConfig:', JSON.stringify(audioTaggingConfig, null, 2));
-      
-      // Reset to values from the predefined config or use defaults
-      const newTopK = audioTaggingConfig.topK ?? 5;
-      const newNumThreads = audioTaggingConfig.numThreads ?? 2;
-      const newDebugMode = audioTaggingConfig.debug ?? true; // Default to true if not specified
-      const newProvider = audioTaggingConfig.provider ?? 'cpu';
-      
-      console.log('[DEBUG] Setting new values:', {
-        topK: newTopK,
-        numThreads: newNumThreads,
-        debugMode: newDebugMode,
-        provider: newProvider
-      });
-      
-      setTopK(newTopK);
-      setNumThreads(newNumThreads);
-      setDebugMode(newDebugMode); // Use config value or default to true
-      setProvider(newProvider);
-      
-      console.log('Reset configuration based on selected model:', selectedModelId);
-    } else {
-      console.log('[DEBUG] No audioTaggingConfig available for model:', selectedModelId);
+      setTopK(audioTaggingConfig.topK ?? 5);
+      setNumThreads(audioTaggingConfig.numThreads ?? 2);
+      setDebugMode(audioTaggingConfig.debug ?? true);
+      setProvider(audioTaggingConfig.provider ?? 'cpu');
     }
-  }, [selectedModelId, audioTaggingConfig, topK, numThreads, debugMode, provider]);
+    // Only run when the model selection changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId]);
+
+  // Detect config drift from what was last initialized
+  useEffect(() => {
+    if (!initialized || !initedConfigRef.current) return;
+    const c = initedConfigRef.current;
+    const changed =
+      c.modelId !== selectedModelId ||
+      c.topK !== topK ||
+      c.numThreads !== numThreads ||
+      c.debugMode !== debugMode ||
+      c.provider !== provider;
+    setNeedsReinit(changed);
+  }, [initialized, selectedModelId, topK, numThreads, debugMode, provider]);
   
   // Load audio assets when component mounts
   useEffect(() => {
@@ -185,105 +182,34 @@ function AudioTaggingScreen() {
     };
   }, [initialized, sound]);
   
-  const handleModelSelect = (modelId: string) => {
-    console.log('[DEBUG] handleModelSelect called with modelId:', modelId);
-    
-    // If a model is already initialized, show confirmation before switching
+  const handleModelSelect = useCallback(async (modelId: string) => {
+    if (modelId === selectedModelId) return;
     if (initialized) {
-      console.log('[DEBUG] Model already initialized, showing confirmation dialog');
-      setPendingModelId(modelId);
-      Alert.alert(
-        "Switch Model?",
-        "Switching models will release the currently initialized model. Any analysis results will be lost.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => {
-              console.log('[DEBUG] User cancelled model switch');
-              setPendingModelId(null);
-            }
-          },
-          {
-            text: "Switch",
-            style: "destructive",
-            onPress: async () => {
-              // Release current model first
-              try {
-                console.log('[DEBUG] Releasing current model');
-                const result = await AudioTagging.release();
-                
-                // Log the full result to help debug
-                console.log('[DEBUG] Release result:', JSON.stringify(result));
-                
-                // Check if the result is truthy and has a released property, otherwise assume success
-                // This makes the code more resilient to API changes or response issues
-                const isReleased = result && (typeof result === 'object') && 
-                                  (result.released !== undefined ? result.released : true);
-                
-                if (isReleased) {
-                  console.log('[DEBUG] Successfully released model, switching to new model:', modelId);
-                } else {
-                  console.log('[DEBUG] Release may have failed, but proceeding with model switch anyway');
-                }
-                
-                // Regardless of the result, proceed with the switch
-                // We've seen in logs that resources are actually released successfully
-                setInitialized(false);
-                setAudioTaggingResults(null);
-                setStatusMessage('Audio tagging resources released, switching model');
-                
-                // After release, set the new model ID
-                setSelectedModelId(modelId);
-                setPendingModelId(null);
-              } catch (error) {
-                console.log('[DEBUG] Error releasing model:', error);
-                
-                // Despite the error, we'll still try to switch models
-                // This makes the UI more resilient to transient errors
-                console.log('[DEBUG] Proceeding with model switch despite error');
-                setInitialized(false);
-                setAudioTaggingResults(null);
-                setSelectedModelId(modelId);
-                setPendingModelId(null);
-                
-                // Show a warning but don't block the operation
-                setError(`Warning: Error during model release, but continuing with model switch: ${(error as Error).message}`);
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      // No model initialized, just switch directly
-      console.log('[DEBUG] No model initialized, directly setting model ID:', modelId);
-      setSelectedModelId(modelId);
+      try {
+        await AudioTagging.release();
+      } catch (_) { /* ignore */ }
+      setInitialized(false);
+      initedConfigRef.current = null;
+      setAudioTaggingResults(null);
     }
-  };
+    setNeedsReinit(false);
+    setSelectedModelId(modelId);
+  }, [initialized, selectedModelId]);
   
   // Initialize the audio tagging engine
   const handleInitAudioTagging = async () => {
-    console.log('[DEBUG] handleInitAudioTagging called');
-    console.log('[DEBUG] Current state:', {
-      selectedModelId,
-      audioTaggingConfig: JSON.stringify(audioTaggingConfig, null, 2),
-      localPath,
-      isDownloaded,
-      topK,
-      numThreads,
-      debugMode,
-      provider
-    });
-    
     if (!selectedModelId || !localPath || !isDownloaded) {
-      const missingItem = !selectedModelId ? 'selectedModelId' : 
-                          !localPath ? 'localPath' : 
-                          !isDownloaded ? 'isDownloaded' : '';
-      console.log(`[DEBUG] Cannot initialize, missing: ${missingItem}`);
-      setError(`Cannot initialize: ${missingItem} is missing.`);
+      setError('Cannot initialize: no model selected or model not downloaded.');
       return;
     }
-    
+
+    // Release first if reinitializing with new config
+    if (initialized) {
+      try { await AudioTagging.release(); } catch (_) { /* ignore */ }
+      setInitialized(false);
+      initedConfigRef.current = null;
+    }
+
     setLoading(true);
     setError(null);
     setStatusMessage('Initializing audio tagging...');
@@ -334,6 +260,8 @@ function AudioTaggingScreen() {
         
         if (result.success) {
           setInitialized(true);
+          setNeedsReinit(false);
+          initedConfigRef.current = { modelId: selectedModelId, topK, numThreads, debugMode, provider };
           setStatusMessage('Audio tagging engine initialized successfully');
         } else {
           throw new Error(result.error || 'Unknown initialization error');
@@ -464,39 +392,17 @@ function AudioTaggingScreen() {
   
   const handleReleaseAudioTagging = async () => {
     if (!initialized) return;
-    
     setLoading(true);
-    
     try {
-      console.log('[DEBUG] Releasing audio tagging resources manually');
-      const result = await AudioTagging.release();
-      
-      // Log the full result to help debug
-      console.log('[DEBUG] Release result:', JSON.stringify(result));
-      
-      // Check if the result is truthy and has a released property, otherwise assume success
-      const isReleased = result && (typeof result === 'object') && 
-                        (result.released !== undefined ? result.released : true);
-      
-      // Regardless of the return value, reset UI state
-      // The logs indicate resources are actually being released
-      setInitialized(false);
-      setAudioTaggingResults(null);
-      
-      if (isReleased) {
-        setStatusMessage('Audio tagging resources released successfully');
-      } else {
-        setStatusMessage('Audio tagging resources probably released (result uncertain)');
-        console.log('[DEBUG] Release may have failed based on return value, but proceeding anyway');
-      }
+      await AudioTagging.release();
     } catch (err) {
       console.error('Error releasing audio tagging resources:', err);
-      setError(`Error releasing audio tagging resources: ${err instanceof Error ? err.message : String(err)}`);
-      
-      // Despite the error, reset UI state to prevent it from being stuck
-      setInitialized(false);
-      setAudioTaggingResults(null);
     } finally {
+      setInitialized(false);
+      setNeedsReinit(false);
+      initedConfigRef.current = null;
+      setAudioTaggingResults(null);
+      setStatusMessage('Audio tagging resources released');
       setLoading(false);
     }
   };
@@ -807,19 +713,34 @@ function AudioTaggingScreen() {
           <Text style={styles.statusText}>{statusMessage}</Text>
         ) : null}
         
+        {/* Reinit banner */}
+        {needsReinit && (
+          <TouchableOpacity
+            style={styles.reinitBanner}
+            onPress={handleInitAudioTagging}
+            disabled={loading || processing}
+          >
+            <Text style={styles.reinitBannerText}>
+              Configuration changed — tap to reinitialize
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Model Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Select Model</Text>
-          {initialized && (
-            <Text style={styles.warningText}>
-              Switching models will release the currently initialized model
-            </Text>
-          )}
           <View style={styles.pickerContainer}>
             {downloadedModels.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No audio tagging models downloaded. Please visit the Models screen to download a model.
-              </Text>
+              <View style={styles.emptyModelContainer}>
+                <Text style={styles.emptyText}>No audio tagging models downloaded.</Text>
+                <TouchableOpacity
+                  testID="download-models-inline-btn"
+                  style={styles.downloadButton}
+                  onPress={() => router.push('/(tabs)/models?type=audio-tagging')}
+                >
+                  <Text style={styles.downloadButtonText}>Download a model</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               downloadedModels.map((model) => (
                 <TouchableOpacity
@@ -855,14 +776,14 @@ function AudioTaggingScreen() {
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={[
-              styles.button, 
-              styles.initButton,
-              (initialized || !selectedModelId || loading || processing) && styles.buttonDisabled
+              styles.button,
+              needsReinit ? styles.reinitButton : styles.initButton,
+              (!needsReinit && (initialized || !selectedModelId) || loading || processing) && styles.buttonDisabled
             ]}
             onPress={handleInitAudioTagging}
-            disabled={loading || initialized || !selectedModelId || processing}
+            disabled={loading || processing || (!needsReinit && (initialized || !selectedModelId))}
           >
-            <Text style={styles.buttonText}>Initialize</Text>
+            <Text style={styles.buttonText}>{needsReinit ? 'Reinitialize' : 'Initialize'}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -993,6 +914,7 @@ function AudioTaggingScreen() {
           </View>
         )}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -1045,6 +967,24 @@ const styles = StyleSheet.create({
   },
   initButton: {
     backgroundColor: '#2196F3',
+  },
+  reinitButton: {
+    backgroundColor: '#FF9800',
+  },
+  reinitBanner: {
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FF9800',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  reinitBannerText: {
+    color: '#E65100',
+    fontWeight: '600',
+    fontSize: 14,
   },
   releaseButton: {
     backgroundColor: '#757575',
@@ -1144,6 +1084,22 @@ const styles = StyleSheet.create({
   },
   modelOptionTextSelected: {
     color: '#fff',
+  },
+  emptyModelContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  downloadButton: {
+    marginTop: 12,
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   emptyText: {
     textAlign: 'center',

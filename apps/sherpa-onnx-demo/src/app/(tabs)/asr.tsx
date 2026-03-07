@@ -2,7 +2,7 @@ import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +18,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
 import { formatDuration, formatBytes } from '../../utils/formatters';
+
+const GREEDY_ONLY_TYPES = ['whisper', 'paraformer', 'tdnn', 'sense_voice', 'moonshine', 'fire_red_asr']
+const BEAM_SEARCH_TYPES = ['transducer', 'zipformer', 'zipformer2', 'nemo_transducer', 'nemo_ctc', 'lstm']
+
+// Derive streaming/offline badge from model ID without needing per-model config lookup
+function getModelBadge(modelId: string): { label: string; color: string } {
+  if (modelId.startsWith('streaming-')) {
+    return { label: 'Streaming', color: '#4CAF50' };
+  }
+  return { label: 'Offline', color: '#9C27B0' };
+}
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -57,9 +68,11 @@ export default function AsrScreen() {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recognitionResult, setRecognitionResult] = useState<string>('');
+  const [recognitionResult, setRecognitionResult] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
+  const router = useRouter();
+
   // Use our hooks
   const { downloadedModels } = useAsrModels();
   const { asrConfig, localPath, isDownloaded } = useAsrModelWithConfig({ modelId: selectedModelId });
@@ -95,7 +108,7 @@ export default function AsrScreen() {
   const [debugMode, setDebugMode] = useState(false);
   const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
   const [/* configToVisualize */, setConfigToVisualize] = useState<AsrModelConfig | null>(null);
-  
+
   // Add new state for initialization status messages
   const [statusMessage, setStatusMessage] = useState<string>('');
 
@@ -125,20 +138,21 @@ export default function AsrScreen() {
     // Release native ASR, reset state, select model
     ASR.release().catch(() => {}).finally(() => {
       setInitialized(false);
-      setRecognitionResult('');
+      setRecognitionResult(null);
       setSelectedModelId(params.model!);
     });
   }, [params.t]); // only re-run when t changes (fresh navigation)
 
   useEffect(() => {
-    // autoInit: fire once per t value, after model is selected and not loading
+    // autoInit: fire once per t value, after selectedModelId is confirmed and not loading
     if (params.autoInit !== 'true' || !params.model || !params.t) return;
     if (autoInitFiredRef.current === params.t) return;
     if (loading) return;
+    // Wait until selectedModelId matches the requested model (deep-link effect may be async)
+    if (selectedModelId !== params.model) return;
     autoInitFiredRef.current = params.t;
-    const timer = setTimeout(() => handleInitAsr(), 1500);
-    return () => clearTimeout(timer);
-  }, [params.t, params.autoInit, params.model, loading]);
+    handleInitAsr();
+  }, [params.t, params.autoInit, params.model, loading, selectedModelId]);
 
   useEffect(() => {
     if (params.audioId && loadedAudioFiles.length > 0) {
@@ -147,17 +161,21 @@ export default function AsrScreen() {
     }
   }, [params.audioId, params.t, loadedAudioFiles]);
 
-  // ASR cleanup - only on unmount (empty dependency array)
+  // ASR cleanup - only on unmount
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    initializedRef.current = initialized;
+  }, [initialized]);
   useEffect(() => {
     return () => {
-      if (initialized) {
+      if (initializedRef.current) {
         console.log('[ASR] Cleaning up ASR resources');
-        ASR.release().catch((err: Error) => 
+        ASR.release().catch((err: Error) =>
           console.error('[ASR] Error releasing ASR resources:', err)
         );
       }
     };
-  }, [initialized]); // Include initialized dependency
+  }, []); // empty deps = only on unmount
   
   // Sound cleanup - runs when sound changes
   useEffect(() => {
@@ -381,7 +399,7 @@ export default function AsrScreen() {
     }
     
     setProcessing(true);
-    setRecognitionResult('');
+    setRecognitionResult(null);
     setError(null);
     
     try {
@@ -501,7 +519,7 @@ export default function AsrScreen() {
       await ASR.release();
       
       setInitialized(false);
-      setRecognitionResult('');
+      setRecognitionResult(null);
     } catch (err) {
       setError(`Error releasing ASR resources: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -593,37 +611,62 @@ export default function AsrScreen() {
           )}
           <View style={styles.pickerContainer}>
             {downloadedModels.length === 0 ? (
-              <Text style={styles.emptyText}>
-                No ASR models downloaded. Please visit the Models screen to download a model.
-              </Text>
-            ) : (
-              downloadedModels.map((model) => (
+              <View style={styles.emptyModelContainer}>
+                <Text style={styles.emptyText}>No ASR models downloaded.</Text>
                 <TouchableOpacity
-                  key={model.metadata.id}
-                  testID={`model-option-${model.metadata.id}`}
-                  style={[
-                    styles.modelOption,
-                    selectedModelId === model.metadata.id && styles.modelOptionSelected
-                  ]}
-                  onPress={async () => {
-                    if (initialized) {
-                      await handleReleaseAsr();
-                    }
-                    setSelectedModelId(model.metadata.id);
-                  }}
+                  testID="download-models-inline-btn"
+                  style={styles.downloadButton}
+                  onPress={() => router.push('/(tabs)/models?type=asr')}
                 >
-                  <View style={styles.modelOptionRow}>
-                    <Text
-                      style={[
-                        styles.modelOptionText,
-                        selectedModelId === model.metadata.id && styles.modelOptionTextSelected
-                      ]}
-                    >
-                      {model.metadata.name}
-                    </Text>
-                  </View>
+                  <Text style={styles.downloadButtonText}>Download a model</Text>
                 </TouchableOpacity>
-              ))
+              </View>
+            ) : (
+              <>
+                {downloadedModels.map((model) => {
+                  const isSelected = selectedModelId === model.metadata.id;
+                  const badge = getModelBadge(model.metadata.id);
+                  return (
+                    <TouchableOpacity
+                      key={model.metadata.id}
+                      testID={`model-option-${model.metadata.id}`}
+                      style={[
+                        styles.modelOption,
+                        isSelected && styles.modelOptionSelected,
+                      ]}
+                      onPress={async () => {
+                        if (initialized) {
+                          await handleReleaseAsr();
+                        }
+                        setSelectedModelId(model.metadata.id);
+                      }}
+                    >
+                      <View style={styles.modelOptionRow}>
+                        <Text style={[
+                          styles.modelOptionText,
+                          isSelected && styles.modelOptionTextSelected,
+                        ]}>
+                          {model.metadata.name}
+                        </Text>
+                        <View style={[
+                          styles.modelBadge,
+                          { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : badge.color + '22' }
+                        ]}>
+                          <Text style={[
+                            styles.modelBadgeText,
+                            { color: isSelected ? '#fff' : badge.color }
+                          ]}>
+                            {badge.label}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=asr')} style={styles.moreModelsLink}>
+                  <Text style={styles.linkText}>Download more models →</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -640,25 +683,28 @@ export default function AsrScreen() {
             </Text>
           )}
           
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Number of Threads:</Text>
-            <View style={styles.buttonGroup}>
-              {[1, 2, 4, 8].map(num => (
-                <TouchableOpacity
-                  key={num}
-                  style={[
-                    styles.optionButton,
-                    numThreads === num && styles.optionButtonSelected
-                  ]}
-                  onPress={() => setNumThreads(num)}
-                >
-                  <Text style={[
-                    styles.optionButtonText,
-                    numThreads === num && styles.optionButtonTextSelected
-                  ]}>{num}</Text>
-                </TouchableOpacity>
-              ))}
+          <View style={styles.configBlock}>
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Number of Threads:</Text>
+              <View style={styles.buttonGroup}>
+                {[1, 2, 4, 8].map(num => (
+                  <TouchableOpacity
+                    key={num}
+                    style={[
+                      styles.optionButton,
+                      numThreads === num && styles.optionButtonSelected
+                    ]}
+                    onPress={() => setNumThreads(num)}
+                  >
+                    <Text style={[
+                      styles.optionButtonText,
+                      numThreads === num && styles.optionButtonTextSelected
+                    ]}>{num}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
+            <Text style={styles.configHint}>More threads = faster on multi-core CPUs. Diminishing returns above 4.</Text>
           </View>
           
           <View style={styles.configBlock}>
@@ -691,12 +737,15 @@ export default function AsrScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            {asrConfig && ['whisper', 'paraformer', 'sense_voice', 'moonshine', 'tdnn'].includes(asrConfig.modelType || '') && (
-              <Text style={styles.configHint}>Not used by this model type</Text>
+            {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '') && (
+              <Text style={styles.configHint}>This model type only supports greedy search</Text>
+            )}
+            {asrConfig && BEAM_SEARCH_TYPES.includes(asrConfig.modelType || '') && (
+              <Text style={styles.configHint}>Beam search gives better accuracy at the cost of speed</Text>
             )}
           </View>
-          
-          {decodingMethod === 'beam_search' && (
+
+          <View style={[styles.configBlock, decodingMethod !== 'beam_search' && styles.configBlockDimmed]}>
             <View style={styles.configRow}>
               <Text style={styles.configLabel}>Max Active Paths:</Text>
               <View style={styles.buttonGroup}>
@@ -705,19 +754,25 @@ export default function AsrScreen() {
                     key={paths}
                     style={[
                       styles.optionButton,
-                      maxActivePaths === paths && styles.optionButtonSelected
+                      maxActivePaths === paths && styles.optionButtonSelected,
+                      decodingMethod !== 'beam_search' && styles.optionButtonDimmed,
                     ]}
-                    onPress={() => setMaxActivePaths(paths)}
+                    onPress={() => decodingMethod === 'beam_search' && setMaxActivePaths(paths)}
                   >
                     <Text style={[
                       styles.optionButtonText,
-                      maxActivePaths === paths && styles.optionButtonTextSelected
+                      maxActivePaths === paths && decodingMethod === 'beam_search' && styles.optionButtonTextSelected
                     ]}>{paths}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-          )}
+            {decodingMethod === 'beam_search' ? (
+              <Text style={styles.configHint}>Higher values = more accurate but slower</Text>
+            ) : (
+              <Text style={styles.configHint}>Only active when Beam Search is selected</Text>
+            )}
+          </View>
           
           <View style={styles.configBlock}>
             <View style={styles.configRow}>
@@ -733,42 +788,52 @@ export default function AsrScreen() {
             )}
           </View>
           
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Provider:</Text>
-            <View style={styles.providerContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.providerOption,
-                  provider === 'cpu' && styles.providerOptionSelected
-                ]}
-                onPress={() => setProvider('cpu')}
-              >
-                <Text style={[
-                  styles.providerOptionText,
-                  provider === 'cpu' && styles.providerOptionTextSelected
-                ]}>CPU</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.providerOption,
-                  provider === 'gpu' && styles.providerOptionSelected
-                ]}
-                onPress={() => setProvider('gpu')}
-              >
-                <Text style={[
-                  styles.providerOptionText,
-                  provider === 'gpu' && styles.providerOptionTextSelected
-                ]}>GPU</Text>
-              </TouchableOpacity>
+          <View style={styles.configBlock}>
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Provider:</Text>
+              <View style={styles.providerContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.providerOption,
+                    provider === 'cpu' && styles.providerOptionSelected
+                  ]}
+                  onPress={() => setProvider('cpu')}
+                >
+                  <Text style={[
+                    styles.providerOptionText,
+                    provider === 'cpu' && styles.providerOptionTextSelected
+                  ]}>CPU</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.providerOption,
+                    provider === 'gpu' && styles.providerOptionSelected
+                  ]}
+                  onPress={() => setProvider('gpu')}
+                >
+                  <Text style={[
+                    styles.providerOptionText,
+                    provider === 'gpu' && styles.providerOptionTextSelected
+                  ]}>GPU</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+            <Text style={styles.configHint}>
+              {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '')
+                ? 'GPU recommended for whisper-family models. Falls back to CPU if unavailable.'
+                : 'GPU acceleration requires compatible hardware. Falls back to CPU if unavailable.'}
+            </Text>
           </View>
-          
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Debug Mode:</Text>
-            <Switch
-              value={debugMode}
-              onValueChange={setDebugMode}
-            />
+
+          <View style={styles.configBlock}>
+            <View style={styles.configRow}>
+              <Text style={styles.configLabel}>Debug Mode:</Text>
+              <Switch
+                value={debugMode}
+                onValueChange={setDebugMode}
+              />
+            </View>
+            <Text style={styles.configHint}>Prints model config and architecture to logcat on init only. No effect on recognition results.</Text>
           </View>
         </View>
 
@@ -875,11 +940,13 @@ export default function AsrScreen() {
               <Text style={styles.buttonText}>Recognize Speech</Text>
             </TouchableOpacity>
 
-            {recognitionResult !== '' && (
+            {recognitionResult !== null && (
               <View style={styles.resultContainer}>
                 <Text style={styles.resultLabel}>Recognized Text:</Text>
                 <View style={styles.textContainer}>
-                  <Text testID="text-recognition-result" style={styles.recognizedText}>{recognitionResult}</Text>
+                  <Text testID="text-recognition-result" style={styles.recognizedText}>
+                    {recognitionResult === '' ? '(no speech detected)' : recognitionResult}
+                  </Text>
                 </View>
               </View>
             )}
@@ -889,6 +956,7 @@ export default function AsrScreen() {
         {/* Audio Information Section */}
         {selectedAudio && renderAudioInfo()}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -990,12 +1058,46 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  modelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  modelBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   modelOptionText: {
     fontSize: 16,
     color: '#333',
+    flex: 1,
   },
   modelOptionTextSelected: {
     color: '#fff',
+  },
+  emptyModelContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  downloadButton: {
+    marginTop: 12,
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  moreModelsLink: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  linkText: {
+    color: '#2196F3',
+    fontSize: 14,
   },
   providerContainer: {
     flex: 1,
@@ -1084,6 +1186,9 @@ const styles = StyleSheet.create({
   configBlock: {
     marginBottom: 12,
   },
+  configBlockDimmed: {
+    opacity: 0.5,
+  },
   configRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1117,6 +1222,9 @@ const styles = StyleSheet.create({
   },
   optionButtonSelected: {
     backgroundColor: '#2196F3',
+  },
+  optionButtonDimmed: {
+    opacity: 0.6,
   },
   optionButtonText: {
     fontSize: 14,
