@@ -273,6 +273,11 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     <View style={[cardStyles.card, isSelected && cardStyles.cardSelected]}>
       <View style={cardStyles.cardHeader}>
         <Text style={cardStyles.modelName}>{model.name}</Text>
+        {model.recommended && (
+          <View style={cardStyles.recommendedBadge}>
+            <Text style={cardStyles.recommendedBadgeText}>Recommended</Text>
+          </View>
+        )}
         {hasDependencies && (
           <View style={cardStyles.dependencyBadge}>
             <Text style={cardStyles.dependencyBadgeText}>Has Dependencies</Text>
@@ -933,6 +938,18 @@ const cardStyles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: '500',
+  },
+  recommendedBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  recommendedBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   dependencyBadge: {
     backgroundColor: '#ff9800',

@@ -34,6 +34,7 @@ export interface ModelMetadata {
   url: string;
   version: string;
   language: string;
+  recommended?: boolean;
   // Use the new DependencyMetadata interface
   dependencies?: DependencyMetadata[];
 }
@@ -126,9 +127,9 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
 
   {
     id: 'vits-piper-en-medium',
-    name: 'VITS Piper (Medium Quality)',
+    name: 'VITS Piper ljspeech (Medium)',
     description:
-      'Compact medium-quality model for American English, balancing size and clarity for mobile apps.',
+      'Compact medium-quality single-speaker American English model, balancing size and clarity for mobile apps.',
     type: 'tts',
     size: 64.1 * 1024 * 1024, // 64.1 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ljspeech-medium.tar.bz2',
@@ -137,27 +138,41 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
   },
 
   {
-    id: 'vits-piper-en-high',
-    name: 'VITS Piper (High Quality)',
+    id: 'vits-piper-en-libritts_r-medium',
+    name: 'VITS Piper LibriTTS-R (904 speakers)',
     description:
-      'High-fidelity English model, manageable on modern mobile devices for premium voice output.',
+      'Multi-speaker American English model with 904 voices from the LibriTTS-R dataset. Recommended for variety of speaker styles.',
     type: 'tts',
-    size: 125 * 1024 * 1024, // 125 MB
-    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts-high.tar.bz2',
-    version: 'high',
+    size: 75 * 1024 * 1024, // 75 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2',
+    version: 'medium',
     language: 'en',
+    recommended: true,
   },
 
   {
     id: 'kokoro-en',
-    name: 'Kokoro (Expressive)',
+    name: 'Kokoro v0.19 (English, 11 speakers)',
     description:
-      'Expressive synthesis model, larger but suitable for high-end devices needing unique voice capabilities.',
+      'Expressive English synthesis with 11 named speakers (af_bella, am_adam, bm_george…), 24 kHz output.',
     type: 'tts',
-    size: 305 * 1024 * 1024, // 305 MB
+    size: 686 * 1024 * 1024, // ~686 MB total
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
+  },
+
+  {
+    id: 'kokoro-multi-lang-v1_1',
+    name: 'Kokoro v1.1 (EN+ZH, 103 speakers)',
+    description:
+      'Latest Kokoro model with 103 English and Chinese speakers (af_heart, am_michael, zf_xiaobei, zm_yunxi…). 24 kHz output.',
+    type: 'tts',
+    size: 718 * 1024 * 1024, // ~718 MB total
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2',
+    version: '1.1',
+    language: 'en-zh',
+    recommended: true,
   },
 
   {
@@ -170,6 +185,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
+    recommended: true,
     dependencies: [
       {
         id: 'vocos-vocoder',

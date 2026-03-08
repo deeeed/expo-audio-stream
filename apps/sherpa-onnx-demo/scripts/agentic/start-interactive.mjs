@@ -25,22 +25,11 @@ const portIdx = process.argv.indexOf('--port')
 const PORT = portIdx !== -1 ? process.argv[portIdx + 1] : '7500'
 const LOGFILE = path.join(ROOT, '.agent/metro.log')
 const PIDFILE = path.join(ROOT, '.agent/metro.pid')
-const CDP_BRIDGE = path.join(ROOT, 'scripts/agentic/cdp-bridge.mjs')
-
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function metroPost(endpoint) {
     try {
         execSync(`curl -sf -X POST http://localhost:${PORT}${endpoint}`, { stdio: 'pipe' })
-        return true
-    } catch {
-        return false
-    }
-}
-
-function cdpReload() {
-    try {
-        execSync(`WATCHER_PORT=${PORT} node ${CDP_BRIDGE} reload`, { stdio: 'pipe' })
         return true
     } catch {
         return false
@@ -120,12 +109,11 @@ process.stdin.on('data', (key) => {
 
     switch (key.toLowerCase()) {
         case 'r': {
-            const cdpOk = cdpReload()
-            const metroOk = !cdpOk && metroPost('/reload')
-            if (cdpOk || metroOk) {
+            const ok = metroPost('/reload')
+            if (ok) {
                 process.stdout.write('\x1b[32m› Reloading...\x1b[0m\n')
             } else {
-                process.stdout.write('\x1b[31m✗ Reload failed — no device connected? Try opening the app.\x1b[0m\n')
+                process.stdout.write('\x1b[31m✗ Reload failed — is Metro running?\x1b[0m\n')
             }
             break
         }

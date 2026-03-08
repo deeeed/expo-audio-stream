@@ -12,7 +12,8 @@
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
-import SherpaOnnx, { ASR, SpeakerId } from '@siteed/sherpa-onnx.rn'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import SherpaOnnx, { ASR, AudioTagging, SpeakerId } from '@siteed/sherpa-onnx.rn'
 
 // State holders updated by AgenticBridgeSync component
 let _routeInfo: { pathname: string; segments: string[] } = {
@@ -20,6 +21,7 @@ let _routeInfo: { pathname: string; segments: string[] } = {
   segments: [],
 }
 let _modelState: Record<string, unknown> = {}
+let _pageState: Record<string, unknown> = {}
 
 export function setAgenticRouteInfo(pathname: string, segments: string[]) {
   _routeInfo = { pathname, segments }
@@ -27,6 +29,14 @@ export function setAgenticRouteInfo(pathname: string, segments: string[]) {
 
 export function setAgenticModelState(state: Record<string, unknown>) {
   _modelState = state
+}
+
+/**
+ * Pages call this to register their current UI state for agentic querying.
+ * Replaces screenshots — agent calls getPageState() to read state as JSON.
+ */
+export function setAgenticPageState(state: Record<string, unknown>) {
+  _pageState = state
 }
 
 // --- Async result store for fire-and-store pattern (CDP awaitPromise:false) ---
@@ -56,6 +66,36 @@ if (__DEV__) {
 
     getState: () => {
       return _modelState
+    },
+
+    getPageState: () => {
+      return { route: _routeInfo.pathname, ..._pageState }
+    },
+
+    clearAllModelStates: () => {
+      const STORAGE_KEY = '@model_states'
+      _lastAsyncResult = { op: 'clearAllModelStates', status: 'pending' }
+      AsyncStorage.removeItem(STORAGE_KEY).then(() => {
+        _lastAsyncResult = { op: 'clearAllModelStates', status: 'success', result: 'Cleared all model states' }
+      }).catch(e => {
+        _lastAsyncResult = { op: 'clearAllModelStates', status: 'error', error: String(e) }
+      })
+      return { op: 'clearAllModelStates', status: 'pending' }
+    },
+
+    resetModelState: (modelId: string) => {
+      const STORAGE_KEY = '@model_states'
+      AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+        const states = JSON.parse(raw || '{}')
+        delete states[modelId]
+        return AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(states))
+      }).then(() => {
+        _lastAsyncResult = { op: 'resetModelState', status: 'success', result: `Cleared ${modelId}` }
+      }).catch(e => {
+        _lastAsyncResult = { op: 'resetModelState', status: 'error', error: String(e) }
+      })
+      _lastAsyncResult = { op: 'resetModelState', status: 'pending' }
+      return { op: 'resetModelState', status: 'pending' }
     },
 
     canGoBack: () => {
@@ -268,11 +308,75 @@ if (__DEV__) {
       return { op, status: 'pending' }
     },
 
+    // Test any TTS model by ID using predefined config (modelId → config lookup)
+    testTTSModel: (modelId: string, text = 'Hello from sherpa onnx.') => {
+      const op = 'ttsModel'
+      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      // Inline configs for all 5 TTS models
+      const CONFIGS: Record<string, { dir: string; modelType: string; modelFile: string; tokensFile: string; lexiconFile?: string; voicesFile?: string; vocoderFile?: string; dataDir?: string; lang?: string }> = {
+        'vits-icefall-en-low': { dir: `${BASE}/vits-icefall-en-low`, modelType: 'vits', modelFile: 'model.onnx', tokensFile: 'tokens.txt', dataDir: 'espeak-ng-data' },
+        'vits-piper-en-medium': { dir: `${BASE}/vits-piper-en-medium`, modelType: 'vits', modelFile: 'en_US-ljspeech-medium.onnx', tokensFile: 'tokens.txt', lexiconFile: 'lexicon.txt', dataDir: 'espeak-ng-data' },
+        'vits-piper-en-libritts_r-medium': { dir: `${BASE}/vits-piper-en-libritts_r-medium`, modelType: 'vits', modelFile: 'en_US-libritts_r-medium.onnx', tokensFile: 'tokens.txt', dataDir: 'espeak-ng-data' },
+        'kokoro-en': { dir: `${BASE}/kokoro-en`, modelType: 'kokoro', modelFile: 'model.onnx', tokensFile: 'tokens.txt', voicesFile: 'voices.bin', dataDir: 'espeak-ng-data' },
+        'kokoro-multi-lang-v1_1': { dir: `${BASE}/kokoro-multi-lang-v1_1`, modelType: 'kokoro', modelFile: 'model.onnx', tokensFile: 'tokens.txt', voicesFile: 'voices.bin', dataDir: 'espeak-ng-data', lang: 'en' },
+        'matcha-icefall-en': { dir: `${BASE}/matcha-icefall-en`, modelType: 'matcha', modelFile: 'matcha-icefall-en_US-ljspeech/model-steps-3.onnx', tokensFile: 'matcha-icefall-en_US-ljspeech/tokens.txt', vocoderFile: 'vocos-22khz-univ.onnx', dataDir: 'matcha-icefall-en_US-ljspeech/espeak-ng-data' },
+      }
+      const cfg = CONFIGS[modelId]
+      if (!cfg) {
+        _lastAsyncResult = { op, status: 'error', error: `Unknown modelId: ${modelId}. Valid: ${Object.keys(CONFIGS).join(', ')}` }
+        return { op, status: 'error' }
+      }
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          const t0 = Date.now()
+          const initResult = await SherpaOnnx.initTts({
+            modelDir: cfg.dir,
+            ttsModelType: cfg.modelType as 'vits' | 'kokoro' | 'matcha',
+            modelFile: cfg.modelFile,
+            tokensFile: cfg.tokensFile,
+            lexiconFile: cfg.lexiconFile,
+            voicesFile: cfg.voicesFile,
+            vocoderFile: cfg.vocoderFile,
+            dataDir: cfg.dataDir,
+            lang: cfg.lang,
+            numThreads: 1,
+            debug: false,
+          })
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initTts failed: ' + (initResult as Record<string, unknown>).error)
+
+          const t1 = Date.now()
+          const genResult = await SherpaOnnx.generateTts({
+            text,
+            speakerId: 0,
+            speakingRate: 1.0,
+            playAudio: false,
+          })
+          timing.generateMs = Date.now() - t1
+
+          const t2 = Date.now()
+          await SherpaOnnx.releaseTts()
+          timing.releaseMs = Date.now() - t2
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: { initResult, genResult, timing, modelId, text },
+          }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
     // Full end-to-end Audio Tagging: init model → process file → release → timing
     testAudioTaggingFull: (wavPath?: string, modelDir?: string) => {
       const op = 'audioTaggingFull'
       const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
-      const defaultModelDir = `${BASE}/ced-mini-audio-tagging/sherpa-onnx-ced-mini-audio-tagging-2024-04-19`
+      const defaultModelDir = `${BASE}/ced-tiny-audio-tagging/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19`
       const defaultWav = defaultModelDir + '/test_wavs/1.wav'
       const dir = modelDir ?? defaultModelDir
       const wav = wavPath ?? defaultWav
@@ -456,6 +560,261 @@ if (__DEV__) {
     },
 
     // Full end-to-end streaming ASR: init model → recognize file → release → timing
+    recognizeFile: (wavPath: string) => {
+      const op = 'recognizeFile'
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        try {
+          const result = await ASR.recognizeFromFile(wavPath)
+          _lastAsyncResult = { op, status: 'success', result }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e) }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    // One-shot ASR test: init + recognize + release
+    // testASR('whisper', wavPath?) — use whisper-small-multilingual
+    // testASR('streaming', wavPath?) — use streaming-zipformer-en-20m-mobile
+    // testASR('offline', wavPath?) — alias for whisper
+    testASR: (modelAlias?: string, wavPath?: string) => {
+      const op = 'asrTest'
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          const alias = (modelAlias ?? 'whisper').toLowerCase()
+          const isStreaming = alias === 'streaming' || alias === 'zipformer'
+          let config: Parameters<typeof ASR.initialize>[0]
+          let defaultWav: string
+
+          if (isStreaming) {
+            const dir = '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+            defaultWav = dir + '/test_wavs/1.wav'
+            config = {
+              modelDir: dir,
+              modelType: 'transducer',
+              numThreads: 4,
+              decodingMethod: 'greedy_search',
+              maxActivePaths: 4,
+              streaming: true,
+              debug: false,
+              provider: 'cpu',
+              modelFiles: {
+                encoder: 'encoder-epoch-99-avg-1.int8.onnx',
+                decoder: 'decoder-epoch-99-avg-1.onnx',
+                joiner: 'joiner-epoch-99-avg-1.int8.onnx',
+                tokens: 'tokens.txt',
+              },
+            }
+          } else {
+            // whisper / offline
+            const dir = '/data/data/com.deeeed.sherpaonnxdemo/files/models/whisper-small-multilingual/sherpa-onnx-whisper-small'
+            defaultWav = dir + '/test_wavs/0.wav'
+            config = {
+              modelDir: dir,
+              modelType: 'whisper',
+              numThreads: 1,
+              decodingMethod: 'greedy_search',
+              streaming: false,
+              debug: false,
+              provider: 'cpu',
+              modelFiles: {
+                encoder: 'small-encoder.onnx',
+                decoder: 'small-decoder.onnx',
+                tokens: 'small-tokens.txt',
+              },
+            }
+          }
+
+          const wav = wavPath ?? defaultWav
+
+          const t0 = Date.now()
+          const initResult = await ASR.initialize(config)
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('init failed: ' + initResult.error)
+
+          const t1 = Date.now()
+          const asrResult = await ASR.recognizeFromFile(wav)
+          timing.inferenceMs = Date.now() - t1
+
+          const t2 = Date.now()
+          await ASR.release()
+          timing.releaseMs = Date.now() - t2
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: { model: alias, transcript: asrResult.text, wavPath: wav, timing },
+          }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    // Internal helper: store result under a named key (used by ad-hoc evals)
+    _storeResult: (key: string, value: unknown) => {
+      _lastAsyncResult = { op: key, status: 'success', result: value }
+    },
+
+    // E2E Audio Tagging via JS service layer: init → processAndCompute → release
+    // Uses AudioTaggingService (same path as the UI) rather than raw SherpaOnnx calls.
+    testAudioTaggingE2E: (wavPath?: string, modelDir?: string) => {
+      const op = 'audioTaggingE2E'
+      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const defaultModelDir = `${BASE}/ced-tiny-audio-tagging/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19`
+      const defaultWav = defaultModelDir + '/test_wavs/1.wav'
+      const dir = modelDir ?? defaultModelDir
+      const wav = wavPath ?? defaultWav
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          const t0 = Date.now()
+          const initResult = await AudioTagging.initialize({
+            modelDir: dir,
+            modelType: 'ced',
+            modelFile: 'model.int8.onnx',
+            labelsFile: 'class_labels_indices.csv',
+            topK: 5,
+            numThreads: 2,
+            debug: false,
+            provider: 'cpu',
+          })
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initialize failed: ' + initResult.error)
+
+          const t1 = Date.now()
+          const tagResult = await AudioTagging.processAndCompute({ filePath: wav, topK: 5 })
+          timing.inferenceMs = Date.now() - t1
+
+          const t2 = Date.now()
+          await AudioTagging.release()
+          timing.releaseMs = Date.now() - t2
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: { tagResult, timing, wavPath: wav, modelDir: dir },
+          }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    testStreamingPrimitives: (modelDir?: string, wavPath?: string) => {
+      const op = 'streamingPrimitives'
+      const defaultModelDir =
+        '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+      const defaultWav = defaultModelDir + '/test_wavs/1.wav'
+      const dir = modelDir ?? defaultModelDir
+      const wav = wavPath ?? defaultWav
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const steps: Record<string, unknown> = {}
+        try {
+          // 1. Init streaming ASR
+          const t0 = Date.now()
+          const initResult = await ASR.initialize({
+            modelDir: dir,
+            modelType: 'transducer',
+            numThreads: 4,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: 4,
+            streaming: true,
+            debug: false,
+            provider: 'cpu',
+            modelFiles: {
+              encoder: 'encoder-epoch-99-avg-1.int8.onnx',
+              decoder: 'decoder-epoch-99-avg-1.onnx',
+              joiner: 'joiner-epoch-99-avg-1.int8.onnx',
+              tokens: 'tokens.txt',
+            },
+          })
+          steps.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initAsr failed: ' + initResult.error)
+          steps.init = 'PASS'
+
+          // 2. Create online stream
+          const streamResult = await ASR.createOnlineStream()
+          steps.createStream = streamResult.success ? 'PASS' : 'FAIL'
+
+          // 3. Get empty result (stream just created, no audio fed)
+          const emptyResult = await ASR.getResult()
+          steps.emptyResult = { text: emptyResult.text, pass: emptyResult.text === '' }
+
+          // 4. Check endpoint (should be false, no audio)
+          const epResult = await ASR.isEndpoint()
+          steps.isEndpointEmpty = { isEndpoint: epResult.isEndpoint, pass: !epResult.isEndpoint }
+
+          // 5. Feed audio from wav file using recognizeFromFile (which uses streaming internally)
+          // But first, test acceptWaveform with a small silent chunk
+          const silentChunk = new Array(1600).fill(0) // 100ms of silence at 16kHz
+          const waveformResult = await ASR.acceptWaveform(16000, silentChunk)
+          steps.acceptWaveform = waveformResult.success ? 'PASS' : 'FAIL'
+
+          // 6. Get result after silence (should still be empty)
+          const afterSilence = await ASR.getResult()
+          steps.afterSilenceResult = { text: afterSilence.text, pass: afterSilence.text === '' }
+
+          // 7. Reset stream
+          const resetResult = await ASR.resetStream()
+          steps.resetStream = resetResult.success ? 'PASS' : 'FAIL'
+
+          // 8. Now test with real audio: use recognizeFromFile (existing API, regression check)
+          // First release and re-init to test full flow
+          await ASR.release()
+          await ASR.initialize({
+            modelDir: dir,
+            modelType: 'transducer',
+            numThreads: 4,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: 4,
+            streaming: true,
+            debug: false,
+            provider: 'cpu',
+            modelFiles: {
+              encoder: 'encoder-epoch-99-avg-1.int8.onnx',
+              decoder: 'decoder-epoch-99-avg-1.onnx',
+              joiner: 'joiner-epoch-99-avg-1.int8.onnx',
+              tokens: 'tokens.txt',
+            },
+          })
+          const fileResult = await ASR.recognizeFromFile(wav)
+          steps.recognizeFromFile = {
+            text: fileResult.text,
+            success: fileResult.success,
+            pass: fileResult.success && (fileResult.text?.length ?? 0) > 0,
+          }
+
+          await ASR.release()
+          steps.release = 'PASS'
+
+          const allPassed =
+            steps.createStream === 'PASS' &&
+            steps.acceptWaveform === 'PASS' &&
+            steps.resetStream === 'PASS' &&
+            (steps.emptyResult as Record<string, unknown>).pass === true &&
+            (steps.afterSilenceResult as Record<string, unknown>).pass === true &&
+            (steps.recognizeFromFile as Record<string, unknown>).pass === true
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: { steps, allPassed },
+          }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { steps } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
     testASRFull: (modelDir?: string, wavPath?: string) => {
       const op = 'asrFull'
       const defaultModelDir =

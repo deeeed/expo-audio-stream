@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTtsModels, useTtsModelWithConfig } from '../../hooks/useModelWithConfig';
+import { setAgenticPageState } from '../../agentic-bridge';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
@@ -60,6 +61,21 @@ export default function TtsScreen() {
   // Use our new hooks
   const { downloadedModels } = useTtsModels();
   const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({ modelId: selectedModelId });
+
+  // Register page state for agentic querying (replaces screenshots)
+  useEffect(() => {
+    setAgenticPageState({
+      selectedModelId,
+      ttsInitialized,
+      isLoading,
+      isPlaying,
+      errorMessage: errorMessage || null,
+      statusMessage: statusMessage || null,
+      speakerId,
+      speakingRate,
+      hasResult: !!ttsResult,
+    });
+  }, [selectedModelId, ttsInitialized, isLoading, isPlaying, errorMessage, statusMessage, speakerId, speakingRate, ttsResult]);
 
   // Initialize audio system on component mount
   useEffect(() => {
@@ -602,17 +618,49 @@ export default function TtsScreen() {
             {/* TTS Generation Configuration */}
             <View style={styles.configSection}>
               <Text style={styles.sectionTitle}>Speech Generation</Text>
-              
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Speaker ID:</Text>
-                <TextInput
-                  style={styles.configInput}
-                  keyboardType="numeric"
-                  value={speakerId.toString()}
-                  onChangeText={(value) => setSpeakerId(parseInt(value) || 0)}
-                />
-              </View>
-              
+
+              {/* Speaker selector — only shown for multi-speaker models */}
+              {initResult && initResult.numSpeakers > 1 && (
+                <View style={styles.speakerSection}>
+                  <Text style={styles.configLabel}>
+                    Speaker: {speakerId} of {initResult.numSpeakers - 1}
+                  </Text>
+                  <View style={styles.stepperRow}>
+                    <TouchableOpacity
+                      style={[styles.stepperButton, speakerId <= 0 && styles.stepperButtonDisabled]}
+                      onPress={() => setSpeakerId(Math.max(0, speakerId - 1))}
+                      disabled={speakerId <= 0}
+                    >
+                      <Text style={styles.stepperButtonText}>-</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.speakerInput}
+                      keyboardType="numeric"
+                      value={speakerId.toString()}
+                      onChangeText={(value) => {
+                        const id = parseInt(value);
+                        if (!isNaN(id)) {
+                          setSpeakerId(Math.max(0, Math.min(id, initResult.numSpeakers - 1)));
+                        }
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={[styles.stepperButton, speakerId >= initResult.numSpeakers - 1 && styles.stepperButtonDisabled]}
+                      onPress={() => setSpeakerId(Math.min(initResult.numSpeakers - 1, speakerId + 1))}
+                      disabled={speakerId >= initResult.numSpeakers - 1}
+                    >
+                      <Text style={styles.stepperButtonText}>+</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.randomButton}
+                      onPress={() => setSpeakerId(Math.floor(Math.random() * initResult.numSpeakers))}
+                    >
+                      <Text style={styles.randomButtonText}>Random</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               <View style={styles.configRow}>
                 <Text style={styles.configLabel}>Speaking Rate:</Text>
                 <TextInput
@@ -622,7 +670,7 @@ export default function TtsScreen() {
                   onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
                 />
               </View>
-              
+
               <View style={styles.configRow}>
                 <Text style={styles.configLabel}>Auto-play Audio:</Text>
                 <Switch
@@ -660,11 +708,9 @@ export default function TtsScreen() {
                 Sample Rate: {initResult.sampleRate}Hz
               </Text>
             )}
-            {initResult.numSpeakers && initResult.numSpeakers > 1 && (
-              <Text style={styles.statusDetail}>
-                Available Speakers: {initResult.numSpeakers}
-              </Text>
-            )}
+            <Text style={styles.statusDetail}>
+              Speakers: {initResult.numSpeakers}
+            </Text>
           </View>
         )}
         
@@ -1067,5 +1113,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
     padding: 10,
     borderRadius: 4,
-  }
+  },
+  speakerSection: {
+    marginBottom: 16,
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  stepperButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  stepperButtonText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  speakerInput: {
+    flex: 1,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 4,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  randomButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+  },
+  randomButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
 }); 

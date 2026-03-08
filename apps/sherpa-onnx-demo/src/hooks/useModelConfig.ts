@@ -36,14 +36,13 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       dataDir: 'espeak-ng-data',
     }
   },
-  'vits-piper-en-high': {
-    id: 'vits-piper-en-high',
+  'vits-piper-en-libritts_r-medium': {
+    id: 'vits-piper-en-libritts_r-medium',
     modelType: 'tts',
     ttsConfig: {
       ttsModelType: 'vits',
-      modelFile: 'en_US-libritts-high.onnx',
+      modelFile: 'en_US-libritts_r-medium.onnx',
       tokensFile: 'tokens.txt',
-      lexiconFile: 'lexicon.txt',
       dataDir: 'espeak-ng-data',
     }
   },
@@ -56,6 +55,18 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       tokensFile: 'tokens.txt',
       voicesFile: 'voices.bin',
       dataDir: 'espeak-ng-data',
+    }
+  },
+  'kokoro-multi-lang-v1_1': {
+    id: 'kokoro-multi-lang-v1_1',
+    modelType: 'tts',
+    ttsConfig: {
+      ttsModelType: 'kokoro',
+      modelFile: 'model.onnx',
+      tokensFile: 'tokens.txt',
+      voicesFile: 'voices.bin',
+      dataDir: 'espeak-ng-data',
+      lang: 'en',
     }
   },
   'matcha-icefall-en': {
@@ -223,6 +234,19 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
   },
   'ced-tiny-audio-tagging': {
     id: 'ced-tiny-audio-tagging',
+    modelType: 'audio-tagging',
+    audioTaggingConfig: {
+      modelType: 'ced',
+      modelFile: 'model.int8.onnx',
+      labelsFile: 'class_labels_indices.csv',
+      numThreads: 2,
+      topK: 5,
+      debug: true,
+      provider: 'cpu'
+    }
+  },
+  'ced-mini-audio-tagging': {
+    id: 'ced-mini-audio-tagging',
     modelType: 'audio-tagging',
     audioTaggingConfig: {
       modelType: 'ced',

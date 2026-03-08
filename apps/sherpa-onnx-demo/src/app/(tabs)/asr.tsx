@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
 import { formatDuration, formatBytes } from '../../utils/formatters';
+import { setAgenticPageState } from '../../agentic-bridge';
 
 const GREEDY_ONLY_TYPES = ['whisper', 'paraformer', 'tdnn', 'sense_voice', 'moonshine', 'fire_red_asr']
 const BEAM_SEARCH_TYPES = ['transducer', 'zipformer', 'zipformer2', 'nemo_transducer', 'nemo_ctc', 'lstm']
@@ -114,7 +115,21 @@ export default function AsrScreen() {
 
   // Track if autoInit has already fired for the current params
   const autoInitFiredRef = useRef<string | null>(null);
-  
+
+  // Register page state for agentic querying (replaces screenshots)
+  useEffect(() => {
+    setAgenticPageState({
+      selectedModelId,
+      initialized,
+      loading,
+      processing,
+      error,
+      recognitionResult,
+      statusMessage,
+      selectedAudio: selectedAudio?.name ?? null,
+    });
+  }, [selectedModelId, initialized, loading, processing, error, recognitionResult, statusMessage, selectedAudio]);
+
   // Reset configuration when selected model or asrConfig changes
   useEffect(() => {
     if (asrConfig) {
@@ -594,7 +609,15 @@ export default function AsrScreen() {
       )}
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Automatic Speech Recognition</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <Text style={styles.title}>Automatic Speech Recognition</Text>
+          <TouchableOpacity
+            style={{ backgroundColor: '#4CAF50', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 }}
+            onPress={() => router.push('/live-asr')}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Live ASR</Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Error and status messages */}
         {error ? (

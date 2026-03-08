@@ -8898,6 +8898,7 @@ __metadata:
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
     "@react-navigation/native": "npm:^7.0.14"
     "@react-navigation/native-stack": "npm:^7.3.10"
+    "@siteed/expo-audio-studio": "workspace:^"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~19.2.10"
