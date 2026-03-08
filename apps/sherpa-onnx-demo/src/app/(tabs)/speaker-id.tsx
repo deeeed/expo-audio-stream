@@ -577,6 +577,7 @@ export default function SpeakerIdScreen() {
                   downloadedModels.map((model) => (
                     <TouchableOpacity
                       key={model.metadata.id}
+                      testID={`spkr-model-${model.metadata.id}`}
                       style={[
                         styles.modelOption,
                         selectedModelId === model.metadata.id && styles.modelOptionSelected
@@ -682,12 +683,13 @@ export default function SpeakerIdScreen() {
             
             {/* Control Buttons */}
             <View style={styles.buttonRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
+                testID="spkr-init-btn"
                 style={[
-                  styles.button, 
+                  styles.button,
                   styles.initButton,
                   (!selectedModelId || loading) && styles.buttonDisabled
-                ]} 
+                ]}
                 onPress={handleInitSpeakerId}
                 disabled={loading || !selectedModelId || initialized}
               >
@@ -717,6 +719,7 @@ export default function SpeakerIdScreen() {
                     {loadedAudioFiles.map((item) => (
                       <TouchableOpacity
                         key={item.id}
+                        testID={`spkr-audio-${item.id}`}
                         style={[
                           styles.audioItem,
                           selectedAudio?.id === item.id && styles.selectedAudioItem
@@ -775,6 +778,7 @@ export default function SpeakerIdScreen() {
                           </TouchableOpacity>
                         ) : (
                           <TouchableOpacity
+                            testID="spkr-process-btn"
                             style={styles.audioProcessButton}
                             onPress={() => handleProcessAudio(selectedAudio)}
                             disabled={processing}
@@ -834,6 +838,7 @@ export default function SpeakerIdScreen() {
                             placeholder="Enter speaker name"
                           />
                           <TouchableOpacity
+                            testID="spkr-register-btn"
                             style={[
                               styles.registerButton,
                               (!newSpeakerName.trim() || processing) && styles.buttonDisabled

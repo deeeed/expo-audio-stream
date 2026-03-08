@@ -271,34 +271,34 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       provider: 'cpu'
     }
   },
-  // Speaker ID model configurations
-  'speaker-embedding-zh': {
-    id: 'speaker-embedding-zh',
+  // Speaker ID model configurations (IDs must match models.ts catalog)
+  'speaker-id-en-voxceleb': {
+    id: 'speaker-id-en-voxceleb',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
+      modelFile: '3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx',
       numThreads: 2,
-      debug: true,
+      debug: false,
       provider: 'cpu'
     }
   },
-  'speaker-embedding-en': {
-    id: 'speaker-embedding-en',
+  'speaker-id-zh-cn': {
+    id: 'speaker-id-zh-cn',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
+      modelFile: '3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx',
       numThreads: 2,
-      debug: true,
+      debug: false,
       provider: 'cpu'
     }
   },
-  'wendsonar-speaker-embedding': {
-    id: 'wendsonar-speaker-embedding',
+  'speaker-id-zh-en-advanced': {
+    id: 'speaker-id-zh-en-advanced',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
-      numThreads: 1,
-      debug: true,
+      modelFile: '3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx',
+      numThreads: 2,
+      debug: false,
       provider: 'cpu'
     }
   }
