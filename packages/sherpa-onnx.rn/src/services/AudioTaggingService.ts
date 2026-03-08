@@ -6,6 +6,7 @@ import type {
   AudioTaggingProcessOptions,
   ValidateResult,
 } from '../types/interfaces';
+import { cleanFilePath } from '../utils/fileUtils';
 
 /**
  * Service for Audio Tagging functionality
@@ -41,7 +42,11 @@ export class AudioTaggingService {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
-      const result = await this.api.initAudioTagging(config);
+      const cleanedConfig = {
+        ...config,
+        modelDir: cleanFilePath(config.modelDir),
+      };
+      const result = await this.api.initAudioTagging(cleanedConfig);
       this.initialized = result.success;
       return result;
     } catch (error) {
@@ -77,7 +82,7 @@ export class AudioTaggingService {
     if (options.filePath) {
       // Pass the filePath directly to the native method
       return this.api.processAndComputeAudioTagging(
-        options.filePath,
+        cleanFilePath(options.filePath),
         options.topK
       );
     } else if (options.samples && options.sampleRate) {

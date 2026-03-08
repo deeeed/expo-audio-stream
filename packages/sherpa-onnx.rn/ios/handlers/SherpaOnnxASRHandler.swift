@@ -51,11 +51,9 @@ import AVFoundation
     @objc public func initAsr(_ config: NSDictionary) -> NSDictionary {
         NSLog("%@ initAsr called with config: %@", SherpaOnnxASRHandler.TAG, config)
 
-        guard let rawModelDir = config["modelDir"] as? String else {
+        guard let modelDir = config["modelDir"] as? String else {
             return ["success": false, "error": "modelDir is required"]
         }
-        // Strip file:// URL prefix if present (iOS paths from expo-file-system)
-        let modelDir = rawModelDir.hasPrefix("file://") ? String(rawModelDir.dropFirst(7)) : rawModelDir
 
         let modelType = config["modelType"] as? String ?? "transducer"
         let streaming = config["streaming"] as? Bool ?? false

@@ -52,7 +52,23 @@ RCT_EXPORT_MODULE(SherpaOnnx)
         } @catch (NSException *exception) {
             NSLog(@"❌ [SherpaOnnx] Failed to create TTS handler: %@", exception);
         }
-        
+
+        NSLog(@"🚀 [SherpaOnnx] Creating Audio Tagging handler...");
+        @try {
+            self.audioTaggingHandler = [[SherpaOnnxAudioTaggingHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Audio Tagging handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Audio Tagging handler: %@", exception);
+        }
+
+        NSLog(@"🚀 [SherpaOnnx] Creating Speaker ID handler...");
+        @try {
+            self.speakerIdHandler = [[SherpaOnnxSpeakerIdHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Speaker ID handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Speaker ID handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -525,20 +541,55 @@ RCT_EXPORT_METHOD(releaseTts:(RCTPromiseResolveBlock)resolve
   return std::make_shared<facebook::react::NativeSherpaOnnxSpecSpecJSI>(params);
 }
 
-// MARK: - Audio Tagging Methods (Stubs for Protocol Conformance)
+// MARK: - Audio Tagging Methods
 
 RCT_EXPORT_METHOD(initAudioTagging:(JS::NativeSherpaOnnxSpec::SpecInitAudioTaggingConfig &)config
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+    NSString *modelDir = config.modelDir();
+    NSString *modelType = config.modelType();
+    NSString *modelFile = config.modelFile();
+    NSString *labelsFile = config.labelsFile();
+    auto numThreads = config.numThreads();
+    auto topK = config.topK();
+    auto debug = config.debug();
+
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (modelDir) [configDict setObject:modelDir forKey:@"modelDir"];
+    if (modelType) [configDict setObject:modelType forKey:@"modelType"];
+    if (modelFile) [configDict setObject:modelFile forKey:@"modelFile"];
+    if (labelsFile) [configDict setObject:labelsFile forKey:@"labelsFile"];
+    if (numThreads) [configDict setObject:@(*numThreads) forKey:@"numThreads"];
+    if (topK) [configDict setObject:@(*topK) forKey:@"topK"];
+    if (debug) [configDict setObject:@(*debug) forKey:@"debug"];
+
+    @try {
+        NSDictionary *result = [self.audioTaggingHandler initAudioTagging:configDict];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_AUDIO_TAGGING_INIT", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_AUDIO_TAGGING_INIT", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(processAndComputeAudioTagging:(NSString *)filePath
                               resolve:(RCTPromiseResolveBlock)resolve
                                reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.audioTaggingHandler processAndComputeFile:filePath];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_AUDIO_TAGGING_COMPUTE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_AUDIO_TAGGING_COMPUTE", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(processAndComputeAudioSamples:(double)sampleRate
@@ -546,22 +597,60 @@ RCT_EXPORT_METHOD(processAndComputeAudioSamples:(double)sampleRate
                               resolve:(RCTPromiseResolveBlock)resolve
                                reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.audioTaggingHandler processAndComputeSamples:(int)sampleRate samples:samples];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_AUDIO_TAGGING_COMPUTE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_AUDIO_TAGGING_COMPUTE", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(releaseAudioTagging:(RCTPromiseResolveBlock)resolve
                      reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Audio tagging is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.audioTaggingHandler releaseResources];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_AUDIO_TAGGING_RELEASE", exception.reason, nil);
+    }
 }
 
-// MARK: - Speaker ID Methods (Stubs for Protocol Conformance)
+// MARK: - Speaker ID Methods
 
 RCT_EXPORT_METHOD(initSpeakerId:(JS::NativeSherpaOnnxSpec::SpecInitSpeakerIdConfig &)config
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    NSString *modelDir = config.modelDir();
+    NSString *modelFile = config.modelFile();
+    NSString *modelType = config.modelType();
+    auto numThreads = config.numThreads();
+    NSString *provider = config.provider();
+    auto debug = config.debug();
+
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (modelDir) [configDict setObject:modelDir forKey:@"modelDir"];
+    if (modelFile) [configDict setObject:modelFile forKey:@"modelFile"];
+    if (modelType) [configDict setObject:modelType forKey:@"modelType"];
+    if (numThreads) [configDict setObject:@(*numThreads) forKey:@"numThreads"];
+    if (provider) [configDict setObject:provider forKey:@"provider"];
+    if (debug) [configDict setObject:@(*debug) forKey:@"debug"];
+
+    @try {
+        NSDictionary *result = [self.speakerIdHandler initSpeakerId:configDict];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_INIT", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_INIT", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(processSpeakerIdSamples:(double)sampleRate
@@ -569,13 +658,31 @@ RCT_EXPORT_METHOD(processSpeakerIdSamples:(double)sampleRate
                         resolve:(RCTPromiseResolveBlock)resolve
                          reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler processSamples:(int)sampleRate samples:samples];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_PROCESS", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_PROCESS", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(computeSpeakerEmbedding:(RCTPromiseResolveBlock)resolve
                          reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler computeEmbedding];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_COMPUTE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_COMPUTE", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(registerSpeaker:(NSString *)name
@@ -583,20 +690,43 @@ RCT_EXPORT_METHOD(registerSpeaker:(NSString *)name
                 resolve:(RCTPromiseResolveBlock)resolve
                  reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler registerSpeaker:name embedding:embedding];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_REGISTER", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_REGISTER", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(removeSpeaker:(NSString *)name
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler removeSpeaker:name];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_REMOVE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_REMOVE", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(getSpeakers:(RCTPromiseResolveBlock)resolve
              reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler getSpeakers];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_GET_SPEAKERS", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(identifySpeaker:(NSArray *)embedding
@@ -604,7 +734,12 @@ RCT_EXPORT_METHOD(identifySpeaker:(NSArray *)embedding
                 resolve:(RCTPromiseResolveBlock)resolve
                  reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler identifySpeaker:embedding threshold:(float)threshold];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_IDENTIFY", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(verifySpeaker:(NSString *)name
@@ -613,20 +748,39 @@ RCT_EXPORT_METHOD(verifySpeaker:(NSString *)name
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler verifySpeaker:name embedding:embedding threshold:(float)threshold];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_VERIFY", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(processSpeakerIdFile:(NSString *)filePath
                      resolve:(RCTPromiseResolveBlock)resolve
                       reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler processFile:filePath];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_SPEAKER_ID_PROCESS_FILE", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_PROCESS_FILE", exception.reason, nil);
+    }
 }
 
 RCT_EXPORT_METHOD(releaseSpeakerId:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
-    reject(@"not_implemented", @"Speaker ID is not yet implemented on iOS", nil);
+    @try {
+        NSDictionary *result = [self.speakerIdHandler releaseResources];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_SPEAKER_ID_RELEASE", exception.reason, nil);
+    }
 }
 
 @end

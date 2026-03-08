@@ -9,6 +9,7 @@ import type {
   AsrRecognizeResult,
   ValidateResult,
 } from '../types/interfaces';
+import { cleanFilePath } from '../utils/fileUtils';
 
 /**
  * Service for Automatic Speech Recognition functionality
@@ -44,7 +45,11 @@ export class AsrService {
         throw new Error(`Library validation failed: ${validation.status}`);
       }
 
-      const result = await this.api.initAsr(config);
+      const cleanedConfig = {
+        ...config,
+        modelDir: cleanFilePath(config.modelDir),
+      };
+      const result = await this.api.initAsr(cleanedConfig);
       this.initialized = result.success;
       this.sampleRate = result.sampleRate ?? 0;
       this.modelType = result.modelType ?? '';
@@ -105,7 +110,7 @@ export class AsrService {
       throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
-    return this.api.recognizeFromFile(filePath);
+    return this.api.recognizeFromFile(cleanFilePath(filePath));
   }
 
   /**

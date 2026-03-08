@@ -13,8 +13,12 @@
 // Forward declaration for Swift classes
 @class SherpaOnnxASRHandler;
 @class SherpaOnnxTtsHandler;
+@class SherpaOnnxAudioTaggingHandler;
+@class SherpaOnnxSpeakerIdHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
 @property (nonatomic, strong) SherpaOnnxTtsHandler *ttsHandler;
+@property (nonatomic, strong) SherpaOnnxAudioTaggingHandler *audioTaggingHandler;
+@property (nonatomic, strong) SherpaOnnxSpeakerIdHandler *speakerIdHandler;
 @end

@@ -12,6 +12,7 @@ import type {
   SpeakerIdFileProcessResult,
   ValidateResult,
 } from '../types/interfaces';
+import { cleanFilePath } from '../utils/fileUtils';
 
 /**
  * Service for Speaker Identification functionality
@@ -59,7 +60,11 @@ export class SpeakerIdService {
         };
       }
 
-      const result = await this.api.initSpeakerId(config);
+      const cleanedConfig = {
+        ...config,
+        modelDir: cleanFilePath(config.modelDir),
+      };
+      const result = await this.api.initSpeakerId(cleanedConfig);
 
       if (result.success) {
         this.initialized = true;
@@ -292,7 +297,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await this.api.processSpeakerIdFile(filePath);
+      return await this.api.processSpeakerIdFile(cleanFilePath(filePath));
     } catch (error) {
       return {
         success: false,
