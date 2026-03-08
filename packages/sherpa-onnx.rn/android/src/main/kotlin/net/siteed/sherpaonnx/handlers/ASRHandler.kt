@@ -112,13 +112,12 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "- maxActivePaths: $maxActivePaths")
                 Log.i(TAG, "- debug: $debug")
                 
-                // Extract model file paths
-                var modelFiles: Map<String, String> = emptyMap()
+                // Extract model file paths (nested map or flattened TurboModule fields)
+                val mutableModelFiles = mutableMapOf<String, String>()
                 if (modelConfig.hasKey("modelFiles")) {
                     val modelFilesMap = modelConfig.getMap("modelFiles")
                     if (modelFilesMap != null) {
                         val iterator = modelFilesMap.keySetIterator()
-                        val mutableModelFiles = mutableMapOf<String, String>()
                         while (iterator.hasNextKey()) {
                             val key = iterator.nextKey()
                             val value = modelFilesMap.getString(key)
@@ -126,9 +125,28 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                                 mutableModelFiles[key] = value
                             }
                         }
-                        modelFiles = mutableModelFiles
                     }
                 }
+                // Also read flattened modelFile* fields (TurboModule codegen doesn't support nested objects)
+                val flattenedKeys = mapOf(
+                    "modelFileEncoder" to "encoder",
+                    "modelFileDecoder" to "decoder",
+                    "modelFileJoiner" to "joiner",
+                    "modelFileTokens" to "tokens",
+                    "modelFileModel" to "model",
+                    "modelFilePreprocessor" to "preprocessor",
+                    "modelFileUncachedDecoder" to "uncachedDecoder",
+                    "modelFileCachedDecoder" to "cachedDecoder"
+                )
+                for ((flatKey, mapKey) in flattenedKeys) {
+                    if (modelConfig.hasKey(flatKey) && !mutableModelFiles.containsKey(mapKey)) {
+                        val value = modelConfig.getString(flatKey)
+                        if (value != null) {
+                            mutableModelFiles[mapKey] = value
+                        }
+                    }
+                }
+                val modelFiles: Map<String, String> = mutableModelFiles
 
                 Log.i(TAG, "Model files: $modelFiles")
                 

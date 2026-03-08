@@ -82,7 +82,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
           "android": {
             "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }",
-            "extraMavenRepos": ["https://www.jitpack.io"],
+            "extraMavenRepos": [],
             "gradleProperties": {
               "org.gradle.jvmargs": "-Xmx2048m",
               "reactNativeDevServerPort": "7500"
