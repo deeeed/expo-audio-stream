@@ -69,10 +69,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ["./plugins/withMetroPort.cjs", { port: 7500 }],
       "expo-router",
       [
-        "expo-av",
+        "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
-          "recordAudioAndPlaybackInBackgroundPermission": "Allow $(PRODUCT_NAME) to use Audio"
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
         }
       ],
       [

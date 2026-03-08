@@ -1,6 +1,7 @@
 import type { ModelProvider, TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { TTS } from '@siteed/sherpa-onnx.rn';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -39,7 +40,7 @@ export default function TtsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   
@@ -81,28 +82,26 @@ export default function TtsScreen() {
   useEffect(() => {
     async function setupAudio() {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-          shouldDuckAndroid: true,
-          playThroughEarpieceAndroid: false
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: true,
+          interruptionMode: 'duckOthers',
         });
         console.log('Audio system initialized successfully');
       } catch (error) {
         console.error('Failed to initialize audio system:', error);
       }
     }
-    
+
     setupAudio();
-    
+
     // Cleanup function
     return () => {
-      if (sound) {
-        sound.unloadAsync();
+      if (player) {
+        player.remove();
       }
     };
-  }, [sound]);
+  }, [player]);
 
   // Reset configuration when selected model or ttsConfig changes
   useEffect(() => {
@@ -270,28 +269,26 @@ export default function TtsScreen() {
             
             // If not auto-playing but we want to play manually, create and play the sound
             if (!autoPlay) {
-              // Create a new sound object and play it if requested
+              // Create a new player and prepare it for manual playback
               try {
-                if (sound) {
-                  await sound.unloadAsync();
+                if (player) {
+                  player.remove();
                 }
                 // Use formattedPath for Audio API
-                const { sound: newSound } = await Audio.Sound.createAsync({ uri: formattedPath });
-                setSound(newSound);
-                
+                const newPlayer = createAudioPlayer({ uri: formattedPath });
+                setPlayer(newPlayer);
+
                 // Setup playback status listener
-                newSound.setOnPlaybackStatusUpdate((status) => {
-                  if (status.isLoaded) {
-                    setIsPlaying(status.isPlaying);
-                    if (status.didJustFinish) {
-                      setIsPlaying(false);
-                    }
+                newPlayer.addListener('playbackStatusUpdate', (status) => {
+                  setIsPlaying(status.playing);
+                  if (status.didJustFinish) {
+                    setIsPlaying(false);
                   }
                 });
-                
+
                 setStatusMessage('Audio ready. Use the play button to listen.');
               } catch (audioError) {
-                console.error('Error creating sound object:', audioError);
+                console.error('Error creating player:', audioError);
                 setErrorMessage(`Error preparing audio: ${(audioError as Error).message}`);
               }
             }
@@ -367,55 +364,46 @@ export default function TtsScreen() {
       setErrorMessage('No audio file available to play');
       return;
     }
-    
+
     try {
       console.log('Attempting to play audio file:', ttsResult.filePath);
-      
+
       // Format the path properly with file:// prefix
-      const formattedPath = ttsResult.filePath.startsWith('file://') 
-        ? ttsResult.filePath 
+      const formattedPath = ttsResult.filePath.startsWith('file://')
+        ? ttsResult.filePath
         : `file://${ttsResult.filePath}`;
-        
+
       console.log('Formatted path for audio playback:', formattedPath);
-      
+
       // Ensure audio mode is set up correctly
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'duckOthers',
       });
-      
-      // Always create a new sound object to ensure fresh playback
-      if (sound) {
-        console.log('Unloading existing sound');
-        await sound.unloadAsync();
+
+      // Always create a new player to ensure fresh playback
+      if (player) {
+        console.log('Removing existing player');
+        player.remove();
       }
-      
-      console.log('Creating new sound object');
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: formattedPath },
-        { shouldPlay: true, volume: 1.0, progressUpdateIntervalMillis: 200 }
-      );
-      
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          setIsPlaying(status.isPlaying);
-          if (status.didJustFinish) {
-            console.log('Audio playback finished');
-            setIsPlaying(false);
-          }
-        } else if (status.error) {
-          console.error(`Audio playback error: ${status.error}`);
-          setErrorMessage(`Audio playback error: ${status.error}`);
+
+      console.log('Creating new audio player');
+      const newPlayer = createAudioPlayer({ uri: formattedPath });
+
+      newPlayer.addListener('playbackStatusUpdate', (status) => {
+        setIsPlaying(status.playing);
+        if (status.didJustFinish) {
+          console.log('Audio playback finished');
+          setIsPlaying(false);
         }
       });
-      
-      setSound(newSound);
+
+      setPlayer(newPlayer);
+      newPlayer.play();
       setIsPlaying(true);
       console.log('Audio playback started');
-      
+
     } catch (error) {
       console.error('Error playing audio:', error);
       setErrorMessage(`Error playing audio: ${(error as Error).message}`);
@@ -753,9 +741,9 @@ export default function TtsScreen() {
                 {isPlaying ? (
                   <TouchableOpacity
                     style={styles.audioStopButton}
-                    onPress={async () => {
-                      if (sound) {
-                        await sound.stopAsync();
+                    onPress={() => {
+                      if (player) {
+                        player.pause();
                         setIsPlaying(false);
                       }
                     }}
@@ -767,10 +755,10 @@ export default function TtsScreen() {
                 ) : (
                   <TouchableOpacity
                     style={styles.audioResetButton}
-                    onPress={async () => {
-                      if (sound) {
-                        // Reset the sound to beginning
-                        await sound.setPositionAsync(0);
+                    onPress={() => {
+                      if (player) {
+                        // Reset the player to beginning
+                        player.seekTo(0);
                       }
                     }}
                   >

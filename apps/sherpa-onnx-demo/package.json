@@ -32,7 +32,7 @@
     "@siteed/expo-audio-studio": "workspace:^",
     "@siteed/sherpa-onnx.rn": "workspace:^",
     "expo": "~55.0.5",
-    "expo-av": "~16.0.8",
+    "expo-audio": "~55.0.8",
     "expo-blur": "~55.0.8",
     "expo-build-properties": "~55.0.9",
     "expo-clipboard": "~55.0.8",

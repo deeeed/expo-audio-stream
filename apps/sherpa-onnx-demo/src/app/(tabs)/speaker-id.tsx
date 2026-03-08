@@ -1,6 +1,7 @@
 import { IdentifySpeakerResult, SpeakerEmbeddingResult, SpeakerId, SpeakerIdModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -54,7 +55,7 @@ export default function SpeakerIdScreen() {
   // State for audio files and playback
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<AudioFile[]>([]);
   const [selectedAudio, setSelectedAudio] = useState<AudioFile | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // State for embedding and identification results
@@ -137,13 +138,11 @@ export default function SpeakerIdScreen() {
         );
       }
       
-      if (sound) {
-        sound.unloadAsync().catch(err => 
-          console.error('Error unloading audio during cleanup:', err)
-        );
+      if (player) {
+        player.remove();
       }
     };
-  }, [initialized, sound]);
+  }, [initialized, player]);
   
   // Handle model selection
   const handleModelSelect = (modelId: string) => {
@@ -255,29 +254,26 @@ export default function SpeakerIdScreen() {
   const handlePlayAudio = async (audioItem: AudioFile) => {
     try {
       // Stop any existing playback
-      if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
+      if (player) {
+        player.pause();
+        player.remove();
       }
-      
+
       // Load and play the new audio
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioItem.localUri },
-        { shouldPlay: true }
-      );
-      
-      setSound(newSound);
+      const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
+
+      setPlayer(newPlayer);
       setIsPlaying(true);
       setSelectedAudio(audioItem);
-      
+
       // Set up playback status update handler
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          if (status.didJustFinish) {
-            setIsPlaying(false);
-          }
+      newPlayer.addListener('playbackStatusUpdate', (status) => {
+        if (status.didJustFinish) {
+          setIsPlaying(false);
         }
       });
+
+      newPlayer.play();
     } catch (err) {
       console.error('Error playing audio:', err);
       setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
@@ -285,10 +281,10 @@ export default function SpeakerIdScreen() {
   };
   
   // Stop audio playback
-  const handleStopAudio = async () => {
-    if (sound) {
+  const handleStopAudio = () => {
+    if (player) {
       try {
-        await sound.stopAsync();
+        player.pause();
         setIsPlaying(false);
       } catch (err) {
         console.error('Error stopping audio:', err);
@@ -485,15 +481,13 @@ export default function SpeakerIdScreen() {
       const fileInfo = await FileSystem.getInfoAsync(uri);
       const fileSize = fileInfo.exists ? fileInfo.size || 0 : 0;
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: false }
-      );
+      const tempPlayer = createAudioPlayer({ uri });
 
-      const status = await sound.getStatusAsync();
-      const durationMs = status.isLoaded ? status.durationMillis || 0 : 0;
+      // Wait briefly for the player to load and get duration
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const durationMs = (tempPlayer.duration || 0) * 1000; // Convert seconds to milliseconds
 
-      await sound.unloadAsync();
+      tempPlayer.remove();
 
       return {
         size: fileSize,

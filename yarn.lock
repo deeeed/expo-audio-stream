@@ -8909,7 +8909,7 @@ __metadata:
     eslint: "npm:^9.0.0"
     eslint-config-expo: "npm:~55.0.0"
     expo: "npm:~55.0.5"
-    expo-av: "npm:~16.0.8"
+    expo-audio: "npm:~55.0.8"
     expo-blur: "npm:~55.0.8"
     expo-build-properties: "npm:~55.0.9"
     expo-clipboard: "npm:~55.0.8"
@@ -19299,21 +19299,6 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/d74005070976957d3e6b41478f9526db55487c585d5362ae5c90805301f45e181097519ea3e7cbc0ad57fe93097c6c1d055d731e19bac27637d7d0de1dc13d78
-  languageName: node
-  linkType: hard
-
-"expo-av@npm:~16.0.8":
-  version: 16.0.8
-  resolution: "expo-av@npm:16.0.8"
-  peerDependencies:
-    expo: "*"
-    react: "*"
-    react-native: "*"
-    react-native-web: "*"
-  peerDependenciesMeta:
-    react-native-web:
-      optional: true
-  checksum: 10/c274ae6b98e30b673d2dd03119da703a379c01367466022fa1d2dc1b17ce9475711488132d2c7271a88ecda3800c5d03697371761fa8330e40ca0c02f9b951fa
   languageName: node
   linkType: hard
 

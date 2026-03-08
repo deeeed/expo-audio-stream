@@ -1,6 +1,7 @@
 import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -87,7 +88,7 @@ export default function AsrScreen() {
   }[]>([]);
   
   // Add state for audio playback
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [sound, setSound] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState<typeof loadedAudioFiles[0] | null>(null);
   
@@ -196,9 +197,7 @@ export default function AsrScreen() {
   useEffect(() => {
     return () => {
       if (sound) {
-        sound.unloadAsync().catch(err => 
-          console.error('[ASR] Error unloading audio during cleanup:', err)
-        );
+        sound.remove();
       }
     };
   }, [sound]);
@@ -361,21 +360,17 @@ export default function AsrScreen() {
 
       console.log(`[ASR] Playing audio: ${audioItem.name} from ${audioItem.localUri}`);
       
-      // Create a new sound object
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioItem.localUri },
-        { shouldPlay: true }
-      );
-      
-      setSound(newSound);
+      // Create a new audio player
+      const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
+      newPlayer.play();
+
+      setSound(newPlayer);
       setIsPlaying(true);
       setSelectedAudio(audioItem);
       
       // Set up listener for playback status
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
-        
-        if (status.didJustFinish) {
+      newPlayer.addListener('playbackStatusUpdate', (status) => {
+        if ('playing' in status && !status.playing) {
           setIsPlaying(false);
           setSound(null);
         }
@@ -390,8 +385,8 @@ export default function AsrScreen() {
   const handleStopAudio = async () => {
     if (sound) {
       try {
-        await sound.stopAsync();
-        await sound.unloadAsync();
+        sound.pause();
+        sound.remove();
         setSound(null);
         setIsPlaying(false);
       } catch (err) {
@@ -460,15 +455,13 @@ export default function AsrScreen() {
       
       // Try to get audio details by loading it temporarily
       try {
-        const { sound: tempSound } = await Audio.Sound.createAsync({ uri });
-        const status = await tempSound.getStatusAsync();
-        
-        if (status.isLoaded) {
-          duration = status.durationMillis ? status.durationMillis / 1000 : 0;
-        }
-        
-        // Clean up temp sound
-        await tempSound.unloadAsync();
+        const tempPlayer = createAudioPlayer({ uri });
+        // Wait briefly for player to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        duration = tempPlayer.duration ?? 0;
+
+        // Clean up temp player
+        tempPlayer.remove();
       } catch (soundErr) {
         console.error('[ASR] Error loading sound for metadata:', soundErr);
       }

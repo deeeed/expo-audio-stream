@@ -4,7 +4,8 @@ import type {
 } from '@siteed/sherpa-onnx.rn';
 import { AudioTagging } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -78,7 +79,7 @@ function AudioTaggingScreen() {
   }[]>([]);
   
   // Add state for audio playback
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Add new states for audio metadata
@@ -174,13 +175,11 @@ function AudioTaggingScreen() {
         );
       }
       
-      if (sound) {
-        sound.unloadAsync().catch(err => 
-          console.error('Error unloading audio during cleanup:', err)
-        );
+      if (player) {
+        player.remove();
       }
     };
-  }, [initialized, sound]);
+  }, [initialized, player]);
   
   const handleModelSelect = useCallback(async (modelId: string) => {
     if (modelId === selectedModelId) return;
@@ -289,32 +288,30 @@ function AudioTaggingScreen() {
   const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     try {
       // Stop any currently playing audio
-      if (sound) {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
-      
+
       // Check if we have a valid local URI
       if (!audioItem.localUri) {
         throw new Error('Audio file not yet loaded');
       }
-      
+
       console.log(`Loading audio file: ${audioItem.localUri}`);
-      const soundInfo = await Audio.Sound.createAsync({ uri: audioItem.localUri });
-      setSound(soundInfo.sound);
-      
+      const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
+      setPlayer(newPlayer);
+
       // Set up status update callback
-      soundInfo.sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          setIsPlaying(status.isPlaying);
-          if (status.didJustFinish) {
-            setIsPlaying(false);
-          }
+      newPlayer.addListener('playbackStatusUpdate', (status) => {
+        setIsPlaying(status.playing);
+        if (status.didJustFinish) {
+          setIsPlaying(false);
         }
       });
-      
-      await soundInfo.sound.playAsync();
+
+      newPlayer.play();
       setIsPlaying(true);
       console.log('Audio playback started');
     } catch (err) {
@@ -324,10 +321,10 @@ function AudioTaggingScreen() {
   };
   
   // Stop playing audio
-  const handleStopAudio = async () => {
-    if (sound) {
+  const handleStopAudio = () => {
+    if (player) {
       try {
-        await sound.stopAsync();
+        player.pause();
         setIsPlaying(false);
       } catch (err) {
         console.error('Error stopping audio:', err);
@@ -414,22 +411,17 @@ function AudioTaggingScreen() {
       const fileInfo = await FileSystem.getInfoAsync(uri, { size: true });
       // Use optional chaining with a fallback for size
       const size = fileInfo.exists ? (fileInfo as any).size || 0 : 0;
-      
-      // Get audio duration
-      const { sound, status } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: false }
-      );
-      
-      // Get duration from status
-      let duration = 0;
-      if (status.isLoaded) {
-        duration = status.durationMillis || 0;
-      }
-      
-      // Clean up sound object
-      await sound.unloadAsync();
-      
+
+      // Get audio duration using expo-audio
+      const tempPlayer = createAudioPlayer({ uri });
+
+      // Wait briefly for the player to load and get duration
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const duration = (tempPlayer.duration || 0) * 1000; // Convert seconds to milliseconds
+
+      // Clean up player
+      tempPlayer.remove();
+
       return { size, duration };
     } catch (error) {
       console.error('Error getting audio metadata:', error);
@@ -445,15 +437,15 @@ function AudioTaggingScreen() {
       setAudioMetadata({ isLoading: false });
       
       // Stop playback if active
-      if (sound && isPlaying) {
+      if (player && isPlaying) {
         handleStopAudio();
       }
     } else {
       setSelectedAudio(audioItem);
       setAudioMetadata({ isLoading: true });
-      
+
       // Stop any current playback when selecting a new audio
-      if (sound && isPlaying) {
+      if (player && isPlaying) {
         handleStopAudio();
       }
       
