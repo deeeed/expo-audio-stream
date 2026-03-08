@@ -49,7 +49,7 @@ import CSherpaOnnx
             guard let modelDirRaw = config["modelDir"] as? String, !modelDirRaw.isEmpty else {
                 throw NSError(domain: "SherpaOnnx", code: 101, userInfo: [NSLocalizedDescriptionKey: "Missing or empty modelDir parameter"])
             }
-            let modelDir = modelDirRaw.replacingOccurrences(of: "file://", with: "") // Keep this cleaning
+            let modelDir = modelDirRaw // file:// stripping handled in JS layer (cleanFilePath)
             
             let modelType = config["ttsModelType"] as? String ?? "vits"
             let modelFile = config["modelFile"] as? String // Read 'modelFile'
@@ -146,8 +146,8 @@ import CSherpaOnnx
             // --- Handle dataDir (joining with the final assetBasePath if relative) ---
             let dataDirAbsPath: String
             if let dataDir = dataDirInput, !dataDir.isEmpty {
-                if dataDir.hasPrefix("/") || dataDir.hasPrefix("file://") {
-                    dataDirAbsPath = dataDir.replacingOccurrences(of: "file://", with: "")
+                if dataDir.hasPrefix("/") {
+                    dataDirAbsPath = dataDir
                     NSLog("TTS Init - Treating dataDir as absolute: \(dataDirAbsPath)")
                 } else {
                     dataDirAbsPath = "\(assetBasePath)/\(dataDir)" // Join relative path with final assetBasePath
@@ -268,12 +268,14 @@ import CSherpaOnnx
             NSLog("<-- SherpaOnnxOfflineTtsSampleRate returned: \(sampleRate)")
             isInitialized = true
 
-            NSLog("TTS initialized successfully! Sample rate: \(sampleRate)")
+            let numSpeakers = Int(SherpaOnnxOfflineTtsNumSpeakers(tts))
+            NSLog("TTS initialized successfully! Sample rate: \(sampleRate), numSpeakers: \(numSpeakers)")
             NSLog("===== TTS INITIALIZATION COMPLETE =====")
 
             return [
                 "success": true,
                 "sampleRate": sampleRate,
+                "numSpeakers": numSpeakers,
                 "error": NSNull()
             ]
         } catch {
