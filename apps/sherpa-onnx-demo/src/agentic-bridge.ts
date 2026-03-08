@@ -15,6 +15,11 @@ import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import SherpaOnnx, { ASR, AudioTagging, SpeakerId } from '@siteed/sherpa-onnx.rn'
 
+// Platform-aware model base directory
+const MODELS_BASE = Platform.OS === 'android'
+  ? '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+  : `${(FileSystem.documentDirectory ?? '').replace('file://', '')}models`
+
 // State holders updated by AgenticBridgeSync component
 let _routeInfo: { pathname: string; segments: string[] } = {
   pathname: '',
@@ -263,7 +268,7 @@ if (__DEV__) {
     // Full end-to-end TTS: init model → generate → release → timing
     testTTSFull: (text = 'Hello from sherpa onnx.', modelDir?: string) => {
       const op = 'ttsFull'
-      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const BASE = MODELS_BASE
       const defaultModelDir = `${BASE}/vits-icefall-en-low/vits-icefall-en_US-ljspeech-low`
       const dir = modelDir ?? defaultModelDir
       _lastAsyncResult = { op, status: 'pending' }
@@ -311,7 +316,7 @@ if (__DEV__) {
     // Test any TTS model by ID using predefined config (modelId → config lookup)
     testTTSModel: (modelId: string, text = 'Hello from sherpa onnx.') => {
       const op = 'ttsModel'
-      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const BASE = MODELS_BASE
       // Inline configs for all 5 TTS models
       const CONFIGS: Record<string, { dir: string; modelType: string; modelFile: string; tokensFile: string; lexiconFile?: string; voicesFile?: string; vocoderFile?: string; dataDir?: string; lang?: string }> = {
         'vits-icefall-en-low': { dir: `${BASE}/vits-icefall-en-low`, modelType: 'vits', modelFile: 'model.onnx', tokensFile: 'tokens.txt', dataDir: 'espeak-ng-data' },
@@ -375,7 +380,7 @@ if (__DEV__) {
     // Full end-to-end Audio Tagging: init model → process file → release → timing
     testAudioTaggingFull: (wavPath?: string, modelDir?: string) => {
       const op = 'audioTaggingFull'
-      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const BASE = MODELS_BASE
       const defaultModelDir = `${BASE}/ced-tiny-audio-tagging/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19`
       const defaultWav = defaultModelDir + '/test_wavs/1.wav'
       const dir = modelDir ?? defaultModelDir
@@ -420,7 +425,7 @@ if (__DEV__) {
     // Full end-to-end offline ASR (whisper): init → recognize → release → timing
     testOfflineASRFull: (modelDir?: string, wavPath?: string) => {
       const op = 'offlineAsrFull'
-      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const BASE = MODELS_BASE
       const defaultModelDir = `${BASE}/whisper-small-multilingual/sherpa-onnx-whisper-small`
       const defaultWav = defaultModelDir + '/test_wavs/0.wav'
       const dir = modelDir ?? defaultModelDir
@@ -476,7 +481,7 @@ if (__DEV__) {
       const MODEL_FILE = BASE + 'campplus_en.onnx'
       // Use the zipformer test wav (16kHz speech) since no dedicated test wav for speaker ID
       const ZIPFORMER_DIR =
-        '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+        `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile`
       const wav = wavPath ?? ZIPFORMER_DIR + '/test_wavs/0.wav'
       _lastAsyncResult = { op, status: 'pending' }
       void (async () => {
@@ -590,7 +595,7 @@ if (__DEV__) {
           let defaultWav: string
 
           if (isStreaming) {
-            const dir = '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+            const dir = `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile`
             defaultWav = dir + '/test_wavs/1.wav'
             config = {
               modelDir: dir,
@@ -610,7 +615,7 @@ if (__DEV__) {
             }
           } else {
             // whisper / offline
-            const dir = '/data/data/com.deeeed.sherpaonnxdemo/files/models/whisper-small-multilingual/sherpa-onnx-whisper-small'
+            const dir = `${MODELS_BASE}/whisper-small-multilingual/sherpa-onnx-whisper-small`
             defaultWav = dir + '/test_wavs/0.wav'
             config = {
               modelDir: dir,
@@ -664,7 +669,7 @@ if (__DEV__) {
     // Uses AudioTaggingService (same path as the UI) rather than raw SherpaOnnx calls.
     testAudioTaggingE2E: (wavPath?: string, modelDir?: string) => {
       const op = 'audioTaggingE2E'
-      const BASE = '/data/data/com.deeeed.sherpaonnxdemo/files/models'
+      const BASE = MODELS_BASE
       const defaultModelDir = `${BASE}/ced-tiny-audio-tagging/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19`
       const defaultWav = defaultModelDir + '/test_wavs/1.wav'
       const dir = modelDir ?? defaultModelDir
@@ -710,7 +715,7 @@ if (__DEV__) {
     testStreamingPrimitives: (modelDir?: string, wavPath?: string) => {
       const op = 'streamingPrimitives'
       const defaultModelDir =
-        '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+        `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile`
       const defaultWav = defaultModelDir + '/test_wavs/1.wav'
       const dir = modelDir ?? defaultModelDir
       const wav = wavPath ?? defaultWav
@@ -818,7 +823,7 @@ if (__DEV__) {
     testASRFull: (modelDir?: string, wavPath?: string) => {
       const op = 'asrFull'
       const defaultModelDir =
-        '/data/data/com.deeeed.sherpaonnxdemo/files/models/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile'
+        `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile`
       const defaultWav = defaultModelDir + '/test_wavs/0.wav'
       const dir = modelDir ?? defaultModelDir
       const wav = wavPath ?? defaultWav

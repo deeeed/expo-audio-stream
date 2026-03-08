@@ -202,3 +202,10 @@ IMPORTANT: A fix is NOT done until validated on-device via the feedback loop. Do
 - The bug scenario is reproduced and confirmed fixed
 - Regressions are checked
 Use status: `needs-validation` for code-complete but unverified fixes.
+
+**Fast Android builds for native module changes**
+- ❌ `yarn android` for single-module Kotlin/Java changes — full rebuild, 5-10 min
+- ✅ `cd apps/playground/android && ./gradlew :sherpa-onnx-rn:assembleDebug :app:installDebug` — incremental, ~1-2 min
+- ✅ For expo-audio-stream module: `./gradlew :expo-audio-stream:assembleDebug :app:installDebug`
+- ✅ Just reinstall (no code change): `./gradlew :app:installDebug`
+- Prebuilt .so files: just copy + `./gradlew :app:installDebug` (no native compile needed)

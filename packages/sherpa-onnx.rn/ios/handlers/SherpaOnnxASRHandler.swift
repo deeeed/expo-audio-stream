@@ -51,9 +51,11 @@ import AVFoundation
     @objc public func initAsr(_ config: NSDictionary) -> NSDictionary {
         NSLog("%@ initAsr called with config: %@", SherpaOnnxASRHandler.TAG, config)
 
-        guard let modelDir = config["modelDir"] as? String else {
+        guard let rawModelDir = config["modelDir"] as? String else {
             return ["success": false, "error": "modelDir is required"]
         }
+        // Strip file:// URL prefix if present (iOS paths from expo-file-system)
+        let modelDir = rawModelDir.hasPrefix("file://") ? String(rawModelDir.dropFirst(7)) : rawModelDir
 
         let modelType = config["modelType"] as? String ?? "transducer"
         let streaming = config["streaming"] as? Bool ?? false
@@ -113,6 +115,12 @@ import AVFoundation
             let decoderPath = (modelDir as NSString).appendingPathComponent(decoderFile)
             let joinerPath = (modelDir as NSString).appendingPathComponent(joinerFile)
             NSLog("%@ encoder: %@, decoder: %@, joiner: %@", SherpaOnnxASRHandler.TAG, encoderPath, decoderPath, joinerPath)
+            // Validate files exist before passing to native (prevents SIGSEGV on missing files)
+            for (label, path) in [("encoder", encoderPath), ("decoder", decoderPath), ("joiner", joinerPath), ("tokens", tokensPath)] {
+                if !FileManager.default.fileExists(atPath: path) {
+                    return ["success": false, "error": "Model file not found: \(label) at \(path)"]
+                }
+            }
             transducerConfig = sherpaOnnxOnlineTransducerModelConfig(
                 encoder: encoderPath, decoder: decoderPath, joiner: joinerPath
             )
