@@ -31,6 +31,7 @@ data class OfflineTtsKokoroModelConfig(
     var tokens: String = "",
     var dataDir: String = "",
     var lexicon: String = "",
+    // MODIFIED(v1.12.28): added lang field to match JNI ABI; upstream was missing this field
     var lang: String = "",
     var dictDir: String = "",
     var lengthScale: Float = 1.0f,
@@ -59,6 +60,7 @@ data class OfflineTtsModelConfig(
     var vits: OfflineTtsVitsModelConfig = OfflineTtsVitsModelConfig(),
     var matcha: OfflineTtsMatchaModelConfig = OfflineTtsMatchaModelConfig(),
     var kokoro: OfflineTtsKokoroModelConfig = OfflineTtsKokoroModelConfig(),
+    // MODIFIED(v1.12.28): added kitten and pocket fields to match JNI ABI; upstream was missing these
     var kitten: OfflineTtsKittenModelConfig = OfflineTtsKittenModelConfig(),
     var pocket: OfflineTtsPocketModelConfig = OfflineTtsPocketModelConfig(),
     var numThreads: Int = 1,

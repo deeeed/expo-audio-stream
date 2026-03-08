@@ -139,6 +139,12 @@ export interface TtsModelConfig {
   dictDir?: string;
 
   /**
+   * Language code for multi-lingual Kokoro models (e.g., "en", "zh")
+   * Required for Kokoro >= v1.0 multi-lingual models
+   */
+  lang?: string;
+
+  /**
    * Rule FSTs file paths (comma-separated)
    */
   ruleFstsFile?: string;
@@ -712,6 +718,18 @@ export interface SherpaOnnxStatic {
   ): Promise<AsrRecognizeResult>;
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
@@ -1064,6 +1082,20 @@ export interface NativeSherpaOnnxInterface {
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
 
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
+
   // Audio tagging methods
   initAudioTagging(
     config: AudioTaggingModelConfig
@@ -1136,6 +1168,20 @@ export interface SherpaOnnxInterface {
   ): Promise<AsrRecognizeResult>;
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
+
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
 
   // Audio tagging methods
   initAudioTagging(

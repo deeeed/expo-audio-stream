@@ -1,0 +1,58 @@
+Kotlin Wrapper Patches for sherpa-onnx v1.12.28
+================================================
+
+These patches track our modifications to upstream Kotlin wrapper files in
+  android/src/main/kotlin/com/k2fsa/sherpa/onnx/
+
+The upstream files are copied verbatim from:
+  https://github.com/k2-fsa/sherpa-onnx (tag v1.12.28)
+  android/SherpaOnnx/app/src/main/java/com/k2fsa/sherpa/onnx/
+
+Pinned version: v1.12.28 (setup.sh downloads prebuilt .so at this version)
+
+
+Files patched
+-------------
+AudioTagging.patch
+  - compute() and external compute() return type: Array<Any> -> Array<AudioEvent>
+  - Without this fix, calling compute() would require unsafe Any casts and crash
+    at runtime when the JNI bridge returns a typed array.
+
+OfflineRecognizer.patch
+  - OfflineRecognizerResult: added durations (TDT model field)
+  - OfflineParaformerModelConfig: added qnnConfig
+  - OfflineWhisperModelConfig: added enableTokenTimestamps, enableSegmentTimestamps
+  - OfflineMoonshineModelConfig: added mergedDecoder
+  - OfflineSenseVoiceModelConfig: added qnnConfig
+  - Added new data classes: OfflineZipformerCtcModelConfig, OfflineWenetCtcModelConfig,
+    OfflineOmnilingualAsrCtcModelConfig, OfflineMedAsrCtcModelConfig,
+    OfflineFunAsrNanoModelConfig, OfflineFireRedAsrCtcModelConfig, OfflineCanaryModelConfig
+  - OfflineModelConfig: added all new model type fields to match JNI struct layout
+
+Tts.patch
+  - OfflineTtsKokoroModelConfig: added lang field
+  - OfflineTtsModelConfig: added kitten and pocket fields
+
+OnlineRecognizer.patch
+  - OnlineRecognizerResult: added ysProbs field
+
+
+How to apply on version upgrade
+--------------------------------
+When setup.sh is updated to a new upstream version:
+
+1. Download the new upstream Kotlin files (same paths as above).
+2. Compare each upstream file to our file:
+     diff upstream/AudioTagging.kt android/.../AudioTagging.kt
+3. Re-apply relevant changes manually, checking for conflicts with new upstream additions.
+4. Update the patch files:
+     cd <repo-root>
+     git diff packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt \
+       > packages/sherpa-onnx.rn/patches/AudioTagging.patch
+   (repeat for each file)
+5. Update the version header in this README.
+
+To apply a patch from scratch (e.g., against fresh upstream files):
+  patch -p1 < patches/AudioTagging.patch
+
+Note: patches are relative to the repo root (git diff output format).

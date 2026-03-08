@@ -298,6 +298,77 @@ RCT_EXPORT_METHOD(releaseAsr:(RCTPromiseResolveBlock)resolve
     }
 }
 
+// MARK: - ASR Online Streaming Methods
+
+RCT_EXPORT_METHOD(createAsrOnlineStream:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler createAsrOnlineStream];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_STREAM", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_STREAM", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(acceptAsrOnlineWaveform:(double)sampleRate
+                  samples:(NSArray *)samples
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler acceptAsrOnlineWaveform:(int)sampleRate samples:samples];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_WAVEFORM", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_WAVEFORM", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(isAsrOnlineEndpoint:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler isAsrOnlineEndpoint];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_ENDPOINT", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(getAsrOnlineResult:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler getAsrOnlineResult];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_RESULT", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(resetAsrOnlineStream:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.asrHandler resetAsrOnlineStream];
+        if ([result[@"success"] boolValue]) {
+            resolve(result);
+        } else {
+            reject(@"ERR_ASR_RESET", result[@"error"], nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"ERR_ASR_RESET", exception.reason, nil);
+    }
+}
+
 // MARK: - TTS Methods
 
 

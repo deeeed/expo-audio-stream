@@ -250,6 +250,100 @@ fileprivate func createOfflineModelConfig(
     }
     
     /**
+     * Create a persistent online stream for live streaming ASR.
+     */
+    @objc public func createAsrOnlineStream() -> NSDictionary {
+        guard let recognizer = onlineRecognizer else {
+            return ["success": false, "error": "Online ASR not initialized"]
+        }
+        if let stream = onlineStream {
+            SherpaOnnxDestroyOnlineStream(stream)
+            onlineStream = nil
+        }
+        onlineStream = SherpaOnnxCreateOnlineStream(recognizer)
+        if onlineStream == nil {
+            return ["success": false, "error": "Failed to create online stream"]
+        }
+        return ["success": true]
+    }
+
+    /**
+     * Feed audio samples and decode all ready frames.
+     */
+    @objc public func acceptAsrOnlineWaveform(_ sampleRate: Int, samples: NSArray) -> NSDictionary {
+        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+            return ["success": false, "error": "Online stream not created"]
+        }
+        var floatSamples = [Float]()
+        floatSamples.reserveCapacity(samples.count)
+        for i in 0..<samples.count {
+            if let val_ = samples[i] as? NSNumber {
+                floatSamples.append(val_.floatValue)
+            }
+        }
+        floatSamples.withUnsafeBufferPointer { buffer in
+            SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), buffer.baseAddress, Int32(floatSamples.count))
+        }
+        while SherpaOnnxIsOnlineStreamReady(recognizer, stream) == 1 {
+            SherpaOnnxDecodeOnlineStream(recognizer, stream)
+        }
+        return ["success": true]
+    }
+
+    /**
+     * Check if an endpoint has been detected.
+     */
+    @objc public func isAsrOnlineEndpoint() -> NSDictionary {
+        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+            return ["isEndpoint": false, "error": "Online stream not created"]
+        }
+        let isEndpoint = SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream) == 1
+        return ["isEndpoint": isEndpoint]
+    }
+
+    /**
+     * Get the current recognition result.
+     */
+    @objc public func getAsrOnlineResult() -> NSDictionary {
+        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+            return ["text": "", "tokens": [], "timestamps": [], "error": "Online stream not created"]
+        }
+        let resultPtr = SherpaOnnxGetOnlineStreamResult(recognizer, stream)
+        guard let result = resultPtr else {
+            return ["text": "", "tokens": [], "timestamps": []]
+        }
+        let text = String(cString: result.pointee.text).trimmingCharacters(in: .whitespaces)
+        var tokens: [String] = []
+        var timestamps: [Double] = []
+        let count = Int(result.pointee.count)
+        if count > 0 {
+            for i in 0..<count {
+                if let tokenPtr = result.pointee.tokens_arr?[i] {
+                    tokens.append(String(cString: tokenPtr))
+                }
+            }
+            if let ts = result.pointee.timestamps {
+                for i in 0..<count {
+                    timestamps.append(Double(ts[i]))
+                }
+            }
+        }
+        SherpaOnnxDestroyOnlineRecognizerResult(resultPtr)
+        return ["text": text, "tokens": tokens, "timestamps": timestamps]
+    }
+
+    /**
+     * Reset the online stream for the next utterance.
+     */
+    @objc public func resetAsrOnlineStream() -> NSDictionary {
+        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+            return ["success": false, "error": "Online stream not created"]
+        }
+        SherpaOnnxOnlineStreamReset(recognizer, stream)
+        return ["success": true]
+    }
+
+    /**
      * Release resources used by the ASR
      */
     private func cleanupResources() {

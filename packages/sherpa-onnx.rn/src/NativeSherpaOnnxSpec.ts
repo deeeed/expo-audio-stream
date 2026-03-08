@@ -103,6 +103,7 @@ export interface Spec extends TurboModule {
     noiseScale?: number;
     noiseScaleW?: number;
     lengthScale?: number;
+    lang?: string;
   }): Promise<{
     success: boolean;
     sampleRate: number;
@@ -169,6 +170,20 @@ export interface Spec extends TurboModule {
   }>;
 
   releaseAsr(): Promise<{ released: boolean }>;
+
+  // ASR online streaming methods
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
 
   // Audio tagging methods
   initAudioTagging(config: {

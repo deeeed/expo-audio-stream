@@ -1,0 +1,60 @@
+diff --git a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineRecognizer.kt b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineRecognizer.kt
+index 2fa81a0c..d34c0c25 100644
+--- a/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineRecognizer.kt
++++ b/packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/OfflineRecognizer.kt
+@@ -10,6 +10,7 @@ data class OfflineRecognizerResult(
+     val emotion: String,
+     val event: String,
+ 
++    // MODIFIED(v1.12.28): added durations field to match JNI ABI; upstream was missing this field
+     // valid only for TDT models
+     val durations: FloatArray,
+ )
+@@ -22,6 +23,7 @@ data class OfflineTransducerModelConfig(
+ 
+ data class OfflineParaformerModelConfig(
+     var model: String = "",
++    // MODIFIED(v1.12.28): added qnnConfig to match JNI ABI; upstream was missing this field
+     var qnnConfig: QnnConfig = QnnConfig(),
+ )
+ 
+@@ -39,6 +41,7 @@ data class OfflineWhisperModelConfig(
+     var language: String = "en",
+     var task: String = "transcribe",
+     var tailPaddings: Int = 1000,
++    // MODIFIED(v1.12.28): added enableTokenTimestamps and enableSegmentTimestamps to match JNI ABI
+     var enableTokenTimestamps: Boolean = false,
+     var enableSegmentTimestamps: Boolean = false,
+ )
+@@ -53,6 +56,7 @@ data class OfflineMoonshineModelConfig(
+     var encoder: String = "",
+     var uncachedDecoder: String = "",
+     var cachedDecoder: String = "",
++    // MODIFIED(v1.12.28): added mergedDecoder to match JNI ABI; upstream was missing this field
+     var mergedDecoder: String = "",
+ )
+ 
+@@ -60,9 +64,14 @@ data class OfflineSenseVoiceModelConfig(
+     var model: String = "",
+     var language: String = "",
+     var useInverseTextNormalization: Boolean = true,
++    // MODIFIED(v1.12.28): added qnnConfig to match JNI ABI; upstream was missing this field
+     var qnnConfig: QnnConfig = QnnConfig(),
+ )
+ 
++// MODIFIED(v1.12.28): added OfflineZipformerCtcModelConfig, OfflineWenetCtcModelConfig,
++// OfflineOmnilingualAsrCtcModelConfig, OfflineMedAsrCtcModelConfig, OfflineFunAsrNanoModelConfig,
++// OfflineFireRedAsrCtcModelConfig, OfflineCanaryModelConfig — all new model types present in the
++// v1.12.28 .so but missing from upstream Kotlin wrappers; causes crashes if referenced via JNI.
+ data class OfflineZipformerCtcModelConfig(
+     var model: String = "",
+     var qnnConfig: QnnConfig = QnnConfig(),
+@@ -117,6 +126,8 @@ data class OfflineModelConfig(
+     var nemo: OfflineNemoEncDecCtcModelConfig = OfflineNemoEncDecCtcModelConfig(),
+     var senseVoice: OfflineSenseVoiceModelConfig = OfflineSenseVoiceModelConfig(),
+     var dolphin: OfflineDolphinModelConfig = OfflineDolphinModelConfig(),
++    // MODIFIED(v1.12.28): added zipformerCtc, wenetCtc, omnilingual, medasr, funasrNano,
++    // fireRedAsrCtc, canary — all required to match the JNI struct layout in the .so
+     var zipformerCtc: OfflineZipformerCtcModelConfig = OfflineZipformerCtcModelConfig(),
+     var wenetCtc: OfflineWenetCtcModelConfig = OfflineWenetCtcModelConfig(),
+     var omnilingual: OfflineOmnilingualAsrCtcModelConfig = OfflineOmnilingualAsrCtcModelConfig(),

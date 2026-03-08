@@ -120,6 +120,9 @@ export class TtsService {
           if (config.lengthScale !== undefined) {
             nativeConfig.lengthScale = config.lengthScale;
           }
+          if (config.lang) {
+            nativeConfig.lang = config.lang;
+          }
           break;
 
         default:

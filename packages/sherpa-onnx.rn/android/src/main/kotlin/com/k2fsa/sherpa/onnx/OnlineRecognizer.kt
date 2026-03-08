@@ -84,6 +84,7 @@ data class OnlineRecognizerResult(
     val text: String,
     val tokens: Array<String>,
     val timestamps: FloatArray,
+    // MODIFIED(v1.12.28): added ysProbs field to match JNI ABI; upstream was missing this field
     val ysProbs: FloatArray,
     // TODO(fangjun): Add more fields
 )

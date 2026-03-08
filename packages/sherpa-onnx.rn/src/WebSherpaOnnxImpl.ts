@@ -693,6 +693,33 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  async createAsrOnlineStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async acceptAsrOnlineWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }> {
+    return { isEndpoint: false };
+  }
+
+  async getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }> {
+    return { text: '', tokens: [], timestamps: [] };
+  }
+
+  async resetAsrOnlineStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
   // AUDIO TAGGING METHODS - Stubs for now
 
   async initAudioTagging(

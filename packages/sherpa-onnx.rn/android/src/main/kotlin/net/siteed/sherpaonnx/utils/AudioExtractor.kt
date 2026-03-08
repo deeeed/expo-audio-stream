@@ -97,22 +97,14 @@ object AudioExtractor {
                     val sampleData = ByteArray(bufferInfo.size)
                     outputBuffer.get(sampleData)
 
-                    // Convert to float samples based on format
-                    when (audioFormat.getString(MediaFormat.KEY_MIME)) {
-                        "audio/raw" -> {
-                            // Raw PCM data
-                            val numSamples = sampleData.size / 2 // Assuming 16-bit PCM
-                            for (i in 0 until numSamples) {
-                                val sample = (sampleData[i * 2].toInt() and 0xFF) or
-                                        ((sampleData[i * 2 + 1].toInt() and 0xFF) shl 8)
-                                samples.add(sample / 32768f)
-                            }
-                        }
-                        else -> {
-                            Log.e(TAG, "Unsupported audio format: ${audioFormat.getString(
-                                MediaFormat.KEY_MIME)}")
-                            return null
-                        }
+                    // MediaCodec decoded output is always signed 16-bit PCM (little-endian).
+                    // Use Short arithmetic to preserve sign; dividing by 32768 gives [-1, 1].
+                    val numSamples = sampleData.size / 2
+                    for (i in 0 until numSamples) {
+                        val lo = sampleData[i * 2].toInt() and 0xFF
+                        val hi = sampleData[i * 2 + 1].toInt() and 0xFF
+                        val sample = ((hi shl 8) or lo).toShort()
+                        samples.add(sample / 32768f)
                     }
 
                     decoder.releaseOutputBuffer(outputBufferIndex, false)

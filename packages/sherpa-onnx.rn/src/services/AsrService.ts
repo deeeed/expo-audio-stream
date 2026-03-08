@@ -109,6 +109,64 @@ export class AsrService {
   }
 
   /**
+   * Create a persistent online stream for live streaming ASR.
+   * Requires initAsr with streaming=true to have been called first.
+   */
+  public async createOnlineStream(): Promise<{ success: boolean }> {
+    if (!this.initialized) {
+      throw new Error('ASR is not initialized. Call initialize() first.');
+    }
+    return this.api.createAsrOnlineStream();
+  }
+
+  /**
+   * Feed audio samples to the online stream and decode ready frames.
+   */
+  public async acceptWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }> {
+    if (!this.initialized) {
+      throw new Error('ASR is not initialized. Call initialize() first.');
+    }
+    return this.api.acceptAsrOnlineWaveform(sampleRate, samples);
+  }
+
+  /**
+   * Check if an endpoint (sentence boundary) has been detected.
+   */
+  public async isEndpoint(): Promise<{ isEndpoint: boolean }> {
+    if (!this.initialized) {
+      throw new Error('ASR is not initialized. Call initialize() first.');
+    }
+    return this.api.isAsrOnlineEndpoint();
+  }
+
+  /**
+   * Get the current recognition result from the online stream.
+   */
+  public async getResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }> {
+    if (!this.initialized) {
+      throw new Error('ASR is not initialized. Call initialize() first.');
+    }
+    return this.api.getAsrOnlineResult();
+  }
+
+  /**
+   * Reset the online stream for the next utterance (after endpoint).
+   */
+  public async resetStream(): Promise<{ success: boolean }> {
+    if (!this.initialized) {
+      throw new Error('ASR is not initialized. Call initialize() first.');
+    }
+    return this.api.resetAsrOnlineStream();
+  }
+
+  /**
    * Release ASR resources
    */
   public async release(): Promise<{ released: boolean }> {

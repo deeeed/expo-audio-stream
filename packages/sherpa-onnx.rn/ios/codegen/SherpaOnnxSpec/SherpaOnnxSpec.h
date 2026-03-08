@@ -202,6 +202,18 @@ namespace JS {
                    reject:(RCTPromiseRejectBlock)reject;
 - (void)releaseAsr:(RCTPromiseResolveBlock)resolve
             reject:(RCTPromiseRejectBlock)reject;
+- (void)createAsrOnlineStream:(RCTPromiseResolveBlock)resolve
+                       reject:(RCTPromiseRejectBlock)reject;
+- (void)acceptAsrOnlineWaveform:(double)sampleRate
+                        samples:(NSArray *)samples
+                        resolve:(RCTPromiseResolveBlock)resolve
+                         reject:(RCTPromiseRejectBlock)reject;
+- (void)isAsrOnlineEndpoint:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject;
+- (void)getAsrOnlineResult:(RCTPromiseResolveBlock)resolve
+                    reject:(RCTPromiseRejectBlock)reject;
+- (void)resetAsrOnlineStream:(RCTPromiseResolveBlock)resolve
+                      reject:(RCTPromiseRejectBlock)reject;
 - (void)initAudioTagging:(JS::NativeSherpaOnnxSpec::SpecInitAudioTaggingConfig &)config
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject;

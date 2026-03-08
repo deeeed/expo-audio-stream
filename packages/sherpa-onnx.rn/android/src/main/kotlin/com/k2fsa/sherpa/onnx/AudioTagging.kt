@@ -54,6 +54,8 @@ class AudioTagging(
         return OfflineStream(p)
     }
 
+    // MODIFIED(v1.12.28): compute() return type changed from Array<Any> to Array<AudioEvent> to
+    // match the actual JNI signature. Upstream had Array<Any> which required unsafe casting.
     fun compute(stream: OfflineStream, topK: Int = -1): ArrayList<AudioEvent> {
         val events: Array<AudioEvent> = compute(ptr, stream.ptr, topK)
         return ArrayList(events.toList())
@@ -72,6 +74,7 @@ class AudioTagging(
 
     private external fun createStream(ptr: Long): Long
 
+    // MODIFIED(v1.12.28): external fun return type changed from Array<Any> to Array<AudioEvent>
     private external fun compute(ptr: Long, streamPtr: Long, topK: Int): Array<AudioEvent>
 
     companion object {

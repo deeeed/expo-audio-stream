@@ -104,6 +104,20 @@ export interface ApiInterface {
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
 
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
+
   // Audio tagging methods
   initAudioTagging(
     config: AudioTaggingModelConfig

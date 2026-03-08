@@ -88,6 +88,26 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
         asrHandler.release(promise)
     }
 
+    fun createAsrOnlineStream(promise: Promise) {
+        asrHandler.createAsrOnlineStream(promise)
+    }
+
+    fun acceptAsrOnlineWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        asrHandler.acceptAsrOnlineWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun isAsrOnlineEndpoint(promise: Promise) {
+        asrHandler.isAsrOnlineEndpoint(promise)
+    }
+
+    fun getAsrOnlineResult(promise: Promise) {
+        asrHandler.getAsrOnlineResult(promise)
+    }
+
+    fun resetAsrOnlineStream(promise: Promise) {
+        asrHandler.resetAsrOnlineStream(promise)
+    }
+
     // Audio Tagging Methods
     fun initAudioTagging(config: ReadableMap, promise: Promise) {
         audioTaggingHandler.init(config, promise)

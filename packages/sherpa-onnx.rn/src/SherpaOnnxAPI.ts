@@ -51,6 +51,11 @@ const createWebPlaceholder = (): ApiInterface => {
     recognizeFromSamples: notImplementedError,
     recognizeFromFile: notImplementedError,
     releaseAsr: notImplementedError,
+    createAsrOnlineStream: notImplementedError,
+    acceptAsrOnlineWaveform: notImplementedError,
+    isAsrOnlineEndpoint: notImplementedError,
+    getAsrOnlineResult: notImplementedError,
+    resetAsrOnlineStream: notImplementedError,
     initAudioTagging: notImplementedError,
     processAndComputeAudioTagging: notImplementedError,
     processAndComputeAudioSamples: notImplementedError,
@@ -162,6 +167,34 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseAsr(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseAsr();
+  },
+
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.createAsrOnlineStream();
+  },
+
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.acceptAsrOnlineWaveform(sampleRate, samples);
+  },
+
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }> {
+    return NativeSherpaOnnx.isAsrOnlineEndpoint();
+  },
+
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }> {
+    return NativeSherpaOnnx.getAsrOnlineResult();
+  },
+
+  resetAsrOnlineStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetAsrOnlineStream();
   },
 
   // Audio tagging methods

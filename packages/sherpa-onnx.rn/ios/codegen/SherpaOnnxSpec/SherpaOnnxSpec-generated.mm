@@ -106,6 +106,26 @@ namespace facebook::react {
       return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "releaseAsr", @selector(releaseAsr:reject:), args, count);
     }
 
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_createAsrOnlineStream(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "createAsrOnlineStream", @selector(createAsrOnlineStream:reject:), args, count);
+    }
+
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_acceptAsrOnlineWaveform(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "acceptAsrOnlineWaveform", @selector(acceptAsrOnlineWaveform:samples:resolve:reject:), args, count);
+    }
+
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_isAsrOnlineEndpoint(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "isAsrOnlineEndpoint", @selector(isAsrOnlineEndpoint:reject:), args, count);
+    }
+
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_getAsrOnlineResult(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "getAsrOnlineResult", @selector(getAsrOnlineResult:reject:), args, count);
+    }
+
+    static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_resetAsrOnlineStream(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
+      return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "resetAsrOnlineStream", @selector(resetAsrOnlineStream:reject:), args, count);
+    }
+
     static facebook::jsi::Value __hostFunction_NativeSherpaOnnxSpecSpecJSI_initAudioTagging(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
       return static_cast<ObjCTurboModule&>(turboModule).invokeObjCMethod(rt, PromiseKind, "initAudioTagging", @selector(initAudioTagging:resolve:reject:), args, count);
     }
@@ -208,8 +228,23 @@ namespace facebook::react {
         
         
         methodMap_["releaseAsr"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_releaseAsr};
-        
-        
+
+
+        methodMap_["createAsrOnlineStream"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_createAsrOnlineStream};
+
+
+        methodMap_["acceptAsrOnlineWaveform"] = MethodMetadata {2, __hostFunction_NativeSherpaOnnxSpecSpecJSI_acceptAsrOnlineWaveform};
+
+
+        methodMap_["isAsrOnlineEndpoint"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_isAsrOnlineEndpoint};
+
+
+        methodMap_["getAsrOnlineResult"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_getAsrOnlineResult};
+
+
+        methodMap_["resetAsrOnlineStream"] = MethodMetadata {0, __hostFunction_NativeSherpaOnnxSpecSpecJSI_resetAsrOnlineStream};
+
+
         methodMap_["initAudioTagging"] = MethodMetadata {1, __hostFunction_NativeSherpaOnnxSpecSpecJSI_initAudioTagging};
         setMethodArgConversionSelector(@"initAudioTagging", 0, @"JS_NativeSherpaOnnxSpec_SpecInitAudioTaggingConfig:");
         
