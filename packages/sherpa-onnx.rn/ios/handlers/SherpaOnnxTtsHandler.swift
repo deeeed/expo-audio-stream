@@ -2,14 +2,7 @@ import Foundation
 import AVFoundation
 import CSherpaOnnx
 
-/**
- * Convert a String from swift to a `const char*` so that we can pass it to
- * the C language.
- */
-fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
-    let cs = (s as NSString).utf8String
-    return UnsafePointer<Int8>(cs)
-}
+// NOTE: toCPointer() is provided by the upstream SherpaOnnx.swift wrapper.
 
 /**
  * SherpaOnnxTtsHandler - Text-to-Speech Handler
@@ -527,102 +520,6 @@ fileprivate func toCPointer(_ s: String) -> UnsafePointer<Int8>! {
     }
 }
 
-// Add helper functions for model config creation following the pattern from SherpaOnnx.swift examples
-
-func sherpaOnnxOfflineTtsVitsModelConfig(
-    model: String = "",
-    lexicon: String = "",
-    tokens: String = "",
-    dataDir: String = "",
-    noiseScale: Float = 0.667,
-    noiseScaleW: Float = 0.8,
-    lengthScale: Float = 1.0,
-    dictDir: String = ""
-) -> SherpaOnnxOfflineTtsVitsModelConfig {
-    return SherpaOnnxOfflineTtsVitsModelConfig(
-        model: toCPointer(model),
-        lexicon: toCPointer(lexicon),
-        tokens: toCPointer(tokens),
-        data_dir: toCPointer(dataDir),
-        noise_scale: noiseScale,
-        noise_scale_w: noiseScaleW,
-        length_scale: lengthScale,
-        dict_dir: toCPointer(dictDir)
-    )
-}
-
-func sherpaOnnxOfflineTtsKokoroModelConfig(
-    model: String = "",
-    voices: String = "",
-    tokens: String = "",
-    dataDir: String = "",
-    lengthScale: Float = 1.0,
-    dictDir: String = "",
-    lexicon: String = ""
-) -> SherpaOnnxOfflineTtsKokoroModelConfig {
-    return SherpaOnnxOfflineTtsKokoroModelConfig(
-        model: toCPointer(model),
-        voices: toCPointer(voices),
-        tokens: toCPointer(tokens),
-        data_dir: toCPointer(dataDir),
-        length_scale: lengthScale,
-        dict_dir: toCPointer(dictDir),
-        lexicon: toCPointer(lexicon)
-    )
-}
-
-func sherpaOnnxOfflineTtsMatchaModelConfig(
-    acousticModel: String = "",
-    vocoder: String = "",
-    lexicon: String = "",
-    tokens: String = "",
-    dataDir: String = "",
-    noiseScale: Float = 0.667,
-    lengthScale: Float = 1.0,
-    dictDir: String = ""
-) -> SherpaOnnxOfflineTtsMatchaModelConfig {
-    return SherpaOnnxOfflineTtsMatchaModelConfig(
-        acoustic_model: toCPointer(acousticModel),
-        vocoder: toCPointer(vocoder),
-        lexicon: toCPointer(lexicon),
-        tokens: toCPointer(tokens),
-        data_dir: toCPointer(dataDir),
-        noise_scale: noiseScale,
-        length_scale: lengthScale,
-        dict_dir: toCPointer(dictDir)
-    )
-}
-
-func sherpaOnnxOfflineTtsModelConfig(
-    vits: SherpaOnnxOfflineTtsVitsModelConfig = sherpaOnnxOfflineTtsVitsModelConfig(),
-    matcha: SherpaOnnxOfflineTtsMatchaModelConfig = sherpaOnnxOfflineTtsMatchaModelConfig(),
-    kokoro: SherpaOnnxOfflineTtsKokoroModelConfig = sherpaOnnxOfflineTtsKokoroModelConfig(),
-    numThreads: Int = 1,
-    debug: Int = 0,
-    provider: String = "cpu"
-) -> SherpaOnnxOfflineTtsModelConfig {
-    return SherpaOnnxOfflineTtsModelConfig(
-        vits: vits,
-        num_threads: Int32(numThreads),
-        debug: Int32(debug),
-        provider: toCPointer(provider),
-        matcha: matcha,
-        kokoro: kokoro
-    )
-}
-
-func sherpaOnnxOfflineTtsConfig(
-    model: SherpaOnnxOfflineTtsModelConfig,
-    ruleFsts: String = "",
-    ruleFars: String = "",
-    maxNumSentences: Int = 1,
-    silenceScale: Float = 0.2
-) -> SherpaOnnxOfflineTtsConfig {
-    return SherpaOnnxOfflineTtsConfig(
-        model: model,
-        rule_fsts: toCPointer(ruleFsts),
-        max_num_sentences: Int32(maxNumSentences),
-        rule_fars: toCPointer(ruleFars),
-        silence_scale: silenceScale
-    )
-} 
+// NOTE: TTS config builder functions (sherpaOnnxOfflineTtsVitsModelConfig, etc.)
+// are now provided by the upstream SherpaOnnx.swift wrapper in prebuilt/swift/sherpa-onnx/.
+// Do NOT re-declare them here. 

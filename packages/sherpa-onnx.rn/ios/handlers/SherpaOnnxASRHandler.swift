@@ -3,312 +3,532 @@ import CSherpaOnnx
 import AVFoundation
 
 /**
- * Contains helper functions for C-compatible strings and config creation
- */
-fileprivate func toCPointer(_ s: String) -> UnsafePointer<CChar>! {
-    return s.withCString { UnsafePointer($0) }
-}
-
-/**
- * Creates a C-compatible string copy from a Swift string
- */
-fileprivate func strdup(_ s: String) -> UnsafePointer<CChar> {
-    return s.withCString { cString in
-        let length = strlen(cString) + 1  // +1 for the null terminator
-        let result = UnsafeMutablePointer<CChar>.allocate(capacity: length)
-        strcpy(result, cString)
-        return UnsafePointer(result)
-    }
-}
-
-/**
- * Helper function to create a feature configuration
- */
-fileprivate func createFeatureConfig(
-    sampleRate: Int = 16000,
-    featureDim: Int = 80
-) -> SherpaOnnxFeatureConfig {
-    var config = SherpaOnnxFeatureConfig()
-    config.sample_rate = Int32(sampleRate)
-    config.feature_dim = Int32(featureDim)
-    return config
-}
-
-/**
- * Helper function to create an online model configuration
- */
-fileprivate func createOnlineModelConfig(
-    tokens: String,
-    encoder: String = "",
-    decoder: String = "",
-    joiner: String = "",
-    modelType: String = "",
-    numThreads: Int = 1,
-    debug: Bool = false
-) -> SherpaOnnxOnlineModelConfig {
-    var config = SherpaOnnxOnlineModelConfig()
-    
-    // Set tokens
-    config.tokens = toCPointer(tokens)
-    
-    // Set transducer config if paths are provided
-    if !encoder.isEmpty && !decoder.isEmpty && !joiner.isEmpty {
-        var transducerConfig = SherpaOnnxOnlineTransducerModelConfig()
-        transducerConfig.encoder = toCPointer(encoder)
-        transducerConfig.decoder = toCPointer(decoder)
-        transducerConfig.joiner = toCPointer(joiner)
-        config.transducer = transducerConfig
-    }
-    
-    // Set common properties
-    config.num_threads = Int32(numThreads)
-    config.debug = debug ? 1 : 0
-    config.provider = toCPointer("cpu")
-    config.model_type = toCPointer(modelType)
-    
-    return config
-}
-
-/**
- * Helper function to create an offline model configuration
- */
-fileprivate func createOfflineModelConfig(
-    modelDir: String,
-    modelType: String,
-    tokensFile: String = "tokens.txt",
-    numThreads: Int = 1,
-    debug: Bool = false
-) -> SherpaOnnxOfflineModelConfig {
-    var config = SherpaOnnxOfflineModelConfig()
-    
-    // Set tokens
-    let tokensPath = "\(modelDir)/\(tokensFile)"
-    config.tokens = toCPointer(tokensPath)
-    
-    // Configure based on model type
-    if modelType == "transducer" || modelType == "zipformer" || modelType == "zipformer2" {
-        var transducerConfig = SherpaOnnxOfflineTransducerModelConfig()
-        transducerConfig.encoder = toCPointer("\(modelDir)/encoder.onnx")
-        transducerConfig.decoder = toCPointer("\(modelDir)/decoder.onnx")
-        transducerConfig.joiner = toCPointer("\(modelDir)/joiner.onnx")
-        config.transducer = transducerConfig
-    } else if modelType == "paraformer" {
-        var paraformerConfig = SherpaOnnxOfflineParaformerModelConfig()
-        paraformerConfig.model = toCPointer("\(modelDir)/model.onnx")
-        config.paraformer = paraformerConfig
-    } else if modelType == "whisper" {
-        var whisperConfig = SherpaOnnxOfflineWhisperModelConfig()
-        whisperConfig.encoder = toCPointer("\(modelDir)/encoder.onnx")
-        whisperConfig.decoder = toCPointer("\(modelDir)/decoder.onnx")
-        whisperConfig.language = toCPointer("en")
-        whisperConfig.task = toCPointer("transcribe")
-        config.whisper = whisperConfig
-    }
-    // Add additional model types as needed
-    
-    // Set common properties
-    config.num_threads = Int32(numThreads)
-    config.debug = debug ? 1 : 0
-    config.provider = toCPointer("cpu")
-    
-    return config
-}
-
-/**
- * Result wrapper for online recognition
- */
-@objc public class SherpaOnnxRecognitionResult: NSObject {
-    private let result: UnsafePointer<SherpaOnnxOnlineRecognizerResult>!
-    
-    @objc public var text: String {
-        return String(cString: result.pointee.text)
-    }
-    
-    @objc public var count: Int32 {
-        return result.pointee.count
-    }
-    
-    init(result: UnsafePointer<SherpaOnnxOnlineRecognizerResult>!) {
-        self.result = result
-        super.init()
-    }
-    
-    deinit {
-        if let result = result {
-            SherpaOnnxDestroyOnlineRecognizerResult(result)
-        }
-    }
-}
-
-/**
  * SherpaOnnxASRHandler - Automatic Speech Recognition Handler
- * 
- * Manages ASR functionality using Sherpa-ONNX C API.
+ *
+ * Manages ASR functionality using the upstream SherpaOnnx.swift wrapper classes
+ * (SherpaOnnxRecognizer, SherpaOnnxOfflineRecognizer) from prebuilt/swift/.
+ *
  * Supports both online (streaming) and offline recognition.
- * 
- * This handler mirrors the ASRHandler.kt implementation for Android
- * to ensure feature parity across platforms.
  */
 @objc public class SherpaOnnxASRHandler: NSObject {
-    // Online recognizer components
-    private var onlineRecognizer: OpaquePointer?
-    private var onlineStream: OpaquePointer?
-    
-    // Offline recognizer components
-    private var offlineRecognizer: OpaquePointer?
-    
+    // Online recognizer (upstream wrapper)
+    private var onlineRecognizer: SherpaOnnxRecognizer?
+    // Extra stream for the 5 streaming primitives (separate from recognizer.stream)
+    private var primitiveStream: OpaquePointer?
+
+    // Offline recognizer (upstream wrapper)
+    private var offlineRecognizer: SherpaOnnxOfflineRecognizer?
+
     // State tracking
     private var isInitialized: Bool = false
-    private var isRecognizing: Bool = false
     private var isStreaming: Bool = false
-    private var sampleRate: Int = 16000
-    
-    // Thread management
-    private let queue = DispatchQueue(label: "com.siteed.sherpaonnx.asr", qos: .userInitiated)
-    
+    private var currentSampleRate: Int = 16000
+
+    private static let TAG = "[SherpaOnnxASR]"
+
     @objc public override init() {
         super.init()
     }
-    
+
     deinit {
         cleanupResources()
     }
-    
-    /**
-     * Check if the library is properly loaded
-     */
+
+    // MARK: - Library validation
+
     @objc public static func isLibraryLoaded() -> [String: Any] {
-        // Try to use a simple API call to verify library is loaded and accessible
         let tempDir = FileManager.default.temporaryDirectory.path
         let result = SherpaOnnxFileExists(tempDir)
-        
-        var info: [String: Any] = [
+        return [
             "loaded": result >= 0,
-            "status": result >= 0 ? "Library is loaded and accessible" : "Library could not be accessed properly"
+            "status": result >= 0 ? "Library is loaded and accessible" : "Library could not be accessed properly",
+            "testConfig": ["sampleRate": 16000, "featureDim": 80]
         ]
-        
-        // Add some standard config values that might be useful
-        info["testConfig"] = [
-            "sampleRate": 16000,
-            "featureDim": 80
-        ]
-        
-        return info
     }
-    
-    /**
-     * Initialize ASR with the specified configuration
-     * 
-     * @param config ASR configuration parameters
-     * @return Dictionary with initialization result
-     */
+
+    // MARK: - Init ASR
+
     @objc public func initAsr(_ config: NSDictionary) -> NSDictionary {
-        // For now, return a placeholder response
-        return [
-            "success": false,
-            "error": "ASR not yet implemented - will be added soon"
-        ]
-    }
-    
-    /**
-     * Recognize speech from audio samples
-     * 
-     * @param sampleRate The sample rate of the audio data
-     * @param samples Array of audio samples
-     * @return Dictionary with recognition result
-     */
-    @objc public func recognizeFromSamples(_ sampleRate: Int, samples: NSArray) -> NSDictionary {
-        // For now, return a placeholder response
-        return [
-            "success": false,
-            "error": "ASR not yet implemented - will be added soon"
-        ]
-    }
-    
-    /**
-     * Recognize speech from an audio file
-     * 
-     * @param filePath Path to the audio file
-     * @return Dictionary with recognition result
-     */
-    @objc public func recognizeFromFile(_ filePath: String) -> NSDictionary {
-        // For now, return a placeholder response
-        return [
-            "success": false,
-            "error": "ASR not yet implemented - will be added soon"
-        ]
-    }
-    
-    /**
-     * Release all resources used by the ASR
-     * 
-     * @return Dictionary indicating if resources were released successfully
-     */
-    @objc public func releaseResources() -> NSDictionary {
+        NSLog("%@ initAsr called with config: %@", SherpaOnnxASRHandler.TAG, config)
+
+        guard let modelDir = config["modelDir"] as? String else {
+            return ["success": false, "error": "modelDir is required"]
+        }
+
+        let modelType = config["modelType"] as? String ?? "transducer"
+        let streaming = config["streaming"] as? Bool ?? false
+        let numThreads = config["numThreads"] as? Int ?? 2
+        let debug = config["debug"] as? Bool ?? false
+        let sampleRate = config["sampleRate"] as? Int ?? 16000
+        let featureDim = config["featureDim"] as? Int ?? 80
+        let decodingMethod = config["decodingMethod"] as? String ?? "greedy_search"
+        let maxActivePaths = config["maxActivePaths"] as? Int ?? 4
+        let provider = config["provider"] as? String ?? "cpu"
+
+        let modelFiles = config["modelFiles"] as? [String: String] ?? [:]
+
+        // Clean up any previous recognizer
         cleanupResources()
-        return ["released": true]
+
+        if streaming {
+            return initOnlineAsr(
+                modelDir: modelDir, modelType: modelType, modelFiles: modelFiles,
+                numThreads: numThreads, debug: debug, sampleRate: sampleRate,
+                featureDim: featureDim, decodingMethod: decodingMethod,
+                maxActivePaths: maxActivePaths, provider: provider
+            )
+        } else {
+            return initOfflineAsr(
+                modelDir: modelDir, modelType: modelType, modelFiles: modelFiles,
+                numThreads: numThreads, debug: debug, sampleRate: sampleRate,
+                featureDim: featureDim, decodingMethod: decodingMethod,
+                maxActivePaths: maxActivePaths, provider: provider
+            )
+        }
     }
-    
-    /**
-     * Create a persistent online stream for live streaming ASR.
-     */
-    @objc public func createAsrOnlineStream() -> NSDictionary {
-        guard let recognizer = onlineRecognizer else {
+
+    // MARK: - Online (streaming) init
+
+    private func initOnlineAsr(
+        modelDir: String, modelType: String, modelFiles: [String: String],
+        numThreads: Int, debug: Bool, sampleRate: Int, featureDim: Int,
+        decodingMethod: String, maxActivePaths: Int, provider: String
+    ) -> NSDictionary {
+        NSLog("%@ Initializing ONLINE ASR, modelType=%@", SherpaOnnxASRHandler.TAG, modelType)
+
+        let tokensFile = modelFiles["tokens"] ?? "tokens.txt"
+        let tokensPath = (modelDir as NSString).appendingPathComponent(tokensFile)
+
+        // Build model config using upstream helpers based on model type
+        var transducerConfig = sherpaOnnxOnlineTransducerModelConfig()
+        var paraformerConfig = sherpaOnnxOnlineParaformerModelConfig()
+        var zipformer2CtcConfig = sherpaOnnxOnlineZipformer2CtcModelConfig()
+
+        switch modelType {
+        case "transducer", "zipformer", "zipformer2":
+            let encoderFile = modelFiles["encoder"] ?? "encoder.onnx"
+            let decoderFile = modelFiles["decoder"] ?? "decoder.onnx"
+            let joinerFile = modelFiles["joiner"] ?? "joiner.onnx"
+            let encoderPath = (modelDir as NSString).appendingPathComponent(encoderFile)
+            let decoderPath = (modelDir as NSString).appendingPathComponent(decoderFile)
+            let joinerPath = (modelDir as NSString).appendingPathComponent(joinerFile)
+            NSLog("%@ encoder: %@, decoder: %@, joiner: %@", SherpaOnnxASRHandler.TAG, encoderPath, decoderPath, joinerPath)
+            transducerConfig = sherpaOnnxOnlineTransducerModelConfig(
+                encoder: encoderPath, decoder: decoderPath, joiner: joinerPath
+            )
+        default:
+            return ["success": false, "error": "Unsupported online model type: \(modelType)"]
+        }
+
+        let modelConfig = sherpaOnnxOnlineModelConfig(
+            tokens: tokensPath,
+            transducer: transducerConfig,
+            paraformer: paraformerConfig,
+            zipformer2Ctc: zipformer2CtcConfig,
+            numThreads: numThreads,
+            provider: provider,
+            debug: debug ? 1 : 0,
+            modelType: modelType
+        )
+
+        let featConfig = sherpaOnnxFeatureConfig(sampleRate: sampleRate, featureDim: featureDim)
+
+        var recognizerConfig = sherpaOnnxOnlineRecognizerConfig(
+            featConfig: featConfig,
+            modelConfig: modelConfig,
+            enableEndpoint: true,
+            rule1MinTrailingSilence: 2.4,
+            rule2MinTrailingSilence: 1.2,
+            rule3MinUtteranceLength: 20.0,
+            decodingMethod: decodingMethod,
+            maxActivePaths: maxActivePaths
+        )
+
+        // Create recognizer using upstream wrapper
+        let recognizer = SherpaOnnxRecognizer(config: &recognizerConfig)
+        guard recognizer.recognizer != nil else {
+            return ["success": false, "error": "Failed to create online recognizer — check model files and paths"]
+        }
+
+        onlineRecognizer = recognizer
+        isStreaming = true
+        isInitialized = true
+        currentSampleRate = sampleRate
+
+        NSLog("%@ Online ASR initialized successfully, sampleRate=%d", SherpaOnnxASRHandler.TAG, sampleRate)
+
+        return [
+            "success": true,
+            "sampleRate": sampleRate,
+            "modelType": modelType,
+            "streaming": true
+        ]
+    }
+
+    // MARK: - Offline init
+
+    private func initOfflineAsr(
+        modelDir: String, modelType: String, modelFiles: [String: String],
+        numThreads: Int, debug: Bool, sampleRate: Int, featureDim: Int,
+        decodingMethod: String, maxActivePaths: Int, provider: String
+    ) -> NSDictionary {
+        NSLog("%@ Initializing OFFLINE ASR, modelType=%@", SherpaOnnxASRHandler.TAG, modelType)
+
+        let tokensFile = modelFiles["tokens"] ?? "tokens.txt"
+        let tokensPath = (modelDir as NSString).appendingPathComponent(tokensFile)
+
+        // Build model-specific configs using upstream helpers
+        var transducerConfig = sherpaOnnxOfflineTransducerModelConfig()
+        var paraformerConfig = sherpaOnnxOfflineParaformerModelConfig()
+        var whisperConfig = sherpaOnnxOfflineWhisperModelConfig()
+        var nemoCtcConfig = sherpaOnnxOfflineNemoEncDecCtcModelConfig()
+        var moonshineConfig = sherpaOnnxOfflineMoonshineModelConfig()
+        var senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig()
+        var tdnnConfig = sherpaOnnxOfflineTdnnModelConfig()
+        var fireRedAsrConfig = sherpaOnnxOfflineFireRedAsrModelConfig()
+
+        switch modelType {
+        case "transducer", "zipformer", "zipformer2":
+            let encoderFile = modelFiles["encoder"] ?? "encoder.onnx"
+            let decoderFile = modelFiles["decoder"] ?? "decoder.onnx"
+            let joinerFile = modelFiles["joiner"] ?? "joiner.onnx"
+            transducerConfig = sherpaOnnxOfflineTransducerModelConfig(
+                encoder: (modelDir as NSString).appendingPathComponent(encoderFile),
+                decoder: (modelDir as NSString).appendingPathComponent(decoderFile),
+                joiner: (modelDir as NSString).appendingPathComponent(joinerFile)
+            )
+
+        case "paraformer":
+            let modelFile = modelFiles["model"] ?? "model.onnx"
+            paraformerConfig = sherpaOnnxOfflineParaformerModelConfig(
+                model: (modelDir as NSString).appendingPathComponent(modelFile)
+            )
+
+        case "whisper":
+            let encoderFile = modelFiles["encoder"] ?? "encoder.onnx"
+            let decoderFile = modelFiles["decoder"] ?? "decoder.onnx"
+            whisperConfig = sherpaOnnxOfflineWhisperModelConfig(
+                encoder: (modelDir as NSString).appendingPathComponent(encoderFile),
+                decoder: (modelDir as NSString).appendingPathComponent(decoderFile),
+                language: "en", task: "transcribe"
+            )
+
+        case "nemo_ctc", "nemo_transducer":
+            let modelFile = modelFiles["model"] ?? "model.onnx"
+            nemoCtcConfig = sherpaOnnxOfflineNemoEncDecCtcModelConfig(
+                model: (modelDir as NSString).appendingPathComponent(modelFile)
+            )
+
+        case "moonshine":
+            let preprocessorFile = modelFiles["preprocessor"] ?? "preprocess.onnx"
+            let encoderFile = modelFiles["encoder"] ?? "encode.onnx"
+            let uncachedDecoderFile = modelFiles["uncachedDecoder"] ?? "uncached_decode.onnx"
+            let cachedDecoderFile = modelFiles["cachedDecoder"] ?? "cached_decode.onnx"
+            moonshineConfig = sherpaOnnxOfflineMoonshineModelConfig(
+                preprocessor: (modelDir as NSString).appendingPathComponent(preprocessorFile),
+                encoder: (modelDir as NSString).appendingPathComponent(encoderFile),
+                uncachedDecoder: (modelDir as NSString).appendingPathComponent(uncachedDecoderFile),
+                cachedDecoder: (modelDir as NSString).appendingPathComponent(cachedDecoderFile)
+            )
+
+        case "sense_voice":
+            let modelFile = modelFiles["model"] ?? "model.onnx"
+            senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
+                model: (modelDir as NSString).appendingPathComponent(modelFile),
+                language: "", useInverseTextNormalization: true
+            )
+
+        case "fire_red_asr":
+            let encoderFile = modelFiles["encoder"] ?? "encoder.onnx"
+            let decoderFile = modelFiles["decoder"] ?? "decoder.onnx"
+            fireRedAsrConfig = sherpaOnnxOfflineFireRedAsrModelConfig(
+                encoder: (modelDir as NSString).appendingPathComponent(encoderFile),
+                decoder: (modelDir as NSString).appendingPathComponent(decoderFile)
+            )
+
+        default:
+            return ["success": false, "error": "Unsupported offline model type: \(modelType)"]
+        }
+
+        let modelConfig = sherpaOnnxOfflineModelConfig(
+            tokens: tokensPath,
+            transducer: transducerConfig,
+            paraformer: paraformerConfig,
+            nemoCtc: nemoCtcConfig,
+            whisper: whisperConfig,
+            tdnn: tdnnConfig,
+            numThreads: numThreads,
+            provider: provider,
+            debug: debug ? 1 : 0,
+            modelType: modelType,
+            senseVoice: senseVoiceConfig,
+            moonshine: moonshineConfig,
+            fireRedAsr: fireRedAsrConfig
+        )
+
+        let featConfig = sherpaOnnxFeatureConfig(sampleRate: sampleRate, featureDim: featureDim)
+
+        var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(
+            featConfig: featConfig,
+            modelConfig: modelConfig,
+            decodingMethod: decodingMethod,
+            maxActivePaths: maxActivePaths
+        )
+
+        // Create recognizer using upstream wrapper
+        let recognizer = SherpaOnnxOfflineRecognizer(config: &recognizerConfig)
+        guard recognizer.recognizer != nil else {
+            return ["success": false, "error": "Failed to create offline recognizer — check model files and paths"]
+        }
+
+        offlineRecognizer = recognizer
+        isStreaming = false
+        isInitialized = true
+        currentSampleRate = sampleRate
+
+        NSLog("%@ Offline ASR initialized successfully, sampleRate=%d", SherpaOnnxASRHandler.TAG, sampleRate)
+
+        return [
+            "success": true,
+            "sampleRate": sampleRate,
+            "modelType": modelType,
+            "streaming": false
+        ]
+    }
+
+    // MARK: - Recognize from samples
+
+    @objc public func recognizeFromSamples(_ sampleRate: Int, samples: NSArray) -> NSDictionary {
+        // Convert NSArray to [Float]
+        var floatSamples = [Float]()
+        floatSamples.reserveCapacity(samples.count)
+        for i in 0..<samples.count {
+            if let val = samples[i] as? NSNumber {
+                floatSamples.append(val.floatValue)
+            }
+        }
+
+        if isStreaming {
+            return recognizeFromSamplesStreaming(sampleRate, samples: floatSamples)
+        } else {
+            return recognizeFromSamplesOffline(sampleRate, samples: floatSamples)
+        }
+    }
+
+    private func recognizeFromSamplesStreaming(_ sampleRate: Int, samples: [Float]) -> NSDictionary {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil else {
             return ["success": false, "error": "Online ASR not initialized"]
         }
-        if let stream = onlineStream {
-            SherpaOnnxDestroyOnlineStream(stream)
-            onlineStream = nil
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Create a fresh stream for this recognition (don't use the persistent one)
+        let stream: OpaquePointer! = SherpaOnnxCreateOnlineStream(recognizer.recognizer)
+        guard stream != nil else {
+            return ["success": false, "error": "Failed to create online stream"]
         }
-        onlineStream = SherpaOnnxCreateOnlineStream(recognizer)
-        if onlineStream == nil {
+
+        // Feed audio in chunks
+        let chunkSize = 800
+        var offset = 0
+        while offset < samples.count {
+            let end = min(offset + chunkSize, samples.count)
+            let chunk = Array(samples[offset..<end])
+            SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), chunk, Int32(chunk.count))
+            while SherpaOnnxIsOnlineStreamReady(recognizer.recognizer, stream) == 1 {
+                SherpaOnnxDecodeOnlineStream(recognizer.recognizer, stream)
+            }
+            offset = end
+        }
+
+        // Add tail padding (0.66s of silence) and signal end
+        let tailPadFrames = Int(Float(sampleRate) * 0.66)
+        let tailPad = [Float](repeating: 0.0, count: tailPadFrames)
+        SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), tailPad, Int32(tailPadFrames))
+        SherpaOnnxOnlineStreamInputFinished(stream)
+
+        // Drain remaining frames
+        while SherpaOnnxIsOnlineStreamReady(recognizer.recognizer, stream) == 1 {
+            SherpaOnnxDecodeOnlineStream(recognizer.recognizer, stream)
+        }
+
+        // Get result
+        let resultPtr = SherpaOnnxGetOnlineStreamResult(recognizer.recognizer, stream)
+        var text = ""
+        if let result = resultPtr {
+            text = String(cString: result.pointee.text).trimmingCharacters(in: .whitespaces)
+            SherpaOnnxDestroyOnlineRecognizerResult(resultPtr)
+        }
+
+        SherpaOnnxDestroyOnlineStream(stream)
+
+        let durationMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+
+        return [
+            "success": true,
+            "text": text,
+            "durationMs": Int(durationMs),
+            "sampleRate": sampleRate,
+            "samplesLength": samples.count
+        ]
+    }
+
+    private func recognizeFromSamplesOffline(_ sampleRate: Int, samples: [Float]) -> NSDictionary {
+        guard let recognizer = offlineRecognizer, recognizer.recognizer != nil else {
+            return ["success": false, "error": "Offline ASR not initialized"]
+        }
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Use the upstream wrapper's decode method
+        let result = recognizer.decode(samples: samples, sampleRate: sampleRate)
+        let text = result.text.trimmingCharacters(in: .whitespaces)
+
+        let durationMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+
+        return [
+            "success": true,
+            "text": text,
+            "durationMs": Int(durationMs),
+            "sampleRate": sampleRate,
+            "samplesLength": samples.count
+        ]
+    }
+
+    // MARK: - Recognize from file
+
+    @objc public func recognizeFromFile(_ filePath: String) -> NSDictionary {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Read WAV file using the C API
+        guard let wave = SherpaOnnxReadWave(filePath) else {
+            return ["success": false, "error": "Failed to read WAV file: \(filePath)"]
+        }
+
+        let wavSampleRate = Int(wave.pointee.sample_rate)
+        let numSamples = Int(wave.pointee.num_samples)
+
+        NSLog("%@ Read WAV: sampleRate=%d, numSamples=%d", SherpaOnnxASRHandler.TAG, wavSampleRate, numSamples)
+
+        // Convert C pointer to Swift array
+        var floatSamples = [Float]()
+        floatSamples.reserveCapacity(numSamples)
+        if let samplesPtr = wave.pointee.samples {
+            for i in 0..<numSamples {
+                floatSamples.append(samplesPtr[i])
+            }
+        }
+        SherpaOnnxFreeWave(wave)
+
+        var text = ""
+
+        if isStreaming, let recognizer = onlineRecognizer, recognizer.recognizer != nil {
+            // Streaming recognition via a temporary stream
+            let stream: OpaquePointer! = SherpaOnnxCreateOnlineStream(recognizer.recognizer)
+            guard stream != nil else {
+                return ["success": false, "error": "Failed to create online stream"]
+            }
+
+            let chunkSize = 800
+            var offset = 0
+            while offset < floatSamples.count {
+                let end = min(offset + chunkSize, floatSamples.count)
+                let chunk = Array(floatSamples[offset..<end])
+                SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(wavSampleRate), chunk, Int32(chunk.count))
+                while SherpaOnnxIsOnlineStreamReady(recognizer.recognizer, stream) == 1 {
+                    SherpaOnnxDecodeOnlineStream(recognizer.recognizer, stream)
+                }
+                offset = end
+            }
+
+            // Tail padding + finish
+            let tailPadFrames = Int(Float(wavSampleRate) * 0.66)
+            let tailPad = [Float](repeating: 0.0, count: tailPadFrames)
+            SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(wavSampleRate), tailPad, Int32(tailPadFrames))
+            SherpaOnnxOnlineStreamInputFinished(stream)
+            while SherpaOnnxIsOnlineStreamReady(recognizer.recognizer, stream) == 1 {
+                SherpaOnnxDecodeOnlineStream(recognizer.recognizer, stream)
+            }
+
+            let resultPtr = SherpaOnnxGetOnlineStreamResult(recognizer.recognizer, stream)
+            if let result = resultPtr {
+                text = String(cString: result.pointee.text).trimmingCharacters(in: .whitespaces)
+                SherpaOnnxDestroyOnlineRecognizerResult(resultPtr)
+            }
+            SherpaOnnxDestroyOnlineStream(stream)
+
+        } else if let recognizer = offlineRecognizer, recognizer.recognizer != nil {
+            // Use the upstream wrapper's decode method
+            let result = recognizer.decode(samples: floatSamples, sampleRate: wavSampleRate)
+            text = result.text.trimmingCharacters(in: .whitespaces)
+        } else {
+            return ["success": false, "error": "ASR not initialized"]
+        }
+
+        let durationMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+
+        return [
+            "success": true,
+            "text": text,
+            "durationMs": Int(durationMs),
+            "sampleRate": wavSampleRate,
+            "samplesLength": numSamples
+        ]
+    }
+
+    // MARK: - Online streaming primitives (5 methods)
+    // These use a separate "primitiveStream" so that the recognizer's built-in stream
+    // (used by recognizeFromSamples/recognizeFromFile) is not disturbed.
+
+    @objc public func createAsrOnlineStream() -> NSDictionary {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil else {
+            return ["success": false, "error": "Online ASR not initialized"]
+        }
+        if let stream = primitiveStream {
+            SherpaOnnxDestroyOnlineStream(stream)
+            primitiveStream = nil
+        }
+        primitiveStream = SherpaOnnxCreateOnlineStream(recognizer.recognizer)
+        if primitiveStream == nil {
             return ["success": false, "error": "Failed to create online stream"]
         }
         return ["success": true]
     }
 
-    /**
-     * Feed audio samples and decode all ready frames.
-     */
     @objc public func acceptAsrOnlineWaveform(_ sampleRate: Int, samples: NSArray) -> NSDictionary {
-        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil,
+              let stream = primitiveStream else {
             return ["success": false, "error": "Online stream not created"]
         }
         var floatSamples = [Float]()
         floatSamples.reserveCapacity(samples.count)
         for i in 0..<samples.count {
-            if let val_ = samples[i] as? NSNumber {
-                floatSamples.append(val_.floatValue)
+            if let val = samples[i] as? NSNumber {
+                floatSamples.append(val.floatValue)
             }
         }
-        floatSamples.withUnsafeBufferPointer { buffer in
-            SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), buffer.baseAddress, Int32(floatSamples.count))
-        }
-        while SherpaOnnxIsOnlineStreamReady(recognizer, stream) == 1 {
-            SherpaOnnxDecodeOnlineStream(recognizer, stream)
+        SherpaOnnxOnlineStreamAcceptWaveform(stream, Int32(sampleRate), floatSamples, Int32(floatSamples.count))
+        while SherpaOnnxIsOnlineStreamReady(recognizer.recognizer, stream) == 1 {
+            SherpaOnnxDecodeOnlineStream(recognizer.recognizer, stream)
         }
         return ["success": true]
     }
 
-    /**
-     * Check if an endpoint has been detected.
-     */
     @objc public func isAsrOnlineEndpoint() -> NSDictionary {
-        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil,
+              let stream = primitiveStream else {
             return ["isEndpoint": false, "error": "Online stream not created"]
         }
-        let isEndpoint = SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream) == 1
+        let isEndpoint = SherpaOnnxOnlineStreamIsEndpoint(recognizer.recognizer, stream) == 1
         return ["isEndpoint": isEndpoint]
     }
 
-    /**
-     * Get the current recognition result.
-     */
     @objc public func getAsrOnlineResult() -> NSDictionary {
-        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil,
+              let stream = primitiveStream else {
             return ["text": "", "tokens": [], "timestamps": [], "error": "Online stream not created"]
         }
-        let resultPtr = SherpaOnnxGetOnlineStreamResult(recognizer, stream)
+        let resultPtr = SherpaOnnxGetOnlineStreamResult(recognizer.recognizer, stream)
         guard let result = resultPtr else {
             return ["text": "", "tokens": [], "timestamps": []]
         }
@@ -332,41 +552,31 @@ fileprivate func createOfflineModelConfig(
         return ["text": text, "tokens": tokens, "timestamps": timestamps]
     }
 
-    /**
-     * Reset the online stream for the next utterance.
-     */
     @objc public func resetAsrOnlineStream() -> NSDictionary {
-        guard let recognizer = onlineRecognizer, let stream = onlineStream else {
+        guard let recognizer = onlineRecognizer, recognizer.recognizer != nil,
+              let stream = primitiveStream else {
             return ["success": false, "error": "Online stream not created"]
         }
-        SherpaOnnxOnlineStreamReset(recognizer, stream)
+        SherpaOnnxOnlineStreamReset(recognizer.recognizer, stream)
         return ["success": true]
     }
 
-    /**
-     * Release resources used by the ASR
-     */
+    // MARK: - Release
+
+    @objc public func releaseResources() -> NSDictionary {
+        cleanupResources()
+        return ["released": true]
+    }
+
     private func cleanupResources() {
-        // Clean up online resources
-        if let stream = onlineStream {
+        if let stream = primitiveStream {
             SherpaOnnxDestroyOnlineStream(stream)
-            onlineStream = nil
+            primitiveStream = nil
         }
-        
-        if let recognizer = onlineRecognizer {
-            SherpaOnnxDestroyOnlineRecognizer(recognizer)
-            onlineRecognizer = nil
-        }
-        
-        // Clean up offline resources
-        if let recognizer = offlineRecognizer {
-            SherpaOnnxDestroyOfflineRecognizer(recognizer)
-            offlineRecognizer = nil
-        }
-        
-        // Reset state
+        // The upstream wrappers handle their own cleanup in deinit
+        onlineRecognizer = nil
+        offlineRecognizer = nil
         isInitialized = false
-        isRecognizing = false
         isStreaming = false
     }
-} 
+}

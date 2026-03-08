@@ -139,6 +139,21 @@ export interface Spec extends TurboModule {
     modelPath?: string;
     numThreads?: number;
     debug?: boolean;
+    streaming?: boolean;
+    sampleRate?: number;
+    featureDim?: number;
+    decodingMethod?: string;
+    maxActivePaths?: number;
+    provider?: string;
+    // modelFiles fields flattened for TurboModule compat
+    modelFileEncoder?: string;
+    modelFileDecoder?: string;
+    modelFileJoiner?: string;
+    modelFileTokens?: string;
+    modelFileModel?: string;
+    modelFilePreprocessor?: string;
+    modelFileUncachedDecoder?: string;
+    modelFileCachedDecoder?: string;
   }): Promise<{
     success: boolean;
     sampleRate?: number;

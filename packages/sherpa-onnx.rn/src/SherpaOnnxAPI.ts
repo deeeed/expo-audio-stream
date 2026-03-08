@@ -151,7 +151,28 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   // ASR methods
   initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
-    return NativeSherpaOnnx.initAsr(config as any);
+    // Flatten modelFiles into top-level keys for TurboModule compatibility
+    const nativeConfig: Record<string, unknown> = {
+      modelDir: config.modelDir,
+      modelType: config.modelType,
+      numThreads: config.numThreads,
+      debug: config.debug,
+      streaming: config.streaming,
+      decodingMethod: config.decodingMethod,
+      maxActivePaths: config.maxActivePaths,
+      provider: config.provider,
+    };
+    if (config.modelFiles) {
+      nativeConfig.modelFileEncoder = config.modelFiles.encoder;
+      nativeConfig.modelFileDecoder = config.modelFiles.decoder;
+      nativeConfig.modelFileJoiner = config.modelFiles.joiner;
+      nativeConfig.modelFileTokens = config.modelFiles.tokens;
+      nativeConfig.modelFileModel = config.modelFiles.model;
+      nativeConfig.modelFilePreprocessor = config.modelFiles.preprocessor;
+      nativeConfig.modelFileUncachedDecoder = config.modelFiles.uncachedDecoder;
+      nativeConfig.modelFileCachedDecoder = config.modelFiles.cachedDecoder;
+    }
+    return NativeSherpaOnnx.initAsr(nativeConfig as any);
   },
 
   recognizeFromSamples(

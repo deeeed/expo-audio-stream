@@ -117,6 +117,20 @@ namespace JS {
       NSString *modelPath() const;
       std::optional<double> numThreads() const;
       std::optional<bool> debug() const;
+      std::optional<bool> streaming() const;
+      std::optional<double> sampleRate() const;
+      std::optional<double> featureDim() const;
+      NSString *decodingMethod() const;
+      std::optional<double> maxActivePaths() const;
+      NSString *provider() const;
+      NSString *modelFileEncoder() const;
+      NSString *modelFileDecoder() const;
+      NSString *modelFileJoiner() const;
+      NSString *modelFileTokens() const;
+      NSString *modelFileModel() const;
+      NSString *modelFilePreprocessor() const;
+      NSString *modelFileUncachedDecoder() const;
+      NSString *modelFileCachedDecoder() const;
 
       SpecInitAsrConfig(NSDictionary *const v) : _v(v) {}
     private:
@@ -481,6 +495,76 @@ inline std::optional<bool> JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::debug() 
 {
   id const p = _v[@"debug"];
   return RCTBridgingToOptionalBool(p);
+}
+inline std::optional<bool> JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::streaming() const
+{
+  id const p = _v[@"streaming"];
+  return RCTBridgingToOptionalBool(p);
+}
+inline std::optional<double> JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::sampleRate() const
+{
+  id const p = _v[@"sampleRate"];
+  return RCTBridgingToOptionalDouble(p);
+}
+inline std::optional<double> JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::featureDim() const
+{
+  id const p = _v[@"featureDim"];
+  return RCTBridgingToOptionalDouble(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::decodingMethod() const
+{
+  id const p = _v[@"decodingMethod"];
+  return RCTBridgingToOptionalString(p);
+}
+inline std::optional<double> JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::maxActivePaths() const
+{
+  id const p = _v[@"maxActivePaths"];
+  return RCTBridgingToOptionalDouble(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::provider() const
+{
+  id const p = _v[@"provider"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileEncoder() const
+{
+  id const p = _v[@"modelFileEncoder"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileDecoder() const
+{
+  id const p = _v[@"modelFileDecoder"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileJoiner() const
+{
+  id const p = _v[@"modelFileJoiner"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileTokens() const
+{
+  id const p = _v[@"modelFileTokens"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileModel() const
+{
+  id const p = _v[@"modelFileModel"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFilePreprocessor() const
+{
+  id const p = _v[@"modelFilePreprocessor"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileUncachedDecoder() const
+{
+  id const p = _v[@"modelFileUncachedDecoder"];
+  return RCTBridgingToOptionalString(p);
+}
+inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAsrConfig::modelFileCachedDecoder() const
+{
+  id const p = _v[@"modelFileCachedDecoder"];
+  return RCTBridgingToOptionalString(p);
 }
 inline NSString *JS::NativeSherpaOnnxSpec::SpecInitAudioTaggingConfig::modelDir() const
 {

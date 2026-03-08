@@ -1,8 +1,5 @@
 require "json"
 
-# Folly compiler flags for React Native New Architecture
-folly_compiler_flags = '-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1'
-
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
 Pod::Spec.new do |s|
@@ -17,13 +14,16 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
   # Source files (new architecture only)
+  # NOTE: codegen files are NOT included here — React-Codegen pod auto-generates them.
+  # Including them breaks Swift module compilation (C++ headers like std::optional
+  # are incompatible with Swift's module builder).
   s.source_files = [
     "ios/*.{h,m,mm,swift}",
     "ios/bridge/*.{h,m,mm,swift}",
     "ios/native/*.{h,m,mm,swift}",
     "ios/handlers/*.{h,m,mm,swift}",
     "ios/utils/*.{h,m,mm,swift}",
-    "ios/codegen/SherpaOnnxSpec/*.{h,mm}"
+    "prebuilt/swift/sherpa-onnx/SherpaOnnx.swift"
   ]
 
   # Initialize preserve_paths once
@@ -60,7 +60,7 @@ Pod::Spec.new do |s|
   s.libraries = "c++", "bz2"
 
   s.xcconfig = {
-    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\" \"$(PODS_ROOT)/Headers/Public/React-Core\" \"$(PODS_TARGET_SRCROOT)/ios/codegen\" \"$(PODS_ROOT)/Headers/Public/ReactCommon\" \"$(PODS_ROOT)/Headers/Public/React-Codegen\" \"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/RCT-Folly\" \"${PODS_ROOT}/Headers/Public/React-Codegen/react/renderer/components\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-Codegen/React_Codegen.framework/Headers\"",
+    "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\"",
     "LIBRARY_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/prebuilt/ios/current",
     "SWIFT_INCLUDE_PATHS" => "\"$(PODS_TARGET_SRCROOT)/prebuilt/include\""
   }
@@ -74,11 +74,21 @@ Pod::Spec.new do |s|
     "SWIFT_OBJC_INTERFACE_HEADER_NAME" => "sherpa-onnx-rn-Swift.h",
     "APPLICATION_EXTENSION_API_ONLY" => "NO",
     "CLANG_ENABLE_MODULES" => "YES",
-    "CLANG_ENABLE_CPP_STATIC_LIBRARY_TYPES" => "YES"
+    "CLANG_ENABLE_CPP_STATIC_LIBRARY_TYPES" => "YES",
+    "OTHER_SWIFT_FLAGS" => "-Xcc -fmodule-map-file=$(PODS_TARGET_SRCROOT)/prebuilt/include/module.modulemap"
   }
 
   # Set up initial symlinks to device libraries - this runs during pod installation
   s.prepare_command = <<-CMD
+    # Patch upstream SherpaOnnx.swift to import our C module (file is gitignored)
+    SWIFT_WRAPPER="prebuilt/swift/sherpa-onnx/SherpaOnnx.swift"
+    if [ -f "$SWIFT_WRAPPER" ] && ! grep -q "import CSherpaOnnx" "$SWIFT_WRAPPER"; then
+      echo "Patching $SWIFT_WRAPPER to add 'import CSherpaOnnx'"
+      sed -i '' '/^import Foundation/a\\
+import CSherpaOnnx
+' "$SWIFT_WRAPPER"
+    fi
+
     echo "Creating prebuilt/ios/current directory"
     mkdir -p prebuilt/ios/current
     
@@ -190,16 +200,6 @@ Pod::Spec.new do |s|
     :output_files => sherpa_libraries.map { |lib| "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/#{lib}" }
   }
 
-  # New Architecture (TurboModule) dependencies
-  s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
-
-  s.dependency "React-Core"
-  s.dependency "React-RCTFabric"
-  s.dependency "React-Codegen"
-  s.dependency "RCT-Folly"
-  s.dependency "RCTRequired"
-  s.dependency "RCTTypeSafety"
-  s.dependency "ReactCommon/turbomodule/core"
-
+  # TurboModule dependencies — install_modules_dependencies handles all RN deps
   install_modules_dependencies(s)
 end
