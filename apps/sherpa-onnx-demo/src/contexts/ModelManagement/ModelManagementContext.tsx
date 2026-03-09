@@ -556,14 +556,19 @@ export function ModelManagementProvider({
        }
     }
     const state = modelStates[modelId];
-    if (cancelled || state?.status === 'extracting') {
-       const errorMsg = state?.status === 'extracting' ? 'Extraction cancelled' : 'Download cancelled';
-       updateModelState(modelId, { // Use 'pending'
-           status: 'pending',
-           progress: 0, error: errorMsg, localPath: undefined,
-           files: undefined, extractedFiles: undefined,
-        });
-       console.log(`Reset state for ${modelId} due to cancellation.`);
+    // Also reset stale 'downloading' state that survives app reloads (activeDownloads is in-memory only)
+    if (cancelled || state?.status === 'extracting' || state?.status === 'downloading') {
+      updateModelState(modelId, {
+        status: 'pending',
+        progress: 0,
+        bytesWritten: undefined,
+        totalBytes: undefined,
+        error: undefined,
+        localPath: undefined,
+        files: undefined,
+        extractedFiles: undefined,
+      });
+      console.log(`Reset state for ${modelId} to pending.`);
     } else {
       console.log(`No active download/extraction found to cancel for ${modelId}.`);
     }

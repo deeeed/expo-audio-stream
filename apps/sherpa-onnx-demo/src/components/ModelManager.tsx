@@ -421,7 +421,27 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       {state?.status === 'error' && (
         <View style={cardStyles.errorContainer}>
-          <Text style={cardStyles.errorText}>{state.error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <Text style={[cardStyles.errorText, { flex: 1, marginRight: 8 }]}>{state.error}</Text>
+            {onCancelDownload && (
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    setIsLoading(true);
+                    await onCancelDownload(model.id);
+                  } catch (e) {
+                    Alert.alert('Error', (e as Error).message);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={20} color="#ff4444" />
+              </TouchableOpacity>
+            )}
+          </View>
           {state.extractedFiles && state.extractedFiles.length > 0 && (
             <View style={cardStyles.filesContainer}>
               <Text style={cardStyles.filesTitle}>Partially Extracted Files:</Text>
