@@ -25,6 +25,7 @@ class KWSHandler(private val reactContext: ReactApplicationContext) {
     private val executor = Executors.newSingleThreadExecutor()
     private var spotter: KeywordSpotter? = null
     private var stream: OnlineStream? = null
+    private var totalSamplesAccepted: Long = 0
 
     companion object {
         private const val TAG = "SherpaOnnxKWS"
@@ -136,6 +137,7 @@ class KWSHandler(private val reactContext: ReactApplicationContext) {
 
                 // Create initial stream
                 stream = spotter!!.createStream()
+                totalSamplesAccepted = 0
 
                 Log.i(TAG, "===== KWS INITIALIZATION COMPLETE =====")
 
@@ -173,56 +175,53 @@ class KWSHandler(private val reactContext: ReactApplicationContext) {
                     samples[i] = audioBuffer.getDouble(i).toFloat()
                 }
 
-                // Feed samples in exact multiples of chunk_size * frame_shift
-                // so the feature buffer always has a multiple of chunk_size frames.
-                // chunk_size=32 (from model), frame_shift=160 (10ms at 16kHz) → 5120 samples
-                val alignedChunk = 32 * 160  // 5120 samples
+                totalSamplesAccepted += samples.size
+                Log.d(TAG, "acceptWaveform: ${samples.size} samples (total: $totalSamplesAccepted)")
+
+                // Feed all samples to the stream — the internal feature extractor
+                // accumulates frames, and isReady() gates decode calls.
+                stream!!.acceptWaveform(samples, sampleRate)
+
+                // Decode while the spotter has enough frames ready.
+                // NOTE: The v1.12.28 KWS model has a confirmed Reshape bug that
+                // crashes (SIGABRT) when decode is called. We wrap in try-catch
+                // but C++ Ort::Exception causes process abort — this catch only
+                // helps if the JNI layer converts it to a Java exception.
+                var decodeCount = 0
                 var detectedKeyword = ""
-                var offset = 0
-
-                // Feed aligned chunks and decode after each
-                while (offset + alignedChunk <= samples.size) {
-                    val chunk = samples.copyOfRange(offset, offset + alignedChunk)
-                    stream!!.acceptWaveform(chunk, sampleRate)
-
+                try {
                     while (spotter!!.isReady(stream!!)) {
                         spotter!!.decode(stream!!)
+                        decodeCount++
                     }
 
                     val result = spotter!!.getResult(stream!!)
                     if (result.keyword.isNotEmpty()) {
                         detectedKeyword = result.keyword
+                        Log.i(TAG, "KEYWORD DETECTED: \"$detectedKeyword\" (after ${totalSamplesAccepted} samples)")
                         spotter!!.reset(stream!!)
-                        break
                     }
-                    offset += alignedChunk
+                } catch (e: Exception) {
+                    Log.e(TAG, "Decode error (likely upstream model bug): ${e.message}")
+                    // Reset stream to recover if possible
+                    try { spotter!!.reset(stream!!) } catch (_: Exception) {}
                 }
 
-                // Feed trailing samples without decoding (not enough for a full chunk)
-                if (detectedKeyword.isEmpty() && offset < samples.size) {
-                    val tail = samples.copyOfRange(offset, samples.size)
-                    stream!!.acceptWaveform(tail, sampleRate)
-                    // Skip decode — partial frames would crash the Reshape node
+                if (decodeCount > 0) {
+                    Log.d(TAG, "Decoded $decodeCount times, keyword: \"$detectedKeyword\"")
                 }
-
-                val keyword = detectedKeyword
 
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
-
-                if (keyword.isNotEmpty()) {
-                    resultMap.putString("keyword", keyword)
-                    resultMap.putBoolean("detected", true)
-                } else {
-                    resultMap.putString("keyword", "")
-                    resultMap.putBoolean("detected", false)
-                }
+                resultMap.putString("keyword", detectedKeyword)
+                resultMap.putBoolean("detected", detectedKeyword.isNotEmpty())
 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error accepting waveform: ${e.message}")
+                e.printStackTrace()
                 reactContext.runOnUiQueueThread {
                     promise.reject("ERR_KWS_ACCEPT", "Failed to accept waveform: ${e.message}")
                 }

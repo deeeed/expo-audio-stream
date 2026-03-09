@@ -793,6 +793,16 @@ RCT_EXPORT_METHOD(releaseSpeakerId:(RCTPromiseResolveBlock)resolve
 
 // MARK: - KWS Methods
 
+static dispatch_queue_t _kwsSerialQueue;
+static dispatch_once_t _kwsQueueOnce;
+
+static dispatch_queue_t kwsSerialQueue(void) {
+    dispatch_once(&_kwsQueueOnce, ^{
+        _kwsSerialQueue = dispatch_queue_create("com.sherpaonnx.kws", DISPATCH_QUEUE_SERIAL);
+    });
+    return _kwsSerialQueue;
+}
+
 RCT_EXPORT_METHOD(initKws:(JS::NativeSherpaOnnxSpec::SpecInitKwsConfig &)config
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
@@ -814,7 +824,7 @@ RCT_EXPORT_METHOD(initKws:(JS::NativeSherpaOnnxSpec::SpecInitKwsConfig &)config
     if (config.keywordsThreshold()) [configDict setObject:@(*config.keywordsThreshold()) forKey:@"keywordsThreshold"];
     if (config.numTrailingBlanks()) [configDict setObject:@(*config.numTrailingBlanks()) forKey:@"numTrailingBlanks"];
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    dispatch_async(kwsSerialQueue(), ^{
         @try {
             NSDictionary *result = [self.kwsHandler initKws:configDict];
             resolve(result);
@@ -829,7 +839,7 @@ RCT_EXPORT_METHOD(acceptKwsWaveform:(double)sampleRate
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    dispatch_async(kwsSerialQueue(), ^{
         @try {
             NSDictionary *result = [self.kwsHandler acceptWaveform:(int)sampleRate samples:samples];
             resolve(result);
@@ -842,21 +852,24 @@ RCT_EXPORT_METHOD(acceptKwsWaveform:(double)sampleRate
 RCT_EXPORT_METHOD(resetKwsStream:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
-    @try {
-        NSDictionary *result = [self.kwsHandler resetStream];
-        resolve(result);
-    } @catch (NSException *exception) {
-        reject(@"ERR_KWS_RESET", exception.reason, nil);
-    }
+    dispatch_async(kwsSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.kwsHandler resetStream];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_KWS_RESET", exception.reason, nil);
+        }
+    });
 }
 
 RCT_EXPORT_METHOD(releaseKws:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
-    @try {
-        NSDictionary *result = [self.kwsHandler releaseKws];
-        resolve(result);
-    } @catch (NSException *exception) {
+    dispatch_async(kwsSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.kwsHandler releaseKws];
+            resolve(result);
+        } @catch (NSException *exception) {
         reject(@"ERR_KWS_RELEASE", exception.reason, nil);
     }
 }

@@ -7,6 +7,7 @@ import CSherpaOnnx
 @objc public class SherpaOnnxKWSHandler: NSObject {
     private var spotter: OpaquePointer?   // const SherpaOnnxKeywordSpotter *
     private var stream: OpaquePointer?    // const SherpaOnnxOnlineStream *
+    private var totalSamplesAccepted: Int64 = 0
 
     private static let TAG = "[SherpaOnnxKWS]"
 
@@ -116,6 +117,7 @@ import CSherpaOnnx
             return ["success": false, "error": "Failed to create KWS stream"]
         }
         stream = streamPtr
+        totalSamplesAccepted = 0
 
         NSLog("%@ KWS initialized successfully", SherpaOnnxKWSHandler.TAG)
 
@@ -138,59 +140,45 @@ import CSherpaOnnx
             }
         }
 
+        totalSamplesAccepted += Int64(floatSamples.count)
+        NSLog("%@ acceptWaveform: %d samples (total: %lld)", SherpaOnnxKWSHandler.TAG, floatSamples.count, totalSamplesAccepted)
+
         // Accept waveform
         SherpaOnnxOnlineStreamAcceptWaveform(streamPtr, Int32(sampleRate), floatSamples, Int32(floatSamples.count))
 
         // Decode while ready
+        var decodeCount = 0
         while SherpaOnnxIsKeywordStreamReady(spotterPtr, streamPtr) == 1 {
             SherpaOnnxDecodeKeywordStream(spotterPtr, streamPtr)
+            decodeCount += 1
         }
 
         // Get result
         let resultPtr = SherpaOnnxGetKeywordResult(spotterPtr, streamPtr)
         var keyword = ""
-        var tokens = [String]()
-        var timestamps = [Float]()
 
         if let resultPtr = resultPtr {
             if let kwPtr = resultPtr.pointee.keyword {
                 keyword = String(cString: kwPtr)
             }
-
-            let count = Int(resultPtr.pointee.count)
-            if count > 0, let tokensArr = resultPtr.pointee.tokens_arr {
-                for i in 0..<count {
-                    if let tokenPtr = tokensArr[i] {
-                        tokens.append(String(cString: tokenPtr))
-                    }
-                }
-            }
-
-            if count > 0, let tsPtr = resultPtr.pointee.timestamps {
-                for i in 0..<count {
-                    timestamps.append(tsPtr[i])
-                }
-            }
-
             SherpaOnnxDestroyKeywordResult(resultPtr)
         }
 
         let detected = !keyword.isEmpty
 
         if detected {
-            // Reset after detection
+            NSLog("%@ KEYWORD DETECTED: \"%@\" (after %lld samples)", SherpaOnnxKWSHandler.TAG, keyword, totalSamplesAccepted)
             SherpaOnnxResetKeywordStream(spotterPtr, streamPtr)
         }
 
-        let tokensNS = tokens as NSArray
-        let timestampsNS = timestamps.map { NSNumber(value: $0) } as NSArray
+        if decodeCount > 0 {
+            NSLog("%@ Decoded %d times, keyword: \"%@\"", SherpaOnnxKWSHandler.TAG, decodeCount, keyword)
+        }
 
         return [
             "success": true,
             "detected": detected,
-            "keyword": keyword,
-            "tokens": tokensNS,
-            "timestamps": timestampsNS
+            "keyword": keyword
         ]
     }
 

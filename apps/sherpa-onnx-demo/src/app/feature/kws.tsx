@@ -92,10 +92,15 @@ export default function KwsScreen() {
   const [detectedKeywords, setDetectedKeywords] = useState<string[]>([]);
   const [micError, setMicError] = useState<string | null>(null);
   const [chunksProcessed, setChunksProcessed] = useState(0);
+  const [statusLog, setStatusLog] = useState<string[]>([]);
   const recorder = useAudioRecorder();
   const processingRef = useRef(false);
   const queueRef = useRef<{ samples: number[]; sampleRate: number }[]>([]);
   const recordingRef = useRef(false);
+
+  const addLog = useCallback((msg: string) => {
+    setStatusLog((prev) => [...prev.slice(-29), msg]);
+  }, []);
 
   // Hooks
   const { downloadedModels } = useKwsModels();
@@ -255,22 +260,36 @@ export default function KwsScreen() {
     processingRef.current = true;
     try {
       const result = await KWS.acceptWaveform(next.sampleRate, next.samples);
-      setChunksProcessed((c) => c + 1);
+      setChunksProcessed((c) => {
+        const newCount = c + 1;
+        if (newCount % 10 === 0) {
+          addLog(`Processed ${newCount} chunks (${next.samples.length} samples/chunk, queue: ${queueRef.current.length})`);
+        }
+        return newCount;
+      });
       if (result.detected && result.keyword) {
-        setDetectedKeywords((prev) => [...prev, result.keyword]);
-        setStatusMessage(`Detected: "${result.keyword}"`);
+        const kw = result.keyword;
+        setDetectedKeywords((prev) => [...prev, kw]);
+        addLog(`DETECTED: "${kw}"`);
+        setStatusMessage(`Detected: "${kw}"`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      addLog(`ERROR: ${msg}`);
       console.warn('[KWS] acceptWaveform error:', msg);
       setMicError(msg);
+      // Stop recording on native crash to prevent repeated failures
+      recordingRef.current = false;
+      queueRef.current = [];
+      try { await recorder.stopRecording(); } catch { /* ignore */ }
+      return; // Don't process more chunks
     } finally {
       processingRef.current = false;
       if (queueRef.current.length > 0 && recordingRef.current) {
         processKwsQueue();
       }
     }
-  }, []);
+  }, [addLog, recorder]);
 
   const handleStartMic = useCallback(async () => {
     if (!initialized) {
@@ -291,6 +310,7 @@ export default function KwsScreen() {
 
       recordingRef.current = true;
       setStatusMessage('Listening for keywords...');
+      addLog('Starting mic recording at 16kHz...');
 
       await recorder.startRecording({
         sampleRate: 16000,
@@ -316,26 +336,29 @@ export default function KwsScreen() {
           }
         },
       });
+      addLog('Mic recording started');
     } catch (e) {
-      setError(`Mic error: ${e instanceof Error ? e.message : String(e)}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      addLog(`Mic error: ${msg}`);
+      setError(`Mic error: ${msg}`);
       recordingRef.current = false;
     }
-  }, [initialized, recorder, processKwsQueue]);
+  }, [initialized, recorder, processKwsQueue, addLog]);
 
   const handleStopMic = useCallback(async () => {
     recordingRef.current = false;
     queueRef.current = [];
     try {
       await recorder.stopRecording();
-      setStatusMessage(
-        detectedKeywords.length > 0
-          ? `Stopped. Detected ${detectedKeywords.length} keyword(s).`
-          : `Stopped. No keywords detected (${chunksProcessed} chunks processed).`
-      );
+      const msg = detectedKeywords.length > 0
+        ? `Stopped. Detected ${detectedKeywords.length} keyword(s).`
+        : `Stopped. No keywords detected (${chunksProcessed} chunks processed).`;
+      setStatusMessage(msg);
+      addLog(msg);
     } catch (e) {
       console.warn('[KWS] Stop error:', e);
     }
-  }, [recorder, detectedKeywords.length, chunksProcessed]);
+  }, [recorder, detectedKeywords.length, chunksProcessed, addLog]);
 
   const handleInit = async () => {
     if (!selectedModelId || !kwsConfig || !localPath || !isDownloaded) {
@@ -611,6 +634,7 @@ export default function KwsScreen() {
             <Text style={styles.sectionTitle}>3. Live Microphone</Text>
             <Text style={styles.audioHint}>
               Speak keywords into the microphone. The engine processes audio in real-time.
+              {'\n'}Note: The upstream model has a known decode bug — this may crash after ~0.5s of audio.
             </Text>
             {!recorder.isRecording ? (
               <TouchableOpacity
@@ -666,9 +690,11 @@ export default function KwsScreen() {
             <Text style={styles.warningTitle}>Known model limitation</Text>
             <Text style={styles.warningText}>
               The upstream KWS model (sherpa-onnx v1.12.28) has a confirmed Reshape bug
-              in the encoder's downsample node. File-based detection (large batch decode)
-              crashes reliably. Live mic streaming feeds smaller chunks and may or may
-              not trigger the same issue — try it above.
+              in the encoder's downsample node (T=45 → 17 post-downsample frames, expects 16).
+              This causes a native SIGABRT after ~0.5s of audio when decode() is first called.
+              Both file-based and live mic detection are affected.{'\n\n'}
+              The mic button above will attempt detection but the app will likely crash.
+              This will be resolved when the upstream model is fixed.
             </Text>
           </View>
         )}
@@ -689,6 +715,17 @@ export default function KwsScreen() {
               >
                 <Text style={[styles.audioName, { color: '#999' }]}>{audio.name}</Text>
               </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {/* Status Log */}
+        {statusLog.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Log</Text>
+            {statusLog.map((log, i) => (
+              <Text key={i} style={styles.logLine}>
+                {log}
+              </Text>
             ))}
           </View>
         )}
@@ -825,4 +862,5 @@ const styles = StyleSheet.create({
   warningSection: { backgroundColor: '#FFF3E0', borderColor: '#FF9800', borderWidth: 1 },
   warningTitle: { fontSize: 16, fontWeight: 'bold', color: '#E65100', marginBottom: 8 },
   warningText: { fontSize: 13, color: '#BF360C', lineHeight: 18 },
+  logLine: { fontSize: 12, color: '#666', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 },
 });
