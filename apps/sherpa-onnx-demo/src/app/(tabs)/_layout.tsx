@@ -11,6 +11,7 @@ const TAB_TITLES: Record<string, string> = {
   index: 'Home',
   features: 'Features',
   models: 'Models',
+  about: 'About',
 };
 
 export default function TabLayout() {
@@ -55,6 +56,13 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
           }}
         />
+        <Tabs.Screen
+          name="about"
+          options={{
+            title: 'About',
+            tabBarIcon: ({ color }) => <Ionicons name="information-circle" size={28} color={color} />,
+          }}
+        />
       </Tabs>
     );
   }
@@ -86,6 +94,13 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Icon
             sf={{ default: 'arrow.down.circle', selected: 'arrow.down.circle.fill' }}
             md="download"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="about">
+          <NativeTabs.Trigger.Label>About</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'info.circle', selected: 'info.circle.fill' }}
+            md="info"
           />
         </NativeTabs.Trigger>
       </NativeTabs>

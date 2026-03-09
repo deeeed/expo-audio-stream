@@ -18,19 +18,15 @@ interface FeatureCardProps {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   route: string;
   color: string;
-  hasLiveMode?: boolean;
-  liveRoute?: string;
 }
 
 const FEATURES: FeatureCardProps[] = [
   {
     title: 'Speech Recognition',
-    description: 'Convert speech to text using streaming or offline models',
+    description: 'Convert speech to text using file or live microphone input',
     icon: 'mic',
     route: '/(tabs)/features/asr',
     color: '#4CAF50',
-    hasLiveMode: true,
-    liveRoute: '/(tabs)/features/live-asr',
   },
   {
     title: 'Text-to-Speech',
@@ -83,7 +79,7 @@ const FEATURES: FeatureCardProps[] = [
   },
 ];
 
-function FeatureCard({ title, description, icon, route, color, hasLiveMode, liveRoute }: FeatureCardProps) {
+function FeatureCard({ title, description, icon, route, color }: FeatureCardProps) {
   const router = useRouter();
   const theme = useTheme();
   const s = getStyles(theme);
@@ -104,17 +100,6 @@ function FeatureCard({ title, description, icon, route, color, hasLiveMode, live
       <View style={s.cardActions}>
         <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
       </View>
-      {hasLiveMode && liveRoute && (
-        <TouchableOpacity
-          style={[s.liveBadge, { backgroundColor: color }]}
-          onPress={(e) => {
-            e.stopPropagation();
-            router.push(liveRoute as never);
-          }}
-        >
-          <Text variant="labelSmall" style={{ color: '#fff', fontWeight: 'bold', fontSize: 10 }}>LIVE</Text>
-        </TouchableOpacity>
-      )}
     </TouchableOpacity>
   );
 }
@@ -168,14 +153,6 @@ function getStyles(theme: AppTheme) {
     },
     cardActions: {
       paddingLeft: 8,
-    },
-    liveBadge: {
-      position: 'absolute',
-      top: 8,
-      right: 8,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: theme.roundness,
     },
   });
 }

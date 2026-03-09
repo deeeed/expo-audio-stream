@@ -21,7 +21,6 @@ export default function FeaturesLayout() {
       <Stack.Screen name="vad" options={{ title: 'Voice Activity Detection', headerBackTitle: 'Back' }} />
       <Stack.Screen name="language-id" options={{ title: 'Language Identification', headerBackTitle: 'Back' }} />
       <Stack.Screen name="punctuation" options={{ title: 'Punctuation', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="live-asr" options={{ title: 'Live ASR', headerBackTitle: 'Back' }} />
     </Stack>
   );
 }
