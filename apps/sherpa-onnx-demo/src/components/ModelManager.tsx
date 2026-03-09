@@ -48,7 +48,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [downloadSpeed, setDownloadSpeed] = useState(0); // bytes/sec
-  const speedTrackerRef = useRef<{ bytes: number; time: number }>({ bytes: 0, time: 0 });
+  // Rolling window of (bytes, timestamp) samples for smoothed speed
+  const speedSamplesRef = useRef<{ bytes: number; time: number }[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<{
     id: string;
@@ -83,25 +84,27 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     }
   }, [state?.progress, isDownloading, isExtracting, progressAnim]);
 
-  // Track download speed
+  // Track download speed using a 5-sample rolling window (~1.25s at 250ms tick)
   useEffect(() => {
     if (!isDownloading || state?.bytesWritten === undefined) {
       if (!isDownloading) {
         setDownloadSpeed(0);
-        speedTrackerRef.current = { bytes: 0, time: 0 };
+        speedSamplesRef.current = [];
       }
       return;
     }
-    const now = Date.now();
-    const { bytes: prevBytes, time: prevTime } = speedTrackerRef.current;
-    if (prevTime > 0) {
-      const dt = (now - prevTime) / 1000;
-      const db = state.bytesWritten - prevBytes;
+    const sample = { bytes: state.bytesWritten, time: Date.now() };
+    speedSamplesRef.current = [...speedSamplesRef.current, sample].slice(-6);
+    const samples = speedSamplesRef.current;
+    if (samples.length >= 2) {
+      const oldest = samples[0];
+      const newest = samples[samples.length - 1];
+      const dt = (newest.time - oldest.time) / 1000;
+      const db = newest.bytes - oldest.bytes;
       if (dt > 0 && db >= 0) {
         setDownloadSpeed(db / dt);
       }
     }
-    speedTrackerRef.current = { bytes: state.bytesWritten, time: now };
   }, [state?.bytesWritten, isDownloading]);
 
   const handleDownload = async () => {
@@ -318,53 +321,69 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
         <Text style={cardStyles.detailText}>Language: {model.language}</Text>
       </View>
 
-      {/* Download Progress - use animated version */}
-      {state?.status === 'downloading' && (
-        <View style={cardStyles.progressContainer}>
-          <View style={cardStyles.progressRow}>
-            <ActivityIndicator size="small" color="#2196F3" />
-            <Text style={cardStyles.progressText} numberOfLines={1}>
-              {state.bytesWritten !== undefined && state.totalBytes
-                ? `${formatBytes(state.bytesWritten)} / ${formatBytes(state.totalBytes)}`
-                : `${Math.round((state.progress || 0) * 100)}%`}
-              {downloadSpeed > 0 ? `  •  ${formatBytes(downloadSpeed)}/s` : ''}
-              {downloadSpeed > 0 && state.totalBytes && state.bytesWritten !== undefined
-                ? `  •  ~${Math.round((state.totalBytes - state.bytesWritten) / downloadSpeed)}s`
-                : ''}
-            </Text>
-            {onCancelDownload && (
-              <TouchableOpacity
-                style={cardStyles.cancelButton}
-                onPress={async () => {
-                  try {
-                    setIsLoading(true);
-                    await onCancelDownload(model.id);
-                  } catch (error) {
-                    Alert.alert('Cancel Error', (error as Error).message);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <Ionicons name="close-circle" size={18} color="#ff4444" />
-                <Text style={cardStyles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            )}
+      {/* Download Progress */}
+      {state?.status === 'downloading' && (() => {
+        const pct = Math.round((state.progress || 0) * 100);
+        const remaining = downloadSpeed > 0 && state.totalBytes && state.bytesWritten !== undefined
+          ? state.totalBytes - state.bytesWritten
+          : null;
+        const etaSec = remaining !== null && downloadSpeed > 0 ? Math.round(remaining / downloadSpeed) : null;
+        const etaLabel = etaSec === null ? null
+          : etaSec >= 60 ? `~${Math.floor(etaSec / 60)}m ${etaSec % 60}s`
+          : `~${etaSec}s`;
+        return (
+          <View style={cardStyles.progressContainer}>
+            {/* Top row: bytes + speed */}
+            <View style={cardStyles.progressInfoRow}>
+              <Text style={cardStyles.progressBytes}>
+                {state.bytesWritten !== undefined && state.totalBytes
+                  ? `${formatBytes(state.bytesWritten)} / ${formatBytes(state.totalBytes)}`
+                  : `${pct}%`}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {downloadSpeed > 0 && (
+                  <Text style={cardStyles.progressSpeed}>{formatBytes(downloadSpeed)}/s</Text>
+                )}
+                {onCancelDownload && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      try {
+                        setIsLoading(true);
+                        await onCancelDownload(model.id);
+                      } catch (error) {
+                        Alert.alert('Cancel Error', (error as Error).message);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    disabled={isLoading}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ff4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {/* Progress bar */}
+            <View style={cardStyles.progressBarContainer}>
+              <Animated.View
+                style={[
+                  cardStyles.progressBarInner,
+                  { width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }) }
+                ]}
+              />
+            </View>
+            {/* Bottom row: percent + ETA */}
+            <View style={cardStyles.progressInfoRow}>
+              <Text style={cardStyles.progressPct}>{pct}%</Text>
+              {etaLabel && <Text style={cardStyles.progressEta}>{etaLabel} left</Text>}
+            </View>
           </View>
-          <View style={cardStyles.progressBarContainer}>
-            <Animated.View
-              style={[
-                cardStyles.progressBarInner,
-                { width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }) }
-              ]}
-            />
-          </View>
-        </View>
-      )}
+        );
+      })()}
 
       {/* Extraction Progress - also use animated version for indeterminate progress */}
       {state?.status === 'extracting' && (
@@ -845,26 +864,37 @@ const cardStyles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  progressRow: {
+  progressInfoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
-  progressText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#2196F3',
+  progressBytes: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1565C0',
   },
-  progressPercent: {
-    marginLeft: 8,
-    fontSize: 14,
+  progressSpeed: {
+    fontSize: 13,
     color: '#2196F3',
-    fontWeight: 'bold',
+    fontWeight: '500',
+  },
+  progressPct: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  progressEta: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
   },
   progressBarContainer: {
-    height: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
+    height: 8,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarOuter: {
@@ -875,11 +905,13 @@ const cardStyles = StyleSheet.create({
   },
   progressBarInner: {
     height: '100%',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#1976D2',
+    borderRadius: 4,
   },
   progressBarIndeterminate: {
-    width: '30%',
-    backgroundColor: '#2196F3',
+    width: '40%',
+    backgroundColor: '#1976D2',
+    borderRadius: 4,
   },
   errorContainer: {
     marginTop: 8,
