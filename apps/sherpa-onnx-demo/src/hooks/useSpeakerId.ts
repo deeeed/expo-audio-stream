@@ -46,6 +46,7 @@ export function useSpeakerId() {
   const [audioMetadata, setAudioMetadata] = useState<{ size?: number; duration?: number; isLoading: boolean }>({ isLoading: false });
 
   const lastAutoInitRef = useRef<string | null>(null);
+  const isPlayingRef = useRef(false);
 
   const { downloadedModels } = useSpeakerIdModels();
   const { speakerIdConfig, localPath, isDownloaded } = useSpeakerIdModelWithConfig({ modelId: selectedModelId });
@@ -173,6 +174,8 @@ export function useSpeakerId() {
   };
 
   const handlePlayAudio = async (audioItem: SpeakerIdAudioFile) => {
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
     try {
       if (player) { player.pause(); player.remove(); }
       const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
@@ -180,15 +183,20 @@ export function useSpeakerId() {
       setIsPlaying(true);
       setSelectedAudio(audioItem);
       newPlayer.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) setIsPlaying(false);
+        if (status.didJustFinish) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+        }
       });
       newPlayer.play();
     } catch (err) {
+      isPlayingRef.current = false;
       setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
   const handleStopAudio = () => {
+    isPlayingRef.current = false;
     if (player) {
       try { player.pause(); setIsPlaying(false); } catch (_) { /* ignore */ }
     }

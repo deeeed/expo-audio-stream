@@ -38,6 +38,7 @@ export function useTts() {
   const [autoPlay, setAutoPlay] = useState(true);
 
   const lastAutoInitRef = useRef<string | null>(null);
+  const isPlayingRef = useRef(false);
 
   const { downloadedModels } = useTtsModels();
   const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({ modelId: selectedModelId });
@@ -198,8 +199,10 @@ export function useTts() {
                 const newPlayer = createAudioPlayer({ uri: formattedPath });
                 setPlayer(newPlayer);
                 newPlayer.addListener('playbackStatusUpdate', (status) => {
-                  setIsPlaying(status.playing);
-                  if (status.didJustFinish) setIsPlaying(false);
+                  if (status.didJustFinish) {
+                    isPlayingRef.current = false;
+                    setIsPlaying(false);
+                  }
                 });
                 setStatusMessage('Audio ready. Use the play button to listen.');
               } catch (audioError) {
@@ -257,11 +260,13 @@ export function useTts() {
   };
 
   const handlePlayAudio = async () => {
+    if (isPlayingRef.current) return;
     if (!ttsResult?.filePath) {
       setErrorMessage('No audio file available to play');
       return;
     }
 
+    isPlayingRef.current = true;
     try {
       const formattedPath = ttsResult.filePath.startsWith('file://')
         ? ttsResult.filePath
@@ -277,19 +282,23 @@ export function useTts() {
 
       const newPlayer = createAudioPlayer({ uri: formattedPath });
       newPlayer.addListener('playbackStatusUpdate', (status) => {
-        setIsPlaying(status.playing);
-        if (status.didJustFinish) setIsPlaying(false);
+        if (status.didJustFinish) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+        }
       });
 
       setPlayer(newPlayer);
       newPlayer.play();
       setIsPlaying(true);
     } catch (error) {
+      isPlayingRef.current = false;
       setErrorMessage(`Error playing audio: ${(error as Error).message}`);
     }
   };
 
   const handleStopPlayer = () => {
+    isPlayingRef.current = false;
     if (player) {
       player.pause();
       setIsPlaying(false);

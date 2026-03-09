@@ -48,6 +48,7 @@ export function useAudioTagging() {
 
   const lastAutoInitRef = useRef<string | null>(null);
   const reinitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPlayingRef = useRef(false);
   const initedConfigRef = useRef<{
     modelId: string | null;
     topK: number;
@@ -203,23 +204,29 @@ export function useAudioTagging() {
   };
 
   const handlePlayAudio = async (audioItem: AudioTaggingAudioFile) => {
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
     try {
       if (player) { player.pause(); player.remove(); setPlayer(null); }
       if (!audioItem.localUri) throw new Error('Audio file not yet loaded');
       const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
       setPlayer(newPlayer);
       newPlayer.addListener('playbackStatusUpdate', (status) => {
-        setIsPlaying(status.playing);
-        if (status.didJustFinish) setIsPlaying(false);
+        if (status.didJustFinish) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+        }
       });
       newPlayer.play();
       setIsPlaying(true);
     } catch (err) {
+      isPlayingRef.current = false;
       setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
   const handleStopAudio = () => {
+    isPlayingRef.current = false;
     if (player) {
       try { player.pause(); setIsPlaying(false); } catch (_) { /* ignore */ }
     }

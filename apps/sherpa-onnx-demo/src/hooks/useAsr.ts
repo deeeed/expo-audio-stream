@@ -74,6 +74,7 @@ export function useAsr() {
   const liveAsr = useLiveAsr();
   const recorder = useAudioRecorder();
   const streamCreatedRef = useRef(false);
+  const isPlayingRef = useRef(false);
 
   const autoInitFiredRef = useRef<string | null>(null);
   const autoTestFiredRef = useRef<string | null>(null);
@@ -183,7 +184,8 @@ export function useAsr() {
   // --- File mode handlers ---
 
   const handlePlayAudio = async (audioItem: LoadedAudioFile) => {
-    if (isPlaying) { await handleStopAudio(); return; }
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
     try {
       const player = createAudioPlayer({ uri: audioItem.localUri });
       player.play();
@@ -191,14 +193,20 @@ export function useAsr() {
       setIsPlaying(true);
       setSelectedAudio(audioItem);
       player.addListener('playbackStatusUpdate', (status) => {
-        if ('playing' in status && !status.playing) { setIsPlaying(false); setSound(null); }
+        if ('playing' in status && !status.playing) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          setSound(null);
+        }
       });
     } catch (e) {
+      isPlayingRef.current = false;
       setError(`Failed to play audio: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
   const handleStopAudio = async () => {
+    isPlayingRef.current = false;
     if (sound) {
       sound.pause();
       sound.remove();
