@@ -3,8 +3,7 @@ import { Asset } from 'expo-asset';
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -88,7 +87,6 @@ export default function SpeakerIdScreen() {
     isLoading: false
   });
 
-  const router = useRouter();
   const theme = useTheme();
 
   // Hooks for model data
@@ -97,6 +95,23 @@ export default function SpeakerIdScreen() {
 
   // Track if component is mounted
   const isMounted = React.useRef(true);
+
+  // Auto-select first downloaded model if none selected
+  useEffect(() => {
+    if (downloadedModels.length > 0 && !selectedModelId) {
+      setSelectedModelId(downloadedModels[0].metadata.id);
+    }
+  }, [downloadedModels, selectedModelId]);
+
+  // Auto-init when model is selected and downloaded
+  const lastAutoInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedModelId || !isDownloaded || initialized || loading) return;
+    if (lastAutoInitRef.current === selectedModelId) return;
+    lastAutoInitRef.current = selectedModelId;
+    handleInitSpeakerId();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId, isDownloaded, initialized, loading]);
 
   // Load audio assets when component mounts
   useEffect(() => {
@@ -156,39 +171,13 @@ export default function SpeakerIdScreen() {
   }, [initialized, player]);
 
   // Handle model selection
-  const handleModelSelect = (modelId: string) => {
-    // If a model is already initialized, show confirmation before switching
+  const handleModelSelect = async (modelId: string) => {
+    if (modelId === selectedModelId) return;
     if (initialized) {
-      Alert.alert(
-        "Switch Model?",
-        "Switching models will release the currently initialized model and clear any registered speakers.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Switch",
-            style: "destructive",
-            onPress: async () => {
-              // Release current model first
-              try {
-                await handleReleaseSpeakerId();
-                // After release, set the new model ID
-                setSelectedModelId(modelId);
-                setStatusMessage('Model switched to ' + modelId);
-              } catch (error) {
-                setError(`Error releasing speaker ID: ${(error as Error).message}`);
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      // No model initialized, just switch directly
-      setSelectedModelId(modelId);
-      setStatusMessage('Selected model: ' + modelId);
+      await handleReleaseSpeakerId();
     }
+    lastAutoInitRef.current = null;
+    setSelectedModelId(modelId);
   };
 
   // Initialize speaker ID with selected model
@@ -547,18 +536,13 @@ export default function SpeakerIdScreen() {
 
       {/* Model Selection */}
       <Section title="1. Select Speaker ID Model">
-        {initialized && (
-          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800', textAlign: 'center', fontStyle: 'italic', marginBottom: theme.margin.s }}>
-            Switching models will release the currently initialized model
-          </Text>
-        )}
         {downloadedModels.length === 0 ? (
           <InlineModelDownloader
             modelType="speaker-id"
             emptyLabel="No speaker identification models downloaded."
             onModelDownloaded={(modelId) => {
+              lastAutoInitRef.current = null;
               setSelectedModelId(modelId);
-              setStatusMessage('Model downloaded. Ready to initialize.');
             }}
           />
         ) : (
@@ -635,22 +619,32 @@ export default function SpeakerIdScreen() {
         </Section>
       )}
 
-      {/* Control Buttons */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m, gap: theme.gap?.s ?? 8 }}>
-        <ThemedButton
-          testID="spkr-init-btn"
-          label="Initialize Speaker ID"
-          onPress={handleInitSpeakerId}
-          disabled={loading || !selectedModelId || initialized}
-          style={{ flex: 1 }}
-        />
-        <ThemedButton
-          label="Release Speaker ID"
-          variant="secondary"
-          onPress={handleReleaseSpeakerId}
-          disabled={loading || !initialized}
-          style={{ flex: 1 }}
-        />
+      {/* Model Status */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.margin.m }}>
+        {loading ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.primary }}>Initializing...</Text>
+        ) : initialized ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success ?? '#4CAF50' }} />
+            <Text variant="bodySmall" style={{ color: theme.colors.success ?? '#4CAF50' }}>Ready</Text>
+          </View>
+        ) : (
+          <ThemedButton
+            testID="spkr-init-btn"
+            label="Initialize"
+            variant="primary"
+            onPress={handleInitSpeakerId}
+            disabled={!selectedModelId}
+          />
+        )}
+        {initialized && (
+          <ThemedButton
+            label="Release"
+            variant="secondary"
+            onPress={handleReleaseSpeakerId}
+            compact
+          />
+        )}
       </View>
 
       {/* Audio Selection (only show if initialized) */}

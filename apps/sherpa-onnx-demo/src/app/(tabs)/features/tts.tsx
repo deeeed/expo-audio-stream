@@ -4,9 +4,8 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Platform,
   Switch,
   TextInput,
@@ -63,7 +62,6 @@ export default function TtsScreen() {
   const [provider, setProvider] = useState<ModelProvider>('cpu');
   const [autoPlay, setAutoPlay] = useState(true);
   // State to track pending model selection (for confirmation flow)
-  const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
 
   const router = useRouter();
   const theme = useTheme();
@@ -135,51 +133,30 @@ export default function TtsScreen() {
     }
   }, [downloadedModels, selectedModelId]);
 
-  const handleModelSelect = (modelId: string) => {
-    // If a model is already initialized, show confirmation before switching
-    if (ttsInitialized) {
-      setPendingModelId(modelId);
-      Alert.alert(
-        "Switch Model?",
-        "Switching models will release the currently initialized model. Any generated speech will be lost.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => setPendingModelId(null)
-          },
-          {
-            text: "Switch",
-            style: "destructive",
-            onPress: async () => {
-              // Release current model first
-              try {
-                const result = await TTS.release();
-                if (result.released) {
-                  setTtsInitialized(false);
-                  setInitResult(null);
-                  setTtsResult(null);
-                  setStatusMessage('TTS resources released, switching model');
+  // Auto-init when model is selected and downloaded
+  const lastAutoInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedModelId || !isDownloaded || ttsInitialized || isLoading) return;
+    if (lastAutoInitRef.current === selectedModelId) return;
+    lastAutoInitRef.current = selectedModelId;
+    handleInitTts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId, isDownloaded, ttsInitialized, isLoading]);
 
-                  // After release, set the new model ID
-                  setSelectedModelId(modelId);
-                  setPendingModelId(null);
-                } else {
-                  setErrorMessage('Failed to release TTS resources when switching models');
-                  setPendingModelId(null);
-                }
-              } catch (error) {
-                setErrorMessage(`Error releasing TTS: ${(error as Error).message}`);
-                setPendingModelId(null);
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      // No model initialized, just switch directly
-      setSelectedModelId(modelId);
+  const handleModelSelect = async (modelId: string) => {
+    if (modelId === selectedModelId) return;
+    if (ttsInitialized) {
+      try {
+        await TTS.release();
+        setTtsInitialized(false);
+        setInitResult(null);
+        setTtsResult(null);
+      } catch (error) {
+        setErrorMessage(`Error releasing TTS: ${(error as Error).message}`);
+      }
     }
+    lastAutoInitRef.current = null;
+    setSelectedModelId(modelId);
   };
 
   const handleInitTts = async () => {
@@ -442,16 +419,14 @@ export default function TtsScreen() {
 
       {/* Model Selection */}
       <Section title="1. Select TTS Model">
-        {ttsInitialized && (
-          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800', textAlign: 'center', fontStyle: 'italic', marginBottom: theme.margin.s }}>
-            Switching models will release the currently initialized model
-          </Text>
-        )}
         {downloadedModels.length === 0 ? (
           <InlineModelDownloader
             modelType="tts"
             emptyLabel="No TTS models downloaded."
-            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+            onModelDownloaded={(modelId) => {
+              lastAutoInitRef.current = null;
+              setSelectedModelId(modelId);
+            }}
           />
         ) : (
           <>
@@ -511,21 +486,30 @@ export default function TtsScreen() {
         </ConfigRow>
       </Section>
 
-      {/* TTS Controls */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m, gap: theme.gap?.s ?? 8 }}>
-        <ThemedButton
-          label="Initialize TTS"
-          onPress={handleInitTts}
-          disabled={isLoading || !selectedModelId}
-          style={{ flex: 1 }}
-        />
-        <ThemedButton
-          label="Release TTS"
-          variant="secondary"
-          onPress={handleReleaseTts}
-          disabled={isLoading || !ttsInitialized}
-          style={{ flex: 1 }}
-        />
+      {/* Model Status */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.margin.m }}>
+        {isLoading ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.primary }}>Initializing...</Text>
+        ) : ttsInitialized ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success ?? '#4CAF50' }} />
+            <Text variant="bodySmall" style={{ color: theme.colors.success ?? '#4CAF50' }}>Ready</Text>
+          </View>
+        ) : (
+          <ThemedButton
+            label="Initialize TTS"
+            onPress={handleInitTts}
+            disabled={!selectedModelId}
+          />
+        )}
+        {ttsInitialized && (
+          <ThemedButton
+            label="Release"
+            variant="secondary"
+            onPress={handleReleaseTts}
+            compact
+          />
+        )}
       </View>
 
       {/* Text input (only show if initialized) */}

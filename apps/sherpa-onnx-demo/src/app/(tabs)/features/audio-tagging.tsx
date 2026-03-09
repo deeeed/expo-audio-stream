@@ -7,7 +7,6 @@ import { Asset } from 'expo-asset';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -106,7 +105,6 @@ function AudioTaggingScreen() {
   const [debugMode, setDebugMode] = useState<boolean>(true); // Default to true
   const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
 
-  const router = useRouter();
   const theme = useTheme();
 
   // Use our new hooks
@@ -134,7 +132,25 @@ function AudioTaggingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedModelId]);
 
-  // Detect config drift from what was last initialized
+  // Auto-select first downloaded model if none selected
+  useEffect(() => {
+    if (downloadedModels.length > 0 && !selectedModelId) {
+      setSelectedModelId(downloadedModels[0].metadata.id);
+    }
+  }, [downloadedModels, selectedModelId]);
+
+  // Auto-init when model is selected and downloaded
+  const lastAutoInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedModelId || !isDownloaded || initialized || loading) return;
+    if (lastAutoInitRef.current === selectedModelId) return;
+    lastAutoInitRef.current = selectedModelId;
+    handleInitAudioTagging();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId, isDownloaded, initialized, loading]);
+
+  // Detect config drift and auto-reinit after a short debounce
+  const reinitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!initialized || !initedConfigRef.current) return;
     const c = initedConfigRef.current;
@@ -145,6 +161,18 @@ function AudioTaggingScreen() {
       c.debugMode !== debugMode ||
       c.provider !== provider;
     setNeedsReinit(changed);
+    if (changed) {
+      if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current);
+      reinitTimerRef.current = setTimeout(() => {
+        handleInitAudioTagging();
+      }, 1500);
+    } else {
+      if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current);
+    }
+    return () => {
+      if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, selectedModelId, topK, numThreads, debugMode, provider]);
 
   // Load audio assets when component mounts
@@ -202,6 +230,7 @@ function AudioTaggingScreen() {
       setAudioTaggingResults(null);
     }
     setNeedsReinit(false);
+    lastAutoInitRef.current = null;
     setSelectedModelId(modelId);
   }, [initialized, selectedModelId]);
 
@@ -675,22 +704,6 @@ function AudioTaggingScreen() {
       {/* Error and status messages */}
       <StatusBlock status={statusMessage} error={error} />
 
-      {/* Reinit banner */}
-      {needsReinit && (
-        <TouchableOpacity
-          style={{
-            backgroundColor: '#FFF3E0', borderColor: '#FF9800', borderWidth: 1,
-            borderRadius: theme.roundness * 2, padding: theme.padding.s,
-            marginBottom: theme.margin.s, alignItems: 'center',
-          }}
-          onPress={handleInitAudioTagging}
-          disabled={loading || processing}
-        >
-          <Text variant="labelMedium" style={{ color: '#E65100', fontWeight: '600' }}>
-            Configuration changed — tap to reinitialize
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {/* Model Selection */}
       <Section title="1. Select Model">
@@ -698,7 +711,7 @@ function AudioTaggingScreen() {
           <InlineModelDownloader
             modelType="audio-tagging"
             emptyLabel="No audio tagging models downloaded."
-            onModelDownloaded={(modelId) => handleModelSelect(modelId)}
+            onModelDownloaded={handleModelSelect}
           />
         ) : (
           <ModelSelector
@@ -716,22 +729,38 @@ function AudioTaggingScreen() {
       {/* Configuration */}
       {configSection}
 
-      {/* Actions */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m, gap: theme.gap?.s ?? 8 }}>
-        <ThemedButton
-          label={needsReinit ? 'Reinitialize' : 'Initialize'}
-          variant={needsReinit ? 'warning' : 'primary'}
-          onPress={handleInitAudioTagging}
-          disabled={loading || processing || (!needsReinit && (initialized || !selectedModelId))}
-          style={{ flex: 1 }}
-        />
-        <ThemedButton
-          label="Release"
-          variant="secondary"
-          onPress={handleReleaseAudioTagging}
-          disabled={loading || !initialized || processing}
-          style={{ flex: 1 }}
-        />
+      {/* Model Status */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.margin.m }}>
+        {loading ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.primary }}>
+            {needsReinit ? 'Reinitializing...' : 'Initializing...'}
+          </Text>
+        ) : initialized && !needsReinit ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success ?? '#4CAF50' }} />
+            <Text variant="bodySmall" style={{ color: theme.colors.success ?? '#4CAF50' }}>Ready</Text>
+          </View>
+        ) : needsReinit ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800' }}>
+            Config changed — reinitializing...
+          </Text>
+        ) : (
+          <ThemedButton
+            label="Initialize"
+            variant="primary"
+            onPress={handleInitAudioTagging}
+            disabled={!selectedModelId || processing}
+          />
+        )}
+        {initialized && !loading && (
+          <ThemedButton
+            label="Release"
+            variant="secondary"
+            onPress={handleReleaseAudioTagging}
+            disabled={processing}
+            compact
+          />
+        )}
       </View>
 
       {/* Sample Audio Files */}

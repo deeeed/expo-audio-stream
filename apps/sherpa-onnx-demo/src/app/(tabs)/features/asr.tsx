@@ -114,6 +114,23 @@ export default function AsrScreen() {
     setStatusLog(prev => [...prev.slice(-19), msg]);
   }, []);
 
+  // Auto-select the first downloaded model when none is selected
+  useEffect(() => {
+    if (visibleModels.length > 0 && !selectedModelId) {
+      setSelectedModelId(visibleModels[0].metadata.id);
+    }
+  }, [visibleModels, selectedModelId]);
+
+  // Auto-init: fires when model changes to a downloaded one and is not yet initialized
+  const lastAutoInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedModelId || !isDownloaded || initialized || loading) return;
+    if (lastAutoInitRef.current === selectedModelId) return;
+    lastAutoInitRef.current = selectedModelId;
+    handleInitAsr();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId, isDownloaded, initialized, loading]);
+
   // Agentic page state
   useEffect(() => {
     setAgenticPageState({
@@ -149,6 +166,7 @@ export default function AsrScreen() {
     ASR.release().catch(() => {}).finally(() => {
       setInitialized(false);
       setRecognitionResult(null);
+      lastAutoInitRef.current = null;
       setSelectedModelId(params.model!);
       if (params.mode) setMode(params.mode as AsrMode);
     });
@@ -487,17 +505,13 @@ export default function AsrScreen() {
 
       {/* Model Selection */}
       <Section title="Select ASR Model">
-        {initialized && (
-          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800', marginBottom: 8, fontStyle: 'italic' }}>
-            Switching models will release the current one
-          </Text>
-        )}
         {visibleModels.length === 0 ? (
           downloadedModels.length === 0 ? (
             <InlineModelDownloader
               modelType="asr"
               emptyLabel={mode === 'live' ? 'No streaming ASR models downloaded.' : 'No ASR models downloaded.'}
               onModelDownloaded={(modelId) => {
+                lastAutoInitRef.current = null;
                 setSelectedModelId(modelId);
               }}
             />
@@ -534,6 +548,7 @@ export default function AsrScreen() {
                   }}
                   onPress={async () => {
                     if (initialized) await handleReleaseAsr();
+                    lastAutoInitRef.current = null;
                     setSelectedModelId(model.metadata.id);
                   }}
                 >
@@ -639,25 +654,35 @@ export default function AsrScreen() {
         </Section>
       )}
 
-      {/* Init / Release */}
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.margin.m }}>
-        <ThemedButton
-          testID="btn-init-asr"
-          label="Initialize"
-          variant="primary"
-          onPress={handleInitAsr}
-          disabled={loading || !selectedModelId}
-          loading={loading}
-          style={{ flex: 1 }}
-        />
-        <ThemedButton
-          testID="btn-release-asr"
-          label="Release"
-          variant="secondary"
-          onPress={handleReleaseAsr}
-          disabled={!initialized}
-          style={{ flex: 1 }}
-        />
+      {/* Model Status */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.margin.m }}>
+        {loading ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text variant="bodySmall" style={{ color: theme.colors.primary }}>Initializing...</Text>
+          </View>
+        ) : initialized ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success ?? '#4CAF50' }} />
+            <Text variant="bodySmall" style={{ color: theme.colors.success ?? '#4CAF50' }}>Ready</Text>
+          </View>
+        ) : (
+          <ThemedButton
+            testID="btn-init-asr"
+            label="Initialize"
+            variant="primary"
+            onPress={handleInitAsr}
+            disabled={!selectedModelId}
+          />
+        )}
+        {initialized && (
+          <ThemedButton
+            testID="btn-release-asr"
+            label="Release"
+            variant="secondary"
+            onPress={handleReleaseAsr}
+            compact
+          />
+        )}
       </View>
 
       {/* === FILE MODE === */}
