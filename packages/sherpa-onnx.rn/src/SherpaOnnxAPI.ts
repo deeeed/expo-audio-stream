@@ -31,6 +31,9 @@ import type {
   LanguageIdModelConfig,
   LanguageIdInitResult,
   LanguageIdResult,
+  PunctuationModelConfig,
+  PunctuationInitResult,
+  PunctuationResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -91,6 +94,9 @@ const createWebPlaceholder = (): ApiInterface => {
     detectLanguage: notImplementedError,
     detectLanguageFromFile: notImplementedError,
     releaseLanguageId: notImplementedError,
+    initPunctuation: notImplementedError,
+    addPunctuation: notImplementedError,
+    releasePunctuation: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -377,6 +383,19 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseLanguageId(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseLanguageId();
+  },
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult> {
+    return NativeSherpaOnnx.initPunctuation(config as any);
+  },
+
+  addPunctuation(text: string): Promise<PunctuationResult> {
+    return NativeSherpaOnnx.addPunctuation(text);
+  },
+
+  releasePunctuation(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releasePunctuation();
   },
 
   // Archive methods

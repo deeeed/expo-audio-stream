@@ -30,6 +30,9 @@ import type {
   LanguageIdModelConfig,
   LanguageIdInitResult,
   LanguageIdResult,
+  PunctuationModelConfig,
+  PunctuationInitResult,
+  PunctuationResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -193,6 +196,11 @@ export interface ApiInterface {
   ): Promise<LanguageIdResult>;
   detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
   releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(

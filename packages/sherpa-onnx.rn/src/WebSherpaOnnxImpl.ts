@@ -924,6 +924,22 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // PUNCTUATION METHODS
+
+  async initPunctuation(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Punctuation not implemented in web version yet' };
+  }
+
+  async addPunctuation(
+    _text: string
+  ): Promise<{ success: boolean; text: string; durationMs: number; error?: string }> {
+    return { success: false, text: '', durationMs: 0, error: 'Punctuation not implemented in web version yet' };
+  }
+
+  async releasePunctuation(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // ARCHIVE METHODS
 
   async extractTarBz2(

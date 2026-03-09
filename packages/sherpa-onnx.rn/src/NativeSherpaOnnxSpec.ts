@@ -438,6 +438,28 @@ export interface Spec extends TurboModule {
 
   releaseLanguageId(): Promise<{ released: boolean }>;
 
+  // Punctuation methods
+  initPunctuation(config: {
+    modelDir: string;
+    cnnBilstm?: string;
+    bpeVocab?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  addPunctuation(text: string): Promise<{
+    success: boolean;
+    text: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releasePunctuation(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

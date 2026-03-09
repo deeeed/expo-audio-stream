@@ -18,6 +18,7 @@
 @class SherpaOnnxKWSHandler;
 @class SherpaOnnxVADHandler;
 @class SherpaOnnxLanguageIdHandler;
+@class SherpaOnnxPunctuationHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
@@ -27,4 +28,5 @@
 @property (nonatomic, strong) SherpaOnnxKWSHandler *kwsHandler;
 @property (nonatomic, strong) SherpaOnnxVADHandler *vadHandler;
 @property (nonatomic, strong) SherpaOnnxLanguageIdHandler *languageIdHandler;
+@property (nonatomic, strong) SherpaOnnxPunctuationHandler *punctuationHandler;
 @end

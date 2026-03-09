@@ -1,4 +1,4 @@
-import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
+import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, PunctuationModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { ModelType } from '../utils/models';
 
@@ -12,6 +12,7 @@ export interface PredefinedModelConfig {
   kwsConfig?: Partial<KWSModelConfig>;
   vadConfig?: Partial<VadModelConfig>;
   languageIdConfig?: Partial<LanguageIdModelConfig>;
+  punctuationConfig?: Partial<PunctuationModelConfig>;
 }
 
 // Map of model IDs to their predefined configurations
@@ -387,6 +388,18 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       provider: 'cpu',
     }
   },
+  // Punctuation model configurations
+  'online-punct-en': {
+    id: 'online-punct-en',
+    modelType: 'punctuation',
+    punctuationConfig: {
+      cnnBilstm: 'model.onnx',
+      bpeVocab: 'bpe.vocab',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
 };
 
 /**
@@ -453,6 +466,11 @@ export function useVadModelConfig({ modelId }: { modelId: string | null }): Part
 export function useLanguageIdModelConfig({ modelId }: { modelId: string | null }): Partial<LanguageIdModelConfig> | undefined {
   const config = useModelConfig({ modelId });
   return config?.languageIdConfig;
+}
+
+export function usePunctuationModelConfig({ modelId }: { modelId: string | null }): Partial<PunctuationModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.punctuationConfig;
 }
 
 /**

@@ -16,6 +16,7 @@ export default function FeatureLayout() {
       <Stack.Screen name="kws" options={{ title: 'Keyword Spotting' }} />
       <Stack.Screen name="vad" options={{ title: 'Voice Activity Detection' }} />
       <Stack.Screen name="language-id" options={{ title: 'Language Identification' }} />
+      <Stack.Screen name="punctuation" options={{ title: 'Punctuation' }} />
     </Stack>
   );
 }

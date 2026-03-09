@@ -93,6 +93,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create Language ID handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating Punctuation handler...");
+        @try {
+            self.punctuationHandler = [[SherpaOnnxPunctuationHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Punctuation handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Punctuation handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -1050,6 +1058,70 @@ RCT_EXPORT_METHOD(releaseLanguageId:(RCTPromiseResolveBlock)resolve
             resolve(result);
         } @catch (NSException *exception) {
             reject(@"ERR_LANGUAGE_ID_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - Punctuation Methods
+
+static dispatch_queue_t punctSerialQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sherpaonnx.punct", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+RCT_EXPORT_METHOD(initPunctuation:(JS::NativeSherpaOnnxSpec::SpecInitPunctuationConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelDir()) configDict[@"modelDir"] = config.modelDir();
+    if (config.cnnBilstm()) configDict[@"cnnBilstm"] = config.cnnBilstm();
+    if (config.bpeVocab()) configDict[@"bpeVocab"] = config.bpeVocab();
+    if (config.numThreads()) configDict[@"numThreads"] = @((int)*config.numThreads());
+    if (config.debug()) configDict[@"debug"] = @(*config.debug());
+    if (config.provider()) configDict[@"provider"] = config.provider();
+
+    dispatch_async(punctSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.punctuationHandler initPunctuation:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_PUNCTUATION_INIT", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_PUNCTUATION_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(addPunctuation:(NSString *)text
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(punctSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.punctuationHandler addPunctuation:text];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_PUNCTUATION_ADD", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releasePunctuation:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(punctSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.punctuationHandler releasePunctuation];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_PUNCTUATION_RELEASE", exception.reason, nil);
         }
     });
 }

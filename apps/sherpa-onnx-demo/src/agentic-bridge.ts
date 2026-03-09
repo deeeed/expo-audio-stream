@@ -13,7 +13,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import SherpaOnnx, { ASR, AudioTagging, KWS, LanguageId, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
+import SherpaOnnx, { ASR, AudioTagging, KWS, LanguageId, Punctuation, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
 
 // Platform-aware model base directory
 const MODELS_BASE = Platform.OS === 'android'
@@ -1065,6 +1065,67 @@ if (__DEV__) {
           }
         } catch (e) {
           try { await LanguageId.release() } catch {}
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    testPunctuationFull: (inputText?: string) => {
+      const op = 'punctuationFull'
+      const MODEL_ID = 'online-punct-en'
+      const modelDir = `${MODELS_BASE}/${MODEL_ID}`
+      const text = inputText ?? 'how are you doing today i am fine thank you'
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          // Step 1: init
+          const t0 = Date.now()
+          const initResult = await Punctuation.init({
+            modelDir,
+            cnnBilstm: 'model.onnx',
+            bpeVocab: 'bpe.vocab',
+            numThreads: 1,
+            debug: false,
+            provider: 'cpu',
+          })
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initPunctuation failed: ' + initResult.error)
+
+          // Step 2: add punctuation
+          const t1 = Date.now()
+          const punctResult = await Punctuation.addPunctuation(text)
+          timing.addPunctMs = Date.now() - t1
+          if (!punctResult.success) throw new Error('addPunctuation failed: ' + punctResult.error)
+
+          // Step 3: test a second sentence
+          const text2 = 'the quick brown fox jumps over the lazy dog it was a sunny day'
+          const t2 = Date.now()
+          const punctResult2 = await Punctuation.addPunctuation(text2)
+          timing.addPunct2Ms = Date.now() - t2
+
+          // Step 4: release
+          const t3 = Date.now()
+          await Punctuation.release()
+          timing.releaseMs = Date.now() - t3
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: {
+              inputText: text,
+              outputText: punctResult.text,
+              outputDurationMs: punctResult.durationMs,
+              inputText2: text2,
+              outputText2: punctResult2.success ? punctResult2.text : 'N/A',
+              outputDurationMs2: punctResult2.success ? punctResult2.durationMs : 0,
+              timing,
+              modelDir,
+            },
+          }
+        } catch (e) {
+          try { await Punctuation.release() } catch {}
           _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
         }
       })()

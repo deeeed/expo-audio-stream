@@ -24,6 +24,7 @@ import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
 import net.siteed.sherpaonnx.handlers.VadHandler
 import net.siteed.sherpaonnx.handlers.LanguageIdHandler
+import net.siteed.sherpaonnx.handlers.PunctuationHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -35,6 +36,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val kwsHandler = KWSHandler(reactContext)
     private val vadHandler = VadHandler(reactContext)
     private val languageIdHandler = LanguageIdHandler(reactContext)
+    private val punctuationHandler = PunctuationHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -229,6 +231,19 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun releaseLanguageId(promise: Promise) {
         languageIdHandler.release(promise)
+    }
+
+    // Punctuation Methods
+    fun initPunctuation(config: ReadableMap, promise: Promise) {
+        punctuationHandler.init(config, promise)
+    }
+
+    fun addPunctuation(text: String, promise: Promise) {
+        punctuationHandler.addPunctuation(text, promise)
+    }
+
+    fun releasePunctuation(promise: Promise) {
+        punctuationHandler.release(promise)
     }
 
     // Utility Methods

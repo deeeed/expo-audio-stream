@@ -72,6 +72,13 @@ const FEATURES: FeatureCardProps[] = [
     route: '/feature/language-id',
     color: '#00BCD4',
   },
+  {
+    title: 'Punctuation',
+    description: 'Add punctuation to unpunctuated text',
+    icon: 'text',
+    route: '/feature/punctuation',
+    color: '#795548',
+  },
 ];
 
 function FeatureCard({ title, description, icon, route, color, hasLiveMode, liveRoute }: FeatureCardProps) {

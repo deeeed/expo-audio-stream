@@ -6,6 +6,7 @@ import { SpeakerIdService } from '../services/SpeakerIdService';
 import { KWSService } from '../services/KWSService';
 import { VadService } from '../services/VadService';
 import { LanguageIdService } from '../services/LanguageIdService';
+import { PunctuationService } from '../services/PunctuationService';
 
 /**
  * Provider type for model inference
@@ -1214,6 +1215,31 @@ export interface LanguageIdResult {
   error?: string;
 }
 
+// ----------------------------------------------------------------------------------
+// Punctuation Interfaces
+// ----------------------------------------------------------------------------------
+
+export interface PunctuationModelConfig {
+  modelDir: string;
+  cnnBilstm?: string;
+  bpeVocab?: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: 'cpu' | 'gpu';
+}
+
+export interface PunctuationInitResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface PunctuationResult {
+  success: boolean;
+  text: string;
+  durationMs: number;
+  error?: string;
+}
+
 // Native module interface - what we expect from the native side
 export interface NativeSherpaOnnxInterface {
   // Test methods
@@ -1317,6 +1343,11 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<LanguageIdResult>;
   detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
   releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
@@ -1432,6 +1463,11 @@ export interface SherpaOnnxInterface {
   detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
   releaseLanguageId(): Promise<{ released: boolean }>;
 
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1449,6 +1485,7 @@ export interface SherpaOnnxInterface {
   KWS: KWSService;
   VAD: VadService;
   LanguageId: LanguageIdService;
+  Punctuation: PunctuationService;
   Archive: ArchiveService;
 }
 
