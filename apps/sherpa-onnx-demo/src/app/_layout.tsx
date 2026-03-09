@@ -1,3 +1,4 @@
+import 'intl-pluralrules';
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,19 +14,7 @@ export default function RootLayout() {
         <AgenticBridgeSync />
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-              title: 'Sherpa-ONNX Demo'
-            }}
-          />
-          <Stack.Screen
-            name="feature"
-            options={{
-              headerShown: false,
-            }}
-          />
+          <Stack.Screen name="(tabs)" />
         </Stack>
       </ModelManagementProvider>
     </UIProvider>

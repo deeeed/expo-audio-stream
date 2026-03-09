@@ -8914,17 +8914,20 @@ __metadata:
     eslint: "npm:^9.0.0"
     eslint-config-expo: "npm:~55.0.0"
     expo: "npm:~55.0.5"
+    expo-asset: "npm:55.0.7"
     expo-audio: "npm:~55.0.8"
     expo-blur: "npm:~55.0.8"
     expo-build-properties: "npm:~55.0.9"
     expo-clipboard: "npm:~55.0.8"
     expo-constants: "npm:~55.0.7"
     expo-dev-client: "npm:~55.0.11"
+    expo-file-system: "npm:~55.0.9"
     expo-font: "npm:~55.0.4"
     expo-haptics: "npm:~55.0.8"
+    expo-keep-awake: "npm:~55.0.4"
     expo-linking: "npm:~55.0.7"
     expo-localization: "npm:~55.0.8"
-    expo-modules-core: "npm:~55.0.14"
+    expo-modules-core: "npm:55.0.12"
     expo-router: "npm:~55.0.4"
     expo-sharing: "npm:~55.0.11"
     expo-splash-screen: "npm:~55.0.10"
@@ -19258,6 +19261,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-asset@npm:55.0.7, expo-asset@npm:~55.0.7":
+  version: 55.0.7
+  resolution: "expo-asset@npm:55.0.7"
+  dependencies:
+    "@expo/image-utils": "npm:^0.8.12"
+    expo-constants: "npm:~55.0.7"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10/2cf48c4dada64beef0c1b34af7da0504d81c60efd519e04f24564de192b56b866210f27fb8adbde17965a62ecf7a5f28f8fb4b4d4c898eec07b1878d708aff69
+  languageName: node
+  linkType: hard
+
 "expo-asset@npm:~12.0.12":
   version: 12.0.12
   resolution: "expo-asset@npm:12.0.12"
@@ -19269,20 +19286,6 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/7034316d820837c92ac70274be56a8e59181f1513805f8a4c85e16f12e1dd75ac6d6ae0b231bd8a76adbb71be6163c05b31b1d437f15b14745c70cc1f255c8a1
-  languageName: node
-  linkType: hard
-
-"expo-asset@npm:~55.0.7":
-  version: 55.0.7
-  resolution: "expo-asset@npm:55.0.7"
-  dependencies:
-    "@expo/image-utils": "npm:^0.8.12"
-    expo-constants: "npm:~55.0.7"
-  peerDependencies:
-    expo: "*"
-    react: "*"
-    react-native: "*"
-  checksum: 10/2cf48c4dada64beef0c1b34af7da0504d81c60efd519e04f24564de192b56b866210f27fb8adbde17965a62ecf7a5f28f8fb4b4d4c898eec07b1878d708aff69
   languageName: node
   linkType: hard
 
@@ -19766,7 +19769,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-modules-core@npm:55.0.14, expo-modules-core@npm:~55.0.14":
+"expo-modules-core@npm:55.0.14":
   version: 55.0.14
   resolution: "expo-modules-core@npm:55.0.14"
   dependencies:
