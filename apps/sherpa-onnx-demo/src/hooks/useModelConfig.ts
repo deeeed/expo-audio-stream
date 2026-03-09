@@ -304,15 +304,15 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
     }
   },
   // KWS model configurations (IDs must match models.ts catalog)
-  'kws-zipformer-gigaspeech-mobile': {
-    id: 'kws-zipformer-gigaspeech-mobile',
+  'kws-zipformer-gigaspeech': {
+    id: 'kws-zipformer-gigaspeech',
     modelType: 'kws',
     kwsConfig: {
       modelType: 'zipformer2',
       modelFiles: {
-        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.onnx',
         decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
-        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
         tokens: 'tokens.txt',
       },
       keywordsFile: 'keywords.txt',

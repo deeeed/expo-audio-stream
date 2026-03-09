@@ -628,25 +628,57 @@ export default function KwsScreen() {
           </View>
         )}
 
-        {/* Upstream bug notice + disabled mic */}
+        {/* Live Mic Recording */}
         {initialized && (
-          <View style={[styles.section, styles.warningSection]}>
-            <Text style={styles.warningTitle}>Detection unavailable — upstream model bug</Text>
-            <Text style={styles.warningText}>
-              The KWS model (sherpa-onnx v1.12.28) has a confirmed ONNX Reshape bug in the
-              encoder's downsample node: T=45 produces 17 post-downsample frames but the graph
-              expects 16. This causes a native SIGABRT ~0.5s after audio starts, regardless
-              of input method (file or mic).{'\n\n'}
-              Init and keyword loading work. Live mic recording and file-based detection are
-              disabled until the upstream model is fixed. The full mic + detection pipeline
-              is implemented and will work once a corrected model is available.
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>3. Live Microphone</Text>
+            <Text style={styles.audioHint}>
+              Speak keywords into the microphone. The engine processes audio in real-time.
             </Text>
+            {!recorder.isRecording ? (
+              <TouchableOpacity
+                testID="kws-start-mic"
+                style={[styles.button, styles.micButton]}
+                onPress={handleStartMic}
+              >
+                <Text style={styles.buttonText}>Start Listening</Text>
+              </TouchableOpacity>
+            ) : (
+              <View>
+                <TouchableOpacity
+                  testID="kws-stop-mic"
+                  style={[styles.button, styles.micActiveButton]}
+                  onPress={handleStopMic}
+                >
+                  <Text style={styles.buttonText}>Stop Listening</Text>
+                </TouchableOpacity>
+                <Text style={styles.micStatusText}>
+                  Recording: {(recorder.durationMs / 1000).toFixed(1)}s | Chunks: {chunksProcessed}
+                </Text>
+              </View>
+            )}
+            {micError ? (
+              <Text style={styles.micErrorText}>{micError}</Text>
+            ) : null}
+          </View>
+        )}
+
+        {/* Detected Keywords */}
+        {initialized && detectedKeywords.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Detected Keywords</Text>
+            <View style={styles.detectedContainer}>
+              {detectedKeywords.map((kw, i) => (
+                <View key={i} style={styles.detectedChip}>
+                  <Text style={styles.detectedChipText}>{kw}</Text>
+                </View>
+              ))}
+            </View>
             <TouchableOpacity
-              testID="kws-start-mic"
-              style={[styles.button, styles.micButton, styles.buttonDisabled]}
-              disabled
+              style={styles.clearButton}
+              onPress={() => setDetectedKeywords([])}
             >
-              <Text style={styles.buttonText}>Start Listening (disabled)</Text>
+              <Text style={styles.clearButtonText}>Clear</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -549,7 +549,7 @@ if (__DEV__) {
     // Test KWS full pipeline: download model → init → feed audio → detect keyword → release
     testKWSFull: () => {
       const op = 'kwsFull'
-      const MODEL_ID = 'kws-zipformer-gigaspeech-mobile'
+      const MODEL_ID = 'kws-zipformer-gigaspeech'
       const MODEL_DIR = `${MODELS_BASE}/${MODEL_ID}`
       // Use ASR test wav for keyword spotting test
       const ZIPFORMER_DIR =
@@ -560,7 +560,7 @@ if (__DEV__) {
         const timing: Record<string, number> = {}
         try {
           // Step 1: Init KWS (path validated by native layer)
-          const subdirName = 'sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile'
+          const subdirName = 'sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01'
           const modelSubDir = `${MODEL_DIR}/${subdirName}`
 
           const t1 = Date.now()
@@ -568,9 +568,9 @@ if (__DEV__) {
             modelDir: modelSubDir,
             modelType: 'zipformer2',
             modelFiles: {
-              encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+              encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.onnx',
               decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
-              joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+              joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
               tokens: 'tokens.txt',
             },
             keywordsFile: 'keywords.txt',

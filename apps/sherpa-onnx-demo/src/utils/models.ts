@@ -213,13 +213,14 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
   },
 
   // Keyword Spotting Models
+  // NOTE: Use non-mobile variant — the mobile encoder has a Reshape bug on ARM
   {
-    id: 'kws-zipformer-gigaspeech-mobile',
+    id: 'kws-zipformer-gigaspeech',
     name: 'KWS Zipformer (GigaSpeech)',
-    description: 'Optimized for mobile, trained on GigaSpeech data.',
+    description: 'English keyword spotting, trained on GigaSpeech data.',
     type: 'kws',
-    size: 14.9 * 1024 * 1024, // 14.9 MB
-    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2',
+    size: 16.8 * 1024 * 1024, // 16.8 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2',
     version: '2024-01-01',
     language: 'en',
   },
