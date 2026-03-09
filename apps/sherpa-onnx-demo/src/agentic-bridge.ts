@@ -546,23 +546,20 @@ if (__DEV__) {
       return { op, status: 'pending' }
     },
 
-    // Test KWS full pipeline: download model → init → feed audio → detect keyword → release
-    testKWSFull: () => {
+    // Test KWS full pipeline: init → read wav → feed samples → detect keyword → release
+    testKWSFull: (wavPathOverride?: string, keywordsFileOverride?: string) => {
       const op = 'kwsFull'
       const MODEL_ID = 'kws-zipformer-gigaspeech'
       const MODEL_DIR = `${MODELS_BASE}/${MODEL_ID}`
-      // Use ASR test wav for keyword spotting test
-      const ZIPFORMER_DIR =
-        `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile`
-      const wavPath = ZIPFORMER_DIR + '/test_wavs/0.wav'
+      const subdirName = 'sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01'
+      const modelSubDir = `${MODEL_DIR}/${subdirName}`
+      const wavPath = wavPathOverride ?? `${modelSubDir}/test_wavs/0.wav`
+      const keywordsFile = keywordsFileOverride ?? 'keywords.txt'
       _lastAsyncResult = { op, status: 'pending' }
       void (async () => {
         const timing: Record<string, number> = {}
         try {
-          // Step 1: Init KWS (path validated by native layer)
-          const subdirName = 'sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01'
-          const modelSubDir = `${MODEL_DIR}/${subdirName}`
-
+          // Step 1: Init KWS
           const t1 = Date.now()
           const initResult = await KWS.init({
             modelDir: modelSubDir,
@@ -573,29 +570,83 @@ if (__DEV__) {
               joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
               tokens: 'tokens.txt',
             },
-            keywordsFile: 'keywords.txt',
+            keywordsFile: keywordsFile,
             numThreads: 2,
-            debug: false,
+            debug: true,
             provider: 'cpu',
           })
           timing.initMs = Date.now() - t1
           if (!initResult.success) throw new Error('initKws failed: ' + initResult.error)
 
-          // Step 3: Read wav and feed to KWS
+          // Step 2: Read wav file as base64 and parse PCM samples
           const t2 = Date.now()
-          // We'll use the ASR test wav — it may not contain keywords, but we can test the pipeline
-          const wavInfo = await FileSystem.getInfoAsync(wavPath)
-          timing.feedMs = Date.now() - t2
+          const wavBase64 = await FileSystem.readAsStringAsync(
+            wavPath.startsWith('/') ? 'file://' + wavPath : wavPath,
+            { encoding: FileSystem.EncodingType.Base64 }
+          )
+          const binaryStr = atob(wavBase64)
+          const bytes = new Uint8Array(binaryStr.length)
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i)
+          }
+
+          // Parse WAV header (PCM 16-bit expected)
+          const dataView = new DataView(bytes.buffer)
+          // Find 'data' chunk
+          let dataOffset = 12
+          let dataSize = 0
+          while (dataOffset < bytes.length - 8) {
+            const chunkId = String.fromCharCode(bytes[dataOffset], bytes[dataOffset+1], bytes[dataOffset+2], bytes[dataOffset+3])
+            const chunkSize = dataView.getUint32(dataOffset + 4, true)
+            if (chunkId === 'data') {
+              dataOffset += 8
+              dataSize = chunkSize
+              break
+            }
+            dataOffset += 8 + chunkSize
+          }
+          if (dataSize === 0) throw new Error('No data chunk found in wav')
+
+          // Convert int16 PCM to float32 samples
+          const numSamples = Math.floor(dataSize / 2)
+          const samples: number[] = new Array(numSamples)
+          for (let i = 0; i < numSamples; i++) {
+            samples[i] = dataView.getInt16(dataOffset + i * 2, true) / 32768.0
+          }
+          timing.wavReadMs = Date.now() - t2
+
+          // Step 3: Feed samples in chunks to KWS (simulate streaming)
+          const t3 = Date.now()
+          const CHUNK_SIZE = 1600 // 100ms at 16kHz
+          let totalChunks = 0
+          let detectedKeywords: string[] = []
+          for (let offset = 0; offset < samples.length; offset += CHUNK_SIZE) {
+            const chunk = samples.slice(offset, Math.min(offset + CHUNK_SIZE, samples.length))
+            const result = await KWS.acceptWaveform(16000, chunk)
+            totalChunks++
+            if (result.detected && result.keyword) {
+              detectedKeywords.push(result.keyword)
+            }
+          }
+          timing.feedMs = Date.now() - t3
 
           // Step 4: Release
-          const t3 = Date.now()
+          const t4 = Date.now()
           await KWS.release()
-          timing.releaseMs = Date.now() - t3
+          timing.releaseMs = Date.now() - t4
 
           _lastAsyncResult = {
             op,
             status: 'success',
-            result: { initResult, wavExists: wavInfo.exists, timing, modelSubDir },
+            result: {
+              initResult,
+              numSamples,
+              totalChunks,
+              detectedKeywords,
+              timing,
+              wavPath,
+              modelSubDir,
+            },
           }
         } catch (e) {
           _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }

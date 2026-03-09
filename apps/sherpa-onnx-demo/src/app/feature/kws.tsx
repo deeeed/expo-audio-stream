@@ -3,7 +3,7 @@ import type { KWSInitResult } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -63,9 +63,10 @@ function parseKeywordsFile(content: string): string[] {
 
 export default function KwsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ model?: string }>();
 
   // Model state
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(params.model ?? null);
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -687,17 +688,18 @@ export default function KwsScreen() {
         {initialized && modelTestWavs.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Test Audio (from model)</Text>
-            <Text style={styles.audioHint}>
-              File-based detection is disabled due to the upstream model bug.
-            </Text>
             {modelTestWavs.map((audio) => (
               <TouchableOpacity
                 key={audio.id}
                 testID={`kws-audio-${audio.id}`}
-                style={[styles.audioItem, styles.audioItemMuted]}
-                disabled
+                style={[
+                  styles.audioItem,
+                  detecting && styles.audioItemMuted,
+                ]}
+                disabled={detecting}
+                onPress={() => handleDetect(audio)}
               >
-                <Text style={[styles.audioName, { color: '#999' }]}>{audio.name}</Text>
+                <Text style={[styles.audioName, detecting && { color: '#999' }]}>{audio.name}</Text>
               </TouchableOpacity>
             ))}
           </View>

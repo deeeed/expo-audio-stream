@@ -84,7 +84,41 @@ export function ModelManagementProvider({
           if (typeof parsedStates === 'object' && parsedStates !== null) {
              // Handle migration of absolute paths to relative paths for iOS
              const migratedStates = await migrateStoredPaths(parsedStates);
-             setModelStates(migratedStates);
+             // Remove stale entries whose IDs are no longer in the catalog
+             const catalogIds = new Set(AVAILABLE_MODELS.map(m => m.id));
+             const reconciledStates: Record<string, ModelState> = {};
+             for (const [id, state] of Object.entries(migratedStates)) {
+               if (catalogIds.has(id)) {
+                 reconciledStates[id] = state as ModelState;
+               } else {
+                 console.log(`[ModelManagement] Removing stale model state: ${id} (not in catalog)`);
+               }
+             }
+             // Add new catalog entries not yet in saved state
+             for (const meta of AVAILABLE_MODELS) {
+               if (!reconciledStates[meta.id]) {
+                 const modelDir = getModelDirectoryPath(meta.id);
+                 let isOnDisk = false;
+                 try {
+                   const info = await FileSystem.getInfoAsync(modelDir);
+                   if (info.exists && info.isDirectory) {
+                     const contents = await FileSystem.readDirectoryAsync(modelDir);
+                     isOnDisk = contents.length > 0;
+                   }
+                 } catch (_) { /* ignore */ }
+                 reconciledStates[meta.id] = {
+                   metadata: meta,
+                   status: isOnDisk ? 'downloaded' as ModelStatus : 'pending' as ModelStatus,
+                   progress: isOnDisk ? 100 : 0,
+                   localPath: isOnDisk ? modelDir : undefined,
+                   error: undefined,
+                   files: undefined,
+                   extractedFiles: undefined,
+                   lastDownloaded: undefined,
+                 };
+               }
+             }
+             setModelStates(reconciledStates);
           } else {
              console.warn('Parsed state is not an object, starting fresh.');
              setModelStates({});
