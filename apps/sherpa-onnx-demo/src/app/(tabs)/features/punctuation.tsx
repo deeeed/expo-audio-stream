@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { usePunctuationModels, usePunctuationModelWithConfig } from '../../hooks/useModelWithConfig';
-import { setAgenticPageState } from '../../agentic-bridge';
+import { usePunctuationModels, usePunctuationModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   PageContainer,
   Section,
@@ -17,7 +17,7 @@ import {
   ResultsBox,
   Text,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 const SAMPLE_TEXTS = [
   'how are you doing today i am fine thank you',

@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../hooks/useModelWithConfig';
+import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../../hooks/useModelWithConfig';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -30,7 +30,7 @@ import {
   Text,
   ThemedButton,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -670,8 +670,6 @@ function AudioTaggingScreen() {
         message={statusMessage || 'Processing...'}
         subMessage="This may take a moment, especially for longer audio files."
       />
-
-      <Text variant="headlineMedium" style={{ textAlign: 'center', marginBottom: theme.margin.m }}>{'\n'}Audio Tagging Demo</Text>
 
       {/* Error and status messages */}
       <StatusBlock status={statusMessage} error={error} />

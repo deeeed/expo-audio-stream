@@ -10,7 +10,6 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ── Page Container ──────────────────────────────────────────
 
@@ -22,11 +21,11 @@ interface PageContainerProps {
 export function PageContainer({ children, style }: PageContainerProps) {
   const theme = useTheme();
   return (
-    <SafeAreaView style={[{ flex: 1, backgroundColor: theme.colors.background }, style]}>
-      <ScrollView contentContainerStyle={{ padding: theme.padding.m }}>
+    <View style={[{ flex: 1, backgroundColor: theme.colors.background }, style]}>
+      <ScrollView contentContainerStyle={{ padding: theme.padding.m, paddingBottom: 32 }}>
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

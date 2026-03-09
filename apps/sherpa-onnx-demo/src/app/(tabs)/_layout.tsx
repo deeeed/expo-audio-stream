@@ -1,42 +1,94 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { useTheme } from '@siteed/design-system';
+import { Tabs, useSegments } from 'expo-router';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
+import { Platform, View } from 'react-native';
 
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof Ionicons>['name'];
-  color: string;
-}) {
-  return <Ionicons size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { CustomHeader } from '../../components/CustomHeader';
+
+const TAB_TITLES: Record<string, string> = {
+  index: 'Home',
+  features: 'Features',
+  models: 'Models',
+};
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+  const segments = useSegments();
+  // Only show custom header for top-level tab screens (not when inside features stack)
+  const isNestedFeature = segments.length > 2 && segments[1] === 'features';
+  const currentTab = segments[1] ?? 'index';
+  const title = TAB_TITLES[currentTab] ?? 'Sherpa-ONNX';
+
+  if (Platform.OS === 'web') {
+    return (
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.text,
+          tabBarStyle: {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="features"
+          options={{
+            title: 'Features',
+            tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="models"
+          options={{
+            title: 'Models',
+            tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
+          }}
+        />
+      </Tabs>
+    );
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#000',
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="features"
-        options={{
-          title: 'Features',
-          tabBarIcon: ({ color }) => <TabBarIcon name="grid" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="models"
-        options={{
-          title: 'Models',
-          tabBarIcon: ({ color }) => <TabBarIcon name="download" color={color} />,
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      {!isNestedFeature && <CustomHeader title={title} />}
+      <NativeTabs
+        tintColor={colors.primary}
+        backgroundColor={colors.background}
+        labelVisibilityMode="labeled"
+      >
+        <NativeTabs.Trigger name="index">
+          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'house', selected: 'house.fill' }}
+            md="home"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="features">
+          <NativeTabs.Trigger.Label>Features</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }}
+            md="grid_view"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="models">
+          <NativeTabs.Trigger.Label>Models</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'arrow.down.circle', selected: 'arrow.down.circle.fill' }}
+            md="download"
+          />
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </View>
   );
 }

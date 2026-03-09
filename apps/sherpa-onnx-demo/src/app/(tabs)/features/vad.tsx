@@ -1,13 +1,13 @@
-import { LanguageId } from '@siteed/sherpa-onnx.rn';
-import type { LanguageIdModelConfig } from '@siteed/sherpa-onnx.rn';
+import { VAD } from '@siteed/sherpa-onnx.rn';
+import type { VadModelConfig, SpeechSegment } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { useLanguageIdModels, useLanguageIdModelWithConfig } from '../../hooks/useModelWithConfig';
-import { setAgenticPageState } from '../../agentic-bridge';
+import { useVadModels, useVadModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   PageContainer,
   Section,
@@ -18,8 +18,9 @@ import {
   ResultsBox,
   Text,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
+// Decode base64 string to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -37,11 +38,11 @@ interface AudioItem {
 }
 
 const BUNDLED_AUDIO = [
-  { id: '1', name: 'JFK Speech (EN)', module: require('@assets/audio/jfk.wav') },
+  { id: '1', name: 'JFK Speech', module: require('@assets/audio/jfk.wav') },
   { id: '2', name: 'English Sample', module: require('@assets/audio/en.wav') },
 ];
 
-export default function LanguageIdScreen() {
+export default function VadScreen() {
   const params = useLocalSearchParams<{ model?: string }>();
   const theme = useTheme();
 
@@ -58,22 +59,22 @@ export default function LanguageIdScreen() {
 
   // Detection state
   const [detecting, setDetecting] = useState(false);
-  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
-  const [durationMs, setDurationMs] = useState<number | null>(null);
+  const [segments, setSegments] = useState<SpeechSegment[]>([]);
+  const [isSpeechDetected, setIsSpeechDetected] = useState(false);
 
   // Live mic state
   const [isLiveMic, setIsLiveMic] = useState(false);
   const [liveChunks, setLiveChunks] = useState(0);
-  const [liveLanguage, setLiveLanguage] = useState<string | null>(null);
+  const [liveSegments, setLiveSegments] = useState<SpeechSegment[]>([]);
+  const [liveSpeechDetected, setLiveSpeechDetected] = useState(false);
 
   // Models
-  const { downloadedModels } = useLanguageIdModels();
-  const { languageIdConfig, localPath } = useLanguageIdModelWithConfig({ modelId: selectedModelId });
+  const { downloadedModels } = useVadModels();
+  const { vadConfig, localPath } = useVadModelWithConfig({ modelId: selectedModelId });
 
-  // Audio recorder for live mic
+  // Audio recorder for live mic (same pattern as KWS)
   const recorder = useAudioRecorder();
   const recordingRef = useRef(false);
-  const samplesBufferRef = useRef<number[]>([]);
 
   // Load bundled audio files
   useEffect(() => {
@@ -112,36 +113,39 @@ export default function LanguageIdScreen() {
       detecting,
       isLiveMic,
       liveChunks,
-      detectedLanguage,
-      liveLanguage,
-      durationMs,
+      segmentsCount: segments.length,
+      segments: segments.map(s => ({ start: s.startTime, end: s.endTime })),
+      liveSegmentsCount: liveSegments.length,
+      liveSegments: liveSegments.map(s => ({ start: s.startTime, end: s.endTime })),
+      isSpeechDetected,
+      liveSpeechDetected,
       error,
       statusMessage,
       audioItemsCount: audioItems.length,
       selectedAudioId,
     });
-  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, detectedLanguage, liveLanguage, durationMs, error, statusMessage, audioItems.length, selectedAudioId]);
+  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, segments, liveSegments, isSpeechDetected, liveSpeechDetected, error]);
 
-  // Initialize Language ID
+  // Initialize VAD
   const handleInit = useCallback(async () => {
-    if (!selectedModelId || !languageIdConfig || !localPath) {
+    if (!selectedModelId || !vadConfig || !localPath) {
       setError('No model selected or not downloaded');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setStatusMessage('Initializing Language ID...');
+    setStatusMessage('Initializing VAD...');
 
     try {
-      const config: LanguageIdModelConfig = {
+      const config: VadModelConfig = {
         modelDir: localPath,
-        ...languageIdConfig,
+        ...vadConfig,
       };
-      const result = await LanguageId.init(config);
+      const result = await VAD.init(config);
       if (result.success) {
         setInitialized(true);
-        setStatusMessage('Language ID initialized successfully');
+        setStatusMessage('VAD initialized successfully');
       } else {
         setError(result.error || 'Init failed');
         setStatusMessage('');
@@ -151,7 +155,7 @@ export default function LanguageIdScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedModelId, languageIdConfig, localPath]);
+  }, [selectedModelId, vadConfig, localPath]);
 
   // Detect from file
   const handleDetectFromFile = useCallback(async () => {
@@ -160,19 +164,59 @@ export default function LanguageIdScreen() {
 
     setDetecting(true);
     setError(null);
-    setDetectedLanguage(null);
-    setDurationMs(null);
+    setSegments([]);
+    setIsSpeechDetected(false);
     setStatusMessage(`Processing ${selected.name}...`);
 
     try {
-      const result = await LanguageId.detectLanguageFromFile(selected.localUri);
-      if (result.success) {
-        setDetectedLanguage(result.language);
-        setDurationMs(result.durationMs);
-        setStatusMessage(`Detected: ${result.language} (${result.durationMs}ms)`);
-      } else {
-        setError(result.error || 'Detection failed');
+      // Read file as base64
+      const base64 = await FileSystem.readAsStringAsync('file://' + selected.localUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = base64ToArrayBuffer(base64);
+
+      // Parse WAV header for sample rate
+      const dataView = new DataView(arrayBuffer);
+      const sampleRate = dataView.getUint32(24, true);
+      const bitsPerSample = dataView.getUint16(34, true);
+
+      // Convert to float32 (handles WAV header internally)
+      const { pcmValues: float32 } = await convertPCMToFloat32({
+        buffer: arrayBuffer,
+        bitDepth: bitsPerSample,
+      });
+
+      // Feed in chunks of 512 samples (window size)
+      const chunkSize = 512;
+      const allSegments: SpeechSegment[] = [];
+      let speechDetected = false;
+
+      for (let offset = 0; offset < float32.length; offset += chunkSize) {
+        const end = Math.min(offset + chunkSize, float32.length);
+        const chunk = Array.from(float32.subarray(offset, end));
+
+        // Pad last chunk to 512 if needed
+        while (chunk.length < chunkSize) {
+          chunk.push(0);
+        }
+
+        const result = await VAD.acceptWaveform(16000, chunk);
+        if (result.success) {
+          if (result.isSpeechDetected) speechDetected = true;
+          if (result.segments.length > 0) {
+            allSegments.push(...result.segments);
+          }
+        }
       }
+
+      setSegments(allSegments);
+      setIsSpeechDetected(speechDetected);
+      setStatusMessage(
+        `Done. ${allSegments.length} segment(s) found, speech ${speechDetected ? 'detected' : 'not detected'}`
+      );
+
+      // Reset VAD for next detection
+      await VAD.reset();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -180,15 +224,15 @@ export default function LanguageIdScreen() {
     }
   }, [audioItems, selectedAudioId, initialized]);
 
-  // Live mic start
+  // Live mic start (same pattern as KWS)
   const handleStartMic = useCallback(async () => {
     if (!initialized) {
-      setError('Language ID not initialized');
+      setError('VAD not initialized');
       return;
     }
     setLiveChunks(0);
-    setLiveLanguage(null);
-    samplesBufferRef.current = [];
+    setLiveSegments([]);
+    setLiveSpeechDetected(false);
 
     try {
       const permResult = await ExpoAudioStreamModule.requestPermissionsAsync();
@@ -199,7 +243,7 @@ export default function LanguageIdScreen() {
 
       recordingRef.current = true;
       setIsLiveMic(true);
-      setStatusMessage('Live mic active — collecting audio...');
+      setStatusMessage('Live mic active...');
 
       await recorder.startRecording({
         sampleRate: 16000,
@@ -217,21 +261,17 @@ export default function LanguageIdScreen() {
             });
             const samples = Array.from(pcmValues);
             if (samples.length > 0) {
-              samplesBufferRef.current.push(...samples);
-              setLiveChunks(prev => prev + 1);
-
-              // Detect every ~2 seconds (32000 samples at 16kHz)
-              if (samplesBufferRef.current.length >= 32000) {
-                const result = await LanguageId.detectLanguage(16000, samplesBufferRef.current);
-                if (result.success) {
-                  setLiveLanguage(result.language);
-                  setStatusMessage(`Live: ${result.language} (${result.durationMs}ms)`);
+              const result = await VAD.acceptWaveform(16000, samples);
+              if (result.success) {
+                setLiveSpeechDetected(result.isSpeechDetected);
+                if (result.segments.length > 0) {
+                  setLiveSegments(prev => [...prev, ...result.segments]);
                 }
-                samplesBufferRef.current = [];
+                setLiveChunks(prev => prev + 1);
               }
             }
           } catch (e) {
-            console.warn('[LanguageId] Error processing audio chunk:', e);
+            console.warn('[VAD] Error processing audio chunk:', e);
           }
         },
       });
@@ -246,21 +286,14 @@ export default function LanguageIdScreen() {
   const handleStopMic = useCallback(async () => {
     recordingRef.current = false;
     try {
-      // Process remaining buffered samples
-      if (samplesBufferRef.current.length > 0) {
-        const result = await LanguageId.detectLanguage(16000, samplesBufferRef.current);
-        if (result.success) {
-          setLiveLanguage(result.language);
-        }
-        samplesBufferRef.current = [];
-      }
       await recorder.stopRecording();
     } catch (e) {
-      console.warn('[LanguageId] Stop error:', e);
+      console.warn('[VAD] Stop error:', e);
     }
     setIsLiveMic(false);
-    setStatusMessage(`Live mic stopped. ${liveChunks} chunks processed.`);
-  }, [recorder, liveChunks]);
+    setStatusMessage(`Live mic stopped. ${liveChunks} chunks, ${liveSegments.length} segments`);
+    await VAD.reset();
+  }, [recorder, liveChunks, liveSegments.length]);
 
   // Release
   const handleRelease = useCallback(async () => {
@@ -269,11 +302,11 @@ export default function LanguageIdScreen() {
       await recorder.stopRecording();
       setIsLiveMic(false);
     }
-    await LanguageId.release();
+    await VAD.release();
     setInitialized(false);
-    setDetectedLanguage(null);
-    setLiveLanguage(null);
-    setStatusMessage('Language ID released');
+    setSegments([]);
+    setLiveSegments([]);
+    setStatusMessage('VAD released');
   }, [isLiveMic, recorder]);
 
   return (
@@ -285,7 +318,7 @@ export default function LanguageIdScreen() {
           selectedId={selectedModelId}
           onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
           disabled={initialized}
-          emptyMessage="No Language ID models downloaded. Go to Models tab to download."
+          emptyMessage="No VAD models downloaded. Go to Models tab to download."
         />
       </Section>
 
@@ -294,7 +327,7 @@ export default function LanguageIdScreen() {
         <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
           {!initialized ? (
             <ThemedButton
-              testID="langid-init-button"
+              testID="vad-init-button"
               label="Initialize"
               onPress={handleInit}
               disabled={!selectedModelId || loading}
@@ -303,7 +336,7 @@ export default function LanguageIdScreen() {
             />
           ) : (
             <ThemedButton
-              testID="langid-release-button"
+              testID="vad-release-button"
               label="Release"
               onPress={handleRelease}
               variant="danger"
@@ -325,34 +358,25 @@ export default function LanguageIdScreen() {
             disabled={detecting}
           />
           <ThemedButton
-            testID="langid-detect-button"
-            label="Detect Language"
+            testID="vad-detect-button"
+            label="Detect Speech"
             onPress={handleDetectFromFile}
             disabled={detecting || !selectedAudioId}
             loading={detecting}
             variant="primary"
           />
 
-          {detectedLanguage && (
+          {/* File detection results */}
+          {segments.length > 0 && (
             <ResultsBox>
-              <Text variant="titleSmall">Detected Language:</Text>
-              <Text
-                variant="headlineMedium"
-                style={{
-                  color: '#00BCD4',
-                  textAlign: 'center',
-                  paddingVertical: 8,
-                  backgroundColor: '#e0f7fa',
-                  borderRadius: theme.roundness,
-                  textTransform: 'uppercase',
-                  fontWeight: 'bold',
-                }}
-              >
-                {detectedLanguage}
+              <Text variant="titleSmall">
+                Segments ({segments.length}):
               </Text>
-              {durationMs != null && (
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Processing time: {durationMs}ms</Text>
-              )}
+              {segments.map((seg, i) => (
+                <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurface, marginBottom: 2 }}>
+                  {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s ({seg.duration} samples)
+                </Text>
+              ))}
             </ResultsBox>
           )}
         </Section>
@@ -362,32 +386,46 @@ export default function LanguageIdScreen() {
       {initialized && (
         <Section title="Live Microphone">
           <ThemedButton
-            testID="langid-livemic-button"
+            testID="vad-livemic-button"
             label={isLiveMic ? 'Stop Mic' : 'Start Mic'}
             onPress={isLiveMic ? handleStopMic : handleStartMic}
             variant={isLiveMic ? 'danger' : 'primary'}
           />
 
-          {(isLiveMic || liveLanguage) && (
+          {isLiveMic && (
             <View style={{ marginTop: theme.margin.s, gap: 4 }}>
-              {liveLanguage && (
-                <Text
-                  variant="headlineMedium"
-                  style={{
-                    color: '#00BCD4',
-                    textAlign: 'center',
-                    paddingVertical: 8,
-                    backgroundColor: '#e0f7fa',
-                    borderRadius: theme.roundness,
-                    textTransform: 'uppercase',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {liveLanguage}
-                </Text>
-              )}
+              <Text
+                variant="titleMedium"
+                style={{
+                  textAlign: 'center',
+                  paddingVertical: 8,
+                  borderRadius: theme.roundness,
+                  color: liveSpeechDetected ? '#00aa00' : theme.colors.onSurfaceVariant,
+                  backgroundColor: liveSpeechDetected ? '#e0ffe0' : theme.colors.surfaceVariant,
+                  fontWeight: 'bold',
+                }}
+              >
+                {liveSpeechDetected ? 'SPEECH' : 'SILENCE'}
+              </Text>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Chunks: {liveChunks}</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Segments: {liveSegments.length}</Text>
             </View>
+          )}
+
+          {liveSegments.length > 0 && (
+            <ResultsBox>
+              <Text variant="titleSmall">
+                Live Segments ({liveSegments.length}):
+              </Text>
+              {liveSegments.slice(-10).map((seg, i) => (
+                <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurface, marginBottom: 2 }}>
+                  {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s
+                </Text>
+              ))}
+              {liveSegments.length > 10 && (
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>... and {liveSegments.length - 10} more</Text>
+              )}
+            </ResultsBox>
           )}
         </Section>
       )}

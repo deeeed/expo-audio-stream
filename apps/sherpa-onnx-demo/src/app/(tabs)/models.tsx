@@ -2,7 +2,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, View, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
 import { ModelTypeSelector } from '../../components/ModelTypeSelector';
@@ -126,7 +125,7 @@ export default function ModelsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {Platform.OS === 'web' && <WebInfoBanner />}
       
       <ModelTypeSelector
@@ -159,7 +158,7 @@ export default function ModelsScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

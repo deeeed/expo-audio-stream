@@ -12,8 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useKwsModels, useKwsModelWithConfig } from '../../hooks/useModelWithConfig';
-import { setAgenticPageState } from '../../agentic-bridge';
+import { useKwsModels, useKwsModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   LoadingOverlay,
   ModelSelector,
@@ -24,7 +24,7 @@ import {
   Text,
   ThemedButton,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 // Decode base64 string to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {

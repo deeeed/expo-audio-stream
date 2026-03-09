@@ -12,9 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
-import { formatDuration, formatBytes } from '../../utils/formatters';
-import { setAgenticPageState } from '../../agentic-bridge';
+import { useAsrModels, useAsrModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { formatDuration, formatBytes } from '../../../utils/formatters';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   LoadingOverlay,
   ModelSelector,
@@ -25,7 +25,7 @@ import {
   Text,
   ThemedButton,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 const GREEDY_ONLY_TYPES = ['whisper', 'paraformer', 'tdnn', 'sense_voice', 'moonshine', 'fire_red_asr']
 const BEAM_SEARCH_TYPES = ['transducer', 'zipformer', 'zipformer2', 'nemo_transducer', 'nemo_ctc', 'lstm']
@@ -604,13 +604,12 @@ export default function AsrScreen() {
         subMessage={statusMessage}
       />
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <Text variant="headlineSmall">Automatic Speech Recognition</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 }}>
         <ThemedButton
           label="Live ASR"
           variant="success"
           compact
-          onPress={() => router.push('/live-asr')}
+          onPress={() => router.push('/(tabs)/features/live-asr')}
         />
       </View>
 

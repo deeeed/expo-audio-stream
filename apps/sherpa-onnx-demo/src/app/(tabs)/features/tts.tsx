@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useTtsModels, useTtsModelWithConfig } from '../../hooks/useModelWithConfig';
-import { setAgenticPageState } from '../../agentic-bridge';
+import { useTtsModels, useTtsModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -26,7 +26,7 @@ import {
   Text,
   ThemedButton,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
@@ -435,8 +435,6 @@ export default function TtsScreen() {
         subMessage="This may take a moment, especially for longer text."
         onStop={handleStopTts}
       />
-
-      <Text variant="headlineMedium" style={{ textAlign: 'center', marginBottom: theme.margin.m }}>{'\n'}Sherpa Onnx TTS</Text>
 
       {/* Error and status messages */}
       <StatusBlock status={statusMessage} error={errorMessage} />

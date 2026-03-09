@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSpeakerIdModelWithConfig, useSpeakerIdModels } from '../../hooks/useModelWithConfig';
+import { useSpeakerIdModelWithConfig, useSpeakerIdModels } from '../../../hooks/useModelWithConfig';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -27,7 +27,7 @@ import {
   Text,
   ThemedButton,
   useTheme,
-} from '../../components/ui';
+} from '../../../components/ui';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -540,8 +540,6 @@ export default function SpeakerIdScreen() {
         visible={loading}
         message={statusMessage || 'Processing...'}
       />
-
-      <Text variant="headlineMedium" style={{ textAlign: 'center', marginBottom: theme.margin.m }}>{'\n'}Speaker Identification</Text>
 
       {/* Error and status messages */}
       <StatusBlock status={!error && !loading ? statusMessage : null} error={error} />

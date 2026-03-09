@@ -20,13 +20,11 @@ function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
 
 // Get persistent storage directory based on platform
 const getPersistentStorageDirectory = (): string => {
-  if (Platform.OS === 'android') {
-    // externalStorageDirectory → /sdcard/Android/data/<pkg>/files/
-    // Survives app uninstall; covered by existing READ/WRITE_EXTERNAL_STORAGE permissions
-    const external = (FileSystem as any).externalStorageDirectory as string | undefined;
-    if (external) return external;
-  }
-  // On iOS, documentDirectory is backed up to iCloud and persistent across app restarts
+  // documentDirectory is the Expo-recommended persistent storage location.
+  // - iOS: backed up to iCloud, persists across restarts
+  // - Android: internal storage, persists across restarts (cleared on uninstall)
+  // Note: expo-file-system v55 removed externalStorageDirectory. On modern Android (10+),
+  // scoped external storage is also wiped on uninstall, so documentDirectory is equivalent.
   return FileSystem.documentDirectory || '';
 };
 

@@ -2,7 +2,6 @@ import SherpaOnnx, { ValidateResult, SystemInfo } from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();
@@ -83,9 +82,8 @@ const SherpaOnnxDemo: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Sherpa-ONNX Demo</Text>
         <Text style={styles.subtitle}>System Status</Text>
 
         <View style={styles.statusCard}>
@@ -203,7 +201,7 @@ const SherpaOnnxDemo: React.FC = () => {
           Sherpa-ONNX Demo • Version 0.1.0
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

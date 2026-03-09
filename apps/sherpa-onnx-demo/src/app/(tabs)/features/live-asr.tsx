@@ -2,17 +2,17 @@ import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useAsrModels, useAsrModelWithConfig } from '../hooks/useModelWithConfig';
-import { useLiveAsr } from '../hooks/useLiveAsr';
-import { useModelManagement } from '../contexts/ModelManagement';
-import { setAgenticPageState } from '../agentic-bridge';
+import { useAsrModels, useAsrModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { useLiveAsr } from '../../../hooks/useLiveAsr';
+import { useModelManagement } from '../../../contexts/ModelManagement';
+import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   PageContainer,
   Section,
@@ -21,7 +21,7 @@ import {
   ThemedButton,
   ResultsBox,
   useTheme,
-} from '../components/ui';
+} from '../../../components/ui';
 
 const SAMPLE_AUDIO_FILES = [
   {
@@ -49,7 +49,6 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 export default function LiveAsrScreen() {
   // Deep-link params: /live-asr?model=<id>&autoInit=true&autoTest=jfk&t=<timestamp>
   const params = useLocalSearchParams<{ model?: string; autoInit?: string; autoTest?: string; t?: string }>();
-  const router = useRouter();
   const theme = useTheme();
   const { availableModels } = useAsrModels();
   const { getModelState, isModelDownloaded } = useModelManagement();
@@ -317,14 +316,6 @@ export default function LiveAsrScreen() {
 
   return (
     <PageContainer>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.m }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
-          <Text variant="bodyLarge" style={{ color: theme.colors.primary }}>{'< Back'}</Text>
-        </TouchableOpacity>
-        <Text variant="titleLarge">Live ASR</Text>
-      </View>
-
       {/* Model Selection */}
       <Section title="Streaming Model">
         {streamingModels.length === 0 ? (
