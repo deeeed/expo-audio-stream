@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelType } from '../utils/models';
@@ -18,6 +18,7 @@ export function InlineModelDownloader({
   emptyLabel,
 }: InlineModelDownloaderProps) {
   const [visible, setVisible] = React.useState(false);
+  const [activeDownloadIds, setActiveDownloadIds] = useState<Set<string>>(new Set());
   const pendingRef = useRef<Set<string>>(new Set());
   const prevStatusRef = useRef<Record<string, string>>({});
   const theme = useTheme();
@@ -32,30 +33,42 @@ export function InlineModelDownloader({
   // Detect transitions from downloading/extracting → downloaded
   useEffect(() => {
     const prev = prevStatusRef.current;
+    let changed = false;
     for (const [id, state] of Object.entries(modelsState)) {
-      if (
-        state.status === 'downloaded' &&
-        prev[id] !== 'downloaded' &&
-        pendingRef.current.has(id)
-      ) {
-        pendingRef.current.delete(id);
-        setVisible(false);
-        onModelDownloaded(id);
+      if (pendingRef.current.has(id)) {
+        const isActive = state.status === 'downloading' || state.status === 'extracting';
+        if (state.status === 'downloaded' && prev[id] !== 'downloaded') {
+          pendingRef.current.delete(id);
+          setActiveDownloadIds(s => { const n = new Set(s); n.delete(id); return n; });
+          setVisible(false);
+          onModelDownloaded(id);
+          changed = true;
+        } else if (isActive) {
+          setActiveDownloadIds(s => { if (s.has(id)) return s; const n = new Set(s); n.add(id); return n; });
+        }
       }
     }
     // Update previous status snapshot
     for (const [id, state] of Object.entries(modelsState)) {
       prev[id] = state.status;
     }
+    // suppress lint warning for `changed`
+    void changed;
   }, [modelsState, onModelDownloaded]);
 
   const handleDownload = useCallback(
     (modelId: string) => {
       pendingRef.current.add(modelId);
+      setActiveDownloadIds(s => { const n = new Set(s); n.add(modelId); return n; });
       downloadModel(modelId);
     },
     [downloadModel],
   );
+
+  // Active downloads from this component (outside modal)
+  const inProgressDownloads = Array.from(activeDownloadIds)
+    .map(id => ({ id, model: models.find(m => m.id === id), state: modelsState[id] }))
+    .filter(({ state }) => state?.status === 'downloading' || state?.status === 'extracting');
 
   return (
     <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
@@ -74,6 +87,25 @@ export function InlineModelDownloader({
         variant="primary"
         onPress={() => setVisible(true)}
       />
+
+      {/* Persistent progress shown even when modal is closed */}
+      {inProgressDownloads.map(({ id, model: m, state }) => (
+        <View key={id} style={{ width: '100%', marginTop: 12 }}>
+          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>
+            {state?.status === 'extracting' ? `Extracting ${m?.name ?? id}…` : `Downloading ${m?.name ?? id}…`}
+          </Text>
+          {state?.status === 'downloading' && (
+            <>
+              <View style={{ height: 4, backgroundColor: theme.colors.outlineVariant, borderRadius: 2, overflow: 'hidden' }}>
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: theme.colors.primary, width: `${Math.round((state.progress ?? 0) * 100)}%` }} />
+              </View>
+              <Text variant="labelSmall" style={{ color: theme.colors.primary, marginTop: 2, alignSelf: 'flex-end' }}>
+                {Math.round((state.progress ?? 0) * 100)}%
+              </Text>
+            </>
+          )}
+        </View>
+      ))}
 
       <Modal
         visible={visible}

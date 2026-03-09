@@ -75,7 +75,6 @@ export function useAsr() {
 
   const autoInitFiredRef = useRef<string | null>(null);
   const autoTestFiredRef = useRef<string | null>(null);
-  const lastAutoInitRef = useRef<string | null>(null);
 
   const { downloadedModels } = useAsrModels();
   const { asrConfig, localPath, isDownloaded } = useAsrModelWithConfig({ modelId: selectedModelId });
@@ -118,7 +117,7 @@ export function useAsr() {
     return cleanPath;
   };
 
-  const handleInitAsr = async () => {
+  const handleInitAsr = async (configOverride?: Partial<AsrModelConfig>) => {
     if (!selectedModelId) { setError('Please select a model first'); return; }
     if (!asrConfig || !localPath || !isDownloaded) {
       setError('Model not downloaded or missing configuration.');
@@ -134,6 +133,13 @@ export function useAsr() {
     setError(null);
     setStatusMessage('Initializing...');
 
+    // Use configOverride values (from auto-init with model defaults) or fall back to user-set state
+    const effectiveNumThreads = configOverride?.numThreads ?? numThreads;
+    const effectiveDecodingMethod = (configOverride?.decodingMethod ?? decodingMethod) as 'greedy_search' | 'beam_search';
+    const effectiveMaxActivePaths = configOverride?.maxActivePaths ?? maxActivePaths;
+    const effectiveDebugMode = configOverride?.debug ?? debugMode;
+    const effectiveProvider = (configOverride?.provider ?? provider) as 'cpu' | 'gpu';
+
     try {
       const modelDir = await resolveModelDir(localPath);
       setStatusMessage(`Model dir: ${modelDir.split('/').pop()}`);
@@ -141,12 +147,12 @@ export function useAsr() {
       const config: AsrModelConfig = {
         modelDir,
         modelType: asrConfig.modelType || 'transducer',
-        numThreads: mode === 'live' ? (asrConfig.numThreads ?? 2) : numThreads,
-        decodingMethod: mode === 'live' ? 'greedy_search' : decodingMethod,
-        maxActivePaths: mode === 'live' ? 4 : maxActivePaths,
+        numThreads: mode === 'live' ? (asrConfig.numThreads ?? 2) : effectiveNumThreads,
+        decodingMethod: mode === 'live' ? 'greedy_search' : effectiveDecodingMethod,
+        maxActivePaths: mode === 'live' ? 4 : effectiveMaxActivePaths,
         streaming: mode === 'live' ? true : (asrConfig.streaming ?? false),
-        debug: debugMode,
-        provider,
+        debug: effectiveDebugMode,
+        provider: effectiveProvider,
         modelFiles: asrConfig.modelFiles || {
           encoder: '*encoder*.onnx',
           decoder: '*decoder*.onnx',
@@ -314,18 +320,10 @@ export function useAsr() {
 
   const handleModelSelect = async (modelId: string) => {
     if (initialized) await handleReleaseAsr();
-    lastAutoInitRef.current = null;
     setSelectedModelId(modelId);
   };
 
-  // Auto-init: fires when model changes to a downloaded one and is not yet initialized
-  useEffect(() => {
-    if (!selectedModelId || !isDownloaded || initialized || loading) return;
-    if (lastAutoInitRef.current === selectedModelId) return;
-    lastAutoInitRef.current = selectedModelId;
-    handleInitAsr();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedModelId, isDownloaded, initialized, loading]);
+  // No auto-init: user selects model, adjusts config, then manually clicks Initialize.
 
   // Agentic page state
   useEffect(() => {
@@ -342,8 +340,12 @@ export function useAsr() {
       isRecording: recorder.isRecording,
       committedText: liveAsr.committedText,
       interimText: liveAsr.interimText,
+      numThreads,
+      decodingMethod,
+      debugMode,
+      provider,
     });
-  }, [mode, selectedModelId, initialized, loading, processing, error, recognitionResult, statusMessage, selectedAudio, recorder.isRecording, liveAsr.committedText, liveAsr.interimText]);
+  }, [mode, selectedModelId, initialized, loading, processing, error, recognitionResult, statusMessage, selectedAudio, recorder.isRecording, liveAsr.committedText, liveAsr.interimText, numThreads, decodingMethod, debugMode, provider]);
 
   // Sync config defaults when model changes
   useEffect(() => {
@@ -363,7 +365,6 @@ export function useAsr() {
     ASR.release().catch(() => {}).finally(() => {
       setInitialized(false);
       setRecognitionResult(null);
-      lastAutoInitRef.current = null;
       setSelectedModelId(params.model!);
       if (params.mode) setMode(params.mode as AsrMode);
     });

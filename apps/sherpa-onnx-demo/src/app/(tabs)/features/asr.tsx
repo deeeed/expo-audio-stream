@@ -167,8 +167,8 @@ export default function AsrScreen() {
         )}
       </Section>
 
-      {/* Config — file mode only */}
-      {mode === 'file' && selectedModelId && asrConfig && (
+      {/* Config — file mode only, only editable before initialization */}
+      {mode === 'file' && selectedModelId && asrConfig && !initialized && (
         <Section title="Configuration">
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -177,6 +177,7 @@ export default function AsrScreen() {
                 {[1, 2, 4, 8].map(n => (
                   <TouchableOpacity
                     key={n}
+                    testID={`config-threads-${n}`}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 6,
                       backgroundColor: numThreads === n ? theme.colors.primary : theme.colors.surfaceVariant,

@@ -6,6 +6,7 @@ import React from 'react';
 import { Platform, View } from 'react-native';
 
 import { CustomHeader } from '../../components/CustomHeader';
+import { useModelManagement } from '../../contexts/ModelManagement';
 
 const TAB_TITLES: Record<string, string> = {
   index: 'Home',
@@ -17,10 +18,14 @@ const TAB_TITLES: Record<string, string> = {
 export default function TabLayout() {
   const { colors } = useTheme();
   const segments = useSegments();
+  const { modelsState } = useModelManagement();
   // Only show custom header for top-level tab screens (not when inside features stack)
   const isNestedFeature = segments.length > 2 && segments[1] === 'features';
   const currentTab = segments[1] ?? 'index';
   const title = TAB_TITLES[currentTab] ?? 'Sherpa-ONNX';
+  const isAnyDownloading = Object.values(modelsState).some(
+    s => s.status === 'downloading' || s.status === 'extracting'
+  );
 
   if (Platform.OS === 'web') {
     return (
@@ -54,6 +59,7 @@ export default function TabLayout() {
           options={{
             title: 'Models',
             tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
+            tabBarBadge: isAnyDownloading ? '↓' : undefined,
           }}
         />
         <Tabs.Screen
@@ -95,6 +101,7 @@ export default function TabLayout() {
             sf={{ default: 'arrow.down.circle', selected: 'arrow.down.circle.fill' }}
             md="download"
           />
+          {isAnyDownloading && <NativeTabs.Trigger.Badge>↓</NativeTabs.Trigger.Badge>}
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="about">
           <NativeTabs.Trigger.Label>About</NativeTabs.Trigger.Label>

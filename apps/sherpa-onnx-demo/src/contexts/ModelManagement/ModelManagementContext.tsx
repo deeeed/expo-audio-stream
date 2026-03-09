@@ -116,6 +116,18 @@ export function ModelManagementProvider({
                  };
                }
              }
+             // Reset any stale in-progress states (app was killed mid-download)
+             let hadStaleDownloads = false;
+             for (const [id, state] of Object.entries(reconciledStates)) {
+               if (state.status === 'downloading' || state.status === 'extracting') {
+                 console.log(`[ModelManagement] Resetting stale ${state.status} state for ${id} to pending`);
+                 reconciledStates[id] = { ...state, status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined };
+                 hadStaleDownloads = true;
+               }
+             }
+             if (hadStaleDownloads) {
+               await AsyncStorage.setItem(storageKey, JSON.stringify(reconciledStates));
+             }
              setModelStates(reconciledStates);
           } else {
              console.warn('Parsed state is not an object, starting fresh.');
