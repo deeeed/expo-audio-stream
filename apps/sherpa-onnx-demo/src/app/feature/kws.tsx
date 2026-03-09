@@ -1,9 +1,10 @@
 import { KWS } from '@siteed/sherpa-onnx.rn';
 import type { KWSInitResult } from '@siteed/sherpa-onnx.rn';
+import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -18,6 +19,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKwsModels, useKwsModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
+
+// Decode base64 string to ArrayBuffer
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 interface AudioItem {
   id: string;
@@ -77,6 +88,15 @@ export default function KwsScreen() {
   const [detecting, setDetecting] = useState(false);
   const [detectedKeyword, setDetectedKeyword] = useState<string | null>(null);
 
+  // Live mic state
+  const [detectedKeywords, setDetectedKeywords] = useState<string[]>([]);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [chunksProcessed, setChunksProcessed] = useState(0);
+  const recorder = useAudioRecorder();
+  const processingRef = useRef(false);
+  const queueRef = useRef<{ samples: number[]; sampleRate: number }[]>([]);
+  const recordingRef = useRef(false);
+
   // Hooks
   const { downloadedModels } = useKwsModels();
   const { kwsConfig, localPath, isDownloaded } = useKwsModelWithConfig({ modelId: selectedModelId });
@@ -88,13 +108,16 @@ export default function KwsScreen() {
       initialized,
       loading,
       detecting,
-      error: error || null,
+      isRecording: recorder.isRecording,
+      error: error || micError || null,
       statusMessage: statusMessage || null,
       detectedKeyword,
+      detectedKeywords,
+      chunksProcessed,
       downloadedModelCount: downloadedModels.length,
       keywordCount: keywords.length,
     });
-  }, [selectedModelId, initialized, loading, detecting, error, statusMessage, detectedKeyword, downloadedModels.length, keywords.length]);
+  }, [selectedModelId, initialized, loading, detecting, recorder.isRecording, error, micError, statusMessage, detectedKeyword, detectedKeywords, chunksProcessed, downloadedModels.length, keywords.length]);
 
   const [hasTestKeywordsFile, setHasTestKeywordsFile] = useState(false);
 
@@ -223,6 +246,97 @@ export default function KwsScreen() {
     setAudioFiles(items);
   };
 
+  // --- Live mic KWS queue processing ---
+  const processKwsQueue = useCallback(async () => {
+    if (processingRef.current || !recordingRef.current) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+
+    processingRef.current = true;
+    try {
+      const result = await KWS.acceptWaveform(next.sampleRate, next.samples);
+      setChunksProcessed((c) => c + 1);
+      if (result.detected && result.keyword) {
+        setDetectedKeywords((prev) => [...prev, result.keyword]);
+        setStatusMessage(`Detected: "${result.keyword}"`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[KWS] acceptWaveform error:', msg);
+      setMicError(msg);
+    } finally {
+      processingRef.current = false;
+      if (queueRef.current.length > 0 && recordingRef.current) {
+        processKwsQueue();
+      }
+    }
+  }, []);
+
+  const handleStartMic = useCallback(async () => {
+    if (!initialized) {
+      setError('KWS not initialized');
+      return;
+    }
+    setMicError(null);
+    setDetectedKeywords([]);
+    setChunksProcessed(0);
+    queueRef.current = [];
+
+    try {
+      const permResult = await ExpoAudioStreamModule.requestPermissionsAsync();
+      if (permResult.status !== 'granted') {
+        setError('Microphone permission denied');
+        return;
+      }
+
+      recordingRef.current = true;
+      setStatusMessage('Listening for keywords...');
+
+      await recorder.startRecording({
+        sampleRate: 16000,
+        channels: 1,
+        encoding: 'pcm_16bit',
+        interval: 100,
+        onAudioStream: async (event: AudioDataEvent) => {
+          if (!recordingRef.current) return;
+          try {
+            const buffer = base64ToArrayBuffer(event.data as string);
+            const { pcmValues } = await convertPCMToFloat32({
+              buffer,
+              bitDepth: 16,
+              skipWavHeader: true,
+            });
+            const samples: number[] = Array.from(pcmValues);
+            if (samples.length > 0) {
+              queueRef.current.push({ samples, sampleRate: 16000 });
+              processKwsQueue();
+            }
+          } catch (e) {
+            console.warn('[KWS] Error processing audio chunk:', e);
+          }
+        },
+      });
+    } catch (e) {
+      setError(`Mic error: ${e instanceof Error ? e.message : String(e)}`);
+      recordingRef.current = false;
+    }
+  }, [initialized, recorder, processKwsQueue]);
+
+  const handleStopMic = useCallback(async () => {
+    recordingRef.current = false;
+    queueRef.current = [];
+    try {
+      await recorder.stopRecording();
+      setStatusMessage(
+        detectedKeywords.length > 0
+          ? `Stopped. Detected ${detectedKeywords.length} keyword(s).`
+          : `Stopped. No keywords detected (${chunksProcessed} chunks processed).`
+      );
+    } catch (e) {
+      console.warn('[KWS] Stop error:', e);
+    }
+  }, [recorder, detectedKeywords.length, chunksProcessed]);
+
   const handleInit = async () => {
     if (!selectedModelId || !kwsConfig || !localPath || !isDownloaded) {
       setError('No model selected or model not downloaded');
@@ -273,15 +387,21 @@ export default function KwsScreen() {
 
   const handleRelease = async () => {
     try {
+      if (recorder.isRecording) {
+        recordingRef.current = false;
+        await recorder.stopRecording();
+      }
       await KWS.release();
       setInitialized(false);
       setInitResult(null);
       setDetectedKeyword(null);
+      setDetectedKeywords([]);
       setKeywords([]);
       setTestKeywords([]);
       setAudioFiles([]);
       setSelectedAudio(null);
       setModelDir(null);
+      setChunksProcessed(0);
       setStatusMessage('KWS released');
     } catch (err) {
       setError(`Release error: ${err instanceof Error ? err.message : String(err)}`);
@@ -485,16 +605,70 @@ export default function KwsScreen() {
           </View>
         )}
 
+        {/* Live Mic Recording */}
+        {initialized && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>3. Live Microphone</Text>
+            <Text style={styles.audioHint}>
+              Speak keywords into the microphone. The engine processes audio in real-time.
+            </Text>
+            {!recorder.isRecording ? (
+              <TouchableOpacity
+                testID="kws-start-mic"
+                style={[styles.button, styles.micButton]}
+                onPress={handleStartMic}
+              >
+                <Text style={styles.buttonText}>Start Listening</Text>
+              </TouchableOpacity>
+            ) : (
+              <View>
+                <TouchableOpacity
+                  testID="kws-stop-mic"
+                  style={[styles.button, styles.micActiveButton]}
+                  onPress={handleStopMic}
+                >
+                  <Text style={styles.buttonText}>Stop Listening</Text>
+                </TouchableOpacity>
+                <Text style={styles.micStatusText}>
+                  Recording: {(recorder.durationMs / 1000).toFixed(1)}s | Chunks: {chunksProcessed}
+                </Text>
+              </View>
+            )}
+            {micError ? (
+              <Text style={styles.micErrorText}>{micError}</Text>
+            ) : null}
+          </View>
+        )}
+
+        {/* Detected Keywords */}
+        {initialized && detectedKeywords.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Detected Keywords</Text>
+            <View style={styles.detectedContainer}>
+              {detectedKeywords.map((kw, i) => (
+                <View key={i} style={styles.detectedChip}>
+                  <Text style={styles.detectedChipText}>{kw}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => setDetectedKeywords([])}
+            >
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Upstream bug notice */}
         {initialized && (
           <View style={[styles.section, styles.warningSection]}>
-            <Text style={styles.warningTitle}>File-based detection unavailable</Text>
+            <Text style={styles.warningTitle}>Known model limitation</Text>
             <Text style={styles.warningText}>
               The upstream KWS model (sherpa-onnx v1.12.28) has a confirmed Reshape bug
-              in the encoder's downsample node (T=45 produces 17 post-downsample frames,
-              but the ONNX graph expects 16). This affects all decode calls.{'\n\n'}
-              Live microphone streaming (small real-time chunks) may work. File-based
-              detection is disabled until the upstream model is fixed.
+              in the encoder's downsample node. File-based detection (large batch decode)
+              crashes reliably. Live mic streaming feeds smaller chunks and may or may
+              not trigger the same issue — try it above.
             </Text>
           </View>
         )}
@@ -502,9 +676,9 @@ export default function KwsScreen() {
         {/* Test Audio — model's own test wavs (matched to keywords) */}
         {initialized && modelTestWavs.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Test Audio (from model)</Text>
+            <Text style={styles.sectionTitle}>Test Audio (from model)</Text>
             <Text style={styles.audioHint}>
-              These audio files come with the model and contain words that should be detected.
+              File-based detection is disabled due to the upstream model bug.
             </Text>
             {modelTestWavs.map((audio) => (
               <TouchableOpacity
@@ -513,7 +687,7 @@ export default function KwsScreen() {
                 style={[styles.audioItem, styles.audioItemMuted]}
                 disabled
               >
-                <Text style={styles.audioName}>{audio.name}</Text>
+                <Text style={[styles.audioName, { color: '#999' }]}>{audio.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -612,23 +786,26 @@ const styles = StyleSheet.create({
     borderColor: '#F44336',
   },
   audioName: { fontSize: 14, fontWeight: '500' },
-  detectButton: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#F44336',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
+  micButton: { backgroundColor: '#4CAF50' },
+  micActiveButton: { backgroundColor: '#FF9800' },
+  micStatusText: { fontSize: 13, color: '#666', marginTop: 4, textAlign: 'center' },
+  micErrorText: { fontSize: 13, color: '#F44336', marginTop: 8 },
   detectedContainer: {
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  detectedLabel: { fontSize: 14, color: '#666', marginBottom: 4 },
-  detectedKeyword: { fontSize: 24, fontWeight: 'bold', color: '#4CAF50' },
-  noDetection: { textAlign: 'center', color: '#666', fontStyle: 'italic', padding: 16 },
+  detectedChip: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#66BB6A',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  detectedChipText: { fontSize: 16, color: '#2E7D32', fontWeight: '600' },
+  clearButton: { marginTop: 10, alignSelf: 'flex-start' },
+  clearButtonText: { color: '#F44336', fontSize: 14 },
   loadingOverlay: {
     position: 'absolute',
     left: 0, right: 0, top: 0, bottom: 0,
