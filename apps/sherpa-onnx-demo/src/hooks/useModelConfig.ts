@@ -1,4 +1,4 @@
-import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
+import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { ModelType } from '../utils/models';
 
@@ -11,6 +11,7 @@ export interface PredefinedModelConfig {
   speakerIdConfig?: Partial<SpeakerIdModelConfig>;
   kwsConfig?: Partial<KWSModelConfig>;
   vadConfig?: Partial<VadModelConfig>;
+  languageIdConfig?: Partial<LanguageIdModelConfig>;
 }
 
 // Map of model IDs to their predefined configurations
@@ -362,7 +363,30 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       debug: false,
       provider: 'cpu',
     }
-  }
+  },
+  // Language ID model configurations
+  'whisper-tiny-multilingual': {
+    id: 'whisper-tiny-multilingual',
+    modelType: 'language-id',
+    languageIdConfig: {
+      encoderFile: 'tiny-encoder.int8.onnx',
+      decoderFile: 'tiny-decoder.int8.onnx',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
+  'whisper-small-multilingual-lang-id': {
+    id: 'whisper-small-multilingual-lang-id',
+    modelType: 'language-id',
+    languageIdConfig: {
+      encoderFile: 'small-encoder.int8.onnx',
+      decoderFile: 'small-decoder.int8.onnx',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
 };
 
 /**
@@ -421,6 +445,14 @@ export function useKwsModelConfig({ modelId }: { modelId: string | null }): Part
 export function useVadModelConfig({ modelId }: { modelId: string | null }): Partial<VadModelConfig> | undefined {
   const config = useModelConfig({ modelId });
   return config?.vadConfig;
+}
+
+/**
+ * Get Language ID specific configuration for a model
+ */
+export function useLanguageIdModelConfig({ modelId }: { modelId: string | null }): Partial<LanguageIdModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.languageIdConfig;
 }
 
 /**

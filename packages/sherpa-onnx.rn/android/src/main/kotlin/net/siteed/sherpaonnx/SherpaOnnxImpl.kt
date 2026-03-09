@@ -23,6 +23,7 @@ import net.siteed.sherpaonnx.handlers.KWSHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
 import net.siteed.sherpaonnx.handlers.VadHandler
+import net.siteed.sherpaonnx.handlers.LanguageIdHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -33,6 +34,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val speakerIdHandler = SpeakerIdHandler(reactContext)
     private val kwsHandler = KWSHandler(reactContext)
     private val vadHandler = VadHandler(reactContext)
+    private val languageIdHandler = LanguageIdHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -210,6 +212,23 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun releaseVad(promise: Promise) {
         vadHandler.release(promise)
+    }
+
+    // Language ID Methods
+    fun initLanguageId(config: ReadableMap, promise: Promise) {
+        languageIdHandler.init(config, promise)
+    }
+
+    fun detectLanguage(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        languageIdHandler.detectLanguage(sampleRate, audioBuffer, promise)
+    }
+
+    fun detectLanguageFromFile(filePath: String, promise: Promise) {
+        languageIdHandler.detectLanguageFromFile(filePath, promise)
+    }
+
+    fun releaseLanguageId(promise: Promise) {
+        languageIdHandler.release(promise)
     }
 
     // Utility Methods

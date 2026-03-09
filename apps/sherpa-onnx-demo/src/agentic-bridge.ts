@@ -13,7 +13,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import SherpaOnnx, { ASR, AudioTagging, KWS, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
+import SherpaOnnx, { ASR, AudioTagging, KWS, LanguageId, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
 
 // Platform-aware model base directory
 const MODELS_BASE = Platform.OS === 'android'
@@ -993,6 +993,84 @@ if (__DEV__) {
     },
 
     // Full end-to-end VAD: init → feed wav samples → release → timing
+    testLanguageIdFull: (wavPath?: string) => {
+      const op = 'languageIdFull'
+      const MODEL_ID = 'whisper-tiny-multilingual'
+      const modelDir = `${MODELS_BASE}/${MODEL_ID}`
+      // Use the whisper model's own test wavs (0.wav is English, 1.wav is Chinese)
+      const defaultWav = `${modelDir}/sherpa-onnx-whisper-tiny/test_wavs/0.wav`
+      const wav = wavPath ?? defaultWav
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          // Step 1: init
+          const t0 = Date.now()
+          const initResult = await LanguageId.init({
+            modelDir,
+            encoderFile: 'tiny-encoder.int8.onnx',
+            decoderFile: 'tiny-decoder.int8.onnx',
+            numThreads: 1,
+            debug: false,
+            provider: 'cpu',
+          })
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initLanguageId failed: ' + initResult.error)
+
+          // Step 2: detect language from file
+          const t1 = Date.now()
+          const detectResult = await LanguageId.detectLanguageFromFile(wav)
+          timing.detectFileMs = Date.now() - t1
+          if (!detectResult.success) throw new Error('detectLanguageFromFile failed: ' + detectResult.error)
+
+          // Step 3: detect language from samples
+          const base64 = await FileSystem.readAsStringAsync('file://' + wav, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+          const binaryString = atob(base64)
+          const bytes = new Uint8Array(binaryString.length)
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i)
+          }
+          const arrayBuffer = bytes.buffer
+          const headerSize = 44
+          const pcmData = new Int16Array(arrayBuffer.slice(headerSize))
+          const float32 = new Float32Array(pcmData.length)
+          for (let i = 0; i < pcmData.length; i++) {
+            float32[i] = pcmData[i] / 32768.0
+          }
+
+          const t2 = Date.now()
+          const samplesResult = await LanguageId.detectLanguage(16000, Array.from(float32))
+          timing.detectSamplesMs = Date.now() - t2
+
+          // Step 4: release
+          const t3 = Date.now()
+          await LanguageId.release()
+          timing.releaseMs = Date.now() - t3
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: {
+              fileLanguage: detectResult.language,
+              fileDurationMs: detectResult.durationMs,
+              samplesLanguage: samplesResult.success ? samplesResult.language : 'N/A',
+              samplesDurationMs: samplesResult.success ? samplesResult.durationMs : 0,
+              totalSamples: float32.length,
+              timing,
+              wavPath: wav,
+              modelDir,
+            },
+          }
+        } catch (e) {
+          try { await LanguageId.release() } catch {}
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
     testVADFull: (wavPath?: string) => {
       const op = 'vadFull'
       const MODEL_ID = 'silero-vad-v5'

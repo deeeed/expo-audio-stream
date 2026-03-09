@@ -1,9 +1,9 @@
-import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelState } from '../contexts/ModelManagement/types';
 import type { ModelMetadata, ModelType } from '../utils/models';
-import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig, useVadModelConfig } from './useModelConfig';
+import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useLanguageIdModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig, useVadModelConfig } from './useModelConfig';
 
 interface UseModelWithConfigProps {
   modelId: string | null;
@@ -205,5 +205,23 @@ export function useVadModelWithConfig({ modelId }: UseModelWithConfigProps): Use
   return {
     ...baseResult,
     vadConfig,
+  };
+}
+
+export function useLanguageIdModels(): UseModelsResult {
+  return useModels({ modelType: 'language-id' });
+}
+
+interface UseLanguageIdModelWithConfigResult extends UseModelWithConfigResult {
+  languageIdConfig?: Partial<LanguageIdModelConfig>;
+}
+
+export function useLanguageIdModelWithConfig({ modelId }: UseModelWithConfigProps): UseLanguageIdModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const languageIdConfig = useLanguageIdModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    languageIdConfig,
   };
 }

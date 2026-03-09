@@ -85,6 +85,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create VAD handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating Language ID handler...");
+        @try {
+            self.languageIdHandler = [[SherpaOnnxLanguageIdHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Language ID handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Language ID handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -963,6 +971,85 @@ RCT_EXPORT_METHOD(releaseVad:(RCTPromiseResolveBlock)resolve
             resolve(result);
         } @catch (NSException *exception) {
             reject(@"ERR_VAD_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - Language ID Methods
+
+static dispatch_queue_t langIdSerialQueue() {
+    static dispatch_queue_t queue;
+    static dispatch_once_t _langIdQueueOnce;
+    dispatch_once(&_langIdQueueOnce, ^{
+        queue = dispatch_queue_create("com.sherpaonnx.langid", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+RCT_EXPORT_METHOD(initLanguageId:(JS::NativeSherpaOnnxSpec::SpecInitLanguageIdConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelDir()) configDict[@"modelDir"] = config.modelDir();
+    if (config.encoderFile()) configDict[@"encoderFile"] = config.encoderFile();
+    if (config.decoderFile()) configDict[@"decoderFile"] = config.decoderFile();
+    if (config.numThreads()) configDict[@"numThreads"] = @((int)*config.numThreads());
+    if (config.debug()) configDict[@"debug"] = @(*config.debug());
+    if (config.provider()) configDict[@"provider"] = config.provider();
+
+    dispatch_async(langIdSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.languageIdHandler initLanguageId:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_LANGUAGE_ID_INIT", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_LANGUAGE_ID_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(detectLanguage:(double)sampleRate
+                  samples:(NSArray *)samples
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(langIdSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.languageIdHandler detectLanguage:(int)sampleRate samples:samples];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_LANGUAGE_ID_DETECT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(detectLanguageFromFile:(NSString *)filePath
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(langIdSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.languageIdHandler detectLanguageFromFile:filePath];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_LANGUAGE_ID_FILE", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releaseLanguageId:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(langIdSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.languageIdHandler releaseLanguageId];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_LANGUAGE_ID_RELEASE", exception.reason, nil);
         }
     });
 }

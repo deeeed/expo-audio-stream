@@ -406,6 +406,38 @@ export interface Spec extends TurboModule {
   resetVad(): Promise<{ success: boolean }>;
   releaseVad(): Promise<{ released: boolean }>;
 
+  // Language ID methods
+  initLanguageId(config: {
+    modelDir: string;
+    encoderFile?: string;
+    decoderFile?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    language: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  detectLanguageFromFile(filePath: string): Promise<{
+    success: boolean;
+    language: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

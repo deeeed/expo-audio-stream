@@ -901,6 +901,29 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // LANGUAGE ID METHODS
+
+  async initLanguageId(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async detectLanguage(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; language: string; durationMs: number; error?: string }> {
+    return { success: false, language: '', durationMs: 0, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async detectLanguageFromFile(
+    _filePath: string
+  ): Promise<{ success: boolean; language: string; durationMs: number; error?: string }> {
+    return { success: false, language: '', durationMs: 0, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async releaseLanguageId(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // ARCHIVE METHODS
 
   async extractTarBz2(

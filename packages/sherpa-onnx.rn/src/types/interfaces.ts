@@ -5,6 +5,7 @@ import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
 import { KWSService } from '../services/KWSService';
 import { VadService } from '../services/VadService';
+import { LanguageIdService } from '../services/LanguageIdService';
 
 /**
  * Provider type for model inference
@@ -1188,6 +1189,31 @@ export interface VadAcceptWaveformResult {
   error?: string;
 }
 
+// ----------------------------------------------------------------------------------
+// Language ID (Spoken Language Identification) Interfaces
+// ----------------------------------------------------------------------------------
+
+export interface LanguageIdModelConfig {
+  modelDir: string;
+  encoderFile?: string;
+  decoderFile?: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: 'cpu' | 'gpu';
+}
+
+export interface LanguageIdInitResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface LanguageIdResult {
+  success: boolean;
+  language: string;
+  durationMs: number;
+  error?: string;
+}
+
 // Native module interface - what we expect from the native side
 export interface NativeSherpaOnnxInterface {
   // Test methods
@@ -1282,6 +1308,15 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<VadAcceptWaveformResult>;
   resetVad(): Promise<{ success: boolean }>;
   releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
@@ -1388,6 +1423,15 @@ export interface SherpaOnnxInterface {
   resetVad(): Promise<{ success: boolean }>;
   releaseVad(): Promise<{ released: boolean }>;
 
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1404,6 +1448,7 @@ export interface SherpaOnnxInterface {
   SpeakerId: SpeakerIdService;
   KWS: KWSService;
   VAD: VadService;
+  LanguageId: LanguageIdService;
   Archive: ArchiveService;
 }
 

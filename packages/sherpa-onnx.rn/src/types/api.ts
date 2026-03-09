@@ -27,6 +27,9 @@ import type {
   VadModelConfig,
   VadInitResult,
   VadAcceptWaveformResult,
+  LanguageIdModelConfig,
+  LanguageIdInitResult,
+  LanguageIdResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -181,6 +184,15 @@ export interface ApiInterface {
   ): Promise<VadAcceptWaveformResult>;
   resetVad(): Promise<{ success: boolean }>;
   releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(

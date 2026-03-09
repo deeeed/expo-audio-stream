@@ -1,5 +1,5 @@
-import { VAD } from '@siteed/sherpa-onnx.rn';
-import type { VadModelConfig, VadAcceptWaveformResult, SpeechSegment } from '@siteed/sherpa-onnx.rn';
+import { LanguageId } from '@siteed/sherpa-onnx.rn';
+import type { LanguageIdModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -7,7 +7,6 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,10 +14,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useVadModels, useVadModelWithConfig } from '../../hooks/useModelWithConfig';
+import { useLanguageIdModels, useLanguageIdModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
 
-// Decode base64 string to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -36,11 +34,11 @@ interface AudioItem {
 }
 
 const BUNDLED_AUDIO = [
-  { id: '1', name: 'JFK Speech', module: require('@assets/audio/jfk.wav') },
+  { id: '1', name: 'JFK Speech (EN)', module: require('@assets/audio/jfk.wav') },
   { id: '2', name: 'English Sample', module: require('@assets/audio/en.wav') },
 ];
 
-export default function VadScreen() {
+export default function LanguageIdScreen() {
   const params = useLocalSearchParams<{ model?: string }>();
 
   // Model state
@@ -56,22 +54,22 @@ export default function VadScreen() {
 
   // Detection state
   const [detecting, setDetecting] = useState(false);
-  const [segments, setSegments] = useState<SpeechSegment[]>([]);
-  const [isSpeechDetected, setIsSpeechDetected] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
 
   // Live mic state
   const [isLiveMic, setIsLiveMic] = useState(false);
   const [liveChunks, setLiveChunks] = useState(0);
-  const [liveSegments, setLiveSegments] = useState<SpeechSegment[]>([]);
-  const [liveSpeechDetected, setLiveSpeechDetected] = useState(false);
+  const [liveLanguage, setLiveLanguage] = useState<string | null>(null);
 
   // Models
-  const { downloadedModels } = useVadModels();
-  const { vadConfig, localPath } = useVadModelWithConfig({ modelId: selectedModelId });
+  const { downloadedModels } = useLanguageIdModels();
+  const { languageIdConfig, localPath } = useLanguageIdModelWithConfig({ modelId: selectedModelId });
 
-  // Audio recorder for live mic (same pattern as KWS)
+  // Audio recorder for live mic
   const recorder = useAudioRecorder();
   const recordingRef = useRef(false);
+  const samplesBufferRef = useRef<number[]>([]);
 
   // Load bundled audio files
   useEffect(() => {
@@ -110,39 +108,36 @@ export default function VadScreen() {
       detecting,
       isLiveMic,
       liveChunks,
-      segmentsCount: segments.length,
-      segments: segments.map(s => ({ start: s.startTime, end: s.endTime })),
-      liveSegmentsCount: liveSegments.length,
-      liveSegments: liveSegments.map(s => ({ start: s.startTime, end: s.endTime })),
-      isSpeechDetected,
-      liveSpeechDetected,
+      detectedLanguage,
+      liveLanguage,
+      durationMs,
       error,
       statusMessage,
       audioItemsCount: audioItems.length,
       selectedAudioId,
     });
-  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, segments, liveSegments, isSpeechDetected, liveSpeechDetected, error]);
+  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, detectedLanguage, liveLanguage, durationMs, error, statusMessage, audioItems.length, selectedAudioId]);
 
-  // Initialize VAD
+  // Initialize Language ID
   const handleInit = useCallback(async () => {
-    if (!selectedModelId || !vadConfig || !localPath) {
+    if (!selectedModelId || !languageIdConfig || !localPath) {
       setError('No model selected or not downloaded');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setStatusMessage('Initializing VAD...');
+    setStatusMessage('Initializing Language ID...');
 
     try {
-      const config: VadModelConfig = {
+      const config: LanguageIdModelConfig = {
         modelDir: localPath,
-        ...vadConfig,
+        ...languageIdConfig,
       };
-      const result = await VAD.init(config);
+      const result = await LanguageId.init(config);
       if (result.success) {
         setInitialized(true);
-        setStatusMessage('VAD initialized successfully');
+        setStatusMessage('Language ID initialized successfully');
       } else {
         setError(result.error || 'Init failed');
         setStatusMessage('');
@@ -152,7 +147,7 @@ export default function VadScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedModelId, vadConfig, localPath]);
+  }, [selectedModelId, languageIdConfig, localPath]);
 
   // Detect from file
   const handleDetectFromFile = useCallback(async () => {
@@ -161,59 +156,19 @@ export default function VadScreen() {
 
     setDetecting(true);
     setError(null);
-    setSegments([]);
-    setIsSpeechDetected(false);
+    setDetectedLanguage(null);
+    setDurationMs(null);
     setStatusMessage(`Processing ${selected.name}...`);
 
     try {
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync('file://' + selected.localUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const arrayBuffer = base64ToArrayBuffer(base64);
-
-      // Parse WAV header for sample rate
-      const dataView = new DataView(arrayBuffer);
-      const sampleRate = dataView.getUint32(24, true);
-      const bitsPerSample = dataView.getUint16(34, true);
-
-      // Convert to float32 (handles WAV header internally)
-      const { pcmValues: float32 } = await convertPCMToFloat32({
-        buffer: arrayBuffer,
-        bitDepth: bitsPerSample,
-      });
-
-      // Feed in chunks of 512 samples (window size)
-      const chunkSize = 512;
-      const allSegments: SpeechSegment[] = [];
-      let speechDetected = false;
-
-      for (let offset = 0; offset < float32.length; offset += chunkSize) {
-        const end = Math.min(offset + chunkSize, float32.length);
-        const chunk = Array.from(float32.subarray(offset, end));
-
-        // Pad last chunk to 512 if needed
-        while (chunk.length < chunkSize) {
-          chunk.push(0);
-        }
-
-        const result = await VAD.acceptWaveform(16000, chunk);
-        if (result.success) {
-          if (result.isSpeechDetected) speechDetected = true;
-          if (result.segments.length > 0) {
-            allSegments.push(...result.segments);
-          }
-        }
+      const result = await LanguageId.detectLanguageFromFile(selected.localUri);
+      if (result.success) {
+        setDetectedLanguage(result.language);
+        setDurationMs(result.durationMs);
+        setStatusMessage(`Detected: ${result.language} (${result.durationMs}ms)`);
+      } else {
+        setError(result.error || 'Detection failed');
       }
-
-      setSegments(allSegments);
-      setIsSpeechDetected(speechDetected);
-      setStatusMessage(
-        `Done. ${allSegments.length} segment(s) found, speech ${speechDetected ? 'detected' : 'not detected'}`
-      );
-
-      // Reset VAD for next detection
-      await VAD.reset();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -221,15 +176,15 @@ export default function VadScreen() {
     }
   }, [audioItems, selectedAudioId, initialized]);
 
-  // Live mic start (same pattern as KWS)
+  // Live mic start
   const handleStartMic = useCallback(async () => {
     if (!initialized) {
-      setError('VAD not initialized');
+      setError('Language ID not initialized');
       return;
     }
     setLiveChunks(0);
-    setLiveSegments([]);
-    setLiveSpeechDetected(false);
+    setLiveLanguage(null);
+    samplesBufferRef.current = [];
 
     try {
       const permResult = await ExpoAudioStreamModule.requestPermissionsAsync();
@@ -240,7 +195,7 @@ export default function VadScreen() {
 
       recordingRef.current = true;
       setIsLiveMic(true);
-      setStatusMessage('Live mic active...');
+      setStatusMessage('Live mic active — collecting audio...');
 
       await recorder.startRecording({
         sampleRate: 16000,
@@ -258,17 +213,21 @@ export default function VadScreen() {
             });
             const samples = Array.from(pcmValues);
             if (samples.length > 0) {
-              const result = await VAD.acceptWaveform(16000, samples);
-              if (result.success) {
-                setLiveSpeechDetected(result.isSpeechDetected);
-                if (result.segments.length > 0) {
-                  setLiveSegments(prev => [...prev, ...result.segments]);
+              samplesBufferRef.current.push(...samples);
+              setLiveChunks(prev => prev + 1);
+
+              // Detect every ~2 seconds (32000 samples at 16kHz)
+              if (samplesBufferRef.current.length >= 32000) {
+                const result = await LanguageId.detectLanguage(16000, samplesBufferRef.current);
+                if (result.success) {
+                  setLiveLanguage(result.language);
+                  setStatusMessage(`Live: ${result.language} (${result.durationMs}ms)`);
                 }
-                setLiveChunks(prev => prev + 1);
+                samplesBufferRef.current = [];
               }
             }
           } catch (e) {
-            console.warn('[VAD] Error processing audio chunk:', e);
+            console.warn('[LanguageId] Error processing audio chunk:', e);
           }
         },
       });
@@ -283,14 +242,21 @@ export default function VadScreen() {
   const handleStopMic = useCallback(async () => {
     recordingRef.current = false;
     try {
+      // Process remaining buffered samples
+      if (samplesBufferRef.current.length > 0) {
+        const result = await LanguageId.detectLanguage(16000, samplesBufferRef.current);
+        if (result.success) {
+          setLiveLanguage(result.language);
+        }
+        samplesBufferRef.current = [];
+      }
       await recorder.stopRecording();
     } catch (e) {
-      console.warn('[VAD] Stop error:', e);
+      console.warn('[LanguageId] Stop error:', e);
     }
     setIsLiveMic(false);
-    setStatusMessage(`Live mic stopped. ${liveChunks} chunks, ${liveSegments.length} segments`);
-    await VAD.reset();
-  }, [recorder, liveChunks, liveSegments.length]);
+    setStatusMessage(`Live mic stopped. ${liveChunks} chunks processed.`);
+  }, [recorder, liveChunks]);
 
   // Release
   const handleRelease = useCallback(async () => {
@@ -299,11 +265,11 @@ export default function VadScreen() {
       await recorder.stopRecording();
       setIsLiveMic(false);
     }
-    await VAD.release();
+    await LanguageId.release();
     setInitialized(false);
-    setSegments([]);
-    setLiveSegments([]);
-    setStatusMessage('VAD released');
+    setDetectedLanguage(null);
+    setLiveLanguage(null);
+    setStatusMessage('Language ID released');
   }, [isLiveMic, recorder]);
 
   return (
@@ -313,7 +279,7 @@ export default function VadScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Model</Text>
           {downloadedModels.length === 0 ? (
-            <Text style={styles.infoText}>No VAD models downloaded. Go to Models tab to download.</Text>
+            <Text style={styles.infoText}>No Language ID models downloaded. Go to Models tab to download.</Text>
           ) : (
             <View style={styles.modelList}>
               {downloadedModels.map(model => (
@@ -347,7 +313,7 @@ export default function VadScreen() {
           <View style={styles.buttonRow}>
             {!initialized ? (
               <TouchableOpacity
-                testID="vad-init-button"
+                testID="langid-init-button"
                 style={[styles.button, styles.buttonPrimary, (!selectedModelId || loading) && styles.buttonDisabled]}
                 onPress={handleInit}
                 disabled={!selectedModelId || loading}
@@ -360,7 +326,7 @@ export default function VadScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                testID="vad-release-button"
+                testID="langid-release-button"
                 style={[styles.button, styles.buttonDanger]}
                 onPress={handleRelease}
               >
@@ -398,7 +364,7 @@ export default function VadScreen() {
               ))}
             </View>
             <TouchableOpacity
-              testID="vad-detect-button"
+              testID="langid-detect-button"
               style={[styles.button, styles.buttonPrimary, detecting && styles.buttonDisabled]}
               onPress={handleDetectFromFile}
               disabled={detecting || !selectedAudioId}
@@ -406,21 +372,17 @@ export default function VadScreen() {
               {detecting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.buttonTextWhite}>Detect Speech</Text>
+                <Text style={styles.buttonTextWhite}>Detect Language</Text>
               )}
             </TouchableOpacity>
 
-            {/* File detection results */}
-            {segments.length > 0 && (
+            {detectedLanguage && (
               <View style={styles.results}>
-                <Text style={styles.resultTitle}>
-                  Segments ({segments.length}):
-                </Text>
-                {segments.map((seg, i) => (
-                  <Text key={i} style={styles.segmentText}>
-                    {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s ({seg.duration} samples)
-                  </Text>
-                ))}
+                <Text style={styles.resultTitle}>Detected Language:</Text>
+                <Text style={styles.languageResult}>{detectedLanguage}</Text>
+                {durationMs != null && (
+                  <Text style={styles.infoText}>Processing time: {durationMs}ms</Text>
+                )}
               </View>
             )}
           </View>
@@ -431,7 +393,7 @@ export default function VadScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Live Microphone</Text>
             <TouchableOpacity
-              testID="vad-livemic-button"
+              testID="langid-livemic-button"
               style={[
                 styles.button,
                 isLiveMic ? styles.buttonDanger : styles.buttonPrimary,
@@ -443,29 +405,14 @@ export default function VadScreen() {
               </Text>
             </TouchableOpacity>
 
-            {isLiveMic && (
+            {(isLiveMic || liveLanguage) && (
               <View style={styles.liveStatus}>
-                <Text style={[styles.speechIndicator, liveSpeechDetected && styles.speechActive]}>
-                  {liveSpeechDetected ? 'SPEECH' : 'SILENCE'}
-                </Text>
-                <Text style={styles.infoText}>Chunks: {liveChunks}</Text>
-                <Text style={styles.infoText}>Segments: {liveSegments.length}</Text>
-              </View>
-            )}
-
-            {liveSegments.length > 0 && (
-              <View style={styles.results}>
-                <Text style={styles.resultTitle}>
-                  Live Segments ({liveSegments.length}):
-                </Text>
-                {liveSegments.slice(-10).map((seg, i) => (
-                  <Text key={i} style={styles.segmentText}>
-                    {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s
+                {liveLanguage && (
+                  <Text style={styles.languageResult}>
+                    {liveLanguage}
                   </Text>
-                ))}
-                {liveSegments.length > 10 && (
-                  <Text style={styles.infoText}>... and {liveSegments.length - 10} more</Text>
                 )}
+                <Text style={styles.infoText}>Chunks: {liveChunks}</Text>
               </View>
             )}
           </View>
@@ -500,16 +447,15 @@ const styles = StyleSheet.create({
   audioButtonText: { fontSize: 13 },
   results: { marginTop: 8, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 6 },
   resultTitle: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  segmentText: { fontSize: 13, color: '#333', marginBottom: 2 },
-  liveStatus: { marginTop: 8, gap: 4 },
-  speechIndicator: {
-    fontSize: 18,
+  languageResult: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#999',
+    color: '#00BCD4',
     textAlign: 'center',
     paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#e0f7fa',
     borderRadius: 6,
+    textTransform: 'uppercase',
   },
-  speechActive: { color: '#00aa00', backgroundColor: '#e0ffe0' },
+  liveStatus: { marginTop: 8, gap: 4 },
 });

@@ -28,6 +28,9 @@ import type {
   VadModelConfig,
   VadInitResult,
   VadAcceptWaveformResult,
+  LanguageIdModelConfig,
+  LanguageIdInitResult,
+  LanguageIdResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -84,6 +87,10 @@ const createWebPlaceholder = (): ApiInterface => {
     acceptVadWaveform: notImplementedError,
     resetVad: notImplementedError,
     releaseVad: notImplementedError,
+    initLanguageId: notImplementedError,
+    detectLanguage: notImplementedError,
+    detectLanguageFromFile: notImplementedError,
+    releaseLanguageId: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -350,6 +357,26 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseVad(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseVad();
+  },
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult> {
+    return NativeSherpaOnnx.initLanguageId(config as any);
+  },
+
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult> {
+    return NativeSherpaOnnx.detectLanguage(sampleRate, samples);
+  },
+
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult> {
+    return NativeSherpaOnnx.detectLanguageFromFile(filePath);
+  },
+
+  releaseLanguageId(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseLanguageId();
   },
 
   // Archive methods

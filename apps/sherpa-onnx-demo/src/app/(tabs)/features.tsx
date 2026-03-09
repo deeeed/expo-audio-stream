@@ -65,6 +65,13 @@ const FEATURES: FeatureCardProps[] = [
     route: '/feature/vad',
     color: '#607D8B',
   },
+  {
+    title: 'Language Identification',
+    description: 'Identify the spoken language in audio',
+    icon: 'language',
+    route: '/feature/language-id',
+    color: '#00BCD4',
+  },
 ];
 
 function FeatureCard({ title, description, icon, route, color, hasLiveMode, liveRoute }: FeatureCardProps) {
