@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useKwsModels, useKwsModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../../agentic-bridge';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   LoadingOverlay,
   ModelSelector,
@@ -514,15 +515,11 @@ export default function KwsScreen() {
       {/* Model Selection */}
       <Section title="1. Select KWS Model">
         {downloadedModels.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No KWS models downloaded.</Text>
-            <ThemedButton
-              label="Download a model"
-              variant="danger"
-              onPress={() => router.push('/(tabs)/models?type=kws')}
-              style={{ marginTop: theme.margin.s }}
-            />
-          </View>
+          <InlineModelDownloader
+            modelType="kws"
+            emptyLabel="No KWS models downloaded."
+            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+          />
         ) : (
           <ModelSelector
             models={downloadedModels}

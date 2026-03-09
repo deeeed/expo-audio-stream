@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { usePunctuationModels, usePunctuationModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   PageContainer,
@@ -136,13 +137,20 @@ export default function PunctuationScreen() {
     <PageContainer>
       {/* Model Selector */}
       <Section title="Model">
-        <ModelSelector
-          models={downloadedModels}
-          selectedId={selectedModelId}
-          onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
-          disabled={initialized}
-          emptyMessage="No Punctuation models downloaded. Go to Models tab to download."
-        />
+        {downloadedModels.length === 0 ? (
+          <InlineModelDownloader
+            modelType="punctuation"
+            emptyLabel="No Punctuation models downloaded."
+            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+          />
+        ) : (
+          <ModelSelector
+            models={downloadedModels}
+            selectedId={selectedModelId}
+            onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
+            disabled={initialized}
+          />
+        )}
       </Section>
 
       {/* Controls */}

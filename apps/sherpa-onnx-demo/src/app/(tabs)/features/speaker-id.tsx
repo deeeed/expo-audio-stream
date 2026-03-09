@@ -16,6 +16,7 @@ import {
   View
 } from 'react-native';
 import { useSpeakerIdModelWithConfig, useSpeakerIdModels } from '../../../hooks/useModelWithConfig';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -552,15 +553,14 @@ export default function SpeakerIdScreen() {
           </Text>
         )}
         {downloadedModels.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No speaker identification models downloaded.</Text>
-            <ThemedButton
-              testID="download-models-inline-btn"
-              label="Download a model"
-              onPress={() => router.push('/(tabs)/models?type=speaker-id')}
-              style={{ marginTop: theme.margin.s }}
-            />
-          </View>
+          <InlineModelDownloader
+            modelType="speaker-id"
+            emptyLabel="No speaker identification models downloaded."
+            onModelDownloaded={(modelId) => {
+              setSelectedModelId(modelId);
+              setStatusMessage('Model downloaded. Ready to initialize.');
+            }}
+          />
         ) : (
           <ModelSelector
             models={downloadedModels}

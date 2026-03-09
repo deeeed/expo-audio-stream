@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useTtsModels, useTtsModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../../agentic-bridge';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -447,15 +448,11 @@ export default function TtsScreen() {
           </Text>
         )}
         {downloadedModels.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No TTS models downloaded.</Text>
-            <ThemedButton
-              testID="download-models-inline-btn"
-              label="Download a model"
-              onPress={() => router.push('/(tabs)/models?type=tts')}
-              style={{ marginTop: theme.margin.s }}
-            />
-          </View>
+          <InlineModelDownloader
+            modelType="tts"
+            emptyLabel="No TTS models downloaded."
+            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+          />
         ) : (
           <>
             <ModelSelector

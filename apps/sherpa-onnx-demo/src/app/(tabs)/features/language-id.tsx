@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useLanguageIdModels, useLanguageIdModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import { setAgenticPageState } from '../../../agentic-bridge';
 import {
   PageContainer,
@@ -280,13 +281,20 @@ export default function LanguageIdScreen() {
     <PageContainer>
       {/* Model Selector */}
       <Section title="Model">
-        <ModelSelector
-          models={downloadedModels}
-          selectedId={selectedModelId}
-          onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
-          disabled={initialized}
-          emptyMessage="No Language ID models downloaded. Go to Models tab to download."
-        />
+        {downloadedModels.length === 0 ? (
+          <InlineModelDownloader
+            modelType="language-id"
+            emptyLabel="No Language ID models downloaded."
+            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+          />
+        ) : (
+          <ModelSelector
+            models={downloadedModels}
+            selectedId={selectedModelId}
+            onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
+            disabled={initialized}
+          />
+        )}
       </Section>
 
       {/* Controls */}

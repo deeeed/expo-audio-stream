@@ -19,6 +19,7 @@ import {
   View
 } from 'react-native';
 import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../../hooks/useModelWithConfig';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   ConfigRow,
   LoadingOverlay,
@@ -694,15 +695,11 @@ function AudioTaggingScreen() {
       {/* Model Selection */}
       <Section title="1. Select Model">
         {downloadedModels.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No audio tagging models downloaded.</Text>
-            <ThemedButton
-              testID="download-models-inline-btn"
-              label="Download a model"
-              onPress={() => router.push('/(tabs)/models?type=audio-tagging')}
-              style={{ marginTop: theme.margin.s }}
-            />
-          </View>
+          <InlineModelDownloader
+            modelType="audio-tagging"
+            emptyLabel="No audio tagging models downloaded."
+            onModelDownloaded={(modelId) => handleModelSelect(modelId)}
+          />
         ) : (
           <ModelSelector
             models={downloadedModels}

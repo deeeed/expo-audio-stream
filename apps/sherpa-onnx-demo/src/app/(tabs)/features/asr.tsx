@@ -17,6 +17,7 @@ import { useAsrModels, useAsrModelWithConfig } from '../../../hooks/useModelWith
 import { useLiveAsr } from '../../../hooks/useLiveAsr';
 import { formatDuration, formatBytes } from '../../../utils/formatters';
 import { setAgenticPageState } from '../../../agentic-bridge';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   LoadingOverlay,
   PageContainer,
@@ -492,16 +493,26 @@ export default function AsrScreen() {
           </Text>
         )}
         {visibleModels.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 8 }}>
-              {mode === 'live' ? 'No streaming ASR models downloaded.' : 'No ASR models downloaded.'}
-            </Text>
-            <ThemedButton
-              label="Download a model"
-              variant="primary"
-              onPress={() => router.push('/(tabs)/models?type=asr')}
+          downloadedModels.length === 0 ? (
+            <InlineModelDownloader
+              modelType="asr"
+              emptyLabel={mode === 'live' ? 'No streaming ASR models downloaded.' : 'No ASR models downloaded.'}
+              onModelDownloaded={(modelId) => {
+                setSelectedModelId(modelId);
+              }}
             />
-          </View>
+          ) : (
+            <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 8 }}>
+                No streaming ASR models downloaded.
+              </Text>
+              <ThemedButton
+                label="Download a streaming model"
+                variant="primary"
+                onPress={() => router.push('/(tabs)/models?type=asr')}
+              />
+            </View>
+          )
         ) : (
           <>
             {visibleModels.map((model) => {

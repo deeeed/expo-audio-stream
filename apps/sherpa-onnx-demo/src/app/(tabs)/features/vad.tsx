@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useVadModels, useVadModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../../agentic-bridge';
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   PageContainer,
   Section,
@@ -313,13 +314,20 @@ export default function VadScreen() {
     <PageContainer>
       {/* Model Selector */}
       <Section title="Model">
-        <ModelSelector
-          models={downloadedModels}
-          selectedId={selectedModelId}
-          onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
-          disabled={initialized}
-          emptyMessage="No VAD models downloaded. Go to Models tab to download."
-        />
+        {downloadedModels.length === 0 ? (
+          <InlineModelDownloader
+            modelType="vad"
+            emptyLabel="No VAD models downloaded."
+            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
+          />
+        ) : (
+          <ModelSelector
+            models={downloadedModels}
+            selectedId={selectedModelId}
+            onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
+            disabled={initialized}
+          />
+        )}
       </Section>
 
       {/* Controls */}
