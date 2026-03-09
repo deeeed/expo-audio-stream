@@ -19,6 +19,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import net.siteed.sherpaonnx.handlers.ASRHandler
 import net.siteed.sherpaonnx.handlers.ArchiveHandler
 import net.siteed.sherpaonnx.handlers.AudioTaggingHandler
+import net.siteed.sherpaonnx.handlers.KWSHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
 
@@ -29,6 +30,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val archiveHandler = ArchiveHandler(reactContext)
     private val asrHandler = ASRHandler(reactContext)
     private val speakerIdHandler = SpeakerIdHandler(reactContext)
+    private val kwsHandler = KWSHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -172,6 +174,23 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     
     fun releaseSpeakerId(promise: Promise) {
         speakerIdHandler.release(promise)
+    }
+
+    // KWS Methods
+    fun initKws(config: ReadableMap, promise: Promise) {
+        kwsHandler.init(config, promise)
+    }
+
+    fun acceptKwsWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        kwsHandler.acceptWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun resetKwsStream(promise: Promise) {
+        kwsHandler.resetStream(promise)
+    }
+
+    fun releaseKws(promise: Promise) {
+        kwsHandler.release(promise)
     }
 
     // Utility Methods

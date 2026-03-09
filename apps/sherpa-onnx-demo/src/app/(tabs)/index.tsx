@@ -82,60 +82,55 @@ const SherpaOnnxDemo: React.FC = () => {
     }
   };
 
-  // Helper function to navigate to a tab
-  const navigateToTab = (tab: string) => {
-    router.navigate(`/${tab}`);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Sherpa-ONNX Demo</Text>
         <Text style={styles.subtitle}>System Status</Text>
-        
+
         <View style={styles.statusCard}>
           <Text style={styles.statusTitle}>React Native Architecture:</Text>
           <Text style={styles.status}>{archInfo}</Text>
-          
+
           <Text style={styles.statusTitle}>Sherpa-ONNX Available:</Text>
           <Text style={[
-            styles.status, 
-            isAvailable === null ? styles.neutral : 
+            styles.status,
+            isAvailable === null ? styles.neutral :
             isAvailable ? styles.positive : styles.negative
           ]}>
             {isAvailable === null ? 'Checking...' : isAvailable ? 'Yes' : 'No'}
           </Text>
-          
+
           <Text style={styles.statusTitle}>Library Validation:</Text>
           <Text style={styles.status}>{validationResult}</Text>
 
           {/* System Information Display */}
           {systemInfo && (
             <View style={styles.systemInfoContainer}>
-              <Text style={styles.systemInfoTitle}>📊 System Information</Text>
-              
+              <Text style={styles.systemInfoTitle}>System Information</Text>
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Platform:</Text>
                 <Text style={styles.infoValue}>{Platform.OS} {systemInfo.device?.iosVersion || systemInfo.device?.androidVersion || ''}</Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Device:</Text>
                 <Text style={styles.infoValue}>{systemInfo.device?.brand} {systemInfo.device?.model}</Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>CPU Cores:</Text>
                 <Text style={styles.infoValue}>{systemInfo.cpu?.availableProcessors}</Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Memory:</Text>
                 <Text style={styles.infoValue}>
                   {systemInfo.memory?.usedMemoryMB?.toFixed(1)}MB / {systemInfo.memory?.totalMemoryMB?.toFixed(1)}MB
                 </Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Architecture Type:</Text>
                 <Text style={[
@@ -145,7 +140,7 @@ const SherpaOnnxDemo: React.FC = () => {
                   {systemInfo.architecture.type.toUpperCase()}
                 </Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Native Library:</Text>
                 <Text style={[
@@ -155,21 +150,21 @@ const SherpaOnnxDemo: React.FC = () => {
                   {systemInfo.libraryLoaded ? 'Loaded' : 'Not Loaded'}
                 </Text>
               </View>
-              
+
               {Platform.OS === 'ios' && systemInfo.gpu?.metalVersion && (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Metal GPU:</Text>
                   <Text style={styles.infoValue}>{systemInfo.gpu.metalVersion}</Text>
                 </View>
               )}
-              
+
               {Platform.OS === 'android' && systemInfo.gpu?.openGLESVersion && (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>OpenGL ES:</Text>
                   <Text style={styles.infoValue}>{systemInfo.gpu.openGLESVersion}</Text>
                 </View>
               )}
-              
+
               {Platform.OS === 'web' && systemInfo.gpu?.webGLVersion && (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>WebGL:</Text>
@@ -178,15 +173,15 @@ const SherpaOnnxDemo: React.FC = () => {
               )}
             </View>
           )}
-          
+
           {systemInfoError && (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorTitle}>⚠️ System Info Error:</Text>
+              <Text style={styles.errorTitle}>System Info Error:</Text>
               <Text style={styles.errorText}>{systemInfoError}</Text>
             </View>
           )}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.testButton, !isAvailable && styles.buttonDisabled]}
             onPress={testNativeIntegration}
             disabled={!isAvailable}
@@ -197,133 +192,12 @@ const SherpaOnnxDemo: React.FC = () => {
           <Text style={[styles.status, styles.testResult]}>{integrationTestResult}</Text>
         </View>
 
-        <View style={styles.featuresCard}>
-          <Text style={styles.cardTitle}>Available Features</Text>
-          
-          <TouchableOpacity 
-            style={styles.featureItem}
-            onPress={() => navigateToTab('tts')}
-            disabled={!isAvailable}
-          >
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Text-to-Speech</Text>
-              <Text style={styles.featureDesc}>
-                Convert text to natural-sounding speech using Sherpa-ONNX models
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => navigateToTab('tts')}
-              disabled={!isAvailable}
-            >
-              <Text style={styles.featureButtonText}>Try TTS</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.featureItem}
-            onPress={() => navigateToTab('asr')}
-            disabled={!isAvailable}
-          >
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Automatic Speech Recognition</Text>
-              <Text style={styles.featureDesc}>
-                Convert speech to text using Sherpa-ONNX models
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => navigateToTab('asr')}
-              disabled={!isAvailable}
-            >
-              <Text style={styles.featureButtonText}>Try ASR</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.featureItem}
-            onPress={() => navigateToTab('audio-tagging')}
-            disabled={!isAvailable}
-          >
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Audio Tagging</Text>
-              <Text style={styles.featureDesc}>
-                Identify and classify sounds in audio recordings
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => navigateToTab('audio-tagging')}
-              disabled={!isAvailable}
-            >
-              <Text style={styles.featureButtonText}>Try Audio Tagging</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.featureItem}
-            onPress={() => navigateToTab('speaker-id')}
-            disabled={!isAvailable}
-          >
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Speaker Identification</Text>
-              <Text style={styles.featureDesc}>
-                Recognize and identify speakers from voice recordings
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={[styles.featureButton, !isAvailable && styles.buttonDisabled]}
-              onPress={() => navigateToTab('speaker-id')}
-              disabled={!isAvailable}
-            >
-              <Text style={styles.featureButtonText}>Try Speaker ID</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.featureItem}
-            onPress={() => navigateToTab('models')}
-          >
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureName}>Model Management</Text>
-              <Text style={styles.featureDesc}>
-                Download, manage, and explore Sherpa-ONNX models
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.featureButton}
-              onPress={() => navigateToTab('models')}
-            >
-              <Text style={styles.featureButtonText}>Manage Models</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-          
-          {Platform.OS === 'web' && (
-            <TouchableOpacity 
-              style={styles.featureItem}
-              onPress={() => navigateToTab('web-test')}
-            >
-              <View style={styles.featureTextContainer}>
-                <Text style={styles.featureName}>Web-specific Tests</Text>
-                <Text style={styles.featureDesc}>
-                  Tests specific to the web platform using WebAssembly
-                </Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.featureButton}
-                onPress={() => navigateToTab('web-test')}
-              >
-                <Text style={styles.featureButtonText}>Try Web Tests</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          )}
-        </View>
+        <TouchableOpacity
+          style={styles.featuresButton}
+          onPress={() => router.navigate('/(tabs)/features')}
+        >
+          <Text style={styles.featuresButtonText}>Explore Features</Text>
+        </TouchableOpacity>
 
         <Text style={styles.footer}>
           Sherpa-ONNX Demo • Version 0.1.0
@@ -365,23 +239,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  featuresCard: {
-    backgroundColor: '#fff',
+  featuresButton: {
+    backgroundColor: '#2196F3',
     borderRadius: 12,
     padding: 16,
     width: '100%',
     marginBottom: 20,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  cardTitle: {
-    fontSize: 20,
+  featuresButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
   },
   statusTitle: {
     fontSize: 16,
@@ -408,36 +282,6 @@ const styles = StyleSheet.create({
   neutral: {
     color: '#607D8B',
   },
-  featureItem: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  featureItemDisabled: {
-    opacity: 0.7,
-  },
-  featureTextContainer: {
-    flex: 1,
-  },
-  featureName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  featureDesc: {
-    fontSize: 14,
-    color: '#666',
-  },
-  featureButton: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
   testButton: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 16,
@@ -445,10 +289,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 16,
     alignItems: 'center',
-  },
-  featureButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   testButtonText: {
     color: 'white',

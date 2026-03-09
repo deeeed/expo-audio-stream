@@ -18,6 +18,12 @@ export default function RootLayout() {
             title: 'Sherpa-ONNX Demo'
           }}
         />
+        <Stack.Screen
+          name="feature"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
     </ModelManagementProvider>
   );

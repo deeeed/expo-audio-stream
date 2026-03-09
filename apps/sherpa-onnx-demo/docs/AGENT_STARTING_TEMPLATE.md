@@ -47,8 +47,8 @@ Expected: `{ op: 'validateLib', status: 'success', result: { loaded: true, statu
 ## Step 5: Test TTS (requires TTS model loaded in app)
 
 ```bash
-# First navigate to TTS tab and load a model via the UI
-scripts/agentic/app-navigate.sh "/(tabs)/tts"
+# First navigate to TTS feature screen and load a model via the UI
+scripts/agentic/app-navigate.sh "/feature/tts"
 
 # Then test generation
 scripts/agentic/app-state.sh eval "__AGENTIC__.testTTS('Hello from the agentic bridge.')"

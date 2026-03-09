@@ -6,8 +6,8 @@
 #   scripts/agentic/app-navigate.sh <route-path>
 #   scripts/agentic/app-navigate.sh --screenshot <route-path>
 #   scripts/agentic/app-navigate.sh --device "Pixel 6a" /(tabs)/home
-#   scripts/agentic/app-navigate.sh /(tabs)/asr
-#   scripts/agentic/app-navigate.sh /(tabs)/tts
+#   scripts/agentic/app-navigate.sh /feature/asr
+#   scripts/agentic/app-navigate.sh /feature/tts
 
 set -euo pipefail
 
@@ -38,10 +38,13 @@ if [ -z "$ROUTE" ]; then
   echo ""
   echo "Common routes:"
   echo "  /(tabs)/home              Home / system info tab"
-  echo "  /(tabs)/tts               Text-to-speech tab"
-  echo "  /(tabs)/asr               Speech recognition tab"
-  echo "  /(tabs)/audio-tagging     Audio tagging tab"
-  echo "  /(tabs)/speaker-id        Speaker identification tab"
+  echo "  /(tabs)/features          Features hub tab"
+  echo "  /(tabs)/models            Model management tab"
+  echo "  /feature/asr              Speech recognition"
+  echo "  /feature/tts              Text-to-speech"
+  echo "  /feature/audio-tagging    Audio tagging"
+  echo "  /feature/speaker-id       Speaker identification"
+  echo "  /feature/kws              Keyword spotting"
   exit 1
 fi
 

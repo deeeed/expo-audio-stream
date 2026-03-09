@@ -62,7 +62,7 @@ const SAMPLE_AUDIO_FILES = [
  * 5. Perform speech recognition
  */
 export default function AsrScreen() {
-  // Deep-link params: /(tabs)/asr?model=<id>&autoInit=true&audioId=1&t=<timestamp>
+  // Deep-link params: /feature/asr?model=<id>&autoInit=true&audioId=1&t=<timestamp>
   // Pass t=<Date.now()> to force re-trigger effects when navigating to same screen
   const params = useLocalSearchParams<{ model?: string; autoInit?: string; audioId?: string; t?: string }>();
 

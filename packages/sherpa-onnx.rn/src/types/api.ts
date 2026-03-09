@@ -21,6 +21,9 @@ import type {
   IdentifySpeakerResult,
   VerifySpeakerResult,
   SpeakerIdFileProcessResult,
+  KWSModelConfig,
+  KWSInitResult,
+  KWSAcceptWaveformResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -157,6 +160,15 @@ export interface ApiInterface {
   ): Promise<VerifySpeakerResult>;
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(

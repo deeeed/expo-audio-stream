@@ -1,9 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-/**
- * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
- */
+
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
@@ -12,7 +10,6 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-
   return (
     <Tabs
       screenOptions={{
@@ -27,31 +24,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="asr"
+        name="features"
         options={{
-          title: 'ASR',
-          tabBarIcon: ({ color }) => <TabBarIcon name="mic" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tts"
-        options={{
-          title: 'TTS',
-          tabBarIcon: ({ color }) => <TabBarIcon name="chatbox-ellipses" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="audio-tagging"
-        options={{
-          title: 'Audio Tagging',
-          tabBarIcon: ({ color }) => <TabBarIcon name="musical-note" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="speaker-id"
-        options={{
-          title: 'Speaker ID',
-          tabBarIcon: ({ color }) => <TabBarIcon name="person" color={color} />,
+          title: 'Features',
+          tabBarIcon: ({ color }) => <TabBarIcon name="grid" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -63,4 +39,4 @@ export default function TabLayout() {
       />
     </Tabs>
   );
-} 
+}

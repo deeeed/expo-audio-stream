@@ -1,4 +1,4 @@
-import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { ModelType } from '../utils/models';
 
@@ -9,6 +9,7 @@ export interface PredefinedModelConfig {
   asrConfig?: Partial<AsrModelConfig>;
   audioTaggingConfig?: Partial<AudioTaggingModelConfig>;
   speakerIdConfig?: Partial<SpeakerIdModelConfig>;
+  kwsConfig?: Partial<KWSModelConfig>;
 }
 
 // Map of model IDs to their predefined configurations
@@ -301,6 +302,49 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       debug: false,
       provider: 'cpu'
     }
+  },
+  // KWS model configurations (IDs must match models.ts catalog)
+  'kws-zipformer-gigaspeech-mobile': {
+    id: 'kws-zipformer-gigaspeech-mobile',
+    modelType: 'kws',
+    kwsConfig: {
+      modelType: 'zipformer2',
+      modelFiles: {
+        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+        decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx',
+        tokens: 'tokens.txt',
+      },
+      keywordsFile: 'keywords.txt',
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu',
+      maxActivePaths: 4,
+      keywordsScore: 1.5,
+      keywordsThreshold: 0.25,
+      numTrailingBlanks: 2,
+    }
+  },
+  'kws-zipformer-wenetspeech': {
+    id: 'kws-zipformer-wenetspeech',
+    modelType: 'kws',
+    kwsConfig: {
+      modelType: 'zipformer2',
+      modelFiles: {
+        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
+        tokens: 'tokens.txt',
+      },
+      keywordsFile: 'keywords.txt',
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu',
+      maxActivePaths: 4,
+      keywordsScore: 1.5,
+      keywordsThreshold: 0.25,
+      numTrailingBlanks: 2,
+    }
   }
 };
 
@@ -344,6 +388,14 @@ export function useAudioTaggingModelConfig({ modelId }: { modelId: string | null
 export function useSpeakerIdModelConfig({ modelId }: { modelId: string | null }): Partial<SpeakerIdModelConfig> | undefined {
   const config = useModelConfig({ modelId });
   return config?.speakerIdConfig;
+}
+
+/**
+ * Get KWS specific configuration for a model
+ */
+export function useKwsModelConfig({ modelId }: { modelId: string | null }): Partial<KWSModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.kwsConfig;
 }
 
 /**

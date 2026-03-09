@@ -859,6 +859,27 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // KWS METHODS
+
+  async initKws(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'KWS not implemented in web version yet' };
+  }
+
+  async acceptKwsWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; detected: boolean; keyword: string; error?: string }> {
+    return { success: false, detected: false, keyword: '', error: 'KWS not implemented in web version yet' };
+  }
+
+  async resetKwsStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async releaseKws(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // ARCHIVE METHODS
 
   async extractTarBz2(

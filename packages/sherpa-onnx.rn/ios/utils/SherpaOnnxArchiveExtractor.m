@@ -350,10 +350,11 @@
     const void *bytes = tarData.bytes;
     const size_t length = tarData.length;
     size_t position = 0;
-    
+    NSString *pendingLongName = nil; // GNU @LongLink support
+
     while (position + blockSize <= length) {
         const char *header = (const char *)bytes + position;
-        
+
         // Check for end of archive (indicated by empty blocks)
         BOOL isEmptyBlock = YES;
         for (size_t i = 0; i < blockSize; i++) {
@@ -362,24 +363,48 @@
                 break;
             }
         }
-        
+
         if (isEmptyBlock) {
             position += blockSize;
             continue;
         }
-        
-        // Extract filename (TAR format)
-        char fileName[101] = {0}; // Ensure null termination with extra byte
-        memcpy(fileName, header, 100);
-        
-        // Get file size from header (octal string)
-        char fileSizeStr[13] = {0}; // Ensure null termination with extra byte
+
+        // Get file size from header (octal string) — needed before filename logic
+        char fileSizeStr[13] = {0};
         memcpy(fileSizeStr, header + 124, 12);
-        
         unsigned long fileSize = strtoul(fileSizeStr, NULL, 8);
-        
+
         // Get file type from header
         char fileType = *(header + 156);
+
+        // Handle GNU @LongLink (type 'L'): data block contains the real filename
+        if (fileType == 'L') {
+            position += blockSize; // skip this header
+            if (position + fileSize <= length) {
+                pendingLongName = [[NSString alloc] initWithBytes:(bytes + position) length:fileSize encoding:NSUTF8StringEncoding];
+                // Trim null terminator
+                pendingLongName = [pendingLongName stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacterSet]];
+            }
+            position += ((fileSize + blockSize - 1) / blockSize) * blockSize;
+            continue;
+        }
+
+        // Extract filename: prefer GNU long name, then USTAR prefix, then plain name
+        char fileName[512] = {0};
+        if (pendingLongName) {
+            strncpy(fileName, [pendingLongName UTF8String], sizeof(fileName) - 1);
+            pendingLongName = nil;
+        } else {
+            char nameField[101] = {0};
+            memcpy(nameField, header, 100);
+            char prefixField[156] = {0};
+            memcpy(prefixField, header + 345, 155);
+            if (prefixField[0] != '\0') {
+                snprintf(fileName, sizeof(fileName), "%s/%s", prefixField, nameField);
+            } else {
+                memcpy(fileName, nameField, 100);
+            }
+        }
         
         // Skip header block
         position += blockSize;

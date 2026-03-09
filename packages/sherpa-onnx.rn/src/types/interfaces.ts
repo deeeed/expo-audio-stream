@@ -3,6 +3,7 @@ import { AsrService } from '../services/AsrService';
 import { AudioTaggingService } from '../services/AudioTaggingService';
 import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
+import { KWSService } from '../services/KWSService';
 
 /**
  * Provider type for model inference
@@ -785,6 +786,67 @@ export interface SherpaOnnxStatic {
 export declare const SherpaOnnx: SherpaOnnxStatic;
 
 // ----------------------------------------------------------------------------------
+// Keyword Spotting (KWS) Interfaces
+// ----------------------------------------------------------------------------------
+
+/**
+ * Configuration for Keyword Spotting model
+ */
+export interface KWSModelConfig {
+  /** Directory containing model files */
+  modelDir: string;
+  /** Model type (default: 'zipformer2') */
+  modelType?: string;
+  /** Model files (encoder, decoder, joiner, tokens) */
+  modelFiles?: {
+    encoder?: string;
+    decoder?: string;
+    joiner?: string;
+    tokens?: string;
+  };
+  /** Keywords file path relative to modelDir (default: 'keywords.txt') */
+  keywordsFile?: string;
+  /** Number of threads (default: 2) */
+  numThreads?: number;
+  /** Debug mode */
+  debug?: boolean;
+  /** Provider: 'cpu' or 'gpu' */
+  provider?: 'cpu' | 'gpu';
+  /** Max active paths for decoding (default: 4) */
+  maxActivePaths?: number;
+  /** Keywords score (default: 1.5) */
+  keywordsScore?: number;
+  /** Keywords threshold (default: 0.25) */
+  keywordsThreshold?: number;
+  /** Number of trailing blanks (default: 2) */
+  numTrailingBlanks?: number;
+}
+
+/**
+ * Result of KWS initialization
+ */
+export interface KWSInitResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Result of accepting waveform and checking for keyword detection
+ */
+export interface KWSAcceptWaveformResult {
+  success: boolean;
+  /** Whether a keyword was detected */
+  detected: boolean;
+  /** The detected keyword (empty if not detected) */
+  keyword: string;
+  /** Decoded tokens */
+  tokens?: string[];
+  /** Token timestamps */
+  timestamps?: number[];
+  error?: string;
+}
+
+// ----------------------------------------------------------------------------------
 // Speaker Identification Interfaces
 // ----------------------------------------------------------------------------------
 
@@ -1136,6 +1198,15 @@ export interface NativeSherpaOnnxInterface {
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1223,6 +1294,15 @@ export interface SherpaOnnxInterface {
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1237,6 +1317,7 @@ export interface SherpaOnnxInterface {
   ASR: AsrService;
   AudioTagging: AudioTaggingService;
   SpeakerId: SpeakerIdService;
+  KWS: KWSService;
   Archive: ArchiveService;
 }
 

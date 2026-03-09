@@ -22,6 +22,9 @@ import type {
   TtsModelConfig,
   ValidateResult,
   VerifySpeakerResult,
+  KWSModelConfig,
+  KWSInitResult,
+  KWSAcceptWaveformResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -70,6 +73,10 @@ const createWebPlaceholder = (): ApiInterface => {
     verifySpeaker: notImplementedError,
     processSpeakerIdFile: notImplementedError,
     releaseSpeakerId: notImplementedError,
+    initKws: notImplementedError,
+    acceptKwsWaveform: notImplementedError,
+    resetKwsStream: notImplementedError,
+    releaseKws: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -296,6 +303,26 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseSpeakerId(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseSpeakerId();
+  },
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult> {
+    return NativeSherpaOnnx.initKws(config as any);
+  },
+
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult> {
+    return NativeSherpaOnnx.acceptKwsWaveform(sampleRate, samples);
+  },
+
+  resetKwsStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetKwsStream();
+  },
+
+  releaseKws(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseKws();
   },
 
   // Archive methods

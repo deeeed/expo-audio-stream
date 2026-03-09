@@ -334,6 +334,42 @@ export interface Spec extends TurboModule {
 
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // KWS methods
+  initKws(config: {
+    modelDir: string;
+    modelType?: string;
+    modelFileEncoder?: string;
+    modelFileDecoder?: string;
+    modelFileJoiner?: string;
+    modelFileTokens?: string;
+    keywordsFile?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+    maxActivePaths?: number;
+    keywordsScore?: number;
+    keywordsThreshold?: number;
+    numTrailingBlanks?: number;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    detected: boolean;
+    keyword: string;
+    tokens?: string[];
+    timestamps?: number[];
+    error?: string;
+  }>;
+
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

@@ -69,6 +69,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create Speaker ID handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating KWS handler...");
+        @try {
+            self.kwsHandler = [[SherpaOnnxKWSHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] KWS handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create KWS handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -780,6 +788,76 @@ RCT_EXPORT_METHOD(releaseSpeakerId:(RCTPromiseResolveBlock)resolve
         resolve(result);
     } @catch (NSException *exception) {
         reject(@"ERR_SPEAKER_ID_RELEASE", exception.reason, nil);
+    }
+}
+
+// MARK: - KWS Methods
+
+RCT_EXPORT_METHOD(initKws:(JS::NativeSherpaOnnxSpec::SpecInitKwsConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    // Extract fields from codegen struct into NSDictionary for Swift handler
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelDir()) [configDict setObject:config.modelDir() forKey:@"modelDir"];
+    if (config.modelType()) [configDict setObject:config.modelType() forKey:@"modelType"];
+    if (config.modelFileEncoder()) [configDict setObject:config.modelFileEncoder() forKey:@"modelFileEncoder"];
+    if (config.modelFileDecoder()) [configDict setObject:config.modelFileDecoder() forKey:@"modelFileDecoder"];
+    if (config.modelFileJoiner()) [configDict setObject:config.modelFileJoiner() forKey:@"modelFileJoiner"];
+    if (config.modelFileTokens()) [configDict setObject:config.modelFileTokens() forKey:@"modelFileTokens"];
+    if (config.keywordsFile()) [configDict setObject:config.keywordsFile() forKey:@"keywordsFile"];
+    if (config.numThreads()) [configDict setObject:@(*config.numThreads()) forKey:@"numThreads"];
+    if (config.debug()) [configDict setObject:@(*config.debug()) forKey:@"debug"];
+    if (config.provider()) [configDict setObject:config.provider() forKey:@"provider"];
+    if (config.maxActivePaths()) [configDict setObject:@(*config.maxActivePaths()) forKey:@"maxActivePaths"];
+    if (config.keywordsScore()) [configDict setObject:@(*config.keywordsScore()) forKey:@"keywordsScore"];
+    if (config.keywordsThreshold()) [configDict setObject:@(*config.keywordsThreshold()) forKey:@"keywordsThreshold"];
+    if (config.numTrailingBlanks()) [configDict setObject:@(*config.numTrailingBlanks()) forKey:@"numTrailingBlanks"];
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @try {
+            NSDictionary *result = [self.kwsHandler initKws:configDict];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_KWS_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(acceptKwsWaveform:(double)sampleRate
+                  samples:(NSArray *)samples
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @try {
+            NSDictionary *result = [self.kwsHandler acceptWaveform:(int)sampleRate samples:samples];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_KWS_ACCEPT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(resetKwsStream:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.kwsHandler resetStream];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_KWS_RESET", exception.reason, nil);
+    }
+}
+
+RCT_EXPORT_METHOD(releaseKws:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    @try {
+        NSDictionary *result = [self.kwsHandler releaseKws];
+        resolve(result);
+    } @catch (NSException *exception) {
+        reject(@"ERR_KWS_RELEASE", exception.reason, nil);
     }
 }
 

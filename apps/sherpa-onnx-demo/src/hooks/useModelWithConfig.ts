@@ -1,9 +1,9 @@
-import type { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelState } from '../contexts/ModelManagement/types';
 import type { ModelMetadata, ModelType } from '../utils/models';
-import { useAsrModelConfig, useAudioTaggingModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig } from './useModelConfig';
+import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig } from './useModelConfig';
 
 interface UseModelWithConfigProps {
   modelId: string | null;
@@ -165,9 +165,27 @@ interface UseSpeakerIdModelWithConfigResult extends UseModelWithConfigResult {
 export function useSpeakerIdModelWithConfig({ modelId }: UseModelWithConfigProps): UseSpeakerIdModelWithConfigResult {
   const baseResult = useModelWithConfig({ modelId });
   const speakerIdConfig = useSpeakerIdModelConfig({ modelId });
-  
+
   return {
     ...baseResult,
     speakerIdConfig,
   };
-} 
+}
+
+export function useKwsModels(): UseModelsResult {
+  return useModels({ modelType: 'kws' });
+}
+
+interface UseKwsModelWithConfigResult extends UseModelWithConfigResult {
+  kwsConfig?: Partial<KWSModelConfig>;
+}
+
+export function useKwsModelWithConfig({ modelId }: UseModelWithConfigProps): UseKwsModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const kwsConfig = useKwsModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    kwsConfig,
+  };
+}
