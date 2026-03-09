@@ -47,9 +47,6 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   onCancelDownload
 }) {
   const [isLoading, setIsLoading] = useState(false);
-  const [downloadSpeed, setDownloadSpeed] = useState(0); // bytes/sec
-  // Rolling window of (bytes, timestamp) samples for smoothed speed
-  const speedSamplesRef = useRef<{ bytes: number; time: number }[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<{
     id: string;
@@ -84,28 +81,6 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     }
   }, [state?.progress, isDownloading, isExtracting, progressAnim]);
 
-  // Track download speed using a 5-sample rolling window (~1.25s at 250ms tick)
-  useEffect(() => {
-    if (!isDownloading || state?.bytesWritten === undefined) {
-      if (!isDownloading) {
-        setDownloadSpeed(0);
-        speedSamplesRef.current = [];
-      }
-      return;
-    }
-    const sample = { bytes: state.bytesWritten, time: Date.now() };
-    speedSamplesRef.current = [...speedSamplesRef.current, sample].slice(-6);
-    const samples = speedSamplesRef.current;
-    if (samples.length >= 2) {
-      const oldest = samples[0];
-      const newest = samples[samples.length - 1];
-      const dt = (newest.time - oldest.time) / 1000;
-      const db = newest.bytes - oldest.bytes;
-      if (dt > 0 && db >= 0) {
-        setDownloadSpeed(db / dt);
-      }
-    }
-  }, [state?.bytesWritten, isDownloading]);
 
   const handleDownload = async () => {
     // Disable downloads on web platform
@@ -323,11 +298,12 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       {/* Download Progress */}
       {state?.status === 'downloading' && (() => {
+        const speed = state.downloadSpeedBytesPerSec ?? 0;
         const pct = Math.round((state.progress || 0) * 100);
-        const remaining = downloadSpeed > 0 && state.totalBytes && state.bytesWritten !== undefined
+        const remaining = speed > 0 && state.totalBytes && state.bytesWritten !== undefined
           ? state.totalBytes - state.bytesWritten
           : null;
-        const etaSec = remaining !== null && downloadSpeed > 0 ? Math.round(remaining / downloadSpeed) : null;
+        const etaSec = remaining !== null && speed > 0 ? Math.round(remaining / speed) : null;
         const etaLabel = etaSec === null ? null
           : etaSec >= 60 ? `~${Math.floor(etaSec / 60)}m ${etaSec % 60}s`
           : `~${etaSec}s`;
@@ -341,8 +317,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
                   : `${pct}%`}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {downloadSpeed > 0 && (
-                  <Text style={cardStyles.progressSpeed}>{formatBytes(downloadSpeed)}/s</Text>
+                {speed > 0 && (
+                  <Text style={cardStyles.progressSpeed}>{formatBytes(speed)}/s</Text>
                 )}
                 {onCancelDownload && (
                   <TouchableOpacity

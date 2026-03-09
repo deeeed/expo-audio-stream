@@ -16,6 +16,7 @@ export interface ModelState {
   progress?: number;
   bytesWritten?: number;
   totalBytes?: number;
+  downloadSpeedBytesPerSec?: number;
   error?: string;
   localPath?: string;
   files?: { path: string; size: number; lastModified: number }[];

@@ -500,13 +500,28 @@ export function ModelManagementProvider({
       // Create directory for model - do this immediately
       await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
 
+      // Rolling window for speed — measured here at network callback time, not at React render time
+      const speedSamples: { bytes: number; time: number }[] = [];
+
       // Throttled progress callback: max 4 UI updates/sec, no AsyncStorage write during download
       const progressCallback = throttle((dp: FileSystem.DownloadProgressData) => {
+        const now = Date.now();
+        speedSamples.push({ bytes: dp.totalBytesWritten, time: now });
+        if (speedSamples.length > 6) speedSamples.shift();
+        let speed = 0;
+        if (speedSamples.length >= 2) {
+          const oldest = speedSamples[0];
+          const newest = speedSamples[speedSamples.length - 1];
+          const dt = (newest.time - oldest.time) / 1000;
+          const db = newest.bytes - oldest.bytes;
+          if (dt > 0 && db >= 0) speed = db / dt;
+        }
         const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
         updateModelState(modelId, {
           progress: newProgress,
           bytesWritten: dp.totalBytesWritten,
           totalBytes: dp.totalBytesExpectedToWrite,
+          downloadSpeedBytesPerSec: speed,
         }, false);
       }, 250);
 
@@ -563,6 +578,7 @@ export function ModelManagementProvider({
         progress: 0,
         bytesWritten: undefined,
         totalBytes: undefined,
+        downloadSpeedBytesPerSec: undefined,
         error: undefined,
         localPath: undefined,
         files: undefined,
