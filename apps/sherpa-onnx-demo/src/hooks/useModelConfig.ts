@@ -1,4 +1,4 @@
-import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { ModelType } from '../utils/models';
 
@@ -10,6 +10,7 @@ export interface PredefinedModelConfig {
   audioTaggingConfig?: Partial<AudioTaggingModelConfig>;
   speakerIdConfig?: Partial<SpeakerIdModelConfig>;
   kwsConfig?: Partial<KWSModelConfig>;
+  vadConfig?: Partial<VadModelConfig>;
 }
 
 // Map of model IDs to their predefined configurations
@@ -345,6 +346,22 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       keywordsThreshold: 0.25,
       numTrailingBlanks: 2,
     }
+  },
+  // VAD model configurations
+  'silero-vad-v5': {
+    id: 'silero-vad-v5',
+    modelType: 'vad',
+    vadConfig: {
+      modelFile: 'silero_vad_v5.onnx',
+      threshold: 0.5,
+      minSilenceDuration: 0.25,
+      minSpeechDuration: 0.25,
+      windowSize: 512,
+      maxSpeechDuration: 5.0,
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
   }
 };
 
@@ -396,6 +413,14 @@ export function useSpeakerIdModelConfig({ modelId }: { modelId: string | null })
 export function useKwsModelConfig({ modelId }: { modelId: string | null }): Partial<KWSModelConfig> | undefined {
   const config = useModelConfig({ modelId });
   return config?.kwsConfig;
+}
+
+/**
+ * Get VAD specific configuration for a model
+ */
+export function useVadModelConfig({ modelId }: { modelId: string | null }): Partial<VadModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.vadConfig;
 }
 
 /**

@@ -24,6 +24,9 @@ import type {
   KWSModelConfig,
   KWSInitResult,
   KWSAcceptWaveformResult,
+  VadModelConfig,
+  VadInitResult,
+  VadAcceptWaveformResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -169,6 +172,15 @@ export interface ApiInterface {
   ): Promise<KWSAcceptWaveformResult>;
   resetKwsStream(): Promise<{ success: boolean }>;
   releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(

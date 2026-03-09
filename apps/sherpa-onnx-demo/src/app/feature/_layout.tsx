@@ -14,6 +14,7 @@ export default function FeatureLayout() {
       <Stack.Screen name="audio-tagging" options={{ title: 'Audio Tagging' }} />
       <Stack.Screen name="speaker-id" options={{ title: 'Speaker ID' }} />
       <Stack.Screen name="kws" options={{ title: 'Keyword Spotting' }} />
+      <Stack.Screen name="vad" options={{ title: 'Voice Activity Detection' }} />
     </Stack>
   );
 }

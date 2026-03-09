@@ -1,9 +1,9 @@
-import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelState } from '../contexts/ModelManagement/types';
 import type { ModelMetadata, ModelType } from '../utils/models';
-import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig } from './useModelConfig';
+import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig, useVadModelConfig } from './useModelConfig';
 
 interface UseModelWithConfigProps {
   modelId: string | null;
@@ -187,5 +187,23 @@ export function useKwsModelWithConfig({ modelId }: UseModelWithConfigProps): Use
   return {
     ...baseResult,
     kwsConfig,
+  };
+}
+
+export function useVadModels(): UseModelsResult {
+  return useModels({ modelType: 'vad' });
+}
+
+interface UseVadModelWithConfigResult extends UseModelWithConfigResult {
+  vadConfig?: Partial<VadModelConfig>;
+}
+
+export function useVadModelWithConfig({ modelId }: UseModelWithConfigProps): UseVadModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const vadConfig = useVadModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    vadConfig,
   };
 }

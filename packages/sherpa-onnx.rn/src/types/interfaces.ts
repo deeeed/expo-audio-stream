@@ -4,6 +4,7 @@ import { AudioTaggingService } from '../services/AudioTaggingService';
 import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
 import { KWSService } from '../services/KWSService';
+import { VadService } from '../services/VadService';
 
 /**
  * Provider type for model inference
@@ -1121,6 +1122,72 @@ export interface SpeakerIdOptions {
   minDuration?: number;
 }
 
+// ----------------------------------------------------------------------------------
+// VAD (Voice Activity Detection) Interfaces
+// ----------------------------------------------------------------------------------
+
+/**
+ * Configuration for VAD model
+ */
+export interface VadModelConfig {
+  /** Directory containing the VAD model file */
+  modelDir: string;
+  /** Model file name (e.g., "silero_vad_v5.onnx") */
+  modelFile?: string;
+  /** Probability threshold to classify as speech (default: 0.5) */
+  threshold?: number;
+  /** Minimum silence duration in seconds to split segments (default: 0.25) */
+  minSilenceDuration?: number;
+  /** Minimum speech duration in seconds (default: 0.25) */
+  minSpeechDuration?: number;
+  /** VAD frame window size in samples (default: 512) */
+  windowSize?: number;
+  /** Maximum speech duration in seconds before forcing a split (default: 5.0) */
+  maxSpeechDuration?: number;
+  /** Internal circular buffer size in seconds (default: 30.0) */
+  bufferSizeInSeconds?: number;
+  /** Number of threads (default: 1) */
+  numThreads?: number;
+  /** Debug mode */
+  debug?: boolean;
+  /** Provider: 'cpu' or 'gpu' */
+  provider?: 'cpu' | 'gpu';
+}
+
+/**
+ * Result of VAD initialization
+ */
+export interface VadInitResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * A detected speech segment
+ */
+export interface SpeechSegment {
+  /** Start position in samples */
+  start: number;
+  /** Duration in samples */
+  duration: number;
+  /** Start time in seconds (computed from start / sampleRate) */
+  startTime: number;
+  /** End time in seconds */
+  endTime: number;
+}
+
+/**
+ * Result of processing audio samples through VAD
+ */
+export interface VadAcceptWaveformResult {
+  success: boolean;
+  /** Whether speech is currently being detected */
+  isSpeechDetected: boolean;
+  /** Completed speech segments found in this chunk */
+  segments: SpeechSegment[];
+  error?: string;
+}
+
 // Native module interface - what we expect from the native side
 export interface NativeSherpaOnnxInterface {
   // Test methods
@@ -1206,6 +1273,15 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<KWSAcceptWaveformResult>;
   resetKwsStream(): Promise<{ success: boolean }>;
   releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
@@ -1303,6 +1379,15 @@ export interface SherpaOnnxInterface {
   resetKwsStream(): Promise<{ success: boolean }>;
   releaseKws(): Promise<{ released: boolean }>;
 
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1318,6 +1403,7 @@ export interface SherpaOnnxInterface {
   AudioTagging: AudioTaggingService;
   SpeakerId: SpeakerIdService;
   KWS: KWSService;
+  VAD: VadService;
   Archive: ArchiveService;
 }
 

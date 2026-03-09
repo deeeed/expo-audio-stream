@@ -22,6 +22,7 @@ import net.siteed.sherpaonnx.handlers.AudioTaggingHandler
 import net.siteed.sherpaonnx.handlers.KWSHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
+import net.siteed.sherpaonnx.handlers.VadHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -31,6 +32,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val asrHandler = ASRHandler(reactContext)
     private val speakerIdHandler = SpeakerIdHandler(reactContext)
     private val kwsHandler = KWSHandler(reactContext)
+    private val vadHandler = VadHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -191,6 +193,23 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun releaseKws(promise: Promise) {
         kwsHandler.release(promise)
+    }
+
+    // VAD Methods
+    fun initVad(config: ReadableMap, promise: Promise) {
+        vadHandler.init(config, promise)
+    }
+
+    fun acceptVadWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        vadHandler.acceptWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun resetVad(promise: Promise) {
+        vadHandler.reset(promise)
+    }
+
+    fun releaseVad(promise: Promise) {
+        vadHandler.release(promise)
     }
 
     // Utility Methods

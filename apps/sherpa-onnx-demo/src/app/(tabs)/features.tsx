@@ -58,6 +58,13 @@ const FEATURES: FeatureCardProps[] = [
     route: '/feature/kws',
     color: '#F44336',
   },
+  {
+    title: 'Voice Activity Detection',
+    description: 'Detect speech vs silence in audio streams',
+    icon: 'pulse',
+    route: '/feature/vad',
+    color: '#607D8B',
+  },
 ];
 
 function FeatureCard({ title, description, icon, route, color, hasLiveMode, liveRoute }: FeatureCardProps) {

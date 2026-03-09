@@ -25,6 +25,9 @@ import type {
   KWSModelConfig,
   KWSInitResult,
   KWSAcceptWaveformResult,
+  VadModelConfig,
+  VadInitResult,
+  VadAcceptWaveformResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -77,6 +80,10 @@ const createWebPlaceholder = (): ApiInterface => {
     acceptKwsWaveform: notImplementedError,
     resetKwsStream: notImplementedError,
     releaseKws: notImplementedError,
+    initVad: notImplementedError,
+    acceptVadWaveform: notImplementedError,
+    resetVad: notImplementedError,
+    releaseVad: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -323,6 +330,26 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseKws(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseKws();
+  },
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult> {
+    return NativeSherpaOnnx.initVad(config as any);
+  },
+
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult> {
+    return NativeSherpaOnnx.acceptVadWaveform(sampleRate, samples);
+  },
+
+  resetVad(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetVad();
+  },
+
+  releaseVad(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseVad();
   },
 
   // Archive methods

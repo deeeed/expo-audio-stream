@@ -13,7 +13,7 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import SherpaOnnx, { ASR, AudioTagging, KWS, SpeakerId } from '@siteed/sherpa-onnx.rn'
+import SherpaOnnx, { ASR, AudioTagging, KWS, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
 
 // Platform-aware model base directory
 const MODELS_BASE = Platform.OS === 'android'
@@ -983,6 +983,106 @@ if (__DEV__) {
               timing,
               wavPath: wav,
               modelDir: dir,
+            },
+          }
+        } catch (e) {
+          _lastAsyncResult = { op, status: 'error', error: String(e), result: { timing } }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
+    // Full end-to-end VAD: init → feed wav samples → release → timing
+    testVADFull: (wavPath?: string) => {
+      const op = 'vadFull'
+      const MODEL_ID = 'silero-vad-v5'
+      const modelDir = `${MODELS_BASE}/${MODEL_ID}`
+      // Use a bundled ASR test wav as default (has speech + silence)
+      const defaultWav = `${MODELS_BASE}/streaming-zipformer-en-20m-mobile/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile/test_wavs/1.wav`
+      const wav = wavPath ?? defaultWav
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const timing: Record<string, number> = {}
+        try {
+          // Step 1: init
+          const t0 = Date.now()
+          const initResult = await VAD.init({
+            modelDir,
+            modelFile: 'silero_vad_v5.onnx',
+            threshold: 0.5,
+            minSilenceDuration: 0.25,
+            minSpeechDuration: 0.25,
+            windowSize: 512,
+            maxSpeechDuration: 5.0,
+            numThreads: 1,
+            debug: false,
+            provider: 'cpu',
+          })
+          timing.initMs = Date.now() - t0
+          if (!initResult.success) throw new Error('initVad failed: ' + initResult.error)
+
+          // Step 2: read wav and feed chunks
+          const base64 = await FileSystem.readAsStringAsync('file://' + wav, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+          const binaryString = atob(base64)
+          const bytes = new Uint8Array(binaryString.length)
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i)
+          }
+          const arrayBuffer = bytes.buffer
+
+          // Parse WAV header
+          const dataView = new DataView(arrayBuffer)
+          const bitsPerSample = dataView.getUint16(34, true)
+          const headerSize = 44
+          const pcmData = new Int16Array(arrayBuffer.slice(headerSize))
+
+          // Convert to float32
+          const float32 = new Float32Array(pcmData.length)
+          for (let i = 0; i < pcmData.length; i++) {
+            float32[i] = pcmData[i] / 32768.0
+          }
+
+          const t1 = Date.now()
+          const chunkSize = 512
+          let totalChunks = 0
+          const allSegments: Array<{ start: number; duration: number; startTime: number; endTime: number }> = []
+          let anySpeechDetected = false
+
+          for (let offset = 0; offset < float32.length; offset += chunkSize) {
+            const end = Math.min(offset + chunkSize, float32.length)
+            const chunk = Array.from(float32.subarray(offset, end))
+            while (chunk.length < chunkSize) chunk.push(0)
+
+            const result = await VAD.acceptWaveform(16000, chunk)
+            totalChunks++
+            if (result.success) {
+              if (result.isSpeechDetected) anySpeechDetected = true
+              if (result.segments.length > 0) {
+                allSegments.push(...result.segments)
+              }
+            }
+          }
+          timing.inferenceMs = Date.now() - t1
+
+          // Step 3: release
+          const t2 = Date.now()
+          await VAD.release()
+          timing.releaseMs = Date.now() - t2
+
+          _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: {
+              segments: allSegments,
+              segmentCount: allSegments.length,
+              anySpeechDetected,
+              totalChunks,
+              totalSamples: float32.length,
+              timing,
+              wavPath: wav,
+              modelDir,
             },
           }
         } catch (e) {

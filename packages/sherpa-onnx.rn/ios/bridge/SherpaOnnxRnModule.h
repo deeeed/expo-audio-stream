@@ -16,6 +16,7 @@
 @class SherpaOnnxAudioTaggingHandler;
 @class SherpaOnnxSpeakerIdHandler;
 @class SherpaOnnxKWSHandler;
+@class SherpaOnnxVADHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
@@ -23,4 +24,5 @@
 @property (nonatomic, strong) SherpaOnnxAudioTaggingHandler *audioTaggingHandler;
 @property (nonatomic, strong) SherpaOnnxSpeakerIdHandler *speakerIdHandler;
 @property (nonatomic, strong) SherpaOnnxKWSHandler *kwsHandler;
+@property (nonatomic, strong) SherpaOnnxVADHandler *vadHandler;
 @end

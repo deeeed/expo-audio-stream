@@ -370,6 +370,42 @@ export interface Spec extends TurboModule {
   resetKwsStream(): Promise<{ success: boolean }>;
   releaseKws(): Promise<{ released: boolean }>;
 
+  // VAD methods
+  initVad(config: {
+    modelDir: string;
+    modelFile?: string;
+    threshold?: number;
+    minSilenceDuration?: number;
+    minSpeechDuration?: number;
+    windowSize?: number;
+    maxSpeechDuration?: number;
+    bufferSizeInSeconds?: number;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    isSpeechDetected: boolean;
+    segments: Array<{
+      start: number;
+      duration: number;
+      startTime: number;
+      endTime: number;
+    }>;
+    error?: string;
+  }>;
+
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

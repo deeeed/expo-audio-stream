@@ -77,6 +77,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create KWS handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating VAD handler...");
+        @try {
+            self.vadHandler = [[SherpaOnnxVADHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] VAD handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create VAD handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -870,8 +878,93 @@ RCT_EXPORT_METHOD(releaseKws:(RCTPromiseResolveBlock)resolve
             NSDictionary *result = [self.kwsHandler releaseKws];
             resolve(result);
         } @catch (NSException *exception) {
-        reject(@"ERR_KWS_RELEASE", exception.reason, nil);
-    }
+            reject(@"ERR_KWS_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - VAD Methods
+
+static dispatch_queue_t _vadSerialQueue;
+static dispatch_once_t _vadQueueOnce;
+
+static dispatch_queue_t vadSerialQueue(void) {
+    dispatch_once(&_vadQueueOnce, ^{
+        _vadSerialQueue = dispatch_queue_create("com.sherpaonnx.vad", DISPATCH_QUEUE_SERIAL);
+    });
+    return _vadSerialQueue;
+}
+
+RCT_EXPORT_METHOD(initVad:(JS::NativeSherpaOnnxSpec::SpecInitVadConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelDir()) [configDict setObject:config.modelDir() forKey:@"modelDir"];
+    if (config.modelFile()) [configDict setObject:config.modelFile() forKey:@"modelFile"];
+    if (config.threshold()) [configDict setObject:@(*config.threshold()) forKey:@"threshold"];
+    if (config.minSilenceDuration()) [configDict setObject:@(*config.minSilenceDuration()) forKey:@"minSilenceDuration"];
+    if (config.minSpeechDuration()) [configDict setObject:@(*config.minSpeechDuration()) forKey:@"minSpeechDuration"];
+    if (config.windowSize()) [configDict setObject:@(*config.windowSize()) forKey:@"windowSize"];
+    if (config.maxSpeechDuration()) [configDict setObject:@(*config.maxSpeechDuration()) forKey:@"maxSpeechDuration"];
+    if (config.bufferSizeInSeconds()) [configDict setObject:@(*config.bufferSizeInSeconds()) forKey:@"bufferSizeInSeconds"];
+    if (config.numThreads()) [configDict setObject:@(*config.numThreads()) forKey:@"numThreads"];
+    if (config.debug()) [configDict setObject:@(*config.debug()) forKey:@"debug"];
+    if (config.provider()) [configDict setObject:config.provider() forKey:@"provider"];
+
+    dispatch_async(vadSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.vadHandler initVad:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_VAD_INIT", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_VAD_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(acceptVadWaveform:(double)sampleRate
+                  samples:(NSArray *)samples
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(vadSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.vadHandler acceptWaveform:(int)sampleRate samples:samples];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_VAD_ACCEPT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(resetVad:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(vadSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.vadHandler resetVad];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_VAD_RESET", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releaseVad:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(vadSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.vadHandler releaseVad];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_VAD_RELEASE", exception.reason, nil);
+        }
+    });
 }
 
 @end

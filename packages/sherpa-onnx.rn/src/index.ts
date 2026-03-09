@@ -5,6 +5,7 @@ import { AudioTaggingService } from './services/AudioTaggingService';
 import { KWSService } from './services/KWSService';
 import { SpeakerIdService } from './services/SpeakerIdService';
 import { TtsService } from './services/TtsService';
+import { VadService } from './services/VadService';
 import type { ApiInterface } from './types/api';
 import type { SherpaOnnxInterface } from './types/interfaces';
 
@@ -15,6 +16,7 @@ const asrService = new AsrService(api);
 const audioTaggingService = new AudioTaggingService(api);
 const speakerIdService = new SpeakerIdService(api);
 const kwsService = new KWSService(api);
+const vadService = new VadService(api);
 const archiveService = new ArchiveService(api);
 
 // Create the public interface
@@ -25,6 +27,7 @@ const SherpaOnnx: SherpaOnnxInterface = {
   AudioTagging: audioTaggingService,
   SpeakerId: speakerIdService,
   KWS: kwsService,
+  VAD: vadService,
   Archive: archiveService,
 };
 
@@ -37,6 +40,7 @@ export const ASR = asrService;
 export const AudioTagging = audioTaggingService;
 export const SpeakerId = speakerIdService;
 export const KWS = kwsService;
+export const VAD = vadService;
 
 // Export types
 export * from './types/api';

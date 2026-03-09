@@ -880,6 +880,27 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // VAD METHODS
+
+  async initVad(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'VAD not implemented in web version yet' };
+  }
+
+  async acceptVadWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; isSpeechDetected: boolean; segments: any[]; error?: string }> {
+    return { success: false, isSpeechDetected: false, segments: [], error: 'VAD not implemented in web version yet' };
+  }
+
+  async resetVad(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async releaseVad(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // ARCHIVE METHODS
 
   async extractTarBz2(
