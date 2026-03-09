@@ -322,6 +322,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
                 )}
                 {onCancelDownload && (
                   <TouchableOpacity
+                    testID={`cancel-download-${model.id}`}
                     onPress={async () => {
                       try {
                         setIsLoading(true);
@@ -908,6 +909,17 @@ const cardStyles = StyleSheet.create({
     width: '40%',
     backgroundColor: '#1976D2',
     borderRadius: 4,
+  },
+  progressRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 6,
+  },
+  progressText: {
+    fontSize: 13,
+    color: '#555',
+    flex: 1,
   },
   errorContainer: {
     marginTop: 8,

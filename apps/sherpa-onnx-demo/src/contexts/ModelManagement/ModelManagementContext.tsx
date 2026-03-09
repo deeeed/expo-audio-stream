@@ -357,8 +357,13 @@ export function ModelManagementProvider({
           return newState;
         });
 
-        if (!downloadResult || downloadResult.status !== 200) {
-          throw new Error(`Download failed with status ${downloadResult?.status || 'unknown'}`);
+        if (!downloadResult) {
+          // null result means the download was cancelled — not an error
+          updateModelState(modelId, { status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined });
+          return;
+        }
+        if (downloadResult.status !== 200) {
+          throw new Error(`Download failed with status ${downloadResult.status}`);
         }
 
         const fileInfo = await FileSystem.getInfoAsync(filePath);
@@ -500,22 +505,13 @@ export function ModelManagementProvider({
       // Create directory for model - do this immediately
       await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
 
-      // Rolling window for speed — measured here at network callback time, not at React render time
-      const speedSamples: { bytes: number; time: number }[] = [];
+      // Average speed since download start — always correct for ETA regardless of callback frequency
+      const downloadStartTime = Date.now();
 
       // Throttled progress callback: max 4 UI updates/sec, no AsyncStorage write during download
       const progressCallback = throttle((dp: FileSystem.DownloadProgressData) => {
-        const now = Date.now();
-        speedSamples.push({ bytes: dp.totalBytesWritten, time: now });
-        if (speedSamples.length > 6) speedSamples.shift();
-        let speed = 0;
-        if (speedSamples.length >= 2) {
-          const oldest = speedSamples[0];
-          const newest = speedSamples[speedSamples.length - 1];
-          const dt = (newest.time - oldest.time) / 1000;
-          const db = newest.bytes - oldest.bytes;
-          if (dt > 0 && db >= 0) speed = db / dt;
-        }
+        const elapsedSec = (Date.now() - downloadStartTime) / 1000;
+        const speed = elapsedSec > 0.5 ? dp.totalBytesWritten / elapsedSec : 0;
         const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
         updateModelState(modelId, {
           progress: newProgress,
@@ -572,7 +568,7 @@ export function ModelManagementProvider({
     }
     const state = modelStates[modelId];
     // Also reset stale 'downloading' state that survives app reloads (activeDownloads is in-memory only)
-    if (cancelled || state?.status === 'extracting' || state?.status === 'downloading') {
+    if (cancelled || state?.status === 'extracting' || state?.status === 'downloading' || state?.status === 'error') {
       updateModelState(modelId, {
         status: 'pending',
         progress: 0,

@@ -1138,6 +1138,73 @@ if (__DEV__) {
       return { op, status: 'pending' }
     },
 
+    // Download speed validator: downloads a URL, tracks actual elapsed time vs displayed speed.
+    // Usage: __AGENTIC__.testDownloadSpeed('<url>') then poll getLastResult()
+    // Result: { totalMB, elapsedSec, actualAvgSpeedMBs, lastDisplayedSpeedMBs, progressCallbackCount, progressReadings }
+    // actualAvgSpeedMBs should match lastDisplayedSpeedMBs if the algorithm is correct.
+    testDownloadSpeed: (url: string) => {
+      const op = 'downloadSpeed'
+      _lastAsyncResult = { op, status: 'pending' }
+      void (async () => {
+        const tempPath = `${FileSystem.documentDirectory ?? ''}__speed_test_${Date.now()}.tmp`
+        const startTime = Date.now()
+        let lastProgressBytes = 0
+        let lastProgressTime = startTime
+        let totalBytesExpected = 0
+        const progressReadings: { bytes: number; elapsedSec: number; avgSpeedMBs: number; instantSpeedMBs: number }[] = []
+        try {
+          const downloadResumable = FileSystem.createDownloadResumable(
+            url,
+            tempPath,
+            {},
+            (dp) => {
+              const now = Date.now()
+              const elapsedSec = (now - startTime) / 1000
+              // This is the same algorithm as ModelManagementContext
+              const avgSpeedBs = elapsedSec > 0.5 ? dp.totalBytesWritten / elapsedSec : 0
+              // Also track instant speed (bytes since last callback / time since last callback)
+              const intervalSec = (now - lastProgressTime) / 1000
+              const intervalBytes = dp.totalBytesWritten - lastProgressBytes
+              const instantSpeedBs = intervalSec > 0 ? intervalBytes / intervalSec : 0
+              progressReadings.push({
+                bytes: dp.totalBytesWritten,
+                elapsedSec: Math.round(elapsedSec * 10) / 10,
+                avgSpeedMBs: Math.round(avgSpeedBs / 1048576 * 100) / 100,
+                instantSpeedMBs: Math.round(instantSpeedBs / 1048576 * 100) / 100,
+              })
+              totalBytesExpected = dp.totalBytesExpectedToWrite
+              lastProgressBytes = dp.totalBytesWritten
+              lastProgressTime = now
+            }
+          )
+          await downloadResumable.downloadAsync()
+          const elapsedSec = (Date.now() - startTime) / 1000
+          const totalBytes = totalBytesExpected
+          try { await FileSystem.deleteAsync(tempPath, { idempotent: true }) } catch {}
+          const actualAvgSpeedMBs = elapsedSec > 0 ? Math.round(totalBytes / elapsedSec / 1048576 * 100) / 100 : 0
+          const lastDisplayedSpeedMBs = progressReadings.length > 0
+            ? progressReadings[progressReadings.length - 1].avgSpeedMBs : 0
+          _lastAsyncResult = {
+            op, status: 'success',
+            result: {
+              totalMB: Math.round(totalBytes / 1048576 * 100) / 100,
+              elapsedSec: Math.round(elapsedSec * 10) / 10,
+              actualAvgSpeedMBs,
+              lastDisplayedSpeedMBs,
+              speedAccuracyPct: actualAvgSpeedMBs > 0
+                ? Math.round(lastDisplayedSpeedMBs / actualAvgSpeedMBs * 100) : 0,
+              progressCallbackCount: progressReadings.length,
+              progressReadings: progressReadings.slice(-10),
+            },
+          }
+        } catch (e) {
+          try { await FileSystem.deleteAsync(tempPath, { idempotent: true }) } catch {}
+          _lastAsyncResult = { op, status: 'error', error: String(e) }
+        }
+      })()
+      return { op, status: 'pending' }
+    },
+
     testVADFull: (wavPath?: string) => {
       const op = 'vadFull'
       const MODEL_ID = 'silero-vad-v5'
