@@ -11,6 +11,7 @@ import { useAsr, GREEDY_ONLY_TYPES, SAMPLE_AUDIO_FILES, type AsrMode } from '../
 import { formatDuration, formatBytes } from '../../../utils/formatters';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
+  AudioPlayButton,
   LoadingOverlay,
   PageContainer,
   ResultsBox,
@@ -42,7 +43,6 @@ export default function AsrScreen() {
     loadedAudioFiles,
     selectedAudio,
     audioMetadata,
-    isPlaying,
     numThreads,
     decodingMethod,
     maxActivePaths,
@@ -63,7 +63,6 @@ export default function AsrScreen() {
     handleReleaseAsr,
     handleModelSelect,
     handleSetMode,
-    handlePlayAudio,
     handleSelectAudio,
     handleRecognizeFromFile,
     handleStartMic,
@@ -317,13 +316,7 @@ export default function AsrScreen() {
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
                   Duration: {formatDuration(audioMetadata.duration || 0)}
                 </Text>
-                <ThemedButton
-                  label={isPlaying ? 'Playing...' : 'Play Audio'}
-                  variant="primary"
-                  compact
-                  onPress={() => handlePlayAudio(selectedAudio)}
-                  disabled={isPlaying}
-                />
+                <AudioPlayButton uri={selectedAudio.localUri} label="Play Audio" compact />
               </ResultsBox>
             )}
           </Section>

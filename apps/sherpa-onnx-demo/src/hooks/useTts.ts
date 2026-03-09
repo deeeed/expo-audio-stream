@@ -1,7 +1,5 @@
 import type { ModelProvider, TtsGenerateResult, TtsInitResult, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 import { TTS } from '@siteed/sherpa-onnx.rn';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useEffect, useRef, useState } from 'react';
 import { useTtsModels, useTtsModelWithConfig } from './useModelWithConfig';
@@ -23,8 +21,6 @@ export function useTts() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  const [player, setPlayer] = useState<AudioPlayer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   const [ttsInitialized, setTtsInitialized] = useState(false);
@@ -38,7 +34,6 @@ export function useTts() {
   const [autoPlay, setAutoPlay] = useState(true);
 
   const lastAutoInitRef = useRef<string | null>(null);
-  const isPlayingRef = useRef(false);
 
   const { downloadedModels } = useTtsModels();
   const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({ modelId: selectedModelId });
@@ -49,27 +44,13 @@ export function useTts() {
       selectedModelId,
       ttsInitialized,
       isLoading,
-      isPlaying,
       errorMessage: errorMessage || null,
       statusMessage: statusMessage || null,
       speakerId,
       speakingRate,
       hasResult: !!ttsResult,
     });
-  }, [selectedModelId, ttsInitialized, isLoading, isPlaying, errorMessage, statusMessage, speakerId, speakingRate, ttsResult]);
-
-  // Initialize audio system on mount
-  useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-      interruptionMode: 'duckOthers',
-    }).catch(e => console.error('Failed to initialize audio system:', e));
-
-    return () => {
-      if (player) player.remove();
-    };
-  }, [player]);
+  }, [selectedModelId, ttsInitialized, isLoading, errorMessage, statusMessage, speakerId, speakingRate, ttsResult]);
 
   // Reset configuration when selected model changes
   useEffect(() => {
@@ -81,6 +62,7 @@ export function useTts() {
       setSpeakingRate(1.0);
     }
   }, [selectedModelId, ttsConfig]);
+
 
   // Auto-select the first downloaded model if none is selected
   useEffect(() => {
@@ -122,6 +104,11 @@ export function useTts() {
     if (!ttsConfig || !localPath || !isDownloaded) {
       setErrorMessage('Selected model is not valid or configuration not found.');
       return;
+    }
+
+    if (ttsInitialized) {
+      try { await TTS.release(); } catch (_) {}
+      setTtsInitialized(false);
     }
 
     setIsLoading(true);
@@ -192,22 +179,8 @@ export function useTts() {
 
           if (fileExists) {
             setTtsResult(result);
-
             if (!autoPlay) {
-              try {
-                if (player) player.remove();
-                const newPlayer = createAudioPlayer({ uri: formattedPath });
-                setPlayer(newPlayer);
-                newPlayer.addListener('playbackStatusUpdate', (status) => {
-                  if (status.didJustFinish) {
-                    isPlayingRef.current = false;
-                    setIsPlaying(false);
-                  }
-                });
-                setStatusMessage('Audio ready. Use the play button to listen.');
-              } catch (audioError) {
-                setErrorMessage(`Error preparing audio: ${(audioError as Error).message}`);
-              }
+              setStatusMessage('Audio ready. Use the play button to listen.');
             }
           } else {
             setTtsResult({ success: false, filePath: result.filePath });
@@ -259,63 +232,12 @@ export function useTts() {
     }
   };
 
-  const handlePlayAudio = async () => {
-    if (isPlayingRef.current) return;
-    if (!ttsResult?.filePath) {
-      setErrorMessage('No audio file available to play');
-      return;
-    }
-
-    isPlayingRef.current = true;
-    try {
-      const formattedPath = ttsResult.filePath.startsWith('file://')
-        ? ttsResult.filePath
-        : `file://${ttsResult.filePath}`;
-
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionMode: 'duckOthers',
-      });
-
-      if (player) player.remove();
-
-      const newPlayer = createAudioPlayer({ uri: formattedPath });
-      newPlayer.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-        }
-      });
-
-      setPlayer(newPlayer);
-      newPlayer.play();
-      setIsPlaying(true);
-    } catch (error) {
-      isPlayingRef.current = false;
-      setErrorMessage(`Error playing audio: ${(error as Error).message}`);
-    }
-  };
-
-  const handleStopPlayer = () => {
-    isPlayingRef.current = false;
-    if (player) {
-      player.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const handleResetPlayer = () => {
-    if (player) player.seekTo(0);
-  };
-
   return {
     // State
     text,
     isLoading,
     errorMessage,
     statusMessage,
-    isPlaying,
     selectedModelId,
     ttsInitialized,
     initResult,
@@ -337,15 +259,11 @@ export function useTts() {
     setDebugMode,
     setProvider,
     setAutoPlay,
-    setIsPlaying,
     // Handlers
     handleModelSelect,
     handleInitTts,
     handleGenerateTts,
     handleStopTts,
     handleReleaseTts,
-    handlePlayAudio,
-    handleStopPlayer,
-    handleResetPlayer,
   };
 }

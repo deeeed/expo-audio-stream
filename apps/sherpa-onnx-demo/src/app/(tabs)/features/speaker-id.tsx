@@ -10,6 +10,7 @@ import {
 import { useSpeakerId } from '../../../hooks/useSpeakerId';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
+  AudioPlayButton,
   ConfigRow,
   LoadingOverlay,
   ModelSelector,
@@ -50,7 +51,6 @@ export default function SpeakerIdScreen() {
     registeredSpeakers,
     loadedAudioFiles,
     selectedAudio,
-    isPlaying,
     embeddingResult,
     identifyResult,
     numThreads,
@@ -69,8 +69,6 @@ export default function SpeakerIdScreen() {
     handleModelSelect,
     handleInitSpeakerId,
     handleReleaseSpeakerId,
-    handlePlayAudio,
-    handleStopAudio,
     handleProcessAudio,
     handleRegisterSpeaker,
     handleRemoveSpeaker,
@@ -202,17 +200,8 @@ export default function SpeakerIdScreen() {
                 )}
 
                 <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8, marginTop: theme.margin.s }}>
-                  <ThemedButton
-                    label={isPlaying ? 'Playing...' : 'Play Audio'}
-                    onPress={() => !isPlaying && handlePlayAudio(selectedAudio)}
-                    disabled={isPlaying || processing}
-                    style={{ flex: 1 }}
-                  />
-                  {isPlaying ? (
-                    <ThemedButton label="Stop" variant="danger" onPress={handleStopAudio} disabled={processing} />
-                  ) : (
-                    <ThemedButton testID="spkr-process-btn" label="Process" variant="success" onPress={() => handleProcessAudio(selectedAudio)} disabled={processing} style={{ flex: 1 }} />
-                  )}
+                  <AudioPlayButton uri={selectedAudio.localUri} compact />
+                  <ThemedButton testID="spkr-process-btn" label="Process" variant="success" onPress={() => handleProcessAudio(selectedAudio)} disabled={processing} style={{ flex: 1 }} />
                 </View>
               </View>
             )}

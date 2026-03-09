@@ -10,6 +10,7 @@ import {
 import { useAudioTagging } from '../../../hooks/useAudioTagging';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
+  AudioPlayButton,
   ConfigRow,
   LoadingOverlay,
   ModelSelector,
@@ -52,7 +53,6 @@ export default function AudioTaggingScreen() {
     selectedModelId,
     needsReinit,
     loadedAudioFiles,
-    isPlaying,
     audioMetadata,
     topK,
     numThreads,
@@ -66,8 +66,6 @@ export default function AudioTaggingScreen() {
     setProvider,
     handleModelSelect,
     handleInitAudioTagging,
-    handlePlayAudio,
-    handleStopAudio,
     handleProcessAudio,
     handleReleaseAudioTagging,
     handleSelectAudio,
@@ -332,13 +330,7 @@ export default function AudioTaggingScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
-            <ThemedButton
-              label={isPlaying ? 'Stop' : 'Play'}
-              variant={isPlaying ? 'danger' : 'success'}
-              onPress={() => isPlaying ? handleStopAudio() : handlePlayAudio(selectedAudio)}
-              disabled={processing}
-              style={{ flex: 1 }}
-            />
+            <AudioPlayButton uri={selectedAudio.localUri} compact />
             <ThemedButton
               label="Classify"
               onPress={() => handleProcessAudio(selectedAudio)}

@@ -1,7 +1,6 @@
 import { IdentifySpeakerResult, SpeakerEmbeddingResult, SpeakerId, SpeakerIdModelConfig } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { createAudioPlayer } from 'expo-audio';
-import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -31,8 +30,6 @@ export function useSpeakerId() {
 
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<SpeakerIdAudioFile[]>([]);
   const [selectedAudio, setSelectedAudio] = useState<SpeakerIdAudioFile | null>(null);
-  const [player, setPlayer] = useState<AudioPlayer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const [embeddingResult, setEmbeddingResult] = useState<SpeakerEmbeddingResult | null>(null);
   const [identifyResult, setIdentifyResult] = useState<IdentifySpeakerResult | null>(null);
@@ -46,7 +43,6 @@ export function useSpeakerId() {
   const [audioMetadata, setAudioMetadata] = useState<{ size?: number; duration?: number; isLoading: boolean }>({ isLoading: false });
 
   const lastAutoInitRef = useRef<string | null>(null);
-  const isPlayingRef = useRef(false);
 
   const { downloadedModels } = useSpeakerIdModels();
   const { speakerIdConfig, localPath, isDownloaded } = useSpeakerIdModelWithConfig({ modelId: selectedModelId });
@@ -93,9 +89,9 @@ export function useSpeakerId() {
   useEffect(() => {
     return () => {
       if (initialized) SpeakerId.release().catch(() => {});
-      if (player) player.remove();
     };
-  }, [initialized, player]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const refreshSpeakerList = async () => {
     try {
@@ -170,35 +166,6 @@ export function useSpeakerId() {
       setStatusMessage('');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePlayAudio = async (audioItem: SpeakerIdAudioFile) => {
-    if (isPlayingRef.current) return;
-    isPlayingRef.current = true;
-    try {
-      if (player) { player.pause(); player.remove(); }
-      const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
-      setPlayer(newPlayer);
-      setIsPlaying(true);
-      setSelectedAudio(audioItem);
-      newPlayer.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-        }
-      });
-      newPlayer.play();
-    } catch (err) {
-      isPlayingRef.current = false;
-      setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleStopAudio = () => {
-    isPlayingRef.current = false;
-    if (player) {
-      try { player.pause(); setIsPlaying(false); } catch (_) { /* ignore */ }
     }
   };
 
@@ -306,7 +273,6 @@ export function useSpeakerId() {
     speakerCount,
     loadedAudioFiles,
     selectedAudio,
-    isPlaying,
     embeddingResult,
     identifyResult,
     numThreads,
@@ -328,8 +294,6 @@ export function useSpeakerId() {
     handleModelSelect,
     handleInitSpeakerId,
     handleReleaseSpeakerId,
-    handlePlayAudio,
-    handleStopAudio,
     handleProcessAudio,
     handleRegisterSpeaker,
     handleRemoveSpeaker,

@@ -2,13 +2,13 @@ import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import { createAudioPlayer } from 'expo-audio';
-import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAsrModels, useAsrModelWithConfig } from './useModelWithConfig';
 import { useLiveAsr } from './useLiveAsr';
 import { setAgenticPageState } from '../agentic-bridge';
+import { stopAllAudio } from '../components/AudioPlayButton';
 
 export type AsrMode = 'file' | 'live';
 
@@ -60,8 +60,6 @@ export function useAsr() {
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<LoadedAudioFile[]>([]);
   const [selectedAudio, setSelectedAudio] = useState<LoadedAudioFile | null>(null);
   const [audioMetadata, setAudioMetadata] = useState<{ size?: number; duration?: number; isLoading: boolean }>({ isLoading: false });
-  const [sound, setSound] = useState<AudioPlayer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [numThreads, setNumThreads] = useState(2);
   const [decodingMethod, setDecodingMethod] = useState<'greedy_search' | 'beam_search'>('greedy_search');
   const [maxActivePaths, setMaxActivePaths] = useState(4);
@@ -74,7 +72,6 @@ export function useAsr() {
   const liveAsr = useLiveAsr();
   const recorder = useAudioRecorder();
   const streamCreatedRef = useRef(false);
-  const isPlayingRef = useRef(false);
 
   const autoInitFiredRef = useRef<string | null>(null);
   const autoTestFiredRef = useRef<string | null>(null);
@@ -128,9 +125,13 @@ export function useAsr() {
       return;
     }
 
+    if (initialized) {
+      await ASR.release().catch(() => {});
+      setInitialized(false);
+    }
+
     setLoading(true);
     setError(null);
-    setInitialized(false);
     setStatusMessage('Initializing...');
 
     try {
@@ -183,38 +184,6 @@ export function useAsr() {
 
   // --- File mode handlers ---
 
-  const handlePlayAudio = async (audioItem: LoadedAudioFile) => {
-    if (isPlayingRef.current) return;
-    isPlayingRef.current = true;
-    try {
-      const player = createAudioPlayer({ uri: audioItem.localUri });
-      player.play();
-      setSound(player);
-      setIsPlaying(true);
-      setSelectedAudio(audioItem);
-      player.addListener('playbackStatusUpdate', (status) => {
-        if ('playing' in status && !status.playing) {
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-          setSound(null);
-        }
-      });
-    } catch (e) {
-      isPlayingRef.current = false;
-      setError(`Failed to play audio: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
-  const handleStopAudio = async () => {
-    isPlayingRef.current = false;
-    if (sound) {
-      sound.pause();
-      sound.remove();
-      setSound(null);
-      setIsPlaying(false);
-    }
-  };
-
   const handleSelectAudio = async (audioItem: LoadedAudioFile) => {
     setSelectedAudio(audioItem);
     setAudioMetadata({ isLoading: true });
@@ -224,7 +193,7 @@ export function useAsr() {
       try {
         const tempPlayer = createAudioPlayer({ uri: audioItem.localUri });
         await new Promise(r => setTimeout(r, 500));
-        duration = tempPlayer.duration ?? 0;
+        duration = (tempPlayer.duration ?? 0) * 1000;
         tempPlayer.remove();
       } catch (_) {}
       setAudioMetadata({ size: info.exists ? info.size : 0, duration, isLoading: false });
@@ -238,8 +207,7 @@ export function useAsr() {
       setError('Select an audio file and initialize ASR first');
       return;
     }
-    if (isPlaying) await handleStopAudio();
-
+    stopAllAudio();
     setProcessing(true);
     setRecognitionResult(null);
     setError(null);
@@ -388,6 +356,7 @@ export function useAsr() {
     }
   }, [selectedModelId, asrConfig]);
 
+
   // Deep-link: select model
   useEffect(() => {
     if (!params.model || !params.t) return;
@@ -439,10 +408,6 @@ export function useAsr() {
     };
   }, []);
 
-  useEffect(() => {
-    return () => { if (sound) sound.remove(); };
-  }, [sound]);
-
   // Load sample audio files
   useEffect(() => {
     (async () => {
@@ -473,7 +438,6 @@ export function useAsr() {
     loadedAudioFiles,
     selectedAudio,
     audioMetadata,
-    isPlaying,
     numThreads,
     decodingMethod,
     maxActivePaths,
@@ -499,8 +463,6 @@ export function useAsr() {
     handleReleaseAsr,
     handleModelSelect,
     handleSetMode,
-    handlePlayAudio,
-    handleStopAudio,
     handleSelectAudio,
     handleRecognizeFromFile,
     handleStartMic,

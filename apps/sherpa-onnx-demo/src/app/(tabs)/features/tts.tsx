@@ -10,6 +10,7 @@ import {
 import { useTts, TTS_DEFAULT_TEXT as _DEFAULT_TEXT } from '../../../hooks/useTts';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
+  AudioPlayButton,
   ConfigRow,
   LoadingOverlay,
   ModelSelector,
@@ -30,7 +31,6 @@ export default function TtsScreen() {
     isLoading,
     errorMessage,
     statusMessage,
-    isPlaying,
     selectedModelId,
     ttsInitialized,
     initResult,
@@ -55,9 +55,6 @@ export default function TtsScreen() {
     handleGenerateTts,
     handleStopTts,
     handleReleaseTts,
-    handlePlayAudio,
-    handleStopPlayer,
-    handleResetPlayer,
   } = useTts();
 
   return (
@@ -236,20 +233,10 @@ export default function TtsScreen() {
             </Text>
           </View>
 
-          <View style={{ marginBottom: theme.margin.m }}>
-            <Text variant="titleSmall" style={{ marginBottom: theme.margin.s }}>
-              {isPlaying ? 'Playing Audio...' : 'Audio Ready To Play'}
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
-              <ThemedButton label={isPlaying ? 'Playing...' : 'Play Audio'} onPress={handlePlayAudio} disabled={isPlaying} style={{ flex: 1 }} />
-              {isPlaying ? (
-                <ThemedButton label="Stop" variant="danger" onPress={handleStopPlayer} />
-              ) : (
-                <ThemedButton label="Reset" variant="secondary" onPress={handleResetPlayer} />
-              )}
-            </View>
-          </View>
+          <AudioPlayButton
+            uri={ttsResult.filePath.startsWith('file://') ? ttsResult.filePath : `file://${ttsResult.filePath}`}
+            label="Play Generated Audio"
+          />
         </Section>
       )}
     </PageContainer>

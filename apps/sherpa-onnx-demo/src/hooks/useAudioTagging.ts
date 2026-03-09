@@ -2,7 +2,6 @@ import type { AudioTaggingModelConfig, AudioTaggingResult } from '@siteed/sherpa
 import { AudioTagging } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { createAudioPlayer } from 'expo-audio';
-import type { AudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -38,8 +37,6 @@ export function useAudioTagging() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [needsReinit, setNeedsReinit] = useState(false);
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<AudioTaggingAudioFile[]>([]);
-  const [player, setPlayer] = useState<AudioPlayer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [audioMetadata, setAudioMetadata] = useState<{ size?: number; duration?: number; isLoading: boolean }>({ isLoading: false });
   const [topK, setTopK] = useState(5);
   const [numThreads, setNumThreads] = useState(2);
@@ -48,7 +45,6 @@ export function useAudioTagging() {
 
   const lastAutoInitRef = useRef<string | null>(null);
   const reinitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPlayingRef = useRef(false);
   const initedConfigRef = useRef<{
     modelId: string | null;
     topK: number;
@@ -125,9 +121,9 @@ export function useAudioTagging() {
   useEffect(() => {
     return () => {
       if (initialized) AudioTagging.release().catch(() => {});
-      if (player) player.remove();
     };
-  }, [initialized, player]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleModelSelect = useCallback(async (modelId: string) => {
     if (modelId === selectedModelId) return;
@@ -203,35 +199,6 @@ export function useAudioTagging() {
     }
   };
 
-  const handlePlayAudio = async (audioItem: AudioTaggingAudioFile) => {
-    if (isPlayingRef.current) return;
-    isPlayingRef.current = true;
-    try {
-      if (player) { player.pause(); player.remove(); setPlayer(null); }
-      if (!audioItem.localUri) throw new Error('Audio file not yet loaded');
-      const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
-      setPlayer(newPlayer);
-      newPlayer.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-        }
-      });
-      newPlayer.play();
-      setIsPlaying(true);
-    } catch (err) {
-      isPlayingRef.current = false;
-      setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleStopAudio = () => {
-    isPlayingRef.current = false;
-    if (player) {
-      try { player.pause(); setIsPlaying(false); } catch (_) { /* ignore */ }
-    }
-  };
-
   const handleProcessAudio = async (audioItem: AudioTaggingAudioFile) => {
     if (!initialized) {
       Alert.alert('Error', 'Please initialize the audio tagging engine first');
@@ -282,11 +249,9 @@ export function useAudioTagging() {
     if (selectedAudio?.id === audioItem.id) {
       setSelectedAudio(null);
       setAudioMetadata({ isLoading: false });
-      if (player && isPlaying) handleStopAudio();
     } else {
       setSelectedAudio(audioItem);
       setAudioMetadata({ isLoading: true });
-      if (player && isPlaying) handleStopAudio();
 
       if (audioItem.localUri) {
         try {
@@ -316,7 +281,6 @@ export function useAudioTagging() {
     selectedModelId,
     needsReinit,
     loadedAudioFiles,
-    isPlaying,
     audioMetadata,
     topK,
     numThreads,
@@ -333,8 +297,6 @@ export function useAudioTagging() {
     // Handlers
     handleModelSelect,
     handleInitAudioTagging,
-    handlePlayAudio,
-    handleStopAudio,
     handleProcessAudio,
     handleReleaseAudioTagging,
     handleSelectAudio,

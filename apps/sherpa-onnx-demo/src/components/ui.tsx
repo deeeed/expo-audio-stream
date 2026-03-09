@@ -360,3 +360,4 @@ export function Chip({ label, color, backgroundColor }: ChipProps) {
 
 // Re-export commonly used items
 export { Text, useTheme };
+export { AudioPlayButton } from './AudioPlayButton';
