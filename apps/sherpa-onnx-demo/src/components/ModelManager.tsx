@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
 import { ModelState } from '../contexts/ModelManagement/types';
 import { formatBytes } from '../utils/formatters';
@@ -539,6 +540,7 @@ type EmptyItem = {
 type ListItem = HeaderItem | ModelItem | EmptyItem;
 
 export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
+  const insets = useSafeAreaInsets();
   const {
     getAvailableModels,
     getDownloadedModels,
@@ -708,7 +710,8 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
   // Render the single FlatList
   return (
     <FlatList
-      style={styles.container} // Apply container style to FlatList
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom }}
       data={listData}
       renderItem={renderListItem}
       keyExtractor={keyExtractor}
