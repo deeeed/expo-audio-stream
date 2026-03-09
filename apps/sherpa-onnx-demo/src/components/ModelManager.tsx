@@ -47,6 +47,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   onCancelDownload
 }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [downloadSpeed, setDownloadSpeed] = useState(0); // bytes/sec
+  const speedTrackerRef = useRef<{ bytes: number; time: number }>({ bytes: 0, time: 0 });
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<{
     id: string;
@@ -80,6 +82,27 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
       progressAnim.setValue(0);
     }
   }, [state?.progress, isDownloading, isExtracting, progressAnim]);
+
+  // Track download speed
+  useEffect(() => {
+    if (!isDownloading || state?.bytesWritten === undefined) {
+      if (!isDownloading) {
+        setDownloadSpeed(0);
+        speedTrackerRef.current = { bytes: 0, time: 0 };
+      }
+      return;
+    }
+    const now = Date.now();
+    const { bytes: prevBytes, time: prevTime } = speedTrackerRef.current;
+    if (prevTime > 0) {
+      const dt = (now - prevTime) / 1000;
+      const db = state.bytesWritten - prevBytes;
+      if (dt > 0 && db >= 0) {
+        setDownloadSpeed(db / dt);
+      }
+    }
+    speedTrackerRef.current = { bytes: state.bytesWritten, time: now };
+  }, [state?.bytesWritten, isDownloading]);
 
   const handleDownload = async () => {
     // Disable downloads on web platform
@@ -300,14 +323,17 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
         <View style={cardStyles.progressContainer}>
           <View style={cardStyles.progressRow}>
             <ActivityIndicator size="small" color="#2196F3" />
-            <Text style={cardStyles.progressText}>
-              Downloading...
-            </Text>
-            <Text style={cardStyles.progressPercent}>
-              {Math.round((state.progress || 0) * 100)}%
+            <Text style={cardStyles.progressText} numberOfLines={1}>
+              {state.bytesWritten !== undefined && state.totalBytes
+                ? `${formatBytes(state.bytesWritten)} / ${formatBytes(state.totalBytes)}`
+                : `${Math.round((state.progress || 0) * 100)}%`}
+              {downloadSpeed > 0 ? `  •  ${formatBytes(downloadSpeed)}/s` : ''}
+              {downloadSpeed > 0 && state.totalBytes && state.bytesWritten !== undefined
+                ? `  •  ~${Math.round((state.totalBytes - state.bytesWritten) / downloadSpeed)}s`
+                : ''}
             </Text>
             {onCancelDownload && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={cardStyles.cancelButton}
                 onPress={async () => {
                   try {
@@ -327,14 +353,14 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
             )}
           </View>
           <View style={cardStyles.progressBarContainer}>
-            <Animated.View 
+            <Animated.View
               style={[
-                cardStyles.progressBarInner, 
+                cardStyles.progressBarInner,
                 { width: progressAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ['0%', '100%'],
                 }) }
-              ]} 
+              ]}
             />
           </View>
         </View>

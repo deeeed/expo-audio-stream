@@ -503,7 +503,11 @@ export function ModelManagementProvider({
       // Throttled progress callback: max 4 UI updates/sec, no AsyncStorage write during download
       const progressCallback = throttle((dp: FileSystem.DownloadProgressData) => {
         const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
-        updateModelState(modelId, { progress: newProgress }, false);
+        updateModelState(modelId, {
+          progress: newProgress,
+          bytesWritten: dp.totalBytesWritten,
+          totalBytes: dp.totalBytesExpectedToWrite,
+        }, false);
       }, 250);
 
       // Create the download resumable object

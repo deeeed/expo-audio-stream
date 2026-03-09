@@ -14,11 +14,13 @@ export interface ModelState {
   metadata: ModelMetadata; // Metadata was stored
   status: ModelStatus;
   progress?: number;
+  bytesWritten?: number;
+  totalBytes?: number;
   error?: string;
   localPath?: string;
-  files?: { path: string; size: number; lastModified: number }[]; 
-  extractedFiles?: string[]; 
-  lastDownloaded?: number; 
+  files?: { path: string; size: number; lastModified: number }[];
+  extractedFiles?: string[];
+  lastDownloaded?: number;
 }
 
 // Restore original Context Type
