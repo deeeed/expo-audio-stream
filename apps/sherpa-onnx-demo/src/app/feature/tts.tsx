@@ -6,20 +6,27 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
-  StyleSheet,
   Switch,
-  Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTtsModels, useTtsModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
+import {
+  ConfigRow,
+  LoadingOverlay,
+  ModelSelector,
+  PageContainer,
+  ResultsBox,
+  Section,
+  StatusBlock,
+  Text,
+  ThemedButton,
+  useTheme,
+} from '../../components/ui';
 
 // Default sample text for TTS
 const DEFAULT_TEXT = "Hello, this is a test of the Sherpa Onnx TTS system. I hope you're having a great day!";
@@ -43,7 +50,7 @@ export default function TtsScreen() {
   const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  
+
   // TTS state variables
   const [ttsInitialized, setTtsInitialized] = useState(false);
   const [initResult, setInitResult] = useState<TtsInitResult | null>(null);
@@ -58,6 +65,7 @@ export default function TtsScreen() {
   const [/* pendingModelId */, setPendingModelId] = useState<string | null>(null);
 
   const router = useRouter();
+  const theme = useTheme();
 
   // Use our new hooks
   const { downloadedModels } = useTtsModels();
@@ -110,11 +118,11 @@ export default function TtsScreen() {
       setNumThreads(ttsConfig.numThreads ?? 2);
       setDebugMode(ttsConfig.debug ?? false);
       setProvider(ttsConfig.provider ?? 'cpu');
-      
+
       // Also reset generation-related settings
       setSpeakerId(0);
       setSpeakingRate(1.0);
-      
+
       console.log('Reset configuration based on selected model:', selectedModelId);
     }
   }, [selectedModelId, ttsConfig]);
@@ -151,7 +159,7 @@ export default function TtsScreen() {
                   setInitResult(null);
                   setTtsResult(null);
                   setStatusMessage('TTS resources released, switching model');
-                  
+
                   // After release, set the new model ID
                   setSelectedModelId(modelId);
                   setPendingModelId(null);
@@ -204,9 +212,9 @@ export default function TtsScreen() {
         debug: debugMode,
         provider,
       };
-      
+
       console.log('FINAL TTS CONFIG:', JSON.stringify(modelConfig, null, 2));
-      
+
       const result = await TTS.initialize(modelConfig);
       setInitResult(result);
       setTtsInitialized(result.success);
@@ -216,7 +224,7 @@ export default function TtsScreen() {
       } else {
         setErrorMessage(`TTS initialization failed: ${result.error}`);
       }
-    
+
     } catch (error) {
       console.error('TTS init error:', error);
       setErrorMessage(`TTS init error: ${(error as Error).message}`);
@@ -251,22 +259,22 @@ export default function TtsScreen() {
       // Success case - either we have a file path or the audio was played directly
       if (result.success || result.filePath) {
         setStatusMessage('Speech generated successfully!');
-        
+
         if (result.filePath) {
           // Add file:// prefix if needed for Audio API
-          const formattedPath = result.filePath.startsWith('file://') 
-            ? result.filePath 
+          const formattedPath = result.filePath.startsWith('file://')
+            ? result.filePath
             : `file://${result.filePath}`;
-          
+
           // Verify the file exists
           const fileExists = await verifyFileExists(formattedPath);
-          
+
           if (fileExists) {
             console.log(`Generated audio file at: ${result.filePath}`);
-            
+
             // Store the result
             setTtsResult(result);
-            
+
             // If not auto-playing but we want to play manually, create and play the sound
             if (!autoPlay) {
               // Create a new player and prepare it for manual playback
@@ -319,11 +327,11 @@ export default function TtsScreen() {
     try {
       console.log('Stopping TTS generation...');
       setStatusMessage('Stopping TTS...');
-      
+
       // Call the stop API
       const result = await TTS.stopSpeech();
       console.log('Stop TTS result:', result);
-      
+
       if (result.stopped) {
         setStatusMessage('TTS stopped successfully');
         // Force loading state to false
@@ -412,739 +420,282 @@ export default function TtsScreen() {
 
   // Generate a visualization of the model's predefined config
   const predefinedConfigDisplay = selectedModelId && ttsConfig ? (
-    <View style={styles.statusSection}>
-      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
-      <Text style={styles.codeText} selectable>
+    <Section title="Predefined Model Configuration">
+      <Text variant="bodySmall" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: theme.colors.surfaceVariant, padding: 10, borderRadius: theme.roundness }}>
         {JSON.stringify(ttsConfig, null, 2)}
       </Text>
-    </View>
+    </Section>
   ) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Loading overlay - moved outside of ScrollView */}
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>
-              {statusMessage || 'Processing...'}
-            </Text>
-            
-            <Text style={styles.loadingSubText}>
-              This may take a moment, especially for longer text.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.overlayStopButton}
-              onPress={handleStopTts}
-            >
-              <Text style={styles.overlayStopButtonText}>Stop Processing</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+    <PageContainer>
+      <LoadingOverlay
+        visible={isLoading}
+        message={statusMessage || 'Processing...'}
+        subMessage="This may take a moment, especially for longer text."
+        onStop={handleStopTts}
+      />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Sherpa Onnx TTS</Text>
-        
-        {/* Error and status messages */}
-        {errorMessage ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        ) : null}
-        
-        {statusMessage ? (
-          <Text style={styles.statusText}>{statusMessage}</Text>
-        ) : null}
+      <Text variant="headlineMedium" style={{ textAlign: 'center', marginBottom: theme.margin.m }}>{'\n'}Sherpa Onnx TTS</Text>
 
-        {/* Model Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Select TTS Model</Text>
-          {ttsInitialized && (
-            <Text style={styles.warningText}>
-              Switching models will release the currently initialized model
-            </Text>
-          )}
-          <View style={styles.pickerContainer}>
-            {downloadedModels.length === 0 ? (
-              <View style={styles.emptyModelContainer}>
-                <Text style={styles.emptyText}>No TTS models downloaded.</Text>
-                <TouchableOpacity
-                  testID="download-models-inline-btn"
-                  style={styles.downloadButton}
-                  onPress={() => router.push('/(tabs)/models?type=tts')}
-                >
-                  <Text style={styles.downloadButtonText}>Download a model</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                {downloadedModels.map((model) => (
-                  <TouchableOpacity
-                    key={model.metadata.id}
-                    style={[
-                      styles.modelOption,
-                      selectedModelId === model.metadata.id && styles.modelOptionSelected
-                    ]}
-                    onPress={() => handleModelSelect(model.metadata.id)}
-                  >
-                    <Text style={[
-                      styles.modelOptionText,
-                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
-                    ]}>
-                      {model.metadata.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=tts')} style={styles.moreModelsLink}>
-                  <Text style={styles.linkText}>Download more models →</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
+      {/* Error and status messages */}
+      <StatusBlock status={statusMessage} error={errorMessage} />
 
-        {/* Show the predefined configuration after model selection */}
-        {predefinedConfigDisplay}
-
-        {/* TTS Configuration */}
-        <View style={styles.configSection}>
-          <Text style={styles.sectionTitle}>2. TTS Configuration</Text>
-          
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Number of Threads:</Text>
-            <TextInput
-              style={styles.configInput}
-              keyboardType="numeric"
-              value={numThreads.toString()}
-              onChangeText={(value) => {
-                const threadCount = parseInt(value);
-                if (!isNaN(threadCount) && threadCount > 0) {
-                  setNumThreads(threadCount);
-                }
-              }}
-            />
-          </View>
-          
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Provider:</Text>
-            <View style={styles.providerContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.providerOption,
-                  provider === 'cpu' && styles.providerOptionSelected
-                ]}
-                onPress={() => setProvider('cpu')}
-              >
-                <Text style={[
-                  styles.providerOptionText,
-                  provider === 'cpu' && styles.providerOptionTextSelected
-                ]}>CPU</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.providerOption,
-                  provider === 'gpu' && styles.providerOptionSelected
-                ]}
-                onPress={() => setProvider('gpu')}
-              >
-                <Text style={[
-                  styles.providerOptionText,
-                  provider === 'gpu' && styles.providerOptionTextSelected
-                ]}>GPU</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>Debug Mode:</Text>
-            <Switch
-              value={debugMode}
-              onValueChange={setDebugMode}
-            />
-          </View>
-        </View>
-
-        {/* TTS Controls */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.initButton,
-              (!selectedModelId || isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleInitTts}
-            disabled={isLoading || !selectedModelId}
-          >
-            <Text style={styles.buttonText}>Initialize TTS</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.releaseButton,
-              (!ttsInitialized || isLoading) && styles.buttonDisabled
-            ]} 
-            onPress={handleReleaseTts}
-            disabled={isLoading || !ttsInitialized}
-          >
-            <Text style={styles.buttonText}>Release TTS</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Text input (only show if initialized) */}
+      {/* Model Selection */}
+      <Section title="1. Select TTS Model">
         {ttsInitialized && (
-          <>
-            <TextInput
-              style={styles.textInput}
-              multiline
-              value={text}
-              onChangeText={setText}
-              placeholder="Enter text to speak"
+          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800', textAlign: 'center', fontStyle: 'italic', marginBottom: theme.margin.s }}>
+            Switching models will release the currently initialized model
+          </Text>
+        )}
+        {downloadedModels.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No TTS models downloaded.</Text>
+            <ThemedButton
+              testID="download-models-inline-btn"
+              label="Download a model"
+              onPress={() => router.push('/(tabs)/models?type=tts')}
+              style={{ marginTop: theme.margin.s }}
             />
-
-            {/* TTS Generation Configuration */}
-            <View style={styles.configSection}>
-              <Text style={styles.sectionTitle}>Speech Generation</Text>
-
-              {/* Speaker selector — only shown for multi-speaker models */}
-              {initResult && initResult.numSpeakers > 1 && (
-                <View style={styles.speakerSection}>
-                  <Text style={styles.configLabel}>
-                    Speaker: {speakerId} of {initResult.numSpeakers - 1}
-                  </Text>
-                  <View style={styles.stepperRow}>
-                    <TouchableOpacity
-                      style={[styles.stepperButton, speakerId <= 0 && styles.stepperButtonDisabled]}
-                      onPress={() => setSpeakerId(Math.max(0, speakerId - 1))}
-                      disabled={speakerId <= 0}
-                    >
-                      <Text style={styles.stepperButtonText}>-</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      style={styles.speakerInput}
-                      keyboardType="numeric"
-                      value={speakerId.toString()}
-                      onChangeText={(value) => {
-                        const id = parseInt(value);
-                        if (!isNaN(id)) {
-                          setSpeakerId(Math.max(0, Math.min(id, initResult.numSpeakers - 1)));
-                        }
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={[styles.stepperButton, speakerId >= initResult.numSpeakers - 1 && styles.stepperButtonDisabled]}
-                      onPress={() => setSpeakerId(Math.min(initResult.numSpeakers - 1, speakerId + 1))}
-                      disabled={speakerId >= initResult.numSpeakers - 1}
-                    >
-                      <Text style={styles.stepperButtonText}>+</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.randomButton}
-                      onPress={() => setSpeakerId(Math.floor(Math.random() * initResult.numSpeakers))}
-                    >
-                      <Text style={styles.randomButtonText}>Random</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Speaking Rate:</Text>
-                <TextInput
-                  style={styles.configInput}
-                  keyboardType="numeric"
-                  value={speakingRate.toString()}
-                  onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
-                />
-              </View>
-
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Auto-play Audio:</Text>
-                <Switch
-                  value={autoPlay}
-                  onValueChange={setAutoPlay}
-                />
-              </View>
-            </View>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={[
-                  styles.button, 
-                  styles.generateButton,
-                  isLoading && styles.buttonDisabled
-                ]} 
-                onPress={handleGenerateTts}
-                disabled={isLoading}
-              >
-                <Text style={styles.buttonText}>Generate Speech</Text>
-              </TouchableOpacity>
-            </View>
+          </View>
+        ) : (
+          <>
+            <ModelSelector
+              models={downloadedModels}
+              selectedId={selectedModelId}
+              onSelect={handleModelSelect}
+            />
+            <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=tts')} style={{ marginTop: theme.margin.s, alignItems: 'center' }}>
+              <Text variant="labelMedium" style={{ color: theme.colors.primary }}>Download more models →</Text>
+            </TouchableOpacity>
           </>
         )}
+      </Section>
 
-        {/* TTS Status (only show if initialized) */}
-        {initResult && (
-          <View style={styles.statusSection}>
-            <Text style={styles.sectionTitle}>TTS Status</Text>
-            <Text style={styles.statusDetail}>
-              Initialized: {ttsInitialized ? 'Yes' : 'No'}
-            </Text>
-            {initResult.sampleRate && (
-              <Text style={styles.statusDetail}>
-                Sample Rate: {initResult.sampleRate}Hz
-              </Text>
-            )}
-            <Text style={styles.statusDetail}>
-              Speakers: {initResult.numSpeakers}
-            </Text>
+      {/* Show the predefined configuration after model selection */}
+      {predefinedConfigDisplay}
+
+      {/* TTS Configuration */}
+      <Section title="2. TTS Configuration">
+        <ConfigRow label="Number of Threads:">
+          <TextInput
+            style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
+            keyboardType="numeric"
+            value={numThreads.toString()}
+            onChangeText={(value) => {
+              const threadCount = parseInt(value);
+              if (!isNaN(threadCount) && threadCount > 0) {
+                setNumThreads(threadCount);
+              }
+            }}
+          />
+        </ConfigRow>
+
+        <ConfigRow label="Provider:">
+          <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+            <ThemedButton
+              label="CPU"
+              variant={provider === 'cpu' ? 'primary' : 'secondary'}
+              onPress={() => setProvider('cpu')}
+              compact
+            />
+            <ThemedButton
+              label="GPU"
+              variant={provider === 'gpu' ? 'primary' : 'secondary'}
+              onPress={() => setProvider('gpu')}
+              compact
+            />
           </View>
-        )}
-        
-        {/* Generated Audio File Info */}
-        {ttsResult && ttsResult.filePath && (
-          <View style={styles.statusSection}>
-            <Text style={styles.sectionTitle}>Generated Audio</Text>
-            
-            {/* File info */}
-            <View style={styles.fileInfoContainer}>
-              <Text style={styles.statusDetail}>
-                <Text style={styles.statusDetailLabel}>File:</Text> {ttsResult.filePath.split('/').pop()}
-              </Text>
-              
-              <Text style={styles.statusDetail}>
-                <Text style={styles.statusDetailLabel}>Location:</Text> {ttsResult.filePath}
-              </Text>
-            </View>
-            
-            {/* Audio Player */}
-            <View style={styles.audioPlayerContainer}>
-              <Text style={styles.audioPlayerTitle}>
-                {isPlaying ? "Playing Audio..." : "Audio Ready To Play"}
-              </Text>
-              
-              <View style={styles.audioPlayerControls}>
-                <TouchableOpacity 
-                  style={[
-                    styles.audioPlayButton,
-                    isPlaying && styles.audioPlayButtonDisabled
-                  ]} 
-                  onPress={handlePlayAudio}
-                  disabled={isPlaying}
-                >
-                  <Text style={styles.audioPlayButtonText}>
-                    {isPlaying ? 'Playing...' : 'Play Audio'}
-                  </Text>
-                </TouchableOpacity>
-                
-                {isPlaying ? (
-                  <TouchableOpacity
-                    style={styles.audioStopButton}
-                    onPress={() => {
-                      if (player) {
-                        player.pause();
-                        setIsPlaying(false);
+        </ConfigRow>
+
+        <ConfigRow label="Debug Mode:">
+          <Switch
+            value={debugMode}
+            onValueChange={setDebugMode}
+          />
+        </ConfigRow>
+      </Section>
+
+      {/* TTS Controls */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m, gap: theme.gap?.s ?? 8 }}>
+        <ThemedButton
+          label="Initialize TTS"
+          onPress={handleInitTts}
+          disabled={isLoading || !selectedModelId}
+          style={{ flex: 1 }}
+        />
+        <ThemedButton
+          label="Release TTS"
+          variant="secondary"
+          onPress={handleReleaseTts}
+          disabled={isLoading || !ttsInitialized}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {/* Text input (only show if initialized) */}
+      {ttsInitialized && (
+        <>
+          <TextInput
+            style={{
+              padding: theme.padding.m,
+              minHeight: 100,
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.roundness * 2,
+              marginBottom: theme.margin.m,
+              color: theme.colors.onSurface,
+            }}
+            multiline
+            value={text}
+            onChangeText={setText}
+            placeholder="Enter text to speak"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+          />
+
+          {/* TTS Generation Configuration */}
+          <Section title="Speech Generation">
+            {/* Speaker selector — only shown for multi-speaker models */}
+            {initResult && initResult.numSpeakers > 1 && (
+              <View style={{ marginBottom: theme.margin.m }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginBottom: theme.margin.s }}>
+                  Speaker: {speakerId} of {initResult.numSpeakers - 1}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.gap?.s ?? 8 }}>
+                  <ThemedButton
+                    label="-"
+                    onPress={() => setSpeakerId(Math.max(0, speakerId - 1))}
+                    disabled={speakerId <= 0}
+                    compact
+                  />
+                  <TextInput
+                    style={{
+                      flex: 1, padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant,
+                      borderRadius: theme.roundness, textAlign: 'center', color: theme.colors.onSurface,
+                    }}
+                    keyboardType="numeric"
+                    value={speakerId.toString()}
+                    onChangeText={(value) => {
+                      const id = parseInt(value);
+                      if (!isNaN(id)) {
+                        setSpeakerId(Math.max(0, Math.min(id, initResult.numSpeakers - 1)));
                       }
                     }}
-                  >
-                    <Text style={styles.audioStopButtonText}>
-                      Stop
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.audioResetButton}
-                    onPress={() => {
-                      if (player) {
-                        // Reset the player to beginning
-                        player.seekTo(0);
-                      }
-                    }}
-                  >
-                    <Text style={styles.audioResetButtonText}>
-                      Reset
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                  />
+                  <ThemedButton
+                    label="+"
+                    onPress={() => setSpeakerId(Math.min(initResult.numSpeakers - 1, speakerId + 1))}
+                    disabled={speakerId >= initResult.numSpeakers - 1}
+                    compact
+                  />
+                  <ThemedButton
+                    label="Random"
+                    variant="warning"
+                    onPress={() => setSpeakerId(Math.floor(Math.random() * initResult.numSpeakers))}
+                    compact
+                  />
+                </View>
               </View>
+            )}
+
+            <ConfigRow label="Speaking Rate:">
+              <TextInput
+                style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
+                keyboardType="numeric"
+                value={speakingRate.toString()}
+                onChangeText={(value) => setSpeakingRate(parseFloat(value) || 1.0)}
+              />
+            </ConfigRow>
+
+            <ConfigRow label="Auto-play Audio:">
+              <Switch
+                value={autoPlay}
+                onValueChange={setAutoPlay}
+              />
+            </ConfigRow>
+          </Section>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m }}>
+            <ThemedButton
+              label="Generate Speech"
+              variant="success"
+              onPress={handleGenerateTts}
+              disabled={isLoading}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </>
+      )}
+
+      {/* TTS Status (only show if initialized) */}
+      {initResult && (
+        <Section title="TTS Status">
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginBottom: 4 }}>
+            Initialized: {ttsInitialized ? 'Yes' : 'No'}
+          </Text>
+          {initResult.sampleRate && (
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginBottom: 4 }}>
+              Sample Rate: {initResult.sampleRate}Hz
+            </Text>
+          )}
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+            Speakers: {initResult.numSpeakers}
+          </Text>
+        </Section>
+      )}
+
+      {/* Generated Audio File Info */}
+      {ttsResult && ttsResult.filePath && (
+        <Section title="Generated Audio">
+          <View style={{ marginBottom: theme.margin.m }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginBottom: 4 }}>
+              <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>File:</Text> {ttsResult.filePath.split('/').pop()}
+            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Location:</Text> {ttsResult.filePath}
+            </Text>
+          </View>
+
+          {/* Audio Player */}
+          <View style={{ marginBottom: theme.margin.m }}>
+            <Text variant="titleSmall" style={{ marginBottom: theme.margin.s }}>
+              {isPlaying ? "Playing Audio..." : "Audio Ready To Play"}
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+              <ThemedButton
+                label={isPlaying ? 'Playing...' : 'Play Audio'}
+                onPress={handlePlayAudio}
+                disabled={isPlaying}
+                style={{ flex: 1 }}
+              />
+
+              {isPlaying ? (
+                <ThemedButton
+                  label="Stop"
+                  variant="danger"
+                  onPress={() => {
+                    if (player) {
+                      player.pause();
+                      setIsPlaying(false);
+                    }
+                  }}
+                />
+              ) : (
+                <ThemedButton
+                  label="Reset"
+                  variant="secondary"
+                  onPress={() => {
+                    if (player) {
+                      // Reset the player to beginning
+                      player.seekTo(0);
+                    }
+                  }}
+                />
+              )}
             </View>
           </View>
-        )}
-      </ScrollView>
-
-    </SafeAreaView>
+        </Section>
+      )}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  loadingContent: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 250,
-    maxWidth: '80%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  loadingSubText: {
-    marginBottom: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  overlayStopButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 16,
-    width: '100%',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-  },
-  overlayStopButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  pickerContainer: {
-    marginBottom: 16,
-  },
-  modelOption: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  modelOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  modelOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modelOptionTextSelected: {
-    color: '#fff',
-  },
-  emptyModelContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  downloadButton: {
-    marginTop: 12,
-    backgroundColor: '#2196F3',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  downloadButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  moreModelsLink: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#2196F3',
-    fontSize: 14,
-  },
-  providerContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  providerOption: {
-    flex: 1,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  providerOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  providerOptionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  providerOptionTextSelected: {
-    color: '#fff',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  errorText: {
-    color: '#f44336',
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  warningText: {
-    color: '#FF9800',
-    fontSize: 14,
-    marginBottom: 8,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  statusText: {
-    color: '#2196F3',
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  button: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  textInput: {
-    marginHorizontal: 16,
-    padding: 16,
-    minHeight: 100,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  initButton: {
-    backgroundColor: '#2196F3',
-  },
-  releaseButton: {
-    backgroundColor: '#757575',
-  },
-  generateButton: {
-    backgroundColor: '#4CAF50',
-  },
-  configSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  configLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  configInput: {
-    flex: 1,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    fontSize: 16,
-  },
-  statusSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-  },
-  statusDetail: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 8,
-  },
-  statusDetailLabel: {
-    fontWeight: 'bold',
-  },
-  fileInfoContainer: {
-    marginBottom: 16,
-  },
-  audioPlayerContainer: {
-    marginBottom: 16,
-  },
-  audioPlayerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  audioPlayerControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  audioPlayButton: {
-    backgroundColor: '#9C27B0',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-  },
-  audioPlayButtonDisabled: {
-    opacity: 0.6,
-  },
-  audioPlayButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  audioStopButton: {
-    backgroundColor: '#F44336',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    minWidth: 60,
-  },
-  audioStopButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  audioResetButton: {
-    backgroundColor: '#9C27B0',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    minWidth: 60,
-  },
-  audioResetButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 4,
-  },
-  speakerSection: {
-    marginBottom: 16,
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  stepperButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2196F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  stepperButtonText: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  speakerInput: {
-    flex: 1,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  randomButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#FF9800',
-    borderRadius: 8,
-  },
-  randomButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-}); 

@@ -13,16 +13,24 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
-  StyleSheet,
   Switch,
-  Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAudioTaggingModels, useAudioTaggingModelWithConfig } from '../../hooks/useModelWithConfig';
+import {
+  ConfigRow,
+  LoadingOverlay,
+  ModelSelector,
+  PageContainer,
+  ResultsBox,
+  Section,
+  StatusBlock,
+  Text,
+  ThemedButton,
+  useTheme,
+} from '../../components/ui';
 
 // Define sample audio with only name and module
 const SAMPLE_AUDIO_FILES = [
@@ -69,7 +77,7 @@ function AudioTaggingScreen() {
   } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [needsReinit, setNeedsReinit] = useState(false);
-  
+
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
     id: string;
@@ -77,11 +85,11 @@ function AudioTaggingScreen() {
     module: number;
     localUri: string;
   }[]>([]);
-  
+
   // Add state for audio playback
   const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  
+
   // Add new states for audio metadata
   const [audioMetadata, setAudioMetadata] = useState<{
     size?: number;
@@ -90,19 +98,20 @@ function AudioTaggingScreen() {
   }>({
     isLoading: false
   });
-  
+
   // Add state for configuration options
   const [topK, setTopK] = useState<number>(5);
   const [numThreads, setNumThreads] = useState<number>(2);
   const [debugMode, setDebugMode] = useState<boolean>(true); // Default to true
   const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu');
-  
+
   const router = useRouter();
+  const theme = useTheme();
 
   // Use our new hooks
   const { downloadedModels } = useAudioTaggingModels();
   const { audioTaggingConfig, localPath, isDownloaded } = useAudioTaggingModelWithConfig({ modelId: selectedModelId });
-  
+
   // Track the config snapshot that was used for the last successful init
   const initedConfigRef = useRef<{
     modelId: string | null;
@@ -136,24 +145,24 @@ function AudioTaggingScreen() {
       c.provider !== provider;
     setNeedsReinit(changed);
   }, [initialized, selectedModelId, topK, numThreads, debugMode, provider]);
-  
+
   // Load audio assets when component mounts
   useEffect(() => {
     async function loadAudioAssets() {
       try {
-        const assets = SAMPLE_AUDIO_FILES.map(file => 
+        const assets = SAMPLE_AUDIO_FILES.map(file =>
           Asset.fromModule(file.module)
         );
-        
+
         // Download all assets to local filesystem
         await Promise.all(assets.map(asset => asset.downloadAsync()));
-        
+
         // Create new array with local URIs
         const loaded = SAMPLE_AUDIO_FILES.map((file, index) => ({
           ...file,
           localUri: assets[index].localUri || '',
         }));
-        
+
         setLoadedAudioFiles(loaded);
         console.log('Audio assets loaded successfully:', loaded);
       } catch (err) {
@@ -161,26 +170,26 @@ function AudioTaggingScreen() {
         setError(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    
+
     loadAudioAssets();
   }, []);
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (initialized) {
         console.log('Cleaning up audio tagging resources');
-        AudioTagging.release().catch((err: Error) => 
+        AudioTagging.release().catch((err: Error) =>
           console.error('Error releasing audio tagging resources:', err)
         );
       }
-      
+
       if (player) {
         player.remove();
       }
     };
   }, [initialized, player]);
-  
+
   const handleModelSelect = useCallback(async (modelId: string) => {
     if (modelId === selectedModelId) return;
     if (initialized) {
@@ -194,7 +203,7 @@ function AudioTaggingScreen() {
     setNeedsReinit(false);
     setSelectedModelId(modelId);
   }, [initialized, selectedModelId]);
-  
+
   // Initialize the audio tagging engine
   const handleInitAudioTagging = async () => {
     if (!selectedModelId || !localPath || !isDownloaded) {
@@ -212,23 +221,23 @@ function AudioTaggingScreen() {
     setLoading(true);
     setError(null);
     setStatusMessage('Initializing audio tagging...');
-    
+
     try {
       // Use the cleaned path (without file://) for native module
       let cleanLocalPath = cleanFilePath(localPath);
-      
+
       // Attempt to find subdirectory
       try {
         const expoPath = localPath.startsWith('file://') ? localPath : `file://${localPath}`;
         const contents = await FileSystem.readDirectoryAsync(expoPath);
         console.log(`Found ${contents.length} items in base directory:`, contents);
-        
+
         // Look for a subdirectory matching the model type
-        const modelSubdir = contents.find(item => 
-          item.includes('sherpa-onnx') && 
+        const modelSubdir = contents.find(item =>
+          item.includes('sherpa-onnx') &&
           (item.includes('audio-tagging') || item.includes(selectedModelId.replace('ced-', '')))
         );
-        
+
         if (modelSubdir) {
           console.log(`Found model subdirectory: ${modelSubdir}`);
           cleanLocalPath = `${cleanLocalPath}/${modelSubdir}`;
@@ -237,9 +246,9 @@ function AudioTaggingScreen() {
         console.error('Error reading directory:', dirError);
         // Fallback to standard path if directory read fails
       }
-      
+
       console.log(`Using model directory: ${cleanLocalPath}`);
-      
+
       // Create configuration for audio tagging initialization directly from predefined config
       const config: AudioTaggingModelConfig = {
         modelDir: cleanLocalPath,
@@ -251,12 +260,12 @@ function AudioTaggingScreen() {
         debug: debugMode,
         provider
       };
-      
+
       console.log('Initializing audio tagging with config:', JSON.stringify(config, null, 2));
-      
+
       try {
         const result = await AudioTagging.initialize(config);
-        
+
         if (result.success) {
           setInitialized(true);
           setNeedsReinit(false);
@@ -272,7 +281,7 @@ function AudioTaggingScreen() {
     } catch (err) {
       console.error('Error initializing audio tagging:', err);
       setError(`Error initializing audio tagging: ${err instanceof Error ? err.message : String(err)}`);
-      
+
       // Show alert to user
       Alert.alert(
         'Initialization Failed',
@@ -283,7 +292,7 @@ function AudioTaggingScreen() {
       setLoading(false);
     }
   };
-  
+
   // Play an audio file
   const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     try {
@@ -319,7 +328,7 @@ function AudioTaggingScreen() {
       setError(`Error playing audio: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
-  
+
   // Stop playing audio
   const handleStopAudio = () => {
     if (player) {
@@ -331,47 +340,47 @@ function AudioTaggingScreen() {
       }
     }
   };
-  
+
   // Enhanced for safer processing
   const handleProcessAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     if (!initialized) {
       Alert.alert('Error', 'Please initialize the audio tagging engine first');
       return;
     }
-    
+
     setProcessing(true);
     setAudioTaggingResults(null);
     setError(null); // Clear any previous errors
-    
+
     try {
       // Check if we have a valid local URI
       if (!audioItem.localUri) {
         throw new Error('Audio file not yet loaded');
       }
-      
+
       const localFilePath = audioItem.localUri;
       console.log(`Using local audio file at: ${localFilePath}`);
-      
+
       try {
         // Process the audio file and compute results in one call
         console.log('Processing and analyzing audio file...');
-        
+
         // Process using the AudioTagging API
         const result = await AudioTagging.processAndCompute({
           filePath: localFilePath, // The SherpaOnnxAPI will clean this path
           topK: topK // Use the current UI topK value
         });
-        
+
         if (!result.success) {
           throw new Error(result.error || 'Failed to analyze audio');
         }
-        
+
         setAudioTaggingResults(result as unknown as AudioTaggingResult);
         setStatusMessage(`Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`);
       } catch (processingError) {
         console.error('Error processing audio data:', processingError);
         setError(`Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
-        
+
         // Still show a helpful message to the user
         Alert.alert(
           'Processing Error',
@@ -386,7 +395,7 @@ function AudioTaggingScreen() {
       setProcessing(false);
     }
   };
-  
+
   const handleReleaseAudioTagging = async () => {
     if (!initialized) return;
     setLoading(true);
@@ -403,7 +412,7 @@ function AudioTaggingScreen() {
       setLoading(false);
     }
   };
-  
+
   // Enhanced function to get audio metadata
   const getAudioMetadata = async (uri: string): Promise<{ size: number; duration: number }> => {
     try {
@@ -428,14 +437,14 @@ function AudioTaggingScreen() {
       return { size: 0, duration: 0 };
     }
   };
-  
+
   // Enhanced handle select audio
   const handleSelectAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     // If selecting the same item again, deselect it
     if (selectedAudio?.id === audioItem.id) {
       setSelectedAudio(null);
       setAudioMetadata({ isLoading: false });
-      
+
       // Stop playback if active
       if (player && isPlaying) {
         handleStopAudio();
@@ -448,7 +457,7 @@ function AudioTaggingScreen() {
       if (player && isPlaying) {
         handleStopAudio();
       }
-      
+
       // Fetch metadata for the selected audio
       if (audioItem.localUri) {
         try {
@@ -465,108 +474,97 @@ function AudioTaggingScreen() {
       }
     }
   };
-  
+
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-  
+
   // Helper function to format duration
   const formatDuration = (milliseconds: number): string => {
     if (!milliseconds) return 'Unknown';
-    
+
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    
+
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
-  
+
   // Generate a visualization of the model's predefined config
   const predefinedConfigDisplay = selectedModelId && audioTaggingConfig ? (
-    <View style={styles.statusSection}>
-      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
-      
+    <Section title="Predefined Model Configuration">
       {/* Display predefined values in a more readable format */}
-      <View style={styles.predefinedValuesContainer}>
+      <View style={{ marginBottom: theme.margin.m }}>
         {audioTaggingConfig.modelType && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Model Type:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.modelType}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Model Type:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.modelType}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.topK !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Top K Results:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.topK}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Top K Results:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.topK}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.numThreads !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Num Threads:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.numThreads}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Num Threads:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.numThreads}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.provider !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Provider:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.provider.toUpperCase()}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Provider:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.provider.toUpperCase()}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.debug !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Debug Mode:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.debug ? 'Enabled' : 'Disabled'}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Debug Mode:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.debug ? 'Enabled' : 'Disabled'}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.modelFile !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Model File:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.modelFile}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Model File:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.modelFile}</Text>
           </View>
         )}
-        
         {audioTaggingConfig.labelsFile !== undefined && (
-          <View style={styles.predefinedValueRow}>
-            <Text style={styles.predefinedValueLabel}>Labels File:</Text>
-            <Text style={styles.predefinedValueText}>{audioTaggingConfig.labelsFile}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>Labels File:</Text>
+            <Text variant="bodyMedium">{audioTaggingConfig.labelsFile}</Text>
           </View>
         )}
       </View>
-      
-      <Text style={styles.sectionSubtitle}>Raw Configuration:</Text>
-      <Text style={styles.codeText} selectable>
+
+      <Text variant="titleSmall" style={{ marginBottom: theme.margin.s }}>Raw Configuration:</Text>
+      <Text variant="bodySmall" selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', backgroundColor: theme.colors.surfaceVariant, padding: 10, borderRadius: theme.roundness }}>
         {JSON.stringify(audioTaggingConfig, null, 2)}
       </Text>
-    </View>
+    </Section>
   ) : null;
-  
+
   const configSection = (
-    <View style={styles.configSection}>
-      <Text style={styles.sectionTitle}>2. Configuration</Text>
-      
+    <Section title="2. Configuration">
       {audioTaggingConfig && (
-        <View style={styles.configInfo}>
-          <View style={styles.configInfoRow}>
-            <Text style={styles.configInfoText}>
-              <Text style={styles.noteText}>Note: </Text>
+        <View style={{ marginBottom: theme.margin.m }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', flex: 1, marginRight: theme.margin.m }}>
+              <Text variant="bodySmall" style={{ fontWeight: 'bold' }}>Note: </Text>
               Values from predefined configuration are shown in blue
             </Text>
-            
-            {/* Add Reset button */}
-            <TouchableOpacity
-              style={styles.resetButton}
+            <ThemedButton
+              label="Reset to Defaults"
+              compact
               onPress={() => {
                 if (audioTaggingConfig) {
                   console.log('[DEBUG] Resetting configuration to predefined values');
@@ -576,731 +574,269 @@ function AudioTaggingScreen() {
                   setProvider(audioTaggingConfig.provider ?? 'cpu');
                 }
               }}
-            >
-              <Text style={styles.resetButtonText}>Reset to Defaults</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       )}
-      
-      <View style={styles.configRow}>
-        <Text style={styles.configLabel}>Top K Results:</Text>
-        <TextInput 
-          value={String(topK)}
-          onChangeText={(text) => setTopK(Number(text) || 5)}
-          keyboardType="numeric"
-          style={[
-            styles.configInput,
-            audioTaggingConfig?.topK === topK && styles.predefinedInput
-          ]}
-        />
-        {audioTaggingConfig?.topK !== undefined && audioTaggingConfig.topK !== topK && (
-          <Text style={styles.predefinedValueBadge}>
-            Default: {audioTaggingConfig.topK}
-          </Text>
-        )}
-      </View>
-      
-      <View style={styles.configRow}>
-        <Text style={styles.configLabel}>Num Threads:</Text>
-        <TextInput 
-          value={String(numThreads)}
-          onChangeText={(text) => setNumThreads(Number(text) || 2)}
-          keyboardType="numeric"
-          style={[
-            styles.configInput,
-            audioTaggingConfig?.numThreads === numThreads && styles.predefinedInput
-          ]}
-        />
-        {audioTaggingConfig?.numThreads !== undefined && audioTaggingConfig.numThreads !== numThreads && (
-          <Text style={styles.predefinedValueBadge}>
-            Default: {audioTaggingConfig.numThreads}
-          </Text>
-        )}
-      </View>
-      
-      <View style={styles.configRow}>
-        <Text style={styles.configLabel}>Provider:</Text>
-        <View style={styles.providerContainer}>
-          <TouchableOpacity
-            style={[
-              styles.providerOption,
-              provider === 'cpu' && styles.providerOptionSelected,
-              audioTaggingConfig?.provider === 'cpu' && provider === 'cpu' && styles.predefinedProviderSelected
-            ]}
-            onPress={() => setProvider('cpu')}
-          >
-            <Text style={[
-              styles.providerOptionText,
-              provider === 'cpu' && styles.providerOptionTextSelected
-            ]}>CPU</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.providerOption,
-              provider === 'gpu' && styles.providerOptionSelected,
-              audioTaggingConfig?.provider === 'gpu' && provider === 'gpu' && styles.predefinedProviderSelected
-            ]}
-            onPress={() => setProvider('gpu')}
-          >
-            <Text style={[
-              styles.providerOptionText,
-              provider === 'gpu' && styles.providerOptionTextSelected
-            ]}>GPU</Text>
-          </TouchableOpacity>
-        </View>
-        {audioTaggingConfig?.provider !== undefined && audioTaggingConfig.provider !== provider && (
-          <Text style={styles.predefinedValueBadge}>
-            Default: {audioTaggingConfig.provider.toUpperCase()}
-          </Text>
-        )}
-      </View>
-      
-      <View style={styles.configRow}>
-        <Text style={styles.configLabel}>Debug Mode:</Text>
-        <Switch 
-          value={debugMode}
-          onValueChange={setDebugMode}
-          trackColor={{ 
-            false: '#eee', 
-            true: audioTaggingConfig?.debug === debugMode ? '#2196F3' : '#81c784' 
-          }}
-        />
-        {audioTaggingConfig?.debug !== undefined && audioTaggingConfig.debug !== debugMode && (
-          <Text style={styles.predefinedValueBadge}>
-            Default: {audioTaggingConfig.debug ? 'On' : 'Off'}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-  
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Loading overlay */}
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>
-              {statusMessage || 'Processing...'}
-            </Text>
-            
-            <Text style={styles.loadingSubText}>
-              This may take a moment, especially for longer audio files.
-            </Text>
-          </View>
-        </View>
-      )}
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Audio Tagging Demo</Text>
-        
-        {/* Error and status messages */}
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
-        
-        {statusMessage ? (
-          <Text style={styles.statusText}>{statusMessage}</Text>
-        ) : null}
-        
-        {/* Reinit banner */}
-        {needsReinit && (
-          <TouchableOpacity
-            style={styles.reinitBanner}
-            onPress={handleInitAudioTagging}
-            disabled={loading || processing}
-          >
-            <Text style={styles.reinitBannerText}>
-              Configuration changed — tap to reinitialize
-            </Text>
-          </TouchableOpacity>
-        )}
 
-        {/* Model Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Select Model</Text>
-          <View style={styles.pickerContainer}>
-            {downloadedModels.length === 0 ? (
-              <View style={styles.emptyModelContainer}>
-                <Text style={styles.emptyText}>No audio tagging models downloaded.</Text>
-                <TouchableOpacity
-                  testID="download-models-inline-btn"
-                  style={styles.downloadButton}
-                  onPress={() => router.push('/(tabs)/models?type=audio-tagging')}
-                >
-                  <Text style={styles.downloadButtonText}>Download a model</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              downloadedModels.map((model) => (
-                <TouchableOpacity
-                  key={model.metadata.id}
-                  style={[
-                    styles.modelOption,
-                    selectedModelId === model.metadata.id && styles.modelOptionSelected
-                  ]}
-                  onPress={() => handleModelSelect(model.metadata.id)}
-                  disabled={processing}
-                >
-                  <Text 
-                    style={[
-                      styles.modelOptionText,
-                      selectedModelId === model.metadata.id && styles.modelOptionTextSelected
-                    ]}
-                  >
-                    {model.metadata.name}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
-          </View>
-        </View>
-        
-        {/* Show the predefined configuration after model selection */}
-        {predefinedConfigDisplay}
-        
-        {/* Configuration - replace the existing View with the new configSection */}
-        {configSection}
-        
-        {/* Actions */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              needsReinit ? styles.reinitButton : styles.initButton,
-              (!needsReinit && (initialized || !selectedModelId) || loading || processing) && styles.buttonDisabled
-            ]}
-            onPress={handleInitAudioTagging}
-            disabled={loading || processing || (!needsReinit && (initialized || !selectedModelId))}
-          >
-            <Text style={styles.buttonText}>{needsReinit ? 'Reinitialize' : 'Initialize'}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.button, 
-              styles.releaseButton,
-              (!initialized || loading || processing) && styles.buttonDisabled
-            ]}
-            onPress={handleReleaseAudioTagging}
-            disabled={loading || !initialized || processing}
-          >
-            <Text style={styles.buttonText}>Release</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Sample Audio Files */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {initialized ? '3. Sample Audio Files' : '3. Sample Audio Files (Initialize model first)'}
-          </Text>
-          
-          {loadedAudioFiles.length === 0 ? (
-            <ActivityIndicator size="small" color="#0000ff" />
-          ) : (
-            loadedAudioFiles.map(audio => (
-              <TouchableOpacity
-                key={audio.id}
-                style={[
-                  styles.audioItem,
-                  selectedAudio?.id === audio.id && styles.selectedAudio
-                ]}
-                onPress={() => handleSelectAudio(audio)}
-                disabled={processing}
-              >
-                <Text style={styles.audioName}>{audio.name}</Text>
-              </TouchableOpacity>
-            ))
+      <ConfigRow label="Top K Results:">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            value={String(topK)}
+            onChangeText={(text) => setTopK(Number(text) || 5)}
+            keyboardType="numeric"
+            style={{
+              flex: 1, padding: 8, borderWidth: audioTaggingConfig?.topK === topK ? 2 : 1,
+              borderColor: audioTaggingConfig?.topK === topK ? theme.colors.primary : theme.colors.outlineVariant,
+              borderRadius: theme.roundness, color: theme.colors.onSurface,
+            }}
+          />
+          {audioTaggingConfig?.topK !== undefined && audioTaggingConfig.topK !== topK && (
+            <Text variant="labelSmall" style={{ backgroundColor: theme.colors.primary, color: theme.colors.onPrimary, padding: 4, borderRadius: theme.roundness, marginLeft: 8 }}>
+              Default: {audioTaggingConfig.topK}
+            </Text>
           )}
         </View>
-        
-        {/* Audio Actions */}
-        {selectedAudio && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Audio Actions</Text>
-            <View style={styles.audioMetadataContainer}>
-              <Text style={styles.selectedAudioText}>
-                Selected: {selectedAudio.name}
-              </Text>
-              
-              {audioMetadata.isLoading ? (
-                <ActivityIndicator size="small" color="#0288d1" style={styles.metadataLoader} />
-              ) : (
-                <View style={styles.metadataDetails}>
-                  {audioMetadata.size !== undefined && (
-                    <Text style={styles.metadataText}>
-                      Size: {formatFileSize(audioMetadata.size)}
-                    </Text>
-                  )}
-                  {audioMetadata.duration !== undefined && (
-                    <Text style={styles.metadataText}>
-                      Duration: {formatDuration(audioMetadata.duration)}
-                    </Text>
-                  )}
-                </View>
-              )}
-            </View>
-            
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[
-                  styles.button, 
-                  styles.playButton,
-                  isPlaying && styles.stopButton,
-                  processing && styles.buttonDisabled
-                ]}
-                onPress={() => {
-                  if (selectedAudio && 'localUri' in selectedAudio) {
-                    if (isPlaying) {
-                      handleStopAudio();
-                    } else {
-                      handlePlayAudio(selectedAudio);
-                    }
-                  }
-                }}
-                disabled={processing}
-              >
-                <Text style={styles.buttonText}>{isPlaying ? 'Stop' : 'Play'}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.button, 
-                  styles.classifyButton,
-                  (!initialized || processing) && styles.buttonDisabled
-                ]}
-                onPress={() => {
-                  if (selectedAudio && 'localUri' in selectedAudio) {
-                    handleProcessAudio(selectedAudio);
-                  }
-                }}
-                disabled={!initialized || processing}
-              >
-                <Text style={styles.buttonText}>Classify</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        
-        {/* Results */}
-        {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {selectedAudio ? '5. Results' : '4. Results'}
+      </ConfigRow>
+
+      <ConfigRow label="Num Threads:">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            value={String(numThreads)}
+            onChangeText={(text) => setNumThreads(Number(text) || 2)}
+            keyboardType="numeric"
+            style={{
+              flex: 1, padding: 8, borderWidth: audioTaggingConfig?.numThreads === numThreads ? 2 : 1,
+              borderColor: audioTaggingConfig?.numThreads === numThreads ? theme.colors.primary : theme.colors.outlineVariant,
+              borderRadius: theme.roundness, color: theme.colors.onSurface,
+            }}
+          />
+          {audioTaggingConfig?.numThreads !== undefined && audioTaggingConfig.numThreads !== numThreads && (
+            <Text variant="labelSmall" style={{ backgroundColor: theme.colors.primary, color: theme.colors.onPrimary, padding: 4, borderRadius: theme.roundness, marginLeft: 8 }}>
+              Default: {audioTaggingConfig.numThreads}
             </Text>
-            
-            {processing ? (
-              <ActivityIndicator size="large" color="#0000ff" />
+          )}
+        </View>
+      </ConfigRow>
+
+      <ConfigRow label="Provider:">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1, flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+            <ThemedButton
+              label="CPU"
+              variant={provider === 'cpu' ? 'primary' : 'secondary'}
+              onPress={() => setProvider('cpu')}
+              compact
+            />
+            <ThemedButton
+              label="GPU"
+              variant={provider === 'gpu' ? 'primary' : 'secondary'}
+              onPress={() => setProvider('gpu')}
+              compact
+            />
+          </View>
+          {audioTaggingConfig?.provider !== undefined && audioTaggingConfig.provider !== provider && (
+            <Text variant="labelSmall" style={{ backgroundColor: theme.colors.primary, color: theme.colors.onPrimary, padding: 4, borderRadius: theme.roundness, marginLeft: 8 }}>
+              Default: {audioTaggingConfig.provider.toUpperCase()}
+            </Text>
+          )}
+        </View>
+      </ConfigRow>
+
+      <ConfigRow label="Debug Mode:">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Switch
+            value={debugMode}
+            onValueChange={setDebugMode}
+            trackColor={{
+              false: '#eee',
+              true: audioTaggingConfig?.debug === debugMode ? theme.colors.primary : '#81c784'
+            }}
+          />
+          {audioTaggingConfig?.debug !== undefined && audioTaggingConfig.debug !== debugMode && (
+            <Text variant="labelSmall" style={{ backgroundColor: theme.colors.primary, color: theme.colors.onPrimary, padding: 4, borderRadius: theme.roundness, marginLeft: 8 }}>
+              Default: {audioTaggingConfig.debug ? 'On' : 'Off'}
+            </Text>
+          )}
+        </View>
+      </ConfigRow>
+    </Section>
+  );
+
+  return (
+    <PageContainer>
+      <LoadingOverlay
+        visible={loading}
+        message={statusMessage || 'Processing...'}
+        subMessage="This may take a moment, especially for longer audio files."
+      />
+
+      <Text variant="headlineMedium" style={{ textAlign: 'center', marginBottom: theme.margin.m }}>{'\n'}Audio Tagging Demo</Text>
+
+      {/* Error and status messages */}
+      <StatusBlock status={statusMessage} error={error} />
+
+      {/* Reinit banner */}
+      {needsReinit && (
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#FFF3E0', borderColor: '#FF9800', borderWidth: 1,
+            borderRadius: theme.roundness * 2, padding: theme.padding.s,
+            marginBottom: theme.margin.s, alignItems: 'center',
+          }}
+          onPress={handleInitAudioTagging}
+          disabled={loading || processing}
+        >
+          <Text variant="labelMedium" style={{ color: '#E65100', fontWeight: '600' }}>
+            Configuration changed — tap to reinitialize
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Model Selection */}
+      <Section title="1. Select Model">
+        {downloadedModels.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No audio tagging models downloaded.</Text>
+            <ThemedButton
+              testID="download-models-inline-btn"
+              label="Download a model"
+              onPress={() => router.push('/(tabs)/models?type=audio-tagging')}
+              style={{ marginTop: theme.margin.s }}
+            />
+          </View>
+        ) : (
+          <ModelSelector
+            models={downloadedModels}
+            selectedId={selectedModelId}
+            onSelect={handleModelSelect}
+            disabled={processing}
+          />
+        )}
+      </Section>
+
+      {/* Show the predefined configuration after model selection */}
+      {predefinedConfigDisplay}
+
+      {/* Configuration */}
+      {configSection}
+
+      {/* Actions */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m, gap: theme.gap?.s ?? 8 }}>
+        <ThemedButton
+          label={needsReinit ? 'Reinitialize' : 'Initialize'}
+          variant={needsReinit ? 'warning' : 'primary'}
+          onPress={handleInitAudioTagging}
+          disabled={loading || processing || (!needsReinit && (initialized || !selectedModelId))}
+          style={{ flex: 1 }}
+        />
+        <ThemedButton
+          label="Release"
+          variant="secondary"
+          onPress={handleReleaseAudioTagging}
+          disabled={loading || !initialized || processing}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {/* Sample Audio Files */}
+      <Section title={initialized ? '3. Sample Audio Files' : '3. Sample Audio Files (Initialize model first)'}>
+        {loadedAudioFiles.length === 0 ? (
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        ) : (
+          loadedAudioFiles.map(audio => (
+            <TouchableOpacity
+              key={audio.id}
+              style={{
+                backgroundColor: selectedAudio?.id === audio.id ? theme.colors.primaryContainer : theme.colors.surfaceVariant,
+                paddingVertical: 12, paddingHorizontal: 16, marginVertical: 6, borderRadius: theme.roundness,
+                borderWidth: selectedAudio?.id === audio.id ? 2 : 0,
+                borderColor: theme.colors.primary,
+              }}
+              onPress={() => handleSelectAudio(audio)}
+              disabled={processing}
+            >
+              <Text variant="bodyMedium">{audio.name}</Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </Section>
+
+      {/* Audio Actions */}
+      {selectedAudio && (
+        <Section title="4. Audio Actions">
+          <View style={{ marginBottom: theme.margin.m }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: '500', marginBottom: theme.margin.s }}>
+              Selected: {selectedAudio.name}
+            </Text>
+
+            {audioMetadata.isLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginTop: 8 }} />
             ) : (
-              <View style={styles.resultsList}>
-                {audioTaggingResults.events.map((item) => (
-                  <View key={`${item.index}-${item.name}`} style={styles.resultItem}>
-                    <Text style={styles.resultName}>{item.name}</Text>
-                    <Text style={styles.resultProb}>{(item.prob * 100).toFixed(2)}%</Text>
-                  </View>
-                ))}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 }}>
+                {audioMetadata.size !== undefined && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Size: {formatFileSize(audioMetadata.size)}
+                  </Text>
+                )}
+                {audioMetadata.duration !== undefined && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Duration: {formatDuration(audioMetadata.duration)}
+                  </Text>
+                )}
               </View>
             )}
           </View>
-        )}
-      </ScrollView>
 
-    </SafeAreaView>
+          <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+            <ThemedButton
+              label={isPlaying ? 'Stop' : 'Play'}
+              variant={isPlaying ? 'danger' : 'success'}
+              onPress={() => {
+                if (selectedAudio && 'localUri' in selectedAudio) {
+                  if (isPlaying) {
+                    handleStopAudio();
+                  } else {
+                    handlePlayAudio(selectedAudio);
+                  }
+                }
+              }}
+              disabled={processing}
+              style={{ flex: 1 }}
+            />
+            <ThemedButton
+              label="Classify"
+              onPress={() => {
+                if (selectedAudio && 'localUri' in selectedAudio) {
+                  handleProcessAudio(selectedAudio);
+                }
+              }}
+              disabled={!initialized || processing}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Section>
+      )}
+
+      {/* Results */}
+      {audioTaggingResults && audioTaggingResults.events && audioTaggingResults.events.length > 0 && (
+        <Section title={selectedAudio ? '5. Results' : '4. Results'}>
+          {processing ? (
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          ) : (
+            <ResultsBox>
+              {audioTaggingResults.events.map((item) => (
+                <View key={`${item.index}-${item.name}`} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant }}>
+                  <Text variant="bodyMedium" style={{ fontWeight: '500' }}>{item.name}</Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>{(item.prob * 100).toFixed(2)}%</Text>
+                </View>
+              ))}
+            </ResultsBox>
+          )}
+        </Section>
+      )}
+    </PageContainer>
   );
 }
 
 export default AudioTaggingScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 8,
-    paddingHorizontal: 16,
-  },
-  button: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
-    alignItems: 'center',
-  },
-  initButton: {
-    backgroundColor: '#2196F3',
-  },
-  reinitButton: {
-    backgroundColor: '#FF9800',
-  },
-  reinitBanner: {
-    backgroundColor: '#FFF3E0',
-    borderColor: '#FF9800',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  reinitBannerText: {
-    color: '#E65100',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  releaseButton: {
-    backgroundColor: '#757575',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  audioItem: {
-    backgroundColor: '#e1f5fe',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 6,
-  },
-  selectedAudio: {
-    backgroundColor: '#81d4fa',
-    borderWidth: 2,
-    borderColor: '#0288d1',
-  },
-  audioName: {
-    fontSize: 16,
-  },
-  resultsList: {
-    maxHeight: 200,
-  },
-  resultItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
-  },
-  resultName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  resultProb: {
-    fontSize: 16,
-    color: '#0288d1',
-  },
-  errorText: {
-    color: '#f44336',
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  statusText: {
-    color: '#2196F3',
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  warningText: {
-    color: '#FF9800',
-    fontSize: 14,
-    marginBottom: 8,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  infoText: {
-    textAlign: 'center',
-    fontStyle: 'italic',
-    color: '#757575',
-  },
-  pickerContainer: {
-    marginBottom: 8,
-  },
-  modelOption: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  modelOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  modelOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modelOptionTextSelected: {
-    color: '#fff',
-  },
-  emptyModelContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  downloadButton: {
-    marginTop: 12,
-    backgroundColor: '#2196F3',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  downloadButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  playButton: {
-    backgroundColor: '#4CAF50',
-  },
-  stopButton: {
-    backgroundColor: '#FF5722',
-  },
-  classifyButton: {
-    backgroundColor: '#2196F3',
-  },
-  selectedAudioText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 12,
-    color: '#0288d1',
-  },
-  audioMetadataContainer: {
-    marginBottom: 16,
-  },
-  metadataDetails: {
-    marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  metadataText: {
-    fontSize: 14,
-    color: '#555',
-    marginRight: 16,
-    marginBottom: 4,
-  },
-  metadataLoader: {
-    marginTop: 8,
-  },
-  configSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  configLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  configInput: {
-    flex: 1,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    fontSize: 16,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  loadingContent: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 250,
-    maxWidth: '80%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  loadingSubText: {
-    marginBottom: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  providerContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  providerOption: {
-    flex: 1,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  providerOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  providerOptionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  providerOptionTextSelected: {
-    color: '#fff',
-  },
-  statusSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-  },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 4,
-  },
-  predefinedValuesContainer: {
-    marginBottom: 16,
-  },
-  predefinedValueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  predefinedValueLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  predefinedValueText: {
-    fontSize: 14,
-  },
-  sectionSubtitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  configInfo: {
-    marginBottom: 16,
-  },
-  configInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  configInfoText: {
-    fontSize: 14,
-    color: '#757575',
-    fontStyle: 'italic',
-    flex: 1,
-    marginRight: 16,
-  },
-  noteText: {
-    fontWeight: 'bold',
-  },
-  predefinedInput: {
-    borderColor: '#2196F3',
-    borderWidth: 2,
-  },
-  predefinedValueBadge: {
-    backgroundColor: '#2196F3',
-    color: '#fff',
-    padding: 4,
-    borderRadius: 4,
-    marginLeft: 8,
-    fontSize: 12,
-  },
-  predefinedProviderSelected: {
-    backgroundColor: '#2196F3',
-    borderWidth: 2,
-    borderColor: '#0d47a1',
-  },
-  resetButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  resetButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-}); 

@@ -6,19 +6,25 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
-  ScrollView,
-  StyleSheet,
   Switch,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKwsModels, useKwsModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
+import {
+  LoadingOverlay,
+  ModelSelector,
+  PageContainer,
+  ResultsBox,
+  Section,
+  StatusBlock,
+  Text,
+  ThemedButton,
+  useTheme,
+} from '../../components/ui';
 
 // Decode base64 string to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -64,6 +70,7 @@ function parseKeywordsFile(content: string): string[] {
 export default function KwsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ model?: string }>();
+  const theme = useTheme();
 
   // Model state
   const [selectedModelId, setSelectedModelId] = useState<string | null>(params.model ?? null);
@@ -499,354 +506,213 @@ export default function KwsScreen() {
   const bundledAudio = audioFiles.filter((a) => a.source === 'bundled');
 
   return (
-    <SafeAreaView style={styles.container}>
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#F44336" />
-            <Text style={styles.loadingText}>{statusMessage || 'Processing...'}</Text>
+    <PageContainer>
+      <LoadingOverlay visible={loading} message={statusMessage || 'Processing...'} />
+
+      <StatusBlock status={!loading ? statusMessage : null} error={error} />
+
+      {/* Model Selection */}
+      <Section title="1. Select KWS Model">
+        {downloadedModels.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No KWS models downloaded.</Text>
+            <ThemedButton
+              label="Download a model"
+              variant="danger"
+              onPress={() => router.push('/(tabs)/models?type=kws')}
+              style={{ marginTop: theme.margin.s }}
+            />
           </View>
-        </View>
-      )}
+        ) : (
+          <ModelSelector
+            models={downloadedModels}
+            selectedId={selectedModelId}
+            onSelect={setSelectedModelId}
+            accentColor={theme.colors.error}
+          />
+        )}
+      </Section>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {statusMessage && !error && !loading ? (
-          <Text style={styles.statusText}>{statusMessage}</Text>
-        ) : null}
-
-        {/* Model Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Select KWS Model</Text>
-          {downloadedModels.length === 0 ? (
-            <View style={styles.emptyModelContainer}>
-              <Text style={styles.emptyText}>No KWS models downloaded.</Text>
-              <TouchableOpacity
-                style={styles.downloadButton}
-                onPress={() => router.push('/(tabs)/models?type=kws')}
-              >
-                <Text style={styles.downloadButtonText}>Download a model</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            downloadedModels.map((model) => (
-              <TouchableOpacity
-                key={model.metadata.id}
-                style={[
-                  styles.modelOption,
-                  selectedModelId === model.metadata.id && styles.modelOptionSelected,
-                ]}
-                onPress={() => setSelectedModelId(model.metadata.id)}
-              >
-                <Text
-                  style={[
-                    styles.modelOptionText,
-                    selectedModelId === model.metadata.id && styles.modelOptionTextSelected,
-                  ]}
-                >
-                  {model.metadata.name}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-
-        {/* Configuration */}
-        {selectedModelId && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Configuration</Text>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Threads:</Text>
-              <TextInput
-                style={styles.configInput}
-                keyboardType="numeric"
-                value={numThreads.toString()}
-                onChangeText={(v) => {
-                  const n = parseInt(v);
-                  if (!isNaN(n) && n > 0) setNumThreads(n);
-                }}
-                editable={!initialized}
+      {/* Configuration */}
+      {selectedModelId && (
+        <Section title="2. Configuration">
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Threads:</Text>
+            <TextInput
+              style={{
+                flex: 1,
+                padding: 8,
+                borderWidth: 1,
+                borderColor: theme.colors.outlineVariant,
+                borderRadius: theme.roundness,
+                fontSize: 16,
+                color: theme.colors.onSurface,
+              }}
+              keyboardType="numeric"
+              value={numThreads.toString()}
+              onChangeText={(v) => {
+                const n = parseInt(v);
+                if (!isNaN(n) && n > 0) setNumThreads(n);
+              }}
+              editable={!initialized}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Debug:</Text>
+            <Switch value={debugMode} onValueChange={setDebugMode} disabled={initialized} />
+          </View>
+          {!initialized && hasTestKeywordsFile && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
+              <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Use test keywords:</Text>
+              <Switch
+                testID="kws-use-test-keywords"
+                value={useTestKeywords}
+                onValueChange={setUseTestKeywords}
               />
             </View>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Debug:</Text>
-              <Switch value={debugMode} onValueChange={setDebugMode} disabled={initialized} />
-            </View>
-            {!initialized && hasTestKeywordsFile && (
-              <View style={styles.configRow}>
-                <Text style={styles.configLabel}>Use test keywords:</Text>
-                <Switch
-                  testID="kws-use-test-keywords"
-                  value={useTestKeywords}
-                  onValueChange={setUseTestKeywords}
-                />
+          )}
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', marginTop: 4 }}>
+            {useTestKeywords
+              ? 'Using test_keywords.txt (fewer keywords, matched to test audio)'
+              : 'Using keywords.txt (all keywords)'}
+          </Text>
+        </Section>
+      )}
+
+      {/* Actions */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m }}>
+        <ThemedButton
+          testID="kws-init-btn"
+          label="Initialize"
+          variant="danger"
+          onPress={handleInit}
+          disabled={loading || !selectedModelId || initialized}
+          style={{ flex: 1, marginHorizontal: 8 }}
+        />
+        <ThemedButton
+          testID="kws-release-btn"
+          label="Release"
+          variant="secondary"
+          onPress={handleRelease}
+          disabled={loading || !initialized}
+          style={{ flex: 1, marginHorizontal: 8 }}
+        />
+      </View>
+
+      {/* Active Keywords */}
+      {initialized && activeKeywords.length > 0 && (
+        <Section title={`Active Keywords (${activeKeywords.length})`}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+            The engine will look for these words/phrases in the audio:
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {activeKeywords.map((kw, i) => (
+              <View key={i} style={{
+                backgroundColor: theme.colors.errorContainer ?? '#FFEBEE',
+                borderColor: theme.colors.error,
+                borderWidth: 1,
+                borderRadius: 16,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+              }}>
+                <Text variant="bodySmall" style={{ color: theme.colors.error, fontWeight: '500' }}>{kw}</Text>
               </View>
-            )}
-            <Text style={styles.configHint}>
-              {useTestKeywords
-                ? 'Using test_keywords.txt (fewer keywords, matched to test audio)'
-                : 'Using keywords.txt (all keywords)'}
-            </Text>
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            testID="kws-init-btn"
-            style={[styles.button, styles.initButton, (!selectedModelId || loading || initialized) && styles.buttonDisabled]}
-            onPress={handleInit}
-            disabled={loading || !selectedModelId || initialized}
-          >
-            <Text style={styles.buttonText}>Initialize</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID="kws-release-btn"
-            style={[styles.button, styles.releaseButton, (!initialized || loading) && styles.buttonDisabled]}
-            onPress={handleRelease}
-            disabled={loading || !initialized}
-          >
-            <Text style={styles.buttonText}>Release</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Keywords */}
-        {initialized && activeKeywords.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Active Keywords ({activeKeywords.length})
-            </Text>
-            <Text style={styles.keywordsHint}>
-              The engine will look for these words/phrases in the audio:
-            </Text>
-            <View style={styles.keywordsContainer}>
-              {activeKeywords.map((kw, i) => (
-                <View key={i} style={styles.keywordChip}>
-                  <Text style={styles.keywordText}>{kw}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Live Mic Recording */}
-        {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Live Microphone</Text>
-            <Text style={styles.audioHint}>
-              Speak keywords into the microphone. The engine processes audio in real-time.
-            </Text>
-            {!recorder.isRecording ? (
-              <TouchableOpacity
-                testID="kws-start-mic"
-                style={[styles.button, styles.micButton]}
-                onPress={handleStartMic}
-              >
-                <Text style={styles.buttonText}>Start Listening</Text>
-              </TouchableOpacity>
-            ) : (
-              <View>
-                <TouchableOpacity
-                  testID="kws-stop-mic"
-                  style={[styles.button, styles.micActiveButton]}
-                  onPress={handleStopMic}
-                >
-                  <Text style={styles.buttonText}>Stop Listening</Text>
-                </TouchableOpacity>
-                <Text style={styles.micStatusText}>
-                  Recording: {(recorder.durationMs / 1000).toFixed(1)}s | Chunks: {chunksProcessed}
-                </Text>
-              </View>
-            )}
-            {micError ? (
-              <Text style={styles.micErrorText}>{micError}</Text>
-            ) : null}
-          </View>
-        )}
-
-        {/* Detected Keywords */}
-        {initialized && detectedKeywords.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Detected Keywords</Text>
-            <View style={styles.detectedContainer}>
-              {detectedKeywords.map((kw, i) => (
-                <View key={i} style={styles.detectedChip}>
-                  <Text style={styles.detectedChipText}>{kw}</Text>
-                </View>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => setDetectedKeywords([])}
-            >
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Test Audio — model's own test wavs (matched to keywords) */}
-        {initialized && modelTestWavs.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Test Audio (from model)</Text>
-            {modelTestWavs.map((audio) => (
-              <TouchableOpacity
-                key={audio.id}
-                testID={`kws-audio-${audio.id}`}
-                style={[
-                  styles.audioItem,
-                  detecting && styles.audioItemMuted,
-                ]}
-                disabled={detecting}
-                onPress={() => handleDetect(audio)}
-              >
-                <Text style={[styles.audioName, detecting && { color: '#999' }]}>{audio.name}</Text>
-              </TouchableOpacity>
             ))}
           </View>
-        )}
-        {/* Status Log */}
-        {statusLog.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Log</Text>
-            {statusLog.map((log, i) => (
-              <Text key={i} style={styles.logLine}>
-                {log}
+        </Section>
+      )}
+
+      {/* Live Mic Recording */}
+      {initialized && (
+        <Section title="3. Live Microphone">
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+            Speak keywords into the microphone. The engine processes audio in real-time.
+          </Text>
+          {!recorder.isRecording ? (
+            <ThemedButton
+              testID="kws-start-mic"
+              label="Start Listening"
+              variant="success"
+              onPress={handleStartMic}
+            />
+          ) : (
+            <View>
+              <ThemedButton
+                testID="kws-stop-mic"
+                label="Stop Listening"
+                variant="warning"
+                onPress={handleStopMic}
+              />
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
+                Recording: {(recorder.durationMs / 1000).toFixed(1)}s | Chunks: {chunksProcessed}
               </Text>
+            </View>
+          )}
+          {micError ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{micError}</Text>
+          ) : null}
+        </Section>
+      )}
+
+      {/* Detected Keywords */}
+      {initialized && detectedKeywords.length > 0 && (
+        <Section title="Detected Keywords">
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {detectedKeywords.map((kw, i) => (
+              <View key={i} style={{
+                backgroundColor: theme.colors.successContainer ?? '#E8F5E9',
+                borderColor: theme.colors.success ?? '#66BB6A',
+                borderWidth: 1,
+                borderRadius: 16,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+              }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.success ?? '#2E7D32', fontWeight: '600' }}>{kw}</Text>
+              </View>
             ))}
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          <ThemedButton
+            label="Clear"
+            variant="danger"
+            compact
+            onPress={() => setDetectedKeywords([])}
+            style={{ marginTop: 10, alignSelf: 'flex-start' }}
+          />
+        </Section>
+      )}
+
+      {/* Test Audio — model's own test wavs (matched to keywords) */}
+      {initialized && modelTestWavs.length > 0 && (
+        <Section title="Test Audio (from model)">
+          {modelTestWavs.map((audio) => (
+            <TouchableOpacity
+              key={audio.id}
+              testID={`kws-audio-${audio.id}`}
+              style={{
+                padding: 12,
+                marginBottom: 8,
+                backgroundColor: detecting ? theme.colors.surfaceVariant : (theme.colors.errorContainer ?? '#ffebee'),
+                borderRadius: theme.roundness,
+              }}
+              disabled={detecting}
+              onPress={() => handleDetect(audio)}
+            >
+              <Text variant="bodyMedium" style={{ fontWeight: '500', color: detecting ? theme.colors.onSurfaceVariant : theme.colors.onSurface }}>{audio.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </Section>
+      )}
+
+      {/* Status Log */}
+      {statusLog.length > 0 && (
+        <Section title="Log">
+          {statusLog.map((log, i) => (
+            <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 }}>
+              {log}
+            </Text>
+          ))}
+        </Section>
+      )}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  scrollContent: { padding: 16 },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  errorText: { color: '#f44336', textAlign: 'center', marginBottom: 8, paddingHorizontal: 16 },
-  statusText: { color: '#2196F3', textAlign: 'center', marginBottom: 8, paddingHorizontal: 16 },
-  emptyModelContainer: { alignItems: 'center', paddingVertical: 16 },
-  emptyText: { textAlign: 'center', color: '#666', fontSize: 14 },
-  downloadButton: {
-    marginTop: 12,
-    backgroundColor: '#F44336',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  downloadButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-  modelOption: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 8,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-      android: { elevation: 2 },
-    }),
-  },
-  modelOptionSelected: { backgroundColor: '#F44336' },
-  modelOptionText: { fontSize: 16, color: '#333' },
-  modelOptionTextSelected: { color: '#fff' },
-  configRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  configLabel: { flex: 1, fontSize: 16, color: '#333' },
-  configInput: {
-    flex: 1,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    fontSize: 16,
-  },
-  configHint: { fontSize: 13, color: '#888', fontStyle: 'italic', marginTop: 4 },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  button: { flex: 1, padding: 12, borderRadius: 8, marginHorizontal: 8, alignItems: 'center' },
-  buttonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
-  buttonDisabled: { opacity: 0.5 },
-  initButton: { backgroundColor: '#F44336' },
-  releaseButton: { backgroundColor: '#757575' },
-  keywordsHint: { fontSize: 13, color: '#666', marginBottom: 10 },
-  keywordsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  keywordChip: {
-    backgroundColor: '#FFEBEE',
-    borderColor: '#EF9A9A',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  keywordText: { fontSize: 14, color: '#C62828', fontWeight: '500' },
-  audioHint: { fontSize: 13, color: '#666', marginBottom: 10 },
-  audioItem: {
-    padding: 12,
-    marginBottom: 8,
-    backgroundColor: '#ffebee',
-    borderRadius: 6,
-  },
-  audioItemMuted: {
-    backgroundColor: '#f5f5f5',
-  },
-  selectedAudioItem: {
-    backgroundColor: '#ef9a9a',
-    borderWidth: 2,
-    borderColor: '#F44336',
-  },
-  audioName: { fontSize: 14, fontWeight: '500' },
-  micButton: { backgroundColor: '#4CAF50' },
-  micActiveButton: { backgroundColor: '#FF9800' },
-  micStatusText: { fontSize: 13, color: '#666', marginTop: 4, textAlign: 'center' },
-  micErrorText: { fontSize: 13, color: '#F44336', marginTop: 8 },
-  detectedContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  detectedChip: {
-    backgroundColor: '#E8F5E9',
-    borderColor: '#66BB6A',
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  detectedChipText: { fontSize: 16, color: '#2E7D32', fontWeight: '600' },
-  clearButton: { marginTop: 10, alignSelf: 'flex-start' },
-  clearButtonText: { color: '#F44336', fontSize: 14 },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0, right: 0, top: 0, bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  loadingContent: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 250,
-  },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#333', fontWeight: 'bold' },
-  warningSection: { backgroundColor: '#FFF3E0', borderColor: '#FF9800', borderWidth: 1 },
-  warningTitle: { fontSize: 16, fontWeight: 'bold', color: '#E65100', marginBottom: 8 },
-  warningText: { fontSize: 13, color: '#BF360C', lineHeight: 18 },
-  logLine: { fontSize: 12, color: '#666', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 },
-});

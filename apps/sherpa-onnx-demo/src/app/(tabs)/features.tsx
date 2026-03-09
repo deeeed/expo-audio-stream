@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Text, useTheme } from '@siteed/design-system';
+import type { AppTheme } from '@siteed/design-system';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -83,32 +85,34 @@ const FEATURES: FeatureCardProps[] = [
 
 function FeatureCard({ title, description, icon, route, color, hasLiveMode, liveRoute }: FeatureCardProps) {
   const router = useRouter();
+  const theme = useTheme();
+  const s = getStyles(theme);
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={s.card}
       onPress={() => router.push(route as never)}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconContainer, { backgroundColor: color }]}>
+      <View style={[s.iconContainer, { backgroundColor: color }]}>
         <Ionicons name={icon} size={28} color="#fff" />
       </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardDescription}>{description}</Text>
+      <View style={s.cardContent}>
+        <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{title}</Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 18 }}>{description}</Text>
       </View>
-      <View style={styles.cardActions}>
-        <Ionicons name="chevron-forward" size={20} color="#999" />
+      <View style={s.cardActions}>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.onSurfaceVariant} />
       </View>
       {hasLiveMode && liveRoute && (
         <TouchableOpacity
-          style={[styles.liveBadge, { backgroundColor: color }]}
+          style={[s.liveBadge, { backgroundColor: color }]}
           onPress={(e) => {
             e.stopPropagation();
             router.push(liveRoute as never);
           }}
         >
-          <Text style={styles.liveBadgeText}>LIVE</Text>
+          <Text variant="labelSmall" style={{ color: '#fff', fontWeight: 'bold', fontSize: 10 }}>LIVE</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -116,11 +120,13 @@ function FeatureCard({ title, description, icon, route, color, hasLiveMode, live
 }
 
 export default function FeaturesScreen() {
+  const theme = useTheme();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Features</Text>
-        <Text style={styles.subtitle}>Explore sherpa-onnx capabilities</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView contentContainerStyle={{ padding: theme.padding.m }}>
+        <Text variant="headlineMedium" style={{ marginBottom: 4, color: theme.colors.onBackground }}>Features</Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>Explore sherpa-onnx capabilities</Text>
         {FEATURES.map((feature) => (
           <FeatureCard key={feature.route} {...feature} />
         ))}
@@ -132,69 +138,51 @@ export default function FeaturesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-  cardActions: {
-    paddingLeft: 8,
-  },
-  liveBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  liveBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
 });
+
+function getStyles(theme: AppTheme) {
+  return StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.roundness * 3,
+      padding: theme.padding.m,
+      marginBottom: theme.margin.m,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.roundness * 3,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 14,
+    },
+    cardContent: {
+      flex: 1,
+    },
+    cardActions: {
+      paddingLeft: 8,
+    },
+    liveBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.roundness,
+    },
+  });
+}

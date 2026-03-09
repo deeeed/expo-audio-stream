@@ -6,20 +6,26 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Platform,
-  ScrollView,
-  StyleSheet,
   Switch,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAsrModels, useAsrModelWithConfig } from '../../hooks/useModelWithConfig';
 import { formatDuration, formatBytes } from '../../utils/formatters';
 import { setAgenticPageState } from '../../agentic-bridge';
+import {
+  LoadingOverlay,
+  ModelSelector,
+  PageContainer,
+  ResultsBox,
+  Section,
+  StatusBlock,
+  Text,
+  ThemedButton,
+  useTheme,
+} from '../../components/ui';
 
 const GREEDY_ONLY_TYPES = ['whisper', 'paraformer', 'tdnn', 'sense_voice', 'moonshine', 'fire_red_asr']
 const BEAM_SEARCH_TYPES = ['transducer', 'zipformer', 'zipformer2', 'nemo_transducer', 'nemo_ctc', 'lstm']
@@ -48,12 +54,12 @@ const SAMPLE_AUDIO_FILES = [
 
 /**
  * Automatic Speech Recognition Screen
- * 
+ *
  * This screen demonstrates how to use the Sherpa-ONNX ASR (Automatic Speech Recognition)
  * functionality with React Native. The implementation follows a similar pattern to the TTS screen,
  * using predefined configurations from useModelConfig.ts and providing a user interface
  * for selecting models and adjusting configuration settings.
- * 
+ *
  * The ASR screen allows users to:
  * 1. Select a downloaded ASR model
  * 2. Configure ASR parameters (threads, decoding method, etc.)
@@ -65,6 +71,7 @@ export default function AsrScreen() {
   // Deep-link params: /feature/asr?model=<id>&autoInit=true&audioId=1&t=<timestamp>
   // Pass t=<Date.now()> to force re-trigger effects when navigating to same screen
   const params = useLocalSearchParams<{ model?: string; autoInit?: string; audioId?: string; t?: string }>();
+  const theme = useTheme();
 
   const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,13 +79,13 @@ export default function AsrScreen() {
   const [error, setError] = useState<string | null>(null);
   const [recognitionResult, setRecognitionResult] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  
+
   const router = useRouter();
 
   // Use our hooks
   const { downloadedModels } = useAsrModels();
   const { asrConfig, localPath, isDownloaded } = useAsrModelWithConfig({ modelId: selectedModelId });
-  
+
   // Add state for loaded audio assets
   const [loadedAudioFiles, setLoadedAudioFiles] = useState<{
     id: string;
@@ -86,12 +93,12 @@ export default function AsrScreen() {
     module: number;
     localUri: string;
   }[]>([]);
-  
+
   // Add state for audio playback
   const [sound, setSound] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState<typeof loadedAudioFiles[0] | null>(null);
-  
+
   // Add new states for audio metadata
   const [audioMetadata, setAudioMetadata] = useState<{
     size?: number;
@@ -101,7 +108,7 @@ export default function AsrScreen() {
   }>({
     isLoading: false
   });
-  
+
   // Add state for ASR configuration options
   const [numThreads, setNumThreads] = useState(2);
   const [decodingMethod, setDecodingMethod] = useState<'greedy_search' | 'beam_search'>('greedy_search');
@@ -141,11 +148,11 @@ export default function AsrScreen() {
       setIsStreaming(asrConfig.streaming ?? false);
       setDebugMode(asrConfig.debug ?? false);
       setProvider(asrConfig.provider as 'cpu' | 'gpu' ?? 'cpu');
-      
+
       console.log('[ASR] Reset configuration based on selected model:', selectedModelId);
     }
   }, [selectedModelId, asrConfig]);
-  
+
   // Handle deep-link params: ?model=<id>&autoInit=true&audioId=<id>&t=<timestamp>
   // Force-release and switch model without the Switch Model alert.
   // Pass a fresh t=Date.now() each call to re-trigger even for the same model.
@@ -192,7 +199,7 @@ export default function AsrScreen() {
       }
     };
   }, []); // empty deps = only on unmount
-  
+
   // Sound cleanup - runs when sound changes
   useEffect(() => {
     return () => {
@@ -201,7 +208,7 @@ export default function AsrScreen() {
       }
     };
   }, [sound]);
-  
+
   // Initialize ASR with the selected model
   const handleInitAsr = async () => {
     if (!selectedModelId) {
@@ -213,9 +220,9 @@ export default function AsrScreen() {
     setError(null);
     setInitialized(false);
     setStatusMessage('Starting initialization...');
-    
+
     console.log(`[ASR] Initializing model: ${selectedModelId}`);
-    
+
     // Check required properties
     if (!asrConfig || !localPath || !isDownloaded) {
       setLoading(false);
@@ -223,19 +230,19 @@ export default function AsrScreen() {
       console.error('[ASR] Missing required configuration/path!');
       return;
     }
-    
+
     try {
       // Clean path for native module (remove file:// prefix)
       let cleanPath = localPath.replace(/^file:\/\//, '');
       setStatusMessage(`Found model path: ${cleanPath}`);
-      
+
       // List directory contents to check what files exist
       let dirContents: string[] = [];
       try {
         setStatusMessage('Reading model directory contents...');
         dirContents = await FileSystem.readDirectoryAsync(localPath);
         console.log('[ASR] Directory contents:', dirContents);
-        
+
         // Check if there's a sherpa-onnx subdirectory
         const sherpaDir = dirContents.find(item => item.includes('sherpa-onnx'));
         if (sherpaDir) {
@@ -246,12 +253,12 @@ export default function AsrScreen() {
               setStatusMessage(`Checking subdirectory ${sherpaDir}...`);
               const subDirContents = await FileSystem.readDirectoryAsync(subDirPath);
               console.log(`[ASR] Subdirectory ${sherpaDir} contents:`, subDirContents);
-              
+
               // Check if this directory contains model files
-              const hasModelFiles = subDirContents.some(file => 
+              const hasModelFiles = subDirContents.some(file =>
                 file.endsWith('.onnx') || file === 'tokens.txt' || file.includes('tokens')
               );
-              
+
               if (hasModelFiles) {
                 const newCleanPath = cleanPath + '/' + sherpaDir;
                 console.log(`[ASR] Found model files in subdirectory. Updating path to: ${newCleanPath}`);
@@ -270,24 +277,24 @@ export default function AsrScreen() {
         console.error('[ASR] Error reading directory:', err);
         setStatusMessage(`Error reading directory: ${err instanceof Error ? err.message : String(err)}`);
       }
-      
+
       // Check if expected model files exist
       if (asrConfig.modelFiles) {
         setStatusMessage('Verifying model files...');
         console.log('[ASR] Verifying model files in directory:');
         for (const [key, fileName] of Object.entries(asrConfig.modelFiles)) {
           if (!fileName) continue;
-          
+
           const fileExists = dirContents.some(file => file === fileName || file.includes(fileName));
           console.log(`[ASR] - ${key}: ${fileName} => ${fileExists ? 'FOUND' : 'NOT FOUND'}`);
-          
+
           if (!fileExists) {
             console.warn(`[ASR] Warning: Expected model file "${fileName}" not found in directory`);
             setStatusMessage(`Warning: Model file "${fileName}" not found`);
           }
         }
       }
-      
+
       // Create a complete configuration with all required fields (non-optional)
       setStatusMessage('Preparing ASR configuration...');
       const config: AsrModelConfig = {
@@ -303,28 +310,28 @@ export default function AsrScreen() {
           // Provide fallback default patterns if missing
           encoder: '*encoder*.onnx',
           decoder: '*decoder*.onnx',
-          joiner: asrConfig.modelType === 'transducer' || 
-                 asrConfig.modelType === 'zipformer' || 
+          joiner: asrConfig.modelType === 'transducer' ||
+                 asrConfig.modelType === 'zipformer' ||
                  asrConfig.modelType === 'zipformer2' ? '*joiner*.onnx' : undefined,
           tokens: '*tokens*.txt'
         }
       };
-      
+
       console.log('[ASR] FINAL ASR CONFIG:', JSON.stringify(config, null, 2));
-      
+
       // Sync UI state with actual configuration (ensure UI matches what's being sent)
       setIsStreaming(!!config.streaming);
-      
+
       // Set the config for visualization (useful for debugging)
       setConfigToVisualize(config);
-      
+
       try {
         // Initialize ASR with the configuration
         setStatusMessage('Calling ASR.initialize()...');
         console.log('[ASR] Calling ASR.initialize() with complete configuration');
         const result = await ASR.initialize(config);
         console.log('[ASR] Initialization result:', result);
-        
+
         if (result.success) {
           setInitialized(true);
           setStatusMessage('ASR initialized successfully');
@@ -348,7 +355,7 @@ export default function AsrScreen() {
       setStatusMessage('');
     }
   };
-  
+
   // Handle playing audio samples
   const handlePlayAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     try {
@@ -359,7 +366,7 @@ export default function AsrScreen() {
       }
 
       console.log(`[ASR] Playing audio: ${audioItem.name} from ${audioItem.localUri}`);
-      
+
       // Create a new audio player
       const newPlayer = createAudioPlayer({ uri: audioItem.localUri });
       newPlayer.play();
@@ -367,7 +374,7 @@ export default function AsrScreen() {
       setSound(newPlayer);
       setIsPlaying(true);
       setSelectedAudio(audioItem);
-      
+
       // Set up listener for playback status
       newPlayer.addListener('playbackStatusUpdate', (status) => {
         if ('playing' in status && !status.playing) {
@@ -380,7 +387,7 @@ export default function AsrScreen() {
       setError(`Failed to play audio: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
-  
+
   // Stop audio playback
   const handleStopAudio = async () => {
     if (sound) {
@@ -395,34 +402,34 @@ export default function AsrScreen() {
       }
     }
   };
-  
+
   // Process audio file for recognition
   const handleRecognizeFromFile = async () => {
     if (!selectedAudio || !initialized) {
       setError('Please select an audio file and initialize ASR first');
       return;
     }
-    
+
     // Stop any playing audio before recognition
     if (isPlaying) {
       await handleStopAudio();
     }
-    
+
     setProcessing(true);
     setRecognitionResult(null);
     setError(null);
-    
+
     try {
       // Always use 16000 Hz for ASR
       console.log(`[ASR] Processing audio file: ${selectedAudio.localUri}`);
-      
+
       // Ensure the URI has the correct format
       const normalizedUri = selectedAudio.localUri.startsWith('file://')
         ? selectedAudio.localUri
         : `file://${selectedAudio.localUri}`;
-      
+
       const result = await ASR.recognizeFromFile(normalizedUri);
-      
+
       if (result.success) {
         setRecognitionResult(result.text || '');
         console.log('[ASR] Recognition result:', result.text);
@@ -436,23 +443,23 @@ export default function AsrScreen() {
       setProcessing(false);
     }
   };
-  
+
   // Get audio file metadata
   const getAudioMetadata = async (uri: string): Promise<{ size: number; duration: number; sampleRate?: number }> => {
     setAudioMetadata({ isLoading: true });
-    
+
     try {
       // Get file info
       const info = await FileSystem.getInfoAsync(uri);
-      
+
       if (!info.exists) {
         throw new Error(`File does not exist: ${uri}`);
       }
-      
+
       // Always default to 16000 Hz for ASR
       const sampleRate = 16000;
       let duration = 0;
-      
+
       // Try to get audio details by loading it temporarily
       try {
         const tempPlayer = createAudioPlayer({ uri });
@@ -465,67 +472,67 @@ export default function AsrScreen() {
       } catch (soundErr) {
         console.error('[ASR] Error loading sound for metadata:', soundErr);
       }
-      
+
       const metadata = {
         size: info.size || 0,
         duration,
         sampleRate,
         isLoading: false
       };
-      
+
       setAudioMetadata(metadata);
-      
-      return { 
-        size: metadata.size, 
+
+      return {
+        size: metadata.size,
         duration: metadata.duration,
         sampleRate: metadata.sampleRate
       };
     } catch (error) {
       console.error('[ASR] Error getting audio metadata:', error);
       setAudioMetadata(prev => ({ ...prev, isLoading: false }));
-      return { 
-        size: 0, 
+      return {
+        size: 0,
         duration: 0,
         sampleRate: 16000 // Default to 16000 Hz even on error
       };
     }
   };
-  
+
   // Handle selecting an audio file
   const handleSelectAudio = async (audioItem: typeof loadedAudioFiles[0]) => {
     setSelectedAudio(audioItem);
-    
+
     // Get audio metadata when selecting a file
     setStatusMessage(`Getting metadata for ${audioItem.name}...`);
     const metadata = await getAudioMetadata(audioItem.localUri);
     setStatusMessage('');
-    
+
     // Log audio metadata with fixed sample rate
     console.log(`[ASR] Audio metadata:`, {...metadata, sampleRate: 16000});
   };
-  
-  // Display audio information 
+
+  // Display audio information
   const renderAudioInfo = () => {
     if (!selectedAudio) return null;
-    
+
     const { size, duration } = audioMetadata;
-    
+
     return (
-      <View style={styles.audioInfoContainer}>
-        <Text style={styles.audioInfoTitle}>Audio Information:</Text>
-        {size !== undefined && <Text style={styles.audioInfoText}>Size: {formatBytes(size)}</Text>}
-        {duration !== undefined && <Text style={styles.audioInfoText}>Duration: {formatDuration(duration)}</Text>}
-        <Text style={styles.audioInfoText}>Sample Rate: 16000 Hz (optimized for ASR)</Text>
-      </View>
+      <ResultsBox>
+        <Text variant="titleSmall" style={{ marginBottom: 8, color: theme.colors.onSurface }}>Audio Information:</Text>
+        {size !== undefined && <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Size: {formatBytes(size)}</Text>}
+        {duration !== undefined && <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Duration: {formatDuration(duration)}</Text>}
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Sample Rate: 16000 Hz (optimized for ASR)</Text>
+      </ResultsBox>
     );
   };
-  
+
   // Release ASR resources
   const handleReleaseAsr = async () => {
     try {
       // const result = await ASR.release();
       await ASR.release();
-      
+
       setInitialized(false);
       setRecognitionResult(null);
     } catch (err) {
@@ -534,15 +541,20 @@ export default function AsrScreen() {
       setLoading(false);
     }
   };
-  
+
   // Generate a visualization of the model's predefined config
   const predefinedConfigDisplay = selectedModelId && asrConfig ? (
-    <View style={styles.statusSection}>
-      <Text style={styles.sectionTitle}>Predefined Model Configuration</Text>
-      <Text style={styles.codeText} selectable>
+    <Section title="Predefined Model Configuration">
+      <Text variant="bodySmall" selectable style={{
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        backgroundColor: theme.colors.surfaceVariant,
+        padding: 10,
+        borderRadius: theme.roundness,
+        color: theme.colors.onSurface,
+      }}>
         {JSON.stringify(asrConfig, null, 2)}
       </Text>
-    </View>
+    </Section>
   ) : null;
 
   // Effect to load audio assets when component mounts
@@ -555,13 +567,13 @@ export default function AsrScreen() {
     try {
       console.log('[ASR] Loading audio assets');
       const audioFiles = [];
-      
+
       for (const sampleAudio of SAMPLE_AUDIO_FILES) {
         try {
           // Load the asset
           const asset = Asset.fromModule(sampleAudio.module);
           await asset.downloadAsync();
-          
+
           if (asset.localUri) {
             audioFiles.push({
               ...sampleAudio,
@@ -575,7 +587,7 @@ export default function AsrScreen() {
           console.error(`[ASR] Error loading audio asset ${sampleAudio.name}:`, err);
         }
       }
-      
+
       setLoadedAudioFiles(audioFiles);
     } catch (err) {
       console.error('[ASR] Error loading audio assets:', err);
@@ -584,774 +596,405 @@ export default function AsrScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Loading overlay - moved outside of ScrollView */}
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>
-              {processing ? 'Processing audio...' : 'Initializing ASR...'}
-            </Text>
-            
-            <Text style={styles.loadingSubText}>
-              {statusMessage}
-            </Text>
-          </View>
-        </View>
-      )}
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <Text style={styles.title}>Automatic Speech Recognition</Text>
-          <TouchableOpacity
-            style={{ backgroundColor: '#4CAF50', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 }}
-            onPress={() => router.push('/live-asr')}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Live ASR</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Error and status messages */}
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
-        
-        {/* Model Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Select ASR Model</Text>
-          {initialized && (
-            <Text style={styles.warningText}>
-              Switching models will release the currently initialized model
-            </Text>
-          )}
-          <View style={styles.pickerContainer}>
-            {downloadedModels.length === 0 ? (
-              <View style={styles.emptyModelContainer}>
-                <Text style={styles.emptyText}>No ASR models downloaded.</Text>
-                <TouchableOpacity
-                  testID="download-models-inline-btn"
-                  style={styles.downloadButton}
-                  onPress={() => router.push('/(tabs)/models?type=asr')}
-                >
-                  <Text style={styles.downloadButtonText}>Download a model</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                {downloadedModels.map((model) => {
-                  const isSelected = selectedModelId === model.metadata.id;
-                  const badge = getModelBadge(model.metadata.id);
-                  return (
-                    <TouchableOpacity
-                      key={model.metadata.id}
-                      testID={`model-option-${model.metadata.id}`}
-                      style={[
-                        styles.modelOption,
-                        isSelected && styles.modelOptionSelected,
-                      ]}
-                      onPress={async () => {
-                        if (initialized) {
-                          await handleReleaseAsr();
-                        }
-                        setSelectedModelId(model.metadata.id);
-                      }}
-                    >
-                      <View style={styles.modelOptionRow}>
-                        <Text style={[
-                          styles.modelOptionText,
-                          isSelected && styles.modelOptionTextSelected,
-                        ]}>
-                          {model.metadata.name}
-                        </Text>
-                        <View style={[
-                          styles.modelBadge,
-                          { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : badge.color + '22' }
-                        ]}>
-                          <Text style={[
-                            styles.modelBadgeText,
-                            { color: isSelected ? '#fff' : badge.color }
-                          ]}>
-                            {badge.label}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=asr')} style={styles.moreModelsLink}>
-                  <Text style={styles.linkText}>Download more models →</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
+    <PageContainer>
+      {/* Loading overlay */}
+      <LoadingOverlay
+        visible={loading}
+        message={processing ? 'Processing audio...' : 'Initializing ASR...'}
+        subMessage={statusMessage}
+      />
 
-        {/* Show the predefined configuration after model selection */}
-        {predefinedConfigDisplay}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <Text variant="headlineSmall">Automatic Speech Recognition</Text>
+        <ThemedButton
+          label="Live ASR"
+          variant="success"
+          compact
+          onPress={() => router.push('/live-asr')}
+        />
+      </View>
 
-        {/* ASR Configuration */}
-        <View style={styles.configSection}>
-          <Text style={styles.sectionTitle}>2. ASR Configuration</Text>
-          {selectedModelId && asrConfig && (
-            <Text style={styles.configSubtitle}>
-              Options pre-configured for this model. Adjust threads for performance.
-            </Text>
-          )}
-          
-          <View style={styles.configBlock}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Number of Threads:</Text>
-              <View style={styles.buttonGroup}>
-                {[1, 2, 4, 8].map(num => (
-                  <TouchableOpacity
-                    key={num}
-                    style={[
-                      styles.optionButton,
-                      numThreads === num && styles.optionButtonSelected
-                    ]}
-                    onPress={() => setNumThreads(num)}
-                  >
-                    <Text style={[
-                      styles.optionButtonText,
-                      numThreads === num && styles.optionButtonTextSelected
-                    ]}>{num}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <Text style={styles.configHint}>More threads = faster on multi-core CPUs. Diminishing returns above 4.</Text>
-          </View>
-          
-          <View style={styles.configBlock}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Decoding Method:</Text>
-              <View style={styles.buttonGroup}>
-                <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    decodingMethod === 'greedy_search' && styles.optionButtonSelected
-                  ]}
-                  onPress={() => setDecodingMethod('greedy_search')}
-                >
-                  <Text style={[
-                    styles.optionButtonText,
-                    decodingMethod === 'greedy_search' && styles.optionButtonTextSelected
-                  ]}>Greedy Search</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    decodingMethod === 'beam_search' && styles.optionButtonSelected
-                  ]}
-                  onPress={() => setDecodingMethod('beam_search')}
-                >
-                  <Text style={[
-                    styles.optionButtonText,
-                    decodingMethod === 'beam_search' && styles.optionButtonTextSelected
-                  ]}>Beam Search</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '') && (
-              <Text style={styles.configHint}>This model type only supports greedy search</Text>
-            )}
-            {asrConfig && BEAM_SEARCH_TYPES.includes(asrConfig.modelType || '') && (
-              <Text style={styles.configHint}>Beam search gives better accuracy at the cost of speed</Text>
-            )}
-          </View>
+      {/* Error and status messages */}
+      <StatusBlock error={error} />
 
-          <View style={[styles.configBlock, decodingMethod !== 'beam_search' && styles.configBlockDimmed]}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Max Active Paths:</Text>
-              <View style={styles.buttonGroup}>
-                {[4, 8, 16, 32].map(paths => (
-                  <TouchableOpacity
-                    key={paths}
-                    style={[
-                      styles.optionButton,
-                      maxActivePaths === paths && styles.optionButtonSelected,
-                      decodingMethod !== 'beam_search' && styles.optionButtonDimmed,
-                    ]}
-                    onPress={() => decodingMethod === 'beam_search' && setMaxActivePaths(paths)}
-                  >
-                    <Text style={[
-                      styles.optionButtonText,
-                      maxActivePaths === paths && decodingMethod === 'beam_search' && styles.optionButtonTextSelected
-                    ]}>{paths}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {decodingMethod === 'beam_search' ? (
-              <Text style={styles.configHint}>Higher values = more accurate but slower</Text>
-            ) : (
-              <Text style={styles.configHint}>Only active when Beam Search is selected</Text>
-            )}
-          </View>
-          
-          <View style={styles.configBlock}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Streaming Mode:</Text>
-              <Switch
-                value={isStreaming}
-                onValueChange={setIsStreaming}
-                disabled={!!asrConfig}
-              />
-            </View>
-            {asrConfig && (
-              <Text style={styles.configHint}>Determined by model architecture</Text>
-            )}
-          </View>
-          
-          <View style={styles.configBlock}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Provider:</Text>
-              <View style={styles.providerContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.providerOption,
-                    provider === 'cpu' && styles.providerOptionSelected
-                  ]}
-                  onPress={() => setProvider('cpu')}
-                >
-                  <Text style={[
-                    styles.providerOptionText,
-                    provider === 'cpu' && styles.providerOptionTextSelected
-                  ]}>CPU</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.providerOption,
-                    provider === 'gpu' && styles.providerOptionSelected
-                  ]}
-                  onPress={() => setProvider('gpu')}
-                >
-                  <Text style={[
-                    styles.providerOptionText,
-                    provider === 'gpu' && styles.providerOptionTextSelected
-                  ]}>GPU</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text style={styles.configHint}>
-              {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '')
-                ? 'GPU recommended for whisper-family models. Falls back to CPU if unavailable.'
-                : 'GPU acceleration requires compatible hardware. Falls back to CPU if unavailable.'}
-            </Text>
-          </View>
-
-          <View style={styles.configBlock}>
-            <View style={styles.configRow}>
-              <Text style={styles.configLabel}>Debug Mode:</Text>
-              <Switch
-                value={debugMode}
-                onValueChange={setDebugMode}
-              />
-            </View>
-            <Text style={styles.configHint}>Prints model config and architecture to logcat on init only. No effect on recognition results.</Text>
-          </View>
-        </View>
-
-        {/* ASR Controls */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            testID="btn-init-asr"
-            style={[
-              styles.button,
-              styles.initButton,
-              (!selectedModelId || loading) && styles.buttonDisabled
-            ]}
-            onPress={handleInitAsr}
-            disabled={loading || !selectedModelId}
-          >
-            <Text style={styles.buttonText}>Initialize ASR</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            testID="btn-release-asr"
-            style={[
-              styles.button,
-              styles.releaseButton,
-              (!initialized || loading) && styles.buttonDisabled
-            ]}
-            onPress={handleReleaseAsr}
-            disabled={loading || !initialized}
-          >
-            <Text style={styles.buttonText}>Release ASR</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Audio selection section */}
+      {/* Model Selection */}
+      <Section title="1. Select ASR Model">
         {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Select Audio Sample</Text>
-            <FlatList
-              data={loadedAudioFiles}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  testID={`audio-option-${item.id}`}
-                  style={[
-                    styles.audioItem,
-                    selectedAudio?.id === item.id && styles.selectedAudioItem
-                  ]}
-                  onPress={() => handleSelectAudio(item)}
-                >
-                  <Text 
-                    style={[
-                      styles.audioName,
-                      selectedAudio?.id === item.id && styles.selectedAudioName
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
-            
-            {selectedAudio && (
-              <View style={styles.audioMetadata}>
-                <Text style={styles.metadataText}>
-                  Size: {formatBytes(audioMetadata.size || 0)}
-                </Text>
-                <Text style={styles.metadataText}>
-                  Duration: {formatDuration(audioMetadata.duration || 0)}
-                </Text>
-                <View style={styles.buttonContainer}>
+          <Text variant="bodySmall" style={{ color: theme.colors.warning ?? '#FF9800', marginBottom: 8, textAlign: 'center', fontStyle: 'italic' }}>
+            Switching models will release the currently initialized model
+          </Text>
+        )}
+        <View style={{ marginBottom: theme.margin.m }}>
+          {downloadedModels.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: theme.padding.m }}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>No ASR models downloaded.</Text>
+              <ThemedButton
+                testID="download-models-inline-btn"
+                label="Download a model"
+                variant="primary"
+                onPress={() => router.push('/(tabs)/models?type=asr')}
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          ) : (
+            <>
+              {downloadedModels.map((model) => {
+                const isSelected = selectedModelId === model.metadata.id;
+                const badge = getModelBadge(model.metadata.id);
+                return (
                   <TouchableOpacity
-                    style={[
-                      styles.audioPlayButton,
-                      isPlaying && styles.audioPlayButtonDisabled
-                    ]}
-                    onPress={() => handlePlayAudio(selectedAudio)}
-                    disabled={isPlaying}
+                    key={model.metadata.id}
+                    testID={`model-option-${model.metadata.id}`}
+                    style={{
+                      padding: 12,
+                      backgroundColor: isSelected ? theme.colors.primary : theme.colors.surface,
+                      borderRadius: theme.roundness * 2,
+                      marginBottom: 8,
+                      ...Platform.select({
+                        ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3 },
+                        android: { elevation: 2 },
+                      }),
+                    }}
+                    onPress={async () => {
+                      if (initialized) {
+                        await handleReleaseAsr();
+                      }
+                      setSelectedModelId(model.metadata.id);
+                    }}
                   >
-                    <Text style={styles.audioPlayButtonText}>
-                      {isPlaying ? 'Playing...' : 'Play Audio'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Text variant="bodyLarge" style={{
+                        color: isSelected ? theme.colors.onPrimary : theme.colors.onSurface,
+                        flex: 1,
+                      }}>
+                        {model.metadata.name}
+                      </Text>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 10,
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : badge.color + '22',
+                      }}>
+                        <Text variant="labelSmall" style={{
+                          color: isSelected ? '#fff' : badge.color,
+                          fontWeight: '600',
+                        }}>
+                          {badge.label}
+                        </Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-        
-        {/* Recognition section */}
-        {initialized && selectedAudio && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Recognize Speech</Text>
-            <TouchableOpacity
-              testID="btn-recognize"
-              style={[
-                styles.button,
-                styles.generateButton,
-                processing && styles.buttonDisabled
-              ]}
-              onPress={handleRecognizeFromFile}
-              disabled={processing}
-            >
-              <Text style={styles.buttonText}>Recognize Speech</Text>
-            </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity onPress={() => router.push('/(tabs)/models?type=asr')} style={{ marginTop: 8, alignItems: 'center' }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>Download more models →</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </Section>
 
-            {recognitionResult !== null && (
-              <View style={styles.resultContainer}>
-                <Text style={styles.resultLabel}>Recognized Text:</Text>
-                <View style={styles.textContainer}>
-                  <Text testID="text-recognition-result" style={styles.recognizedText}>
-                    {recognitionResult === '' ? '(no speech detected)' : recognitionResult}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
+      {/* Show the predefined configuration after model selection */}
+      {predefinedConfigDisplay}
+
+      {/* ASR Configuration */}
+      <Section title="2. ASR Configuration">
+        {selectedModelId && asrConfig && (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12, fontStyle: 'italic' }}>
+            Options pre-configured for this model. Adjust threads for performance.
+          </Text>
         )}
 
-        {/* Audio Information Section */}
-        {selectedAudio && renderAudioInfo()}
-      </ScrollView>
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Number of Threads:</Text>
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[1, 2, 4, 8].map(num => (
+                <TouchableOpacity
+                  key={num}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    backgroundColor: numThreads === num ? theme.colors.primary : theme.colors.surfaceVariant,
+                    borderRadius: theme.roundness,
+                    marginRight: 8,
+                    marginBottom: 8,
+                  }}
+                  onPress={() => setNumThreads(num)}
+                >
+                  <Text variant="labelMedium" style={{
+                    color: numThreads === num ? theme.colors.onPrimary : theme.colors.onSurface,
+                  }}>{num}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', marginTop: -8, marginBottom: 4 }}>More threads = faster on multi-core CPUs. Diminishing returns above 4.</Text>
+        </View>
 
-    </SafeAreaView>
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Decoding Method:</Text>
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  backgroundColor: decodingMethod === 'greedy_search' ? theme.colors.primary : theme.colors.surfaceVariant,
+                  borderRadius: theme.roundness,
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}
+                onPress={() => setDecodingMethod('greedy_search')}
+              >
+                <Text variant="labelMedium" style={{
+                  color: decodingMethod === 'greedy_search' ? theme.colors.onPrimary : theme.colors.onSurface,
+                }}>Greedy Search</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  backgroundColor: decodingMethod === 'beam_search' ? theme.colors.primary : theme.colors.surfaceVariant,
+                  borderRadius: theme.roundness,
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}
+                onPress={() => setDecodingMethod('beam_search')}
+              >
+                <Text variant="labelMedium" style={{
+                  color: decodingMethod === 'beam_search' ? theme.colors.onPrimary : theme.colors.onSurface,
+                }}>Beam Search</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '') && (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>This model type only supports greedy search</Text>
+          )}
+          {asrConfig && BEAM_SEARCH_TYPES.includes(asrConfig.modelType || '') && (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>Beam search gives better accuracy at the cost of speed</Text>
+          )}
+        </View>
+
+        <View style={[{ marginBottom: 12 }, decodingMethod !== 'beam_search' && { opacity: 0.5 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Max Active Paths:</Text>
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[4, 8, 16, 32].map(paths => (
+                <TouchableOpacity
+                  key={paths}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    backgroundColor: maxActivePaths === paths ? theme.colors.primary : theme.colors.surfaceVariant,
+                    borderRadius: theme.roundness,
+                    marginRight: 8,
+                    marginBottom: 8,
+                    opacity: decodingMethod !== 'beam_search' ? 0.6 : 1,
+                  }}
+                  onPress={() => decodingMethod === 'beam_search' && setMaxActivePaths(paths)}
+                >
+                  <Text variant="labelMedium" style={{
+                    color: maxActivePaths === paths && decodingMethod === 'beam_search' ? theme.colors.onPrimary : theme.colors.onSurface,
+                  }}>{paths}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          {decodingMethod === 'beam_search' ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>Higher values = more accurate but slower</Text>
+          ) : (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>Only active when Beam Search is selected</Text>
+          )}
+        </View>
+
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Streaming Mode:</Text>
+            <Switch
+              value={isStreaming}
+              onValueChange={setIsStreaming}
+              disabled={!!asrConfig}
+            />
+          </View>
+          {asrConfig && (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>Determined by model architecture</Text>
+          )}
+        </View>
+
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Provider:</Text>
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 8,
+                  backgroundColor: provider === 'cpu' ? theme.colors.primary : theme.colors.surfaceVariant,
+                  borderRadius: theme.roundness,
+                  marginHorizontal: 4,
+                  alignItems: 'center',
+                }}
+                onPress={() => setProvider('cpu')}
+              >
+                <Text variant="labelMedium" style={{
+                  color: provider === 'cpu' ? theme.colors.onPrimary : theme.colors.onSurface,
+                }}>CPU</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 8,
+                  backgroundColor: provider === 'gpu' ? theme.colors.primary : theme.colors.surfaceVariant,
+                  borderRadius: theme.roundness,
+                  marginHorizontal: 4,
+                  alignItems: 'center',
+                }}
+                onPress={() => setProvider('gpu')}
+              >
+                <Text variant="labelMedium" style={{
+                  color: provider === 'gpu' ? theme.colors.onPrimary : theme.colors.onSurface,
+                }}>GPU</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>
+            {asrConfig && GREEDY_ONLY_TYPES.includes(asrConfig.modelType || '')
+              ? 'GPU recommended for whisper-family models. Falls back to CPU if unavailable.'
+              : 'GPU acceleration requires compatible hardware. Falls back to CPU if unavailable.'}
+          </Text>
+        </View>
+
+        <View style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Debug Mode:</Text>
+            <Switch
+              value={debugMode}
+              onValueChange={setDebugMode}
+            />
+          </View>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>Prints model config and architecture to logcat on init only. No effect on recognition results.</Text>
+        </View>
+      </Section>
+
+      {/* ASR Controls */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: theme.padding.m, marginBottom: theme.margin.m }}>
+        <ThemedButton
+          testID="btn-init-asr"
+          label="Initialize ASR"
+          variant="primary"
+          onPress={handleInitAsr}
+          disabled={loading || !selectedModelId}
+          style={{ flex: 1, marginHorizontal: 8 }}
+        />
+        <ThemedButton
+          testID="btn-release-asr"
+          label="Release ASR"
+          variant="secondary"
+          onPress={handleReleaseAsr}
+          disabled={loading || !initialized}
+          style={{ flex: 1, marginHorizontal: 8 }}
+        />
+      </View>
+
+      {/* Audio selection section */}
+      {initialized && (
+        <Section title="3. Select Audio Sample">
+          <FlatList
+            data={loadedAudioFiles}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                testID={`audio-option-${item.id}`}
+                style={{
+                  padding: 12,
+                  marginRight: 12,
+                  borderRadius: theme.roundness * 2,
+                  borderWidth: 1,
+                  borderColor: selectedAudio?.id === item.id ? theme.colors.primary : theme.colors.outlineVariant,
+                  backgroundColor: selectedAudio?.id === item.id ? theme.colors.primaryContainer : 'transparent',
+                  minWidth: 120,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => handleSelectAudio(item)}
+              >
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    fontWeight: '500',
+                    color: selectedAudio?.id === item.id ? theme.colors.onPrimaryContainer : theme.colors.onSurface,
+                    textAlign: 'center',
+                  }}
+                >
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+
+          {selectedAudio && (
+            <ResultsBox>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                Size: {formatBytes(audioMetadata.size || 0)}
+              </Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                Duration: {formatDuration(audioMetadata.duration || 0)}
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8 }}>
+                <ThemedButton
+                  label={isPlaying ? 'Playing...' : 'Play Audio'}
+                  variant="primary"
+                  onPress={() => handlePlayAudio(selectedAudio)}
+                  disabled={isPlaying}
+                />
+              </View>
+            </ResultsBox>
+          )}
+        </Section>
+      )}
+
+      {/* Recognition section */}
+      {initialized && selectedAudio && (
+        <Section title="4. Recognize Speech">
+          <ThemedButton
+            testID="btn-recognize"
+            label="Recognize Speech"
+            variant="success"
+            onPress={handleRecognizeFromFile}
+            disabled={processing}
+          />
+
+          {recognitionResult !== null && (
+            <View style={{
+              marginTop: theme.margin.m,
+              padding: 12,
+              backgroundColor: theme.colors.primaryContainer ?? '#f0f7ff',
+              borderRadius: theme.roundness * 2,
+              borderLeftWidth: 4,
+              borderLeftColor: theme.colors.primary,
+            }}>
+              <Text variant="titleSmall" style={{ marginBottom: 8, color: theme.colors.primary }}>Recognized Text:</Text>
+              <View style={{
+                backgroundColor: theme.colors.surface,
+                padding: 12,
+                borderRadius: theme.roundness,
+                borderWidth: 1,
+                borderColor: theme.colors.outlineVariant,
+              }}>
+                <Text testID="text-recognition-result" variant="bodyLarge" style={{ color: theme.colors.onSurface, lineHeight: 24 }}>
+                  {recognitionResult === '' ? '(no speech detected)' : recognitionResult}
+                </Text>
+              </View>
+            </View>
+          )}
+        </Section>
+      )}
+
+      {/* Audio Information Section */}
+      {selectedAudio && renderAudioInfo()}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 1000,
-  },
-  loadingContent: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 250,
-    maxWidth: '80%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  loadingSubText: {
-    marginBottom: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  pickerContainer: {
-    marginBottom: 16,
-  },
-  modelOption: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  modelOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  modelOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  modelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  modelBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  modelOptionText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  modelOptionTextSelected: {
-    color: '#fff',
-  },
-  emptyModelContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  downloadButton: {
-    marginTop: 12,
-    backgroundColor: '#2196F3',
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  downloadButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  moreModelsLink: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#2196F3',
-    fontSize: 14,
-  },
-  providerContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  providerOption: {
-    flex: 1,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginHorizontal: 4,
-    alignItems: 'center',
-  },
-  providerOptionSelected: {
-    backgroundColor: '#2196F3',
-  },
-  providerOptionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  providerOptionTextSelected: {
-    color: '#fff',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  errorText: {
-    color: '#f44336',
-    textAlign: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  warningText: {
-    color: '#FF9800',
-    fontSize: 14,
-    marginBottom: 8,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  button: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  initButton: {
-    backgroundColor: '#2196F3',
-  },
-  releaseButton: {
-    backgroundColor: '#757575',
-  },
-  generateButton: {
-    backgroundColor: '#4CAF50',
-  },
-  configSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-  },
-  configSubtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 12,
-    fontStyle: 'italic',
-  },
-  configBlock: {
-    marginBottom: 12,
-  },
-  configBlockDimmed: {
-    opacity: 0.5,
-  },
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  configHint: {
-    fontSize: 12,
-    color: '#aaa',
-    marginTop: -8,
-    marginBottom: 4,
-    marginLeft: 4,
-    fontStyle: 'italic',
-  },
-  configLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  buttonGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  optionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  optionButtonSelected: {
-    backgroundColor: '#2196F3',
-  },
-  optionButtonDimmed: {
-    opacity: 0.6,
-  },
-  optionButtonText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  optionButtonTextSelected: {
-    color: 'white',
-  },
-  statusSection: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-  },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 4,
-  },
-  audioItem: {
-    padding: 12,
-    marginRight: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minWidth: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedAudioItem: {
-    borderColor: '#2196F3',
-    backgroundColor: '#e3f2fd',
-  },
-  audioName: {
-    fontWeight: '500',
-    color: '#333',
-    textAlign: 'center',
-  },
-  selectedAudioName: {
-    color: '#0d47a1',
-  },
-  audioMetadata: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-  },
-  metadataText: {
-    color: '#666',
-    marginBottom: 8,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  audioPlayButton: {
-    backgroundColor: '#9C27B0',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-    maxWidth: 200,
-  },
-  audioPlayButtonDisabled: {
-    opacity: 0.6,
-  },
-  audioPlayButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  resultContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#f0f7ff',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196f3',
-  },
-  resultLabel: {
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#0d47a1',
-  },
-  textContainer: {
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  recognizedText: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 24,
-  },
-  audioInfoContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-  },
-  audioInfoTitle: {
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  audioInfoText: {
-    color: '#666',
-    marginBottom: 4,
-  },
-}); 

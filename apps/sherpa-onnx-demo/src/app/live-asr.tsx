@@ -5,19 +5,23 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAsrModels, useAsrModelWithConfig } from '../hooks/useModelWithConfig';
 import { useLiveAsr } from '../hooks/useLiveAsr';
 import { useModelManagement } from '../contexts/ModelManagement';
 import { setAgenticPageState } from '../agentic-bridge';
+import {
+  PageContainer,
+  Section,
+  StatusBlock,
+  Text,
+  ThemedButton,
+  ResultsBox,
+  useTheme,
+} from '../components/ui';
 
 const SAMPLE_AUDIO_FILES = [
   {
@@ -46,6 +50,7 @@ export default function LiveAsrScreen() {
   // Deep-link params: /live-asr?model=<id>&autoInit=true&autoTest=jfk&t=<timestamp>
   const params = useLocalSearchParams<{ model?: string; autoInit?: string; autoTest?: string; t?: string }>();
   const router = useRouter();
+  const theme = useTheme();
   const { availableModels } = useAsrModels();
   const { getModelState, isModelDownloaded } = useModelManagement();
 
@@ -311,212 +316,148 @@ export default function LiveAsrScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'< Back'}</Text>
+    <PageContainer>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.m }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+          <Text variant="bodyLarge" style={{ color: theme.colors.primary }}>{'< Back'}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Live ASR</Text>
+        <Text variant="titleLarge">Live ASR</Text>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
-        {/* Model Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Streaming Model</Text>
-          {streamingModels.length === 0 ? (
-            <Text style={styles.dimText}>No streaming ASR models available. Download one from the Models tab.</Text>
-          ) : (
-            streamingModels.map((model) => {
-              const downloaded = isModelDownloaded(model.id);
-              const isSelected = selectedModelId === model.id;
-              return (
-                <TouchableOpacity
-                  key={model.id}
-                  style={[styles.modelItem, isSelected && styles.modelItemSelected]}
-                  onPress={() => {
-                    setSelectedModelId(model.id);
-                    setInitialized(false);
-                  }}
-                  disabled={!downloaded}
-                >
-                  <Text style={[styles.modelName, !downloaded && styles.dimText]}>
-                    {model.id}
-                  </Text>
-                  <Text style={styles.modelBadge}>
-                    {downloaded ? 'Ready' : 'Not downloaded'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
-
-        {/* Init / Release */}
-        <View style={styles.buttonRow}>
-          {!initialized ? (
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton, (!selectedModelId || initializing) && styles.buttonDisabled]}
-              onPress={handleInitialize}
-              disabled={!selectedModelId || initializing}
-            >
-              {initializing ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonText}>Initialize</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={handleRelease}>
-              <Text style={styles.buttonText}>Release</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Mic Controls */}
-        {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Microphone</Text>
-            {!recorder.isRecording ? (
+      {/* Model Selection */}
+      <Section title="Streaming Model">
+        {streamingModels.length === 0 ? (
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No streaming ASR models available. Download one from the Models tab.</Text>
+        ) : (
+          streamingModels.map((model) => {
+            const downloaded = isModelDownloaded(model.id);
+            const isSelected = selectedModelId === model.id;
+            return (
               <TouchableOpacity
-                style={[styles.button, styles.micButton]}
-                onPress={handleStartMic}
+                key={model.id}
+                style={{
+                  padding: 12,
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: theme.roundness * 2,
+                  marginBottom: 6,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderWidth: 2,
+                  borderColor: isSelected ? theme.colors.primary : 'transparent',
+                }}
+                onPress={() => {
+                  setSelectedModelId(model.id);
+                  setInitialized(false);
+                }}
+                disabled={!downloaded}
               >
-                <Text style={styles.buttonText}>Start Listening</Text>
-              </TouchableOpacity>
-            ) : (
-              <View>
-                <TouchableOpacity
-                  style={[styles.button, styles.micActiveButton]}
-                  onPress={handleStopMic}
-                >
-                  <Text style={styles.buttonText}>Stop Listening</Text>
-                </TouchableOpacity>
-                <Text style={styles.dimText}>
-                  Recording: {(recorder.durationMs / 1000).toFixed(1)}s
+                <Text variant="bodyMedium" style={{ flex: 1, color: downloaded ? theme.colors.onSurface : theme.colors.onSurfaceVariant }}>
+                  {model.id}
                 </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Results */}
-        {(liveAsr.committedText || liveAsr.interimText) ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recognition</Text>
-            {liveAsr.committedText ? (
-              <Text style={styles.committedText}>{liveAsr.committedText}</Text>
-            ) : null}
-            {liveAsr.interimText ? (
-              <Text style={styles.interimText}>{liveAsr.interimText}</Text>
-            ) : null}
-            <TouchableOpacity style={styles.clearButton} onPress={liveAsr.clear}>
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* Sample Audio Files */}
-        {initialized && !recorder.isRecording && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Test with Sample Audio</Text>
-            {SAMPLE_AUDIO_FILES.map((audio) => (
-              <TouchableOpacity
-                key={audio.id}
-                style={[styles.button, styles.secondaryButton, processing && styles.buttonDisabled]}
-                onPress={() => handleDemoStreamingPrimitives(audio.module)}
-                disabled={processing}
-              >
-                <Text style={styles.buttonTextDark}>
-                  {processing ? 'Processing...' : `Stream: ${audio.name}`}
+                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}>
+                  {downloaded ? 'Ready' : 'Not downloaded'}
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })
         )}
+      </Section>
 
-        {/* Error */}
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
+      {/* Init / Release */}
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.margin.m }}>
+        {!initialized ? (
+          <ThemedButton
+            label="Initialize"
+            variant="primary"
+            onPress={handleInitialize}
+            disabled={!selectedModelId || initializing}
+            loading={initializing}
+            style={{ flex: 1 }}
+          />
+        ) : (
+          <ThemedButton
+            label="Release"
+            variant="danger"
+            onPress={handleRelease}
+            style={{ flex: 1 }}
+          />
         )}
+      </View>
 
-        {/* Status Log */}
-        {statusLog.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Log</Text>
-            {statusLog.map((log, i) => (
-              <Text key={i} style={styles.logLine}>
-                {log}
+      {/* Mic Controls */}
+      {initialized && (
+        <Section title="Microphone">
+          {!recorder.isRecording ? (
+            <ThemedButton
+              label="Start Listening"
+              variant="success"
+              onPress={handleStartMic}
+            />
+          ) : (
+            <View>
+              <ThemedButton
+                label="Stop Listening"
+                variant="warning"
+                onPress={handleStopMic}
+              />
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                Recording: {(recorder.durationMs / 1000).toFixed(1)}s
               </Text>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            </View>
+          )}
+        </Section>
+      )}
+
+      {/* Results */}
+      {(liveAsr.committedText || liveAsr.interimText) ? (
+        <Section title="Recognition">
+          {liveAsr.committedText ? (
+            <Text variant="bodyLarge" style={{ color: theme.colors.onSurface, lineHeight: 26, marginBottom: 4 }}>{liveAsr.committedText}</Text>
+          ) : null}
+          {liveAsr.interimText ? (
+            <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', lineHeight: 26 }}>{liveAsr.interimText}</Text>
+          ) : null}
+          <ThemedButton
+            label="Clear"
+            variant="primary"
+            compact
+            onPress={liveAsr.clear}
+            style={{ marginTop: 8, alignSelf: 'flex-start' }}
+          />
+        </Section>
+      ) : null}
+
+      {/* Sample Audio Files */}
+      {initialized && !recorder.isRecording && (
+        <Section title="Test with Sample Audio">
+          {SAMPLE_AUDIO_FILES.map((audio) => (
+            <ThemedButton
+              key={audio.id}
+              label={processing ? 'Processing...' : `Stream: ${audio.name}`}
+              variant="secondary"
+              onPress={() => handleDemoStreamingPrimitives(audio.module)}
+              disabled={processing}
+              style={{ marginBottom: 8 }}
+            />
+          ))}
+        </Section>
+      )}
+
+      {/* Error */}
+      <StatusBlock error={error} />
+
+      {/* Status Log */}
+      {statusLog.length > 0 && (
+        <Section title="Log">
+          {statusLog.map((log, i) => (
+            <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 }}>
+              {log}
+            </Text>
+          ))}
+        </Section>
+      )}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: { marginRight: 12 },
-  backText: { fontSize: 16, color: '#007AFF' },
-  title: { fontSize: 20, fontWeight: '700' },
-  content: { flex: 1 },
-  contentInner: { padding: 16, paddingBottom: 40 },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  modelItem: {
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  modelItemSelected: { borderColor: '#007AFF' },
-  modelName: { fontSize: 14, flex: 1 },
-  modelBadge: { fontSize: 12, color: '#666', marginLeft: 8 },
-  dimText: { color: '#999', fontSize: 13 },
-  buttonRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  primaryButton: { backgroundColor: '#007AFF' },
-  secondaryButton: { backgroundColor: '#e0e0e0' },
-  dangerButton: { backgroundColor: '#FF3B30' },
-  micButton: { backgroundColor: '#34C759' },
-  micActiveButton: { backgroundColor: '#FF9500' },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  buttonTextDark: { color: '#333', fontSize: 15, fontWeight: '500' },
-  committedText: { fontSize: 18, color: '#000', lineHeight: 26, marginBottom: 4 },
-  interimText: { fontSize: 18, color: '#999', fontStyle: 'italic', lineHeight: 26 },
-  clearButton: { marginTop: 8, alignSelf: 'flex-start' },
-  clearButtonText: { color: '#007AFF', fontSize: 14 },
-  errorBox: {
-    padding: 12,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  errorText: { color: '#FF3B30', fontSize: 14 },
-  logLine: { fontSize: 12, color: '#666', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 },
-});

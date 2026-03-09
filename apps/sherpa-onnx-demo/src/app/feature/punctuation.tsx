@@ -2,17 +2,22 @@ import { Punctuation } from '@siteed/sherpa-onnx.rn';
 import type { PunctuationModelConfig } from '@siteed/sherpa-onnx.rn';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePunctuationModels, usePunctuationModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
+import {
+  PageContainer,
+  Section,
+  StatusBlock,
+  ThemedButton,
+  ModelSelector,
+  ResultsBox,
+  Text,
+  useTheme,
+} from '../../components/ui';
 
 const SAMPLE_TEXTS = [
   'how are you doing today i am fine thank you',
@@ -22,6 +27,8 @@ const SAMPLE_TEXTS = [
 ];
 
 export default function PunctuationScreen() {
+  const theme = useTheme();
+
   // Model state
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
@@ -126,172 +133,108 @@ export default function PunctuationScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Model Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Model</Text>
-          {downloadedModels.length === 0 ? (
-            <Text style={styles.infoText}>No Punctuation models downloaded. Go to Models tab to download.</Text>
+    <PageContainer>
+      {/* Model Selector */}
+      <Section title="Model">
+        <ModelSelector
+          models={downloadedModels}
+          selectedId={selectedModelId}
+          onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
+          disabled={initialized}
+          emptyMessage="No Punctuation models downloaded. Go to Models tab to download."
+        />
+      </Section>
+
+      {/* Controls */}
+      <Section>
+        <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+          {!initialized ? (
+            <ThemedButton
+              testID="punct-init-button"
+              label="Initialize"
+              onPress={handleInit}
+              disabled={!selectedModelId || loading}
+              loading={loading}
+              variant="primary"
+            />
           ) : (
-            <View style={styles.modelList}>
-              {downloadedModels.map(model => (
-                <TouchableOpacity
-                  key={model.metadata.id}
-                  style={[
-                    styles.modelButton,
-                    selectedModelId === model.metadata.id && styles.modelButtonSelected,
-                  ]}
-                  onPress={() => {
-                    if (!initialized) setSelectedModelId(model.metadata.id);
-                  }}
-                  disabled={initialized}
-                >
-                  <Text
-                    style={[
-                      styles.modelButtonText,
-                      selectedModelId === model.metadata.id && styles.modelButtonTextSelected,
-                    ]}
-                  >
-                    {model.metadata.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ThemedButton
+              testID="punct-release-button"
+              label="Release"
+              onPress={handleRelease}
+              variant="danger"
+            />
           )}
         </View>
+      </Section>
 
-        {/* Controls */}
-        <View style={styles.section}>
-          <View style={styles.buttonRow}>
-            {!initialized ? (
+      {/* Status */}
+      <StatusBlock status={statusMessage} error={error} />
+
+      {/* Input */}
+      {initialized && (
+        <Section title="Input Text">
+          <TextInput
+            testID="punct-input"
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.outlineVariant,
+              borderRadius: theme.roundness * 2,
+              padding: theme.padding.s,
+              fontSize: 15,
+              minHeight: 80,
+              textAlignVertical: 'top',
+              marginBottom: theme.margin.s,
+              color: theme.colors.onSurface,
+            }}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            placeholder="Enter text without punctuation..."
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+          />
+          <View style={{ gap: 4, marginBottom: theme.margin.s }}>
+            {SAMPLE_TEXTS.map((text, idx) => (
               <TouchableOpacity
-                testID="punct-init-button"
-                style={[styles.button, styles.buttonPrimary, (!selectedModelId || loading) && styles.buttonDisabled]}
-                onPress={handleInit}
-                disabled={!selectedModelId || loading}
+                key={idx}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: theme.roundness,
+                  backgroundColor: theme.colors.surfaceVariant,
+                }}
+                onPress={() => setInputText(text)}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.buttonTextWhite}>Initialize</Text>
-                )}
+                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
+                  {text.substring(0, 30)}...
+                </Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                testID="punct-release-button"
-                style={[styles.button, styles.buttonDanger]}
-                onPress={handleRelease}
-              >
-                <Text style={styles.buttonTextWhite}>Release</Text>
-              </TouchableOpacity>
+            ))}
+          </View>
+          <ThemedButton
+            testID="punct-process-button"
+            label="Add Punctuation"
+            onPress={handleAddPunctuation}
+            disabled={processing || !inputText.trim()}
+            loading={processing}
+            variant="primary"
+          />
+        </Section>
+      )}
+
+      {/* Output */}
+      {outputText != null && (
+        <Section title="Result">
+          <ResultsBox>
+            <Text variant="bodyLarge" style={{ color: theme.colors.onSurface, lineHeight: 24, paddingVertical: 8 }}>
+              {outputText}
+            </Text>
+            {durationMs != null && (
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Processing time: {durationMs}ms</Text>
             )}
-          </View>
-        </View>
-
-        {/* Status */}
-        {(statusMessage || error) && (
-          <View style={styles.section}>
-            {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-        )}
-
-        {/* Input */}
-        {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Input Text</Text>
-            <TextInput
-              testID="punct-input"
-              style={styles.textInput}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              placeholder="Enter text without punctuation..."
-              placeholderTextColor="#999"
-            />
-            <View style={styles.sampleRow}>
-              {SAMPLE_TEXTS.map((text, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.sampleButton}
-                  onPress={() => setInputText(text)}
-                >
-                  <Text style={styles.sampleButtonText} numberOfLines={1}>
-                    {text.substring(0, 30)}...
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity
-              testID="punct-process-button"
-              style={[styles.button, styles.buttonPrimary, (processing || !inputText.trim()) && styles.buttonDisabled]}
-              onPress={handleAddPunctuation}
-              disabled={processing || !inputText.trim()}
-            >
-              {processing ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonTextWhite}>Add Punctuation</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Output */}
-        {outputText != null && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Result</Text>
-            <View style={styles.results}>
-              <Text style={styles.outputText}>{outputText}</Text>
-              {durationMs != null && (
-                <Text style={styles.infoText}>Processing time: {durationMs}ms</Text>
-              )}
-            </View>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          </ResultsBox>
+        </Section>
+      )}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16 },
-  section: { backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  infoText: { fontSize: 14, color: '#666' },
-  statusText: { fontSize: 14, color: '#333' },
-  errorText: { fontSize: 14, color: '#d00' },
-  modelList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  modelButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ccc' },
-  modelButtonSelected: { backgroundColor: '#795548', borderColor: '#795548' },
-  modelButtonText: { fontSize: 14, color: '#333' },
-  modelButtonTextSelected: { color: '#fff' },
-  buttonRow: { flexDirection: 'row', gap: 8 },
-  button: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 6, alignItems: 'center', minWidth: 100 },
-  buttonPrimary: { backgroundColor: '#795548' },
-  buttonDanger: { backgroundColor: '#d00' },
-  buttonDisabled: { opacity: 0.5 },
-  buttonTextWhite: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 15,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: 8,
-  },
-  sampleRow: { gap: 4, marginBottom: 8 },
-  sampleButton: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, backgroundColor: '#f0f0f0' },
-  sampleButtonText: { fontSize: 12, color: '#666' },
-  results: { padding: 8, backgroundColor: '#f9f9f9', borderRadius: 6 },
-  outputText: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 24,
-    paddingVertical: 8,
-  },
-});

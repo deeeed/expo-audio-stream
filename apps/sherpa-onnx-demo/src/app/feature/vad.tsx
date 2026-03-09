@@ -1,22 +1,24 @@
 import { VAD } from '@siteed/sherpa-onnx.rn';
-import type { VadModelConfig, VadAcceptWaveformResult, SpeechSegment } from '@siteed/sherpa-onnx.rn';
+import type { VadModelConfig, SpeechSegment } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 import { useVadModels, useVadModelWithConfig } from '../../hooks/useModelWithConfig';
 import { setAgenticPageState } from '../../agentic-bridge';
+import {
+  PageContainer,
+  Section,
+  StatusBlock,
+  ThemedButton,
+  ModelSelector,
+  AudioSelector,
+  ResultsBox,
+  Text,
+  useTheme,
+} from '../../components/ui';
 
 // Decode base64 string to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -42,6 +44,7 @@ const BUNDLED_AUDIO = [
 
 export default function VadScreen() {
   const params = useLocalSearchParams<{ model?: string }>();
+  const theme = useTheme();
 
   // Model state
   const [selectedModelId, setSelectedModelId] = useState<string | null>(params.model ?? null);
@@ -307,209 +310,125 @@ export default function VadScreen() {
   }, [isLiveMic, recorder]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Model Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Model</Text>
-          {downloadedModels.length === 0 ? (
-            <Text style={styles.infoText}>No VAD models downloaded. Go to Models tab to download.</Text>
+    <PageContainer>
+      {/* Model Selector */}
+      <Section title="Model">
+        <ModelSelector
+          models={downloadedModels}
+          selectedId={selectedModelId}
+          onSelect={(id) => { if (!initialized) setSelectedModelId(id); }}
+          disabled={initialized}
+          emptyMessage="No VAD models downloaded. Go to Models tab to download."
+        />
+      </Section>
+
+      {/* Controls */}
+      <Section>
+        <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+          {!initialized ? (
+            <ThemedButton
+              testID="vad-init-button"
+              label="Initialize"
+              onPress={handleInit}
+              disabled={!selectedModelId || loading}
+              loading={loading}
+              variant="primary"
+            />
           ) : (
-            <View style={styles.modelList}>
-              {downloadedModels.map(model => (
-                <TouchableOpacity
-                  key={model.metadata.id}
-                  style={[
-                    styles.modelButton,
-                    selectedModelId === model.metadata.id && styles.modelButtonSelected,
-                  ]}
-                  onPress={() => {
-                    if (!initialized) setSelectedModelId(model.metadata.id);
-                  }}
-                  disabled={initialized}
-                >
-                  <Text
-                    style={[
-                      styles.modelButtonText,
-                      selectedModelId === model.metadata.id && styles.modelButtonTextSelected,
-                    ]}
-                  >
-                    {model.metadata.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ThemedButton
+              testID="vad-release-button"
+              label="Release"
+              onPress={handleRelease}
+              variant="danger"
+            />
           )}
         </View>
+      </Section>
 
-        {/* Controls */}
-        <View style={styles.section}>
-          <View style={styles.buttonRow}>
-            {!initialized ? (
-              <TouchableOpacity
-                testID="vad-init-button"
-                style={[styles.button, styles.buttonPrimary, (!selectedModelId || loading) && styles.buttonDisabled]}
-                onPress={handleInit}
-                disabled={!selectedModelId || loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.buttonTextWhite}>Initialize</Text>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                testID="vad-release-button"
-                style={[styles.button, styles.buttonDanger]}
-                onPress={handleRelease}
-              >
-                <Text style={styles.buttonTextWhite}>Release</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+      {/* Status */}
+      <StatusBlock status={statusMessage} error={error} />
 
-        {/* Status */}
-        {(statusMessage || error) && (
-          <View style={styles.section}>
-            {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-        )}
+      {/* File-based detection */}
+      {initialized && (
+        <Section title="File Detection">
+          <AudioSelector
+            items={audioItems}
+            selectedId={selectedAudioId}
+            onSelect={setSelectedAudioId}
+            disabled={detecting}
+          />
+          <ThemedButton
+            testID="vad-detect-button"
+            label="Detect Speech"
+            onPress={handleDetectFromFile}
+            disabled={detecting || !selectedAudioId}
+            loading={detecting}
+            variant="primary"
+          />
 
-        {/* File-based detection */}
-        {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>File Detection</Text>
-            <View style={styles.audioList}>
-              {audioItems.map(item => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.audioButton,
-                    selectedAudioId === item.id && styles.audioButtonSelected,
-                  ]}
-                  onPress={() => setSelectedAudioId(item.id)}
-                  disabled={detecting}
-                >
-                  <Text style={styles.audioButtonText}>{item.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity
-              testID="vad-detect-button"
-              style={[styles.button, styles.buttonPrimary, detecting && styles.buttonDisabled]}
-              onPress={handleDetectFromFile}
-              disabled={detecting || !selectedAudioId}
-            >
-              {detecting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.buttonTextWhite}>Detect Speech</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* File detection results */}
-            {segments.length > 0 && (
-              <View style={styles.results}>
-                <Text style={styles.resultTitle}>
-                  Segments ({segments.length}):
-                </Text>
-                {segments.map((seg, i) => (
-                  <Text key={i} style={styles.segmentText}>
-                    {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s ({seg.duration} samples)
-                  </Text>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Live mic detection */}
-        {initialized && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Live Microphone</Text>
-            <TouchableOpacity
-              testID="vad-livemic-button"
-              style={[
-                styles.button,
-                isLiveMic ? styles.buttonDanger : styles.buttonPrimary,
-              ]}
-              onPress={isLiveMic ? handleStopMic : handleStartMic}
-            >
-              <Text style={styles.buttonTextWhite}>
-                {isLiveMic ? 'Stop Mic' : 'Start Mic'}
+          {/* File detection results */}
+          {segments.length > 0 && (
+            <ResultsBox>
+              <Text variant="titleSmall">
+                Segments ({segments.length}):
               </Text>
-            </TouchableOpacity>
-
-            {isLiveMic && (
-              <View style={styles.liveStatus}>
-                <Text style={[styles.speechIndicator, liveSpeechDetected && styles.speechActive]}>
-                  {liveSpeechDetected ? 'SPEECH' : 'SILENCE'}
+              {segments.map((seg, i) => (
+                <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurface, marginBottom: 2 }}>
+                  {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s ({seg.duration} samples)
                 </Text>
-                <Text style={styles.infoText}>Chunks: {liveChunks}</Text>
-                <Text style={styles.infoText}>Segments: {liveSegments.length}</Text>
-              </View>
-            )}
+              ))}
+            </ResultsBox>
+          )}
+        </Section>
+      )}
 
-            {liveSegments.length > 0 && (
-              <View style={styles.results}>
-                <Text style={styles.resultTitle}>
-                  Live Segments ({liveSegments.length}):
+      {/* Live mic detection */}
+      {initialized && (
+        <Section title="Live Microphone">
+          <ThemedButton
+            testID="vad-livemic-button"
+            label={isLiveMic ? 'Stop Mic' : 'Start Mic'}
+            onPress={isLiveMic ? handleStopMic : handleStartMic}
+            variant={isLiveMic ? 'danger' : 'primary'}
+          />
+
+          {isLiveMic && (
+            <View style={{ marginTop: theme.margin.s, gap: 4 }}>
+              <Text
+                variant="titleMedium"
+                style={{
+                  textAlign: 'center',
+                  paddingVertical: 8,
+                  borderRadius: theme.roundness,
+                  color: liveSpeechDetected ? '#00aa00' : theme.colors.onSurfaceVariant,
+                  backgroundColor: liveSpeechDetected ? '#e0ffe0' : theme.colors.surfaceVariant,
+                  fontWeight: 'bold',
+                }}
+              >
+                {liveSpeechDetected ? 'SPEECH' : 'SILENCE'}
+              </Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Chunks: {liveChunks}</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Segments: {liveSegments.length}</Text>
+            </View>
+          )}
+
+          {liveSegments.length > 0 && (
+            <ResultsBox>
+              <Text variant="titleSmall">
+                Live Segments ({liveSegments.length}):
+              </Text>
+              {liveSegments.slice(-10).map((seg, i) => (
+                <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurface, marginBottom: 2 }}>
+                  {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s
                 </Text>
-                {liveSegments.slice(-10).map((seg, i) => (
-                  <Text key={i} style={styles.segmentText}>
-                    {seg.startTime.toFixed(2)}s - {seg.endTime.toFixed(2)}s
-                  </Text>
-                ))}
-                {liveSegments.length > 10 && (
-                  <Text style={styles.infoText}>... and {liveSegments.length - 10} more</Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+              ))}
+              {liveSegments.length > 10 && (
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>... and {liveSegments.length - 10} more</Text>
+              )}
+            </ResultsBox>
+          )}
+        </Section>
+      )}
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16 },
-  section: { backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  infoText: { fontSize: 14, color: '#666' },
-  statusText: { fontSize: 14, color: '#333' },
-  errorText: { fontSize: 14, color: '#d00' },
-  modelList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  modelButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ccc' },
-  modelButtonSelected: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
-  modelButtonText: { fontSize: 14, color: '#333' },
-  modelButtonTextSelected: { color: '#fff' },
-  buttonRow: { flexDirection: 'row', gap: 8 },
-  button: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 6, alignItems: 'center', minWidth: 100 },
-  buttonPrimary: { backgroundColor: '#007AFF' },
-  buttonDanger: { backgroundColor: '#d00' },
-  buttonDisabled: { opacity: 0.5 },
-  buttonTextWhite: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  audioList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  audioButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#ccc' },
-  audioButtonSelected: { backgroundColor: '#e0e7ff', borderColor: '#007AFF' },
-  audioButtonText: { fontSize: 13 },
-  results: { marginTop: 8, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 6 },
-  resultTitle: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  segmentText: { fontSize: 13, color: '#333', marginBottom: 2 },
-  liveStatus: { marginTop: 8, gap: 4 },
-  speechIndicator: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#999',
-    textAlign: 'center',
-    paddingVertical: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
-  },
-  speechActive: { color: '#00aa00', backgroundColor: '#e0ffe0' },
-});

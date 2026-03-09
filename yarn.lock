@@ -8894,11 +8894,16 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/plugin-proposal-decorators": "npm:^7.25.9"
     "@expo/vector-icons": "npm:^15.0.3"
+    "@gorhom/bottom-sheet": "npm:^5.2.8"
+    "@gorhom/portal": "npm:^1.0.14"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
+    "@react-native-community/slider": "npm:5.1.2"
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
     "@react-navigation/native": "npm:^7.0.14"
     "@react-navigation/native-stack": "npm:^7.3.10"
+    "@siteed/design-system": "npm:^0.51.3"
     "@siteed/expo-audio-studio": "workspace:^"
+    "@siteed/react-native-logger": "npm:^0.11.0"
     "@siteed/sherpa-onnx.rn": "workspace:^"
     "@types/jest": "npm:^29.5.12"
     "@types/react": "npm:~19.2.10"
@@ -8918,6 +8923,8 @@ __metadata:
     expo-font: "npm:~55.0.4"
     expo-haptics: "npm:~55.0.8"
     expo-linking: "npm:~55.0.7"
+    expo-localization: "npm:~55.0.8"
+    expo-modules-core: "npm:~55.0.14"
     expo-router: "npm:~55.0.4"
     expo-sharing: "npm:~55.0.11"
     expo-splash-screen: "npm:~55.0.10"
@@ -8933,9 +8940,12 @@ __metadata:
     react-dom: "npm:19.2.0"
     react-native: "npm:0.83.2"
     react-native-gesture-handler: "npm:~2.30.0"
+    react-native-paper: "npm:^5.15.0"
+    react-native-paper-dates: "npm:^0.22.26"
     react-native-reanimated: "npm:4.2.1"
     react-native-safe-area-context: "npm:~5.6.0"
     react-native-screens: "npm:~4.23.0"
+    react-native-vector-icons: "npm:^10.0.3"
     react-native-web: "npm:^0.21.0"
     react-native-webview: "npm:13.16.0"
     react-native-worklets: "npm:0.7.2"
@@ -19756,7 +19766,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-modules-core@npm:55.0.14":
+"expo-modules-core@npm:55.0.14, expo-modules-core@npm:~55.0.14":
   version: 55.0.14
   resolution: "expo-modules-core@npm:55.0.14"
   dependencies:
