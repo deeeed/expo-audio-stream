@@ -70,7 +70,13 @@ if (__DEV__) {
     },
 
     getState: () => {
-      return _modelState
+      return {
+        platform: Platform.OS,
+        route: _routeInfo.pathname,
+        segments: _routeInfo.segments,
+        pageState: _pageState,
+        models: _modelState,
+      }
     },
 
     getPageState: () => {

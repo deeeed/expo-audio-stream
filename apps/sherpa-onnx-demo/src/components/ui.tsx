@@ -1,10 +1,9 @@
 import type { AppTheme } from '@siteed/design-system';
-import { Text, useTheme } from '@siteed/design-system';
+import { ScreenWrapper, Text, useTheme } from '@siteed/design-system';
 import React from 'react';
 import {
   ActivityIndicator,
   Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -21,11 +20,9 @@ interface PageContainerProps {
 export function PageContainer({ children, style }: PageContainerProps) {
   const theme = useTheme();
   return (
-    <View style={[{ flex: 1, backgroundColor: theme.colors.background }, style]}>
-      <ScrollView contentContainerStyle={{ padding: theme.padding.m, paddingBottom: 32 }}>
-        {children}
-      </ScrollView>
-    </View>
+    <ScreenWrapper style={style} useInsets={false} contentContainerStyle={{ padding: theme.padding.m }}>
+      {children}
+    </ScreenWrapper>
   );
 }
 

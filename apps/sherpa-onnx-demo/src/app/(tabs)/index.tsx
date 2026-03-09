@@ -1,7 +1,8 @@
 import SherpaOnnx, { ValidateResult, SystemInfo } from '@siteed/sherpa-onnx.rn';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { ScreenWrapper } from '@siteed/design-system';
 
 const SherpaOnnxDemo: React.FC = () => {
   const router = useRouter();
@@ -82,8 +83,7 @@ const SherpaOnnxDemo: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <ScreenWrapper useInsets={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.subtitle}>System Status</Text>
 
         <View style={styles.statusCard}>
@@ -200,16 +200,11 @@ const SherpaOnnxDemo: React.FC = () => {
         <Text style={styles.footer}>
           Sherpa-ONNX Demo • Version 0.1.0
         </Text>
-      </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   scrollContent: {
     padding: 16,
   },

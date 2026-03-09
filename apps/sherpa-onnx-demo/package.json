@@ -11,7 +11,7 @@
     "open:ios": "open -a Xcode ./ios",
     "devices": "WATCHER_PORT=7500 node scripts/agentic/cdp-bridge.mjs list-devices",
     "status": "WATCHER_PORT=7500 node scripts/agentic/cdp-bridge.mjs list-devices",
-    "reload": "curl -sf -X POST http://localhost:7500/reload && echo Reloaded",
+    "reload": "WATCHER_PORT=7500 bash scripts/agentic/device-cmd.sh reload",
     "typecheck": "tsc --noEmit",
     "web": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --web --port 7500",
     "clean": "rimraf dist",

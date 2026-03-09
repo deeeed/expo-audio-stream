@@ -109,11 +109,14 @@ process.stdin.on('data', (key) => {
 
     switch (key.toLowerCase()) {
         case 'r': {
-            const ok = metroPost('/reload')
-            if (ok) {
-                process.stdout.write('\x1b[32m› Reloading...\x1b[0m\n')
-            } else {
-                process.stdout.write('\x1b[31m✗ Reload failed — is Metro running?\x1b[0m\n')
+            process.stdout.write('\x1b[32m› Reloading...\x1b[0m\n')
+            try {
+                execSync(
+                    `WATCHER_PORT=${PORT} bash ${path.join(__dirname, 'device-cmd.sh')} reload`,
+                    { stdio: 'pipe' }
+                )
+            } catch {
+                metroPost('/reload')
             }
             break
         }
