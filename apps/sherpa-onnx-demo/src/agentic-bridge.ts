@@ -127,7 +127,7 @@ if (__DEV__) {
         try {
           await ASR.release()
           _lastAsyncResult = { op, status: 'success', result: 'released' }
-        } catch (e) {
+        } catch {
           // Ignore — may not be initialized
           _lastAsyncResult = { op, status: 'success', result: 'not initialized' }
         }
@@ -233,7 +233,7 @@ if (__DEV__) {
       return { op, status: 'pending' }
     },
 
-    testASR: (filePath?: string) => {
+    testASRFile: (filePath?: string) => {
       const op = 'asr'
       _lastAsyncResult = { op, status: 'pending' }
       void (async () => {
@@ -284,7 +284,7 @@ if (__DEV__) {
           const t0 = Date.now()
           const initResult = await SherpaOnnx.initTts({
             modelDir: dir,
-            modelType: 'vits',
+            ttsModelType: 'vits',
             modelFile: 'model.onnx',
             tokensFile: 'tokens.txt',
             dataDir: 'espeak-ng-data',
@@ -356,7 +356,7 @@ if (__DEV__) {
             debug: false,
           })
           timing.initMs = Date.now() - t0
-          if (!initResult.success) throw new Error('initTts failed: ' + (initResult as Record<string, unknown>).error)
+          if (!initResult.success) throw new Error('initTts failed: ' + (initResult as unknown as Record<string, unknown>).error)
 
           const t1 = Date.now()
           const genResult = await SherpaOnnx.generateTts({
@@ -1246,7 +1246,6 @@ if (__DEV__) {
 
           // Parse WAV header
           const dataView = new DataView(arrayBuffer)
-          const bitsPerSample = dataView.getUint16(34, true)
           const headerSize = 44
           const pcmData = new Int16Array(arrayBuffer.slice(headerSize))
 
@@ -1259,7 +1258,7 @@ if (__DEV__) {
           const t1 = Date.now()
           const chunkSize = 512
           let totalChunks = 0
-          const allSegments: Array<{ start: number; duration: number; startTime: number; endTime: number }> = []
+          const allSegments: { start: number; duration: number; startTime: number; endTime: number }[] = []
           let anySpeechDetected = false
 
           for (let offset = 0; offset < float32.length; offset += chunkSize) {

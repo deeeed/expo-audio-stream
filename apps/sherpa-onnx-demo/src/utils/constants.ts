@@ -1,17 +1,30 @@
 import type { ModelMetadata } from './models';
 import type { ModelState, ModelStatus } from '../contexts/ModelManagement/types';
+import { WEB_FEATURES, type WebFeatureKey } from '../config/webFeatures';
 
-// Default web model IDs for preloaded WASM models
-export const DEFAULT_WEB_TTS_MODEL_ID = 'vits-icefall-en-low';
-export const DEFAULT_WEB_ASR_MODEL_ID = 'streaming-zipformer-en-general';
-export const DEFAULT_WEB_VAD_MODEL_ID = 'silero-vad-v5';
-export const DEFAULT_WEB_KWS_MODEL_ID = 'kws-zipformer-gigaspeech';
-export const DEFAULT_WEB_DENOISER_MODEL_ID = 'gtcrn-speech-denoiser';
-export const DEFAULT_WEB_DIARIZATION_MODEL_ID = 'pyannote-segmentation-3-0';
-export const DEFAULT_WEB_SPEAKER_ID_MODEL_ID = 'speaker-id-en-voxceleb';
-export const DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID = 'ced-tiny-audio-tagging';
-export const DEFAULT_WEB_LANGUAGE_ID_MODEL_ID = 'whisper-tiny-multilingual';
-export const DEFAULT_WEB_PUNCTUATION_MODEL_ID = 'online-punct-en';
+// Default web model IDs — derived from webFeatures.ts config
+export const DEFAULT_WEB_TTS_MODEL_ID = WEB_FEATURES.tts.modelId;
+export const DEFAULT_WEB_ASR_MODEL_ID = WEB_FEATURES.asr.modelId;
+export const DEFAULT_WEB_VAD_MODEL_ID = WEB_FEATURES.vad.modelId;
+export const DEFAULT_WEB_KWS_MODEL_ID = WEB_FEATURES.kws.modelId;
+export const DEFAULT_WEB_DENOISER_MODEL_ID = WEB_FEATURES.denoising.modelId;
+export const DEFAULT_WEB_DIARIZATION_MODEL_ID = WEB_FEATURES.diarization.modelId;
+export const DEFAULT_WEB_SPEAKER_ID_MODEL_ID = WEB_FEATURES.speakerId.modelId;
+export const DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID = WEB_FEATURES.audioTagging.modelId;
+export const DEFAULT_WEB_LANGUAGE_ID_MODEL_ID = WEB_FEATURES.languageId.modelId;
+export const DEFAULT_WEB_PUNCTUATION_MODEL_ID = WEB_FEATURES.punctuation.modelId;
+
+/** Map from model ID to its feature key (built from WEB_FEATURES config) */
+export const WEB_MODEL_FEATURE_MAP: Record<string, WebFeatureKey> = Object.fromEntries(
+  Object.entries(WEB_FEATURES).map(([key, entry]) => [entry.modelId, key as WebFeatureKey])
+) as Record<string, WebFeatureKey>;
+
+/** Check if a web model ID's feature is enabled */
+export function isWebModelEnabled(modelId: string): boolean {
+  const featureKey = WEB_MODEL_FEATURE_MAP[modelId];
+  if (!featureKey) return false;
+  return WEB_FEATURES[featureKey].enabled;
+}
 
 function makeWebModelState(metadata: ModelMetadata, localPath: string): ModelState {
   return {
