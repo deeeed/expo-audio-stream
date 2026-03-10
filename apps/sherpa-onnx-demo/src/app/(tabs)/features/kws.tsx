@@ -4,7 +4,7 @@ import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type Audi
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { readFileAsArrayBuffer, readFileAsText, fileExists } from '../../../utils/fileUtils';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Platform,
@@ -70,7 +70,6 @@ function parseKeywordsFile(content: string): string[] {
 }
 
 export default function KwsScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ model?: string }>();
   const theme = useTheme();
 
@@ -107,6 +106,8 @@ export default function KwsScreen() {
   const processingRef = useRef(false);
   const queueRef = useRef<{ samples: number[]; sampleRate: number }[]>([]);
   const recordingRef = useRef(false);
+
+
 
   const addLog = useCallback((msg: string) => {
     setStatusLog((prev) => [...prev.slice(-29), msg]);
@@ -196,7 +197,14 @@ export default function KwsScreen() {
   const loadModelAssets = async (dir: string) => {
     // Read keywords.txt
     try {
-      const kwContent = await readFileAsText(`${dir}/keywords.txt`);
+      let kwContent: string;
+      if (Platform.OS === 'web') {
+        // On web, fetch from public URL (WASM FS paths aren't accessible via expo-file-system)
+        const resp = await fetch(`${dir}/keywords.txt`);
+        kwContent = await resp.text();
+      } else {
+        kwContent = await readFileAsText(`${dir}/keywords.txt`);
+      }
       setKeywords(parseKeywordsFile(kwContent));
     } catch (e) {
       console.warn('[KWS] Could not read keywords.txt:', e);
@@ -204,8 +212,15 @@ export default function KwsScreen() {
 
     // Read test_keywords.txt (subset keywords that match the test wavs)
     try {
-      const tkContent = await readFileAsText(`${dir}/test_wavs/test_keywords.txt`);
-      setTestKeywords(parseKeywordsFile(tkContent));
+      if (Platform.OS === 'web') {
+        const resp = await fetch(`${dir}/test_wavs/test_keywords.txt`);
+        if (resp.ok) {
+          setTestKeywords(parseKeywordsFile(await resp.text()));
+        }
+      } else {
+        const tkContent = await readFileAsText(`${dir}/test_wavs/test_keywords.txt`);
+        setTestKeywords(parseKeywordsFile(tkContent));
+      }
     } catch {
       // not all models have test_keywords.txt
     }
@@ -330,13 +345,32 @@ export default function KwsScreen() {
         onAudioStream: async (event: AudioDataEvent) => {
           if (!recordingRef.current) return;
           try {
-            const buffer = base64ToArrayBuffer(event.data as string);
-            const { pcmValues } = await convertPCMToFloat32({
-              buffer,
-              bitDepth: 16,
-              skipWavHeader: true,
-            });
-            const samples: number[] = Array.from(pcmValues);
+            let samples: number[];
+            if (event.data instanceof Float32Array) {
+              samples = Array.from(event.data);
+            } else if (event.data instanceof Int16Array) {
+              samples = new Array(event.data.length);
+              for (let i = 0; i < event.data.length; i++) {
+                samples[i] = event.data[i] / 32768;
+              }
+            } else if (typeof event.data === 'string') {
+              const buffer = base64ToArrayBuffer(event.data as string);
+              const { pcmValues } = await convertPCMToFloat32({
+                buffer,
+                bitDepth: 16,
+                skipWavHeader: true,
+              });
+              samples = Array.from(pcmValues);
+            } else if ((event.data as unknown) instanceof ArrayBuffer) {
+              const { pcmValues } = await convertPCMToFloat32({
+                buffer: event.data as unknown as ArrayBuffer,
+                bitDepth: 16,
+                skipWavHeader: true,
+              });
+              samples = Array.from(pcmValues);
+            } else {
+              return;
+            }
             if (samples.length > 0) {
               queueRef.current.push({ samples, sampleRate: 16000 });
               processKwsQueue();
@@ -524,6 +558,8 @@ export default function KwsScreen() {
       {/* Configuration */}
       {selectedModelId && (
         <Section title="2. Configuration">
+          {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
+          {Platform.OS !== 'web' && (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
             <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Threads:</Text>
             <TextInput
@@ -545,6 +581,7 @@ export default function KwsScreen() {
               editable={!initialized}
             />
           </View>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
             <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Debug:</Text>
             <Switch value={debugMode} onValueChange={setDebugMode} disabled={initialized} />
@@ -587,25 +624,27 @@ export default function KwsScreen() {
         />
       </View>
 
-      {/* Active Keywords */}
+      {/* Active Keywords — must be prominently displayed */}
       {initialized && activeKeywords.length > 0 && (
-        <Section title={`Active Keywords (${activeKeywords.length})`}>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
-            The engine will look for these words/phrases in the audio:
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {activeKeywords.map((kw, i) => (
-              <View key={i} style={{
-                backgroundColor: theme.colors.errorContainer ?? '#FFEBEE',
-                borderColor: theme.colors.error,
-                borderWidth: 1,
-                borderRadius: 16,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-              }}>
-                <Text variant="bodySmall" style={{ color: theme.colors.error, fontWeight: '500' }}>{kw}</Text>
-              </View>
-            ))}
+        <Section title="Say these words:">
+          <View style={{ backgroundColor: '#1a237e', borderRadius: 12, padding: 16, marginBottom: 8 }}>
+            <Text variant="bodySmall" style={{ color: '#90caf9', marginBottom: 12, textAlign: 'center' }}>
+              Speak any of these keywords clearly into the microphone:
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+              {activeKeywords.map((kw, i) => (
+                <View key={i} style={{
+                  backgroundColor: '#283593',
+                  borderColor: '#5c6bc0',
+                  borderWidth: 2,
+                  borderRadius: 20,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                }}>
+                  <Text style={{ color: '#e8eaf6', fontWeight: 'bold', fontSize: 16, textTransform: 'uppercase' }}>{kw}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </Section>
       )}
@@ -639,6 +678,8 @@ export default function KwsScreen() {
           {micError ? (
             <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{micError}</Text>
           ) : null}
+
+
         </Section>
       )}
 

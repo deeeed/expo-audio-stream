@@ -127,9 +127,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="models"
           options={{
-            title: 'Models',
-            tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
-            tabBarBadge: isAnyDownloading ? '↓' : undefined,
+            href: null, // Models are preloaded on web — hide the tab
           }}
         />
         <Tabs.Screen

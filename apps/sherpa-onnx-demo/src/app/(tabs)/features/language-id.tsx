@@ -211,13 +211,32 @@ export default function LanguageIdScreen() {
         onAudioStream: async (event: AudioDataEvent) => {
           if (!recordingRef.current) return;
           try {
-            const buffer = base64ToArrayBuffer(event.data as string);
-            const { pcmValues } = await convertPCMToFloat32({
-              buffer,
-              bitDepth: 16,
-              skipWavHeader: true,
-            });
-            const samples = Array.from(pcmValues);
+            let samples: number[];
+            if (event.data instanceof Float32Array) {
+              samples = Array.from(event.data);
+            } else if (event.data instanceof Int16Array) {
+              samples = new Array(event.data.length);
+              for (let i = 0; i < event.data.length; i++) {
+                samples[i] = event.data[i] / 32768;
+              }
+            } else if (typeof event.data === 'string') {
+              const buffer = base64ToArrayBuffer(event.data as string);
+              const { pcmValues } = await convertPCMToFloat32({
+                buffer,
+                bitDepth: 16,
+                skipWavHeader: true,
+              });
+              samples = Array.from(pcmValues);
+            } else if ((event.data as unknown) instanceof ArrayBuffer) {
+              const { pcmValues } = await convertPCMToFloat32({
+                buffer: event.data as unknown as ArrayBuffer,
+                bitDepth: 16,
+                skipWavHeader: true,
+              });
+              samples = Array.from(pcmValues);
+            } else {
+              return;
+            }
             if (samples.length > 0) {
               samplesBufferRef.current.push(...samples);
               setLiveChunks(prev => prev + 1);

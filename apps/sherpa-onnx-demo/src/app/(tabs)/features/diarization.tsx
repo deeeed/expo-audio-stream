@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -194,6 +195,8 @@ export default function DiarizationScreen() {
 
       {/* Configuration */}
       <Section title="3. Configuration">
+        {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
+        {Platform.OS !== 'web' && (
         <ConfigRow label="Threads:">
           <TextInput
             style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface, minWidth: 60 }}
@@ -203,6 +206,7 @@ export default function DiarizationScreen() {
             editable={!initialized}
           />
         </ConfigRow>
+        )}
 
         <ConfigRow label="Num Speakers (-1 = auto):">
           <TextInput

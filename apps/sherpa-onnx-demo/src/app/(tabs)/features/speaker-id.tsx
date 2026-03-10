@@ -104,6 +104,9 @@ export default function SpeakerIdScreen() {
       {/* Configuration */}
       {selectedModelId && speakerIdConfig && (
         <Section title="2. Speaker ID Configuration">
+          {/* Threads & Provider: hidden on web — WASM is single-threaded, CPU only */}
+          {Platform.OS !== 'web' && (
+          <>
           <ConfigRow label="Number of Threads:">
             <TextInput
               style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
@@ -123,6 +126,8 @@ export default function SpeakerIdScreen() {
               <ThemedButton label="GPU" variant={provider === 'gpu' ? 'primary' : 'secondary'} onPress={() => !initialized && setProvider('gpu')} disabled={initialized} compact />
             </View>
           </ConfigRow>
+          </>
+          )}
 
           <ConfigRow label="Debug Mode:">
             <Switch value={debugMode} onValueChange={(v) => { if (!initialized) setDebugMode(v); }} disabled={initialized} />

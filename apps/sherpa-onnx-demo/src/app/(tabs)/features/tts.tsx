@@ -101,6 +101,9 @@ export default function TtsScreen() {
 
       {/* TTS Configuration */}
       <Section title="2. TTS Configuration">
+        {/* Threads & Provider: hidden on web — WASM is single-threaded, CPU only */}
+        {Platform.OS !== 'web' && (
+        <>
         <ConfigRow label="Number of Threads:">
           <TextInput
             style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
@@ -119,6 +122,8 @@ export default function TtsScreen() {
             <ThemedButton label="GPU" variant={provider === 'gpu' ? 'primary' : 'secondary'} onPress={() => setProvider('gpu')} compact />
           </View>
         </ConfigRow>
+        </>
+        )}
 
         <ConfigRow label="Debug Mode:">
           <Switch value={debugMode} onValueChange={setDebugMode} />

@@ -158,15 +158,15 @@ interface SherpaOnnxFileSystem {
   safeLoadFile: (
     url: string,
     localPath: string,
-    debug?: boolean
+    debug?: boolean | number
   ) => Promise<{ success: boolean; path: string } | false>;
   extractZip: (
     zipData: ArrayBuffer,
     targetPath: string,
-    debug?: boolean
+    debug?: boolean | number
   ) => Promise<{ success: boolean; files?: string[]; error?: string }>;
   fileExists: (path: string) => boolean;
-  removePath: (path: string, debug?: boolean) => boolean;
+  removePath: (path: string, debug?: boolean | number) => boolean;
 }
 
 interface SherpaOnnxVadModule {
@@ -174,7 +174,7 @@ interface SherpaOnnxVadModule {
     model: string;
     modelDir?: string;
     fileName?: string;
-    debug?: boolean;
+    debug?: boolean | number;
     cleanStart?: boolean;
   }) => Promise<LoadedVadModel>;
   createVoiceActivityDetector: (
@@ -188,7 +188,7 @@ interface SherpaOnnxVadModule {
       sampleRate?: number;
       numThreads?: number;
       bufferSizeInSeconds?: number;
-      debug?: boolean;
+      debug?: boolean | number;
     }
   ) => VoiceActivityDetector;
 }
@@ -201,14 +201,14 @@ interface SherpaOnnxAsrModule {
     joiner?: string;
     tokens?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<LoadedAsrModel>;
   createOfflineRecognizer: (
     loadedModel: LoadedAsrModel,
     options?: {
       sampleRate?: number;
       numThreads?: number;
-      debug?: boolean;
+      debug?: boolean | number;
     }
   ) => OfflineRecognizer;
   createOnlineRecognizer: (
@@ -216,7 +216,7 @@ interface SherpaOnnxAsrModule {
     options?: {
       sampleRate?: number;
       numThreads?: number;
-      debug?: boolean;
+      debug?: boolean | number;
       decodingMethod?: string;
       maxActivePaths?: number;
       enableEndpoint?: number;
@@ -231,12 +231,12 @@ interface SherpaOnnxTtsModule {
     tokens?: string;
     lexicon?: string;
     espeakDataZip?: string;
-    debug?: boolean;
+    debug?: boolean | number;
     modelDir?: string;
   }) => Promise<{ modelDir: string; type: string; files: Record<string, string> }>;
   createOfflineTts: (
     loadedModel: { modelDir: string; type: string; files: Record<string, string> },
-    options?: { numThreads?: number; debug?: boolean }
+    options?: { numThreads?: number; debug?: boolean | number }
   ) => OfflineTtsInstance;
 }
 
@@ -248,7 +248,7 @@ interface SherpaOnnxKwsModule {
     tokens?: string;
     keywordsFile?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; paths: Record<string, string | object> }>;
   createKeywordSpotter: (
     loadedModel: { modelDir: string; paths: Record<string, string | object> },
@@ -258,7 +258,7 @@ interface SherpaOnnxKwsModule {
       numThreads?: number;
       keywordsScore?: number;
       keywordsThreshold?: number;
-      debug?: boolean;
+      debug?: boolean | number;
     }
   ) => KwsSpotter;
 }
@@ -287,11 +287,11 @@ interface SherpaOnnxSpeechEnhancementModule {
   loadModel: (config: {
     model: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; modelPath: string }>;
   createDenoiser: (
     loadedModel: { modelDir: string; modelPath: string },
-    options?: { debug?: boolean; numThreads?: number; provider?: string }
+    options?: { debug?: boolean | number; numThreads?: number; provider?: string }
   ) => OfflineSpeechDenoiserInstance;
 }
 
@@ -300,7 +300,7 @@ interface SherpaOnnxSpeakerDiarizationModule {
     segmentation: string;
     embedding: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{
     modelDir: string;
     segmentationPath: string;
@@ -313,7 +313,7 @@ interface SherpaOnnxSpeakerDiarizationModule {
       embeddingPath: string;
     },
     options?: {
-      debug?: boolean;
+      debug?: boolean | number;
       numThreads?: number;
       provider?: string;
       numClusters?: number;
@@ -338,11 +338,11 @@ interface SherpaOnnxAudioTaggingModule {
     ced?: string;
     labels?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; modelPath: string; labelsPath: string }>;
   createAudioTagging: (
     loadedModel: { modelDir: string; modelPath: string; labelsPath: string },
-    options?: { topK?: number; numThreads?: number; debug?: boolean }
+    options?: { topK?: number; numThreads?: number; debug?: boolean | number }
   ) => AudioTaggingInstance;
 }
 
@@ -359,11 +359,11 @@ interface SherpaOnnxLanguageIdModule {
     encoder?: string;
     decoder?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; encoderPath: string; decoderPath: string }>;
   createLanguageId: (
     loadedModel: { modelDir: string; encoderPath: string; decoderPath: string },
-    options?: { numThreads?: number; debug?: boolean; tailPaddings?: number }
+    options?: { numThreads?: number; debug?: boolean | number; tailPaddings?: number }
   ) => SpokenLanguageIdInstance;
 }
 
@@ -395,11 +395,11 @@ interface SherpaOnnxSpeakerIdModule {
   loadModel: (config: {
     model?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; modelPath: string }>;
   createExtractor: (
     loadedModel: { modelDir: string; modelPath: string },
-    options?: { numThreads?: number; debug?: boolean }
+    options?: { numThreads?: number; debug?: boolean | number }
   ) => SpeakerEmbeddingExtractorInstance;
   createManager: (dim: number) => SpeakerEmbeddingManagerInstance;
 }
@@ -415,11 +415,11 @@ interface SherpaOnnxPunctuationModule {
     cnnBilstm?: string;
     bpeVocab?: string;
     modelDir?: string;
-    debug?: boolean;
+    debug?: boolean | number;
   }) => Promise<{ modelDir: string; modelPath: string; vocabPath: string }>;
   createPunctuation: (
     loadedModel: { modelDir: string; modelPath: string; vocabPath: string },
-    options?: { numThreads?: number; debug?: boolean }
+    options?: { numThreads?: number; debug?: boolean | number }
   ) => OnlinePunctuationInstance;
 }
 
@@ -749,6 +749,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
 
   private asrRecognizer: OfflineRecognizer | null = null;
   private asrOnlineRecognizer: OnlineRecognizer | null = null;
+  private asrOnlineStream: OnlineStream | null = null;
 
   private kwsSpotter: KwsSpotter | null = null;
   private kwsStream: KwsStream | null = null;
@@ -891,20 +892,23 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // TTS
   // -------------------------------------------------------------------------
 
-  async initTts(_config: TtsModelConfig): Promise<TtsInitResult> {
+  async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
     try {
       await loadCombinedWasm();
 
-      console.log('[TTS] Loading model from /wasm/tts/...');
+      const debug = config.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[TTS] Loading ${config.ttsModelType || 'vits'} model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.TTS.loadModel({
-        type: 'vits',
+        type: config.ttsModelType || 'vits',
         model: '/wasm/tts/model.onnx',
         tokens: '/wasm/tts/tokens.txt',
         espeakDataZip: '/wasm/tts/espeak-ng-data.zip',
-        debug: false,
+        debug,
       });
 
-      this.tts = this.sherpaOnnx.TTS.createOfflineTts(loadedModel, {});
+      this.tts = this.sherpaOnnx.TTS.createOfflineTts(loadedModel, { numThreads, debug });
       this.ttsSampleRate = this.tts.sampleRate;
       this.ttsNumSpeakers = this.tts.numSpeakers;
 
@@ -975,30 +979,32 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // VAD
   // -------------------------------------------------------------------------
 
-  async initVad(_config: any): Promise<{ success: boolean; error?: string }> {
+  async initVad(config: any): Promise<{ success: boolean; error?: string }> {
     try {
       await loadCombinedWasm();
 
-      console.log('[VAD] Loading silero_vad model...');
+      const debug = config?.debug ? 1 : 0;
+
+      console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.VAD.loadModel({
         model: '/wasm/vad/silero_vad.onnx',
         modelDir: 'vad-models',
         fileName: 'silero_vad.onnx',
-        debug: false,
+        debug,
       });
 
       this.vad = this.sherpaOnnx.VAD.createVoiceActivityDetector(
         loadedModel,
         {
-          threshold: 0.5,
-          minSilenceDuration: 0.3,
-          minSpeechDuration: 0.1,
-          windowSize: 512,
-          maxSpeechDuration: 30.0,
+          threshold: config?.threshold ?? 0.5,
+          minSilenceDuration: config?.minSilenceDuration ?? 0.3,
+          minSpeechDuration: config?.minSpeechDuration ?? 0.1,
+          windowSize: config?.windowSize ?? 512,
+          maxSpeechDuration: config?.maxSpeechDuration ?? 30.0,
           sampleRate: 16000,
-          numThreads: 1,
-          bufferSizeInSeconds: 5.0,
-          debug: false,
+          numThreads: 1, // WASM is single-threaded
+          bufferSizeInSeconds: config?.bufferSizeInSeconds ?? 5.0,
+          debug,
         }
       );
 
@@ -1084,27 +1090,46 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // ASR (online streaming transducer — preloaded /wasm/asr/ models are online)
   // -------------------------------------------------------------------------
 
-  async initAsr(_config: AsrModelConfig): Promise<AsrInitResult> {
+  async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
     try {
       await loadCombinedWasm();
 
-      console.log('[ASR] Loading online transducer model...');
+      const debug = config.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+      const sampleRate = 16000;
+      const modelDir = config.modelDir || '/wasm/asr';
+
+      // Map model architecture names to ASR load types.
+      // zipformer/zipformer2 models use the transducer architecture (encoder+decoder+joiner).
+      const rawType = config.modelType || 'transducer';
+      const asrType = ['zipformer', 'zipformer2'].includes(rawType) ? 'transducer' : rawType;
+
       const loadedModel = await this.sherpaOnnx.ASR.loadModel({
-        type: 'transducer',
-        encoder: '/wasm/asr/encoder.onnx',
-        decoder: '/wasm/asr/decoder.onnx',
-        joiner: '/wasm/asr/joiner.onnx',
-        tokens: '/wasm/asr/tokens.txt',
-        debug: false,
+        type: asrType,
+        encoder: `${modelDir}/encoder.onnx`,
+        decoder: `${modelDir}/decoder.onnx`,
+        joiner: `${modelDir}/joiner.onnx`,
+        tokens: `${modelDir}/tokens.txt`,
+        debug,
       });
 
       this.asrOnlineRecognizer = this.sherpaOnnx.ASR.createOnlineRecognizer(
         loadedModel,
-        { sampleRate: 16000, numThreads: 1, debug: false, enableEndpoint: 0 }
+        {
+          sampleRate,
+          numThreads,
+          debug,
+          decodingMethod: config.decodingMethod ?? 'greedy_search',
+          maxActivePaths: config.maxActivePaths ?? 4,
+          enableEndpoint: config.streaming ? 1 : 0,
+        }
       );
 
-      console.log('[ASR] Initialized (online recognizer)');
-      return { success: true };
+      if (!this.asrOnlineRecognizer || !this.asrOnlineRecognizer.handle) {
+        return { success: false, error: 'Failed to create online recognizer — WASM config error' };
+      }
+
+      return { success: true, sampleRate, modelType: rawType };
     } catch (error) {
       console.error('[ASR] initAsr failed:', error);
       return { success: false, error: (error as Error).message };
@@ -1173,6 +1198,10 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   }
 
   async releaseAsr(): Promise<{ released: boolean }> {
+    if (this.asrOnlineStream) {
+      try { this.asrOnlineStream.free(); } catch (_e) { /* ignore */ }
+      this.asrOnlineStream = null;
+    }
     if (this.asrOnlineRecognizer) {
       try {
         this.asrOnlineRecognizer.free();
@@ -1193,18 +1222,37 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   }
 
   async createAsrOnlineStream(): Promise<{ success: boolean }> {
-    return { success: false };
+    if (!this.asrOnlineRecognizer) {
+      return { success: false };
+    }
+    // Free previous stream if any
+    if (this.asrOnlineStream) {
+      try { this.asrOnlineStream.free(); } catch (_) { /* ignore */ }
+    }
+    this.asrOnlineStream = this.asrOnlineRecognizer.createStream();
+    return { success: true };
   }
 
   async acceptAsrOnlineWaveform(
-    _sampleRate: number,
-    _samples: number[]
+    sampleRate: number,
+    samples: number[]
   ): Promise<{ success: boolean }> {
-    return { success: false };
+    if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
+      return { success: false };
+    }
+    const float32 = new Float32Array(samples);
+    this.asrOnlineStream.acceptWaveform(sampleRate, float32);
+    while (this.asrOnlineRecognizer.isReady(this.asrOnlineStream)) {
+      this.asrOnlineRecognizer.decode(this.asrOnlineStream);
+    }
+    return { success: true };
   }
 
   async isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }> {
-    return { isEndpoint: false };
+    if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
+      return { isEndpoint: false };
+    }
+    return { isEndpoint: this.asrOnlineRecognizer.isEndpoint(this.asrOnlineStream) };
   }
 
   async getAsrOnlineResult(): Promise<{
@@ -1212,11 +1260,19 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     tokens: string[];
     timestamps: number[];
   }> {
-    return { text: '', tokens: [], timestamps: [] };
+    if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
+      return { text: '', tokens: [], timestamps: [] };
+    }
+    const result = this.asrOnlineRecognizer.getResult(this.asrOnlineStream);
+    return { text: result.text, tokens: result.tokens ?? [], timestamps: [] };
   }
 
   async resetAsrOnlineStream(): Promise<{ success: boolean }> {
-    return { success: false };
+    if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
+      return { success: false };
+    }
+    this.asrOnlineRecognizer.reset(this.asrOnlineStream);
+    return { success: true };
   }
 
   // -------------------------------------------------------------------------
@@ -1227,36 +1283,86 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     try {
       await loadCombinedWasm();
 
-      console.log('[KWS] Loading model...');
-      const loadedModel = await this.sherpaOnnx.KWS.loadModel({
-        encoder: '/wasm/kws/encoder.onnx',
-        decoder: '/wasm/kws/decoder.onnx',
-        joiner: '/wasm/kws/joiner.onnx',
-        tokens: '/wasm/kws/tokens.txt',
-        debug: false,
-      });
+      const debug = config?.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+      const M = window.Module;
 
-      // Build keywords string from config or use defaults
-      const keywords: string =
-        config?.keywords ??
-        'h e l l o @Hello\nc o m p u t e r @Computer\ns h e r p a @Sherpa';
+      const keywordsFile = config?.keywordsFile || 'keywords.txt';
+      const modelDir = config?.modelDir || '/wasm/kws';
 
-      this.kwsSpotter = this.sherpaOnnx.KWS.createKeywordSpotter(
-        loadedModel,
-        {
-          keywords,
-          sampleRate: 16000,
-          numThreads: 1,
-          keywordsScore: 1.0,
-          keywordsThreshold: 0.25,
-          debug: false,
-        }
-      );
+      // Ensure WASM FS directories exist
+      const dirParts = modelDir.split('/').filter((p: string) => p);
+      let currentDir = '';
+      for (const part of dirParts) {
+        currentDir += '/' + part;
+        try { M.FS.mkdir(currentDir); } catch (_e) { /* exists */ }
+      }
+      try { M.FS.mkdir(modelDir + '/test_wavs'); } catch (_e) { /* exists */ }
 
-      // Create initial stream
+      // Load model files into WASM FS (fetch from public URL, write to same path)
+      const files = [
+        { url: `${modelDir}/encoder.onnx`, dest: `${modelDir}/encoder.onnx` },
+        { url: `${modelDir}/decoder.onnx`, dest: `${modelDir}/decoder.onnx` },
+        { url: `${modelDir}/joiner.onnx`, dest: `${modelDir}/joiner.onnx` },
+        { url: `${modelDir}/tokens.txt`, dest: `${modelDir}/tokens.txt` },
+        { url: `${modelDir}/${keywordsFile}`, dest: `${modelDir}/keywords.txt` },
+      ];
+
+      for (const f of files) {
+        try {
+          if (M.FS.analyzePath(f.dest).exists) continue;
+        } catch (_e) { /* not found */ }
+        const resp = await fetch(f.url);
+        if (!resp.ok) throw new Error(`Failed to fetch ${f.url}: HTTP ${resp.status}`);
+        const data = await resp.arrayBuffer();
+        M.FS.writeFile(f.dest, new Uint8Array(data));
+      }
+
+      // Build config — all string fields must be set (not undefined/null)
+      // to avoid NULL pointer issues in the WASM C struct
+      const configObj = {
+        featConfig: { samplingRate: 16000, featureDim: 80 },
+        modelConfig: {
+          transducer: {
+            encoder: `${modelDir}/encoder.onnx`,
+            decoder: `${modelDir}/decoder.onnx`,
+            joiner: `${modelDir}/joiner.onnx`,
+          },
+          tokens: `${modelDir}/tokens.txt`,
+          provider: 'cpu',
+          modelType: '',
+          numThreads,
+          debug,
+          modelingUnit: '',
+          bpeVocab: '',
+        },
+        maxActivePaths: config?.maxActivePaths ?? 4,
+        numTrailingBlanks: config?.numTrailingBlanks ?? 1,
+        keywordsScore: config?.keywordsScore ?? 1.0,
+        keywordsThreshold: config?.keywordsThreshold ?? 0.25,
+        keywordsFile: `${modelDir}/keywords.txt`,
+      };
+
+      // Create KWS via global createKws/Kws (from sherpa-onnx-kws.js)
+      const createKwsFn = (window as any).createKws;
+      const KwsCtor = (window as any).Kws;
+      if (typeof createKwsFn === 'function') {
+        this.kwsSpotter = createKwsFn(M, configObj) as KwsSpotter;
+      } else if (typeof KwsCtor === 'function') {
+        this.kwsSpotter = new KwsCtor(configObj, M) as KwsSpotter;
+      } else {
+        return { success: false, error: 'Neither createKws nor Kws available on window' };
+      }
+
+      if (!this.kwsSpotter?.handle) {
+        return { success: false, error: 'KWS spotter creation failed (null handle)' };
+      }
+
       this.kwsStream = this.kwsSpotter.createStream();
+      if (!this.kwsStream?.handle) {
+        return { success: false, error: 'KWS stream creation failed (null handle)' };
+      }
 
-      console.log('[KWS] Initialized');
       return { success: true };
     } catch (error) {
       console.error('[KWS] initKws failed:', error);
@@ -1283,6 +1389,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     }
     try {
       const float32 = new Float32Array(samples);
+
       this.kwsStream.acceptWaveform(sampleRate, float32);
 
       let detectedKeyword = '';
@@ -1291,7 +1398,6 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         const result = this.kwsSpotter.getResult(this.kwsStream);
         if (result.keyword && result.keyword.trim() !== '') {
           detectedKeyword = result.keyword;
-          // Reset stream after detection
           this.kwsSpotter.reset(this.kwsStream);
           break;
         }
@@ -1349,7 +1455,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // -------------------------------------------------------------------------
 
   async initAudioTagging(
-    _config: AudioTaggingModelConfig
+    config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult> {
     try {
       await loadCombinedWasm();
@@ -1358,16 +1464,19 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         return { success: false, error: 'AudioTagging module not loaded' };
       }
 
-      console.log('[AudioTagging] Loading model from /wasm/audio-tagging/...');
+      const debug = config.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[AudioTagging] Loading model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.AudioTagging.loadModel({
         ced: '/wasm/audio-tagging/model.onnx',
         labels: '/wasm/audio-tagging/labels.txt',
-        debug: false,
+        debug,
       });
 
       this.audioTagger = this.sherpaOnnx.AudioTagging.createAudioTagging(
         loadedModel,
-        { topK: _config.topK || 5 }
+        { topK: config.topK || 5, numThreads, debug }
       );
 
       console.log('[AudioTagging] Initialized successfully');
@@ -1447,7 +1556,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   private speakerIdSamplesProcessed = 0;
 
   async initSpeakerId(
-    _config: SpeakerIdModelConfig
+    config: SpeakerIdModelConfig
   ): Promise<SpeakerIdInitResult> {
     try {
       await loadCombinedWasm();
@@ -1456,13 +1565,16 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         return { success: false, embeddingDim: 0, error: 'SpeakerId module not loaded' };
       }
 
-      console.log('[SpeakerId] Loading model from /wasm/speaker-id/...');
+      const debug = config.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[SpeakerId] Loading model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.SpeakerId.loadModel({
         model: '/wasm/speaker-id/model.onnx',
-        debug: false,
+        debug,
       });
 
-      this.speakerExtractor = this.sherpaOnnx.SpeakerId.createExtractor(loadedModel);
+      this.speakerExtractor = this.sherpaOnnx.SpeakerId.createExtractor(loadedModel, { numThreads, debug });
       const dim = this.speakerExtractor.dim();
       this.speakerManager = this.sherpaOnnx.SpeakerId.createManager(dim);
 
@@ -1636,7 +1748,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // Diarization
   // -------------------------------------------------------------------------
 
-  async initDiarization(_config: any): Promise<{
+  async initDiarization(config: any): Promise<{
     success: boolean;
     sampleRate: number;
     error?: string;
@@ -1652,18 +1764,25 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         };
       }
 
-      console.log('[Diarization] Loading models from /wasm/speakers/...');
+      const debug = config?.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[Diarization] Loading models (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.SpeakerDiarization.loadModel({
         segmentation: '/wasm/speakers/segmentation.onnx',
         embedding: '/wasm/speakers/embedding.onnx',
-        debug: false,
+        debug,
       });
 
       this.diarization = this.sherpaOnnx.SpeakerDiarization.createDiarization(
         loadedModel,
         {
-          numClusters: _config?.numClusters || -1,
-          threshold: _config?.threshold || 0.5,
+          numClusters: config?.numClusters ?? -1,
+          threshold: config?.threshold ?? 0.5,
+          minDurationOn: config?.minDurationOn,
+          minDurationOff: config?.minDurationOff,
+          numThreads,
+          debug,
         }
       );
 
@@ -1758,7 +1877,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // Language ID
   // -------------------------------------------------------------------------
 
-  async initLanguageId(_config: any): Promise<{
+  async initLanguageId(config: any): Promise<{
     success: boolean;
     error?: string;
   }> {
@@ -1769,14 +1888,17 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         return { success: false, error: 'LanguageId module not loaded' };
       }
 
-      console.log('[LanguageId] Loading model from /wasm/language-id/...');
+      const debug = config?.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[LanguageId] Loading model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.LanguageId.loadModel({
         encoder: '/wasm/language-id/tiny-encoder.onnx',
         decoder: '/wasm/language-id/tiny-decoder.onnx',
-        debug: false,
+        debug,
       });
 
-      this.languageId = this.sherpaOnnx.LanguageId.createLanguageId(loadedModel);
+      this.languageId = this.sherpaOnnx.LanguageId.createLanguageId(loadedModel, { numThreads, debug });
       console.log('[LanguageId] Initialized successfully');
       return { success: true };
     } catch (error) {
@@ -1844,7 +1966,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // Punctuation
   // -------------------------------------------------------------------------
 
-  async initPunctuation(_config: any): Promise<{
+  async initPunctuation(config: any): Promise<{
     success: boolean;
     error?: string;
   }> {
@@ -1855,14 +1977,17 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         return { success: false, error: 'Punctuation module not loaded' };
       }
 
-      console.log('[Punctuation] Loading model from /wasm/punctuation/...');
+      const debug = config?.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[Punctuation] Loading model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.Punctuation.loadModel({
         cnnBilstm: '/wasm/punctuation/model.onnx',
         bpeVocab: '/wasm/punctuation/bpe.vocab',
-        debug: false,
+        debug,
       });
 
-      this.punctuation = this.sherpaOnnx.Punctuation.createPunctuation(loadedModel);
+      this.punctuation = this.sherpaOnnx.Punctuation.createPunctuation(loadedModel, { numThreads, debug });
       console.log('[Punctuation] Initialized successfully');
       return { success: true };
     } catch (error) {
@@ -1902,7 +2027,7 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   // Denoising
   // -------------------------------------------------------------------------
 
-  async initDenoiser(_config: any): Promise<{
+  async initDenoiser(config: any): Promise<{
     success: boolean;
     sampleRate: number;
     error?: string;
@@ -1918,15 +2043,18 @@ export class WebSherpaOnnxImpl implements ApiInterface {
         };
       }
 
-      console.log('[Denoiser] Loading model from /wasm/enhancement/...');
+      const debug = config?.debug ? 1 : 0;
+      const numThreads = 1; // WASM is single-threaded
+
+      console.log(`[Denoiser] Loading model (threads=${numThreads}, debug=${debug})...`);
       const loadedModel = await this.sherpaOnnx.SpeechEnhancement.loadModel({
         model: '/wasm/enhancement/gtcrn.onnx',
-        debug: false,
+        debug,
       });
 
       this.denoiser = this.sherpaOnnx.SpeechEnhancement.createDenoiser(
         loadedModel,
-        {}
+        { numThreads, debug }
       );
 
       console.log(

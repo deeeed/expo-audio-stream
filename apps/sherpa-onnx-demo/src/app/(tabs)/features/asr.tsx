@@ -170,6 +170,8 @@ export default function AsrScreen() {
       {/* Config — file mode only, only editable before initialization */}
       {mode === 'file' && selectedModelId && asrConfig && !initialized && (
         <Section title="Configuration">
+          {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
+          {Platform.OS !== 'web' && (
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Threads:</Text>
@@ -191,6 +193,7 @@ export default function AsrScreen() {
               </View>
             </View>
           </View>
+          )}
 
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -224,6 +227,8 @@ export default function AsrScreen() {
             <Switch value={debugMode} onValueChange={setDebugMode} />
           </View>
 
+          {/* Provider: hidden on web — WASM only supports CPU */}
+          {Platform.OS !== 'web' && (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Provider:</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -244,6 +249,7 @@ export default function AsrScreen() {
               ))}
             </View>
           </View>
+          )}
         </Section>
       )}
 
