@@ -17,6 +17,7 @@ import {
   DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID, createWebAudioTaggingModelState,
   DEFAULT_WEB_LANGUAGE_ID_MODEL_ID, createWebLanguageIdModelState,
   DEFAULT_WEB_PUNCTUATION_MODEL_ID, createWebPunctuationModelState,
+  isWebModelEnabled,
 } from '../../utils/constants';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
@@ -274,6 +275,10 @@ export function ModelManagementProvider({
   // Modify getModelState to handle web preloaded models
   const getModelState = useCallback((modelId: string): ModelState | undefined => {
     if (Platform.OS === 'web') {
+      // Only return preloaded state for features that are enabled in webFeatures config
+      if (!isWebModelEnabled(modelId)) {
+        return modelStates[modelId];
+      }
       const webPreloaded: Record<string, () => ModelState | undefined> = {
         [DEFAULT_WEB_TTS_MODEL_ID]: () => {
           const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_TTS_MODEL_ID);
@@ -339,7 +344,7 @@ export function ModelManagementProvider({
 
   // Similarly modify isModelDownloaded
   const isModelDownloaded = (modelId: string): boolean => {
-    if (Platform.OS === 'web' && WEB_PRELOADED_IDS.has(modelId)) {
+    if (Platform.OS === 'web' && WEB_PRELOADED_IDS.has(modelId) && isWebModelEnabled(modelId)) {
       return true;
     }
     const metadata = AVAILABLE_MODELS.find(m => m.id === modelId);
@@ -369,6 +374,7 @@ export function ModelManagementProvider({
         [DEFAULT_WEB_PUNCTUATION_MODEL_ID, createWebPunctuationModelState],
       ];
       for (const [id, factory] of factories) {
+        if (!isWebModelEnabled(id)) continue;
         const m = AVAILABLE_MODELS.find(x => x.id === id);
         if (m) states.push(factory(m));
       }

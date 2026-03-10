@@ -16,6 +16,7 @@ React Native wrapper for [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) pr
 - Low-level API for direct access to Sherpa-ONNX capabilities
 - Support for both old and new React Native architectures
 - Pre-built native libraries for Android and iOS
+- **Web/WASM support** — all 10 features work in the browser via a combined WebAssembly build
 
 ## Installation
 
@@ -344,6 +345,8 @@ For iOS, ensure that:
 
 ## Documentation
 
+- **[Web/WASM Guide](docs/WEB.md)** - How to deploy on web: setup, model customization, feature selection
+- **[WASM Build Guide](docs/WASM_BUILD.md)** - Building the WASM binary from source
 - **[Testing Framework](docs/testing/)** - Native integration testing documentation
 - **[Architecture](docs/architecture/)** - React Native architecture support and planning
 - **[Integration](docs/integration/)** - Platform integration guides
@@ -361,7 +364,6 @@ For iOS, ensure that:
 - React Native architecture-specific validation (Old vs New Architecture)
 - Real ONNX model functionality testing
 - iOS integration validation
-- Web/WASM support
 
 ## Contributing
 
