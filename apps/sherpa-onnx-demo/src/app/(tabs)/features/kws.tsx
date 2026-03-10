@@ -629,7 +629,7 @@ export default function KwsScreen() {
             <ThemedButton
               testID="kws-start-mic"
               label="Start Listening"
-              variant="success"
+              variant="primary"
               onPress={handleStartMic}
             />
           ) : (
@@ -637,7 +637,7 @@ export default function KwsScreen() {
               <ThemedButton
                 testID="kws-stop-mic"
                 label="Stop Listening"
-                variant="warning"
+                variant="danger"
                 onPress={handleStopMic}
               />
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>

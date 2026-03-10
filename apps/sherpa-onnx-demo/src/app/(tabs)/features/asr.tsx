@@ -327,7 +327,7 @@ export default function AsrScreen() {
               <ThemedButton
                 testID="btn-recognize"
                 label={processing ? 'Processing...' : 'Recognize Speech'}
-                variant="success"
+                variant="primary"
                 onPress={handleRecognizeFromFile}
                 disabled={processing}
               />
@@ -357,14 +357,14 @@ export default function AsrScreen() {
             {!recorder.isRecording ? (
               <ThemedButton
                 label="Start Listening"
-                variant="success"
+                variant="primary"
                 onPress={handleStartMic}
               />
             ) : (
               <View>
                 <ThemedButton
                   label="Stop Listening"
-                  variant="warning"
+                  variant="danger"
                   onPress={handleStopMic}
                 />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>

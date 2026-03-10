@@ -179,7 +179,7 @@ export default function TtsScreen() {
                     }}
                   />
                   <ThemedButton label="+" onPress={() => setSpeakerId(Math.min(initResult.numSpeakers - 1, speakerId + 1))} disabled={speakerId >= initResult.numSpeakers - 1} compact />
-                  <ThemedButton label="Random" variant="warning" onPress={() => setSpeakerId(Math.floor(Math.random() * initResult.numSpeakers))} compact />
+                  <ThemedButton label="Random" variant="secondary" onPress={() => setSpeakerId(Math.floor(Math.random() * initResult.numSpeakers))} compact />
                 </View>
               </View>
             )}
@@ -199,7 +199,7 @@ export default function TtsScreen() {
           </Section>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m }}>
-            <ThemedButton label="Generate Speech" variant="success" onPress={handleGenerateTts} disabled={isLoading} style={{ flex: 1 }} />
+            <ThemedButton label="Generate Speech" variant="primary" onPress={handleGenerateTts} disabled={isLoading} style={{ flex: 1 }} />
           </View>
         </>
       )}

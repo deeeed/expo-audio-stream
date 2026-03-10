@@ -121,7 +121,7 @@ export default function DenoisingScreen() {
               </View>
               <ThemedButton
                 label={processing ? 'Denoising...' : 'Denoise'}
-                variant="success"
+                variant="primary"
                 onPress={() => handleDenoise(selectedAudio)}
                 disabled={processing}
                 testID="denoising-run"

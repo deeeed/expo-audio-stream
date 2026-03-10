@@ -201,7 +201,7 @@ export default function SpeakerIdScreen() {
 
                 <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8, marginTop: theme.margin.s }}>
                   <AudioPlayButton uri={selectedAudio.localUri} compact />
-                  <ThemedButton testID="spkr-process-btn" label="Process" variant="success" onPress={() => handleProcessAudio(selectedAudio)} disabled={processing} style={{ flex: 1 }} />
+                  <ThemedButton testID="spkr-process-btn" label="Process" variant="primary" onPress={() => handleProcessAudio(selectedAudio)} disabled={processing} style={{ flex: 1 }} />
                 </View>
               </View>
             )}
@@ -249,7 +249,7 @@ export default function SpeakerIdScreen() {
                       placeholder="Enter speaker name"
                       placeholderTextColor={theme.colors.onSurfaceVariant}
                     />
-                    <ThemedButton testID="spkr-register-btn" label="Register Speaker" variant="success" onPress={handleRegisterSpeaker} disabled={!newSpeakerName.trim() || processing} />
+                    <ThemedButton testID="spkr-register-btn" label="Register Speaker" variant="primary" onPress={handleRegisterSpeaker} disabled={!newSpeakerName.trim() || processing} />
                   </View>
                 </ResultsBox>
               )}

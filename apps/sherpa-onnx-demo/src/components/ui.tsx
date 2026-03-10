@@ -110,28 +110,39 @@ function variantColors(variant: ButtonVariant, theme: AppTheme) {
 export function ThemedButton({ label, onPress, variant = 'primary', disabled, loading, testID, style, compact }: ThemedButtonProps) {
   const theme = useTheme();
   const colors = variantColors(variant, theme);
+  const isDisabled = disabled || loading;
   return (
     <TouchableOpacity
       testID={testID}
       style={[
         {
-          backgroundColor: colors.bg,
+          backgroundColor: isDisabled ? (theme.colors.surfaceVariant ?? '#BDBDBD') : colors.bg,
           paddingHorizontal: compact ? 12 : 16,
           paddingVertical: compact ? 8 : 12,
           borderRadius: theme.roundness * 2,
           alignItems: 'center',
           minWidth: compact ? 60 : 100,
+          ...Platform.select({
+            ios: { shadowColor: isDisabled ? 'transparent' : '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isDisabled ? 0 : 0.2, shadowRadius: 3 },
+            android: { elevation: isDisabled ? 0 : 3 },
+          }),
         },
-        disabled && { opacity: 0.5 },
         style,
       ]}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={isDisabled}
+      activeOpacity={0.75}
     >
       {loading ? (
-        <ActivityIndicator color={colors.text} size="small" />
+        <ActivityIndicator color={isDisabled ? theme.colors.onSurfaceVariant : colors.text} size="small" />
       ) : (
-        <Text variant={compact ? 'labelMedium' : 'labelLarge'} style={{ color: colors.text, fontWeight: '600' }}>
+        <Text
+          variant={compact ? 'labelMedium' : 'labelLarge'}
+          style={{
+            color: isDisabled ? (theme.colors.onSurfaceVariant ?? '#757575') : colors.text,
+            fontWeight: isDisabled ? '400' : '700',
+          }}
+        >
           {label}
         </Text>
       )}

@@ -213,6 +213,16 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: '5.0',
     language: 'universal',
   },
+  {
+    id: 'ten-vad',
+    name: 'TEN VAD',
+    description:
+      'Tencent TEN VAD model for voice activity detection. Alternative to Silero VAD.',
+    type: 'vad',
+    size: 2.5 * 1024 * 1024, // ~2.5 MB estimated
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/ten-vad.onnx',
+    language: 'universal',
+  },
 
   // Keyword Spotting Models
   // NOTE: Use non-mobile variant — the mobile encoder has a Reshape bug on ARM

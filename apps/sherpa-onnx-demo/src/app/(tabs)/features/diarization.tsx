@@ -282,7 +282,7 @@ export default function DiarizationScreen() {
                 <ThemedButton
                   testID="diar-run-btn"
                   label={processing ? 'Processing...' : 'Run Diarization'}
-                  variant="success"
+                  variant="primary"
                   onPress={() => handleProcessFile(selectedAudio)}
                   disabled={processing}
                   style={{ flex: 1 }}

@@ -10,7 +10,7 @@
  */
 
 import { Platform } from 'react-native'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import SherpaOnnx, { ASR, AudioTagging, KWS, LanguageId, Punctuation, SpeakerId, VAD } from '@siteed/sherpa-onnx.rn'
@@ -58,7 +58,7 @@ if (__DEV__) {
 
     navigate: (path: string) => {
       try {
-        router.push(path as never)
+        router.push(path as Href)
         return true
       } catch (e) {
         return { error: String(e) }
