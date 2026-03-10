@@ -84,6 +84,13 @@ const FEATURES: FeatureCardProps[] = [
     route: '/(tabs)/features/diarization',
     color: '#3F51B5',
   },
+  {
+    title: 'Speech Enhancement',
+    description: 'Remove background noise from audio files',
+    icon: 'volume-high',
+    route: '/(tabs)/features/denoising',
+    color: '#009688',
+  },
 ];
 
 function FeatureCard({ title, description, icon, route, color }: FeatureCardProps) {

@@ -37,6 +37,9 @@ import type {
   DiarizationModelConfig,
   DiarizationInitResult,
   DiarizationResult,
+  DenoiserModelConfig,
+  DenoiserInitResult,
+  DenoiserResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -103,6 +106,9 @@ const createWebPlaceholder = (): ApiInterface => {
     initPunctuation: notImplementedError,
     addPunctuation: notImplementedError,
     releasePunctuation: notImplementedError,
+    initDenoiser: notImplementedError,
+    denoiseFile: notImplementedError,
+    releaseDenoiser: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -419,6 +425,19 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releasePunctuation(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releasePunctuation();
+  },
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult> {
+    return NativeSherpaOnnx.initDenoiser(config as any);
+  },
+
+  denoiseFile(filePath: string): Promise<DenoiserResult> {
+    return NativeSherpaOnnx.denoiseFile(filePath);
+  },
+
+  releaseDenoiser(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseDenoiser();
   },
 
   // Archive methods

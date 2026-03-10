@@ -128,6 +128,18 @@ class SherpaOnnxTurboModuleImpl(
         implementation.releaseDiarization(promise)
     }
 
+    override fun initDenoiser(config: ReadableMap, promise: Promise) {
+        implementation.initDenoiser(config, promise)
+    }
+
+    override fun denoiseFile(filePath: String, promise: Promise) {
+        implementation.denoiseFile(filePath, promise)
+    }
+
+    override fun releaseDenoiser(promise: Promise) {
+        implementation.releaseDenoiser(promise)
+    }
+
     override fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         implementation.extractTarBz2(sourcePath, targetDir, promise)
     }

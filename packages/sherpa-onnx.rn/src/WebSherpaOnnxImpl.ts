@@ -954,6 +954,20 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // DENOISING METHODS
+
+  async initDenoiser(_config: any): Promise<{ success: boolean; sampleRate: number; error?: string }> {
+    return { success: false, sampleRate: 0, error: 'Denoising not implemented in web version yet' };
+  }
+
+  async denoiseFile(_filePath: string): Promise<{ success: boolean; outputPath: string; durationMs: number; error?: string }> {
+    return { success: false, outputPath: '', durationMs: 0, error: 'Denoising not implemented in web version yet' };
+  }
+
+  async releaseDenoiser(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // ARCHIVE METHODS
 
   async extractTarBz2(

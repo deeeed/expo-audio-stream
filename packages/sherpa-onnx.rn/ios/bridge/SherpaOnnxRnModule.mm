@@ -109,6 +109,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create Diarization handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating Denoising handler...");
+        @try {
+            self.denoisingHandler = [[SherpaOnnxDenoisingHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Denoising handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Denoising handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -1209,6 +1217,72 @@ RCT_EXPORT_METHOD(releaseDiarization:(RCTPromiseResolveBlock)resolve
             resolve(result);
         } @catch (NSException *exception) {
             reject(@"ERR_DIARIZATION_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - Denoising Methods
+
+static dispatch_queue_t denoisingSerialQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sherpaonnx.denoising", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+RCT_EXPORT_METHOD(initDenoiser:(JS::NativeSherpaOnnxSpec::SpecInitDenoiserConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelFile()) configDict[@"modelFile"] = config.modelFile();
+    if (config.numThreads()) configDict[@"numThreads"] = @((int)*config.numThreads());
+    if (config.provider()) configDict[@"provider"] = config.provider();
+    if (config.debug()) configDict[@"debug"] = @(*config.debug());
+
+    dispatch_async(denoisingSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.denoisingHandler initDenoiser:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_DENOISER_INIT", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_DENOISER_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(denoiseFile:(NSString *)filePath
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(denoisingSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.denoisingHandler denoiseFile:filePath];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_DENOISER_RUN", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_DENOISER_RUN", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releaseDenoiser:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(denoisingSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.denoisingHandler releaseDenoiser];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_DENOISER_RELEASE", exception.reason, nil);
         }
     });
 }

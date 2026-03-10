@@ -12,7 +12,8 @@ export type ModelType =
   | 'diarization-segmentation'
   | 'language-id'
   | 'audio-tagging'
-  | 'punctuation';
+  | 'punctuation'
+  | 'denoising';
 
 export type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
 
@@ -359,6 +360,20 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-online-punct-en-2024-08-06.tar.bz2',
     version: '2024-08-06',
     language: 'en',
+  },
+
+  // Speech Denoising Models
+  {
+    id: 'gtcrn-speech-denoiser',
+    name: 'GTCRN Speech Denoiser',
+    description:
+      'Lightweight neural speech enhancement model. Removes background noise from audio files. Single .onnx file (~500 KB).',
+    type: 'denoising',
+    size: 500 * 1024, // ~500 KB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speech-enhancement-models/gtcrn_simple.onnx',
+    version: '2024',
+    language: 'multilingual',
+    recommended: true,
   },
 ];
 

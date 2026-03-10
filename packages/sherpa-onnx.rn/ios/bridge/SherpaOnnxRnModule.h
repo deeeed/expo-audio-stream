@@ -20,6 +20,7 @@
 @class SherpaOnnxLanguageIdHandler;
 @class SherpaOnnxPunctuationHandler;
 @class SherpaOnnxDiarizationHandler;
+@class SherpaOnnxDenoisingHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
@@ -31,4 +32,5 @@
 @property (nonatomic, strong) SherpaOnnxLanguageIdHandler *languageIdHandler;
 @property (nonatomic, strong) SherpaOnnxPunctuationHandler *punctuationHandler;
 @property (nonatomic, strong) SherpaOnnxDiarizationHandler *diarizationHandler;
+@property (nonatomic, strong) SherpaOnnxDenoisingHandler *denoisingHandler;
 @end

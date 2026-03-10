@@ -32,6 +32,7 @@ export function useModelCounts(filterType: ModelType | 'all' = 'all') {
       'audio-tagging': { available: 0, downloaded: 0 },
       'punctuation': { available: 0, downloaded: 0 },
       'diarization-segmentation': { available: 0, downloaded: 0 },
+      'denoising': { available: 0, downloaded: 0 },
     };
 
     // Count available models in a single pass

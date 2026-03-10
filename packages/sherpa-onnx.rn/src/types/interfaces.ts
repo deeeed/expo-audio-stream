@@ -1279,6 +1279,31 @@ export interface PunctuationResult {
   error?: string;
 }
 
+// ─── Speech Denoising ────────────────────────────────────────────────────────
+
+export interface DenoiserModelConfig {
+  /** Absolute path to the GTCRN .onnx model file */
+  modelFile: string;
+  numThreads?: number;
+  provider?: string;
+  debug?: boolean;
+}
+
+export interface DenoiserInitResult {
+  success: boolean;
+  /** Expected input sample rate (16000 for GTCRN) */
+  sampleRate: number;
+  error?: string;
+}
+
+export interface DenoiserResult {
+  success: boolean;
+  /** Absolute path to the denoised WAV file written to cache/temp */
+  outputPath: string;
+  durationMs: number;
+  error?: string;
+}
+
 // Native module interface - what we expect from the native side
 export interface NativeSherpaOnnxInterface {
   // Test methods
@@ -1396,6 +1421,11 @@ export interface NativeSherpaOnnxInterface {
   initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
   addPunctuation(text: string): Promise<PunctuationResult>;
   releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
@@ -1525,6 +1555,11 @@ export interface SherpaOnnxInterface {
   addPunctuation(text: string): Promise<PunctuationResult>;
   releasePunctuation(): Promise<{ released: boolean }>;
 
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1545,6 +1580,7 @@ export interface SherpaOnnxInterface {
   Punctuation: PunctuationService;
   Archive: ArchiveService;
   Diarization: DiarizationService;
+  Denoising: import('../services/DenoisingService').DenoisingService;
 }
 
 // Result types

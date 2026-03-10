@@ -18,4 +18,5 @@ export const MODEL_TYPES: ModelTypeOption[] = [
   { type: 'audio-tagging', label: 'Audio Tagging' },
   { type: 'punctuation', label: 'Punctuation' },
   { type: 'diarization-segmentation', label: 'Diarization' },
+  { type: 'denoising', label: 'Denoising' },
 ]; 

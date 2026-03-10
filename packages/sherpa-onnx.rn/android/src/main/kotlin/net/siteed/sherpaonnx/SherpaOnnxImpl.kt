@@ -26,6 +26,7 @@ import net.siteed.sherpaonnx.handlers.TtsHandler
 import net.siteed.sherpaonnx.handlers.VadHandler
 import net.siteed.sherpaonnx.handlers.LanguageIdHandler
 import net.siteed.sherpaonnx.handlers.PunctuationHandler
+import net.siteed.sherpaonnx.handlers.DenoisingHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -39,6 +40,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val vadHandler = VadHandler(reactContext)
     private val languageIdHandler = LanguageIdHandler(reactContext)
     private val punctuationHandler = PunctuationHandler(reactContext)
+    private val denoisingHandler = DenoisingHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -259,6 +261,19 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun releasePunctuation(promise: Promise) {
         punctuationHandler.release(promise)
+    }
+
+    // Denoising Methods
+    fun initDenoiser(config: ReadableMap, promise: Promise) {
+        denoisingHandler.initDenoiser(config, promise)
+    }
+
+    fun denoiseFile(filePath: String, promise: Promise) {
+        denoisingHandler.denoiseFile(filePath, promise)
+    }
+
+    fun releaseDenoiser(promise: Promise) {
+        denoisingHandler.releaseDenoiser(promise)
     }
 
     // Utility Methods

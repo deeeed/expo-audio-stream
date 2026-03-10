@@ -491,6 +491,27 @@ export interface Spec extends TurboModule {
 
   releasePunctuation(): Promise<{ released: boolean }>;
 
+  // Denoising methods
+  initDenoiser(config: {
+    modelFile: string;
+    numThreads?: number;
+    provider?: string;
+    debug?: boolean;
+  }): Promise<{
+    success: boolean;
+    sampleRate: number;
+    error?: string;
+  }>;
+
+  denoiseFile(filePath: string): Promise<{
+    success: boolean;
+    outputPath: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseDenoiser(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

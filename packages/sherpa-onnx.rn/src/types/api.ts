@@ -36,6 +36,9 @@ import type {
   DiarizationModelConfig,
   DiarizationInitResult,
   DiarizationResult,
+  DenoiserModelConfig,
+  DenoiserInitResult,
+  DenoiserResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -213,6 +216,11 @@ export interface ApiInterface {
   initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
   addPunctuation(text: string): Promise<PunctuationResult>;
   releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
