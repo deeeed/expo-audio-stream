@@ -859,6 +859,20 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  // DIARIZATION METHODS
+
+  async initDiarization(_config: any): Promise<{ success: boolean; sampleRate: number; error?: string }> {
+    return { success: false, sampleRate: 0, error: 'Diarization not implemented in web version yet' };
+  }
+
+  async processDiarizationFile(_filePath: string, _numClusters: number, _threshold: number): Promise<{ success: boolean; segments: Array<{ start: number; end: number; speaker: number }>; numSpeakers: number; durationMs: number; error?: string }> {
+    return { success: false, segments: [], numSpeakers: 0, durationMs: 0, error: 'Diarization not implemented in web version yet' };
+  }
+
+  async releaseDiarization(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
   // KWS METHODS
 
   async initKws(_config: any): Promise<{ success: boolean; error?: string }> {

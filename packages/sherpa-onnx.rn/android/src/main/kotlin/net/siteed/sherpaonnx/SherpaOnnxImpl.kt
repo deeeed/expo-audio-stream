@@ -19,6 +19,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import net.siteed.sherpaonnx.handlers.ASRHandler
 import net.siteed.sherpaonnx.handlers.ArchiveHandler
 import net.siteed.sherpaonnx.handlers.AudioTaggingHandler
+import net.siteed.sherpaonnx.handlers.DiarizationHandler
 import net.siteed.sherpaonnx.handlers.KWSHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
@@ -33,6 +34,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val archiveHandler = ArchiveHandler(reactContext)
     private val asrHandler = ASRHandler(reactContext)
     private val speakerIdHandler = SpeakerIdHandler(reactContext)
+    private val diarizationHandler = DiarizationHandler(reactContext)
     private val kwsHandler = KWSHandler(reactContext)
     private val vadHandler = VadHandler(reactContext)
     private val languageIdHandler = LanguageIdHandler(reactContext)
@@ -180,6 +182,19 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     
     fun releaseSpeakerId(promise: Promise) {
         speakerIdHandler.release(promise)
+    }
+
+    // Diarization Methods
+    fun initDiarization(config: ReadableMap, promise: Promise) {
+        diarizationHandler.initDiarization(config, promise)
+    }
+
+    fun processDiarizationFile(filePath: String, numClusters: Int, threshold: Float, promise: Promise) {
+        diarizationHandler.processDiarizationFile(filePath, numClusters, threshold, promise)
+    }
+
+    fun releaseDiarization(promise: Promise) {
+        diarizationHandler.releaseDiarization(promise)
     }
 
     // KWS Methods

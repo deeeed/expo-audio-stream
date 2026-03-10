@@ -77,6 +77,13 @@ const FEATURES: FeatureCardProps[] = [
     route: '/(tabs)/features/punctuation',
     color: '#795548',
   },
+  {
+    title: 'Speaker Diarization',
+    description: 'Segment audio by speaker — who spoke when',
+    icon: 'people',
+    route: '/(tabs)/features/diarization',
+    color: '#3F51B5',
+  },
 ];
 
 function FeatureCard({ title, description, icon, route, color }: FeatureCardProps) {

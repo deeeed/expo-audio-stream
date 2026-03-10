@@ -334,6 +334,37 @@ export interface Spec extends TurboModule {
 
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // Diarization methods
+  initDiarization(config: {
+    segmentationModelDir: string;
+    embeddingModelFile: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+    minDurationOn?: number;
+    minDurationOff?: number;
+    numClusters?: number;
+    threshold?: number;
+  }): Promise<{
+    success: boolean;
+    sampleRate: number;
+    error?: string;
+  }>;
+
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number,
+  ): Promise<{
+    success: boolean;
+    segments: Array<{ start: number; end: number; speaker: number }>;
+    numSpeakers: number;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseDiarization(): Promise<{ released: boolean }>;
+
   // KWS methods
   initKws(config: {
     modelDir: string;

@@ -9,6 +9,7 @@ export type ModelType =
   | 'vad'
   | 'kws'
   | 'speaker-id'
+  | 'diarization-segmentation'
   | 'language-id'
   | 'audio-tagging'
   | 'punctuation';
@@ -271,6 +272,19 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx',
     version: '1.0',
     language: 'multilingual',
+  },
+
+  // Diarization Segmentation Models
+  {
+    id: 'pyannote-segmentation-3-0',
+    name: 'Pyannote Segmentation 3.0',
+    description: 'Speaker segmentation model for offline diarization (int8 quantized, ~1.5 MB).',
+    type: 'diarization-segmentation',
+    size: 1_500_000,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2',
+    version: '3.0',
+    language: 'multilingual',
+    recommended: true,
   },
 
   // Language Identification Models

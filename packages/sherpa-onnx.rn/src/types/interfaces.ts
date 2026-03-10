@@ -7,6 +7,7 @@ import { KWSService } from '../services/KWSService';
 import { VadService } from '../services/VadService';
 import { LanguageIdService } from '../services/LanguageIdService';
 import { PunctuationService } from '../services/PunctuationService';
+import { DiarizationService } from '../services/DiarizationService';
 
 /**
  * Provider type for model inference
@@ -1107,6 +1108,44 @@ export interface SpeakerIdFileProcessResult {
   error?: string;
 }
 
+// ─── Speaker Diarization ────────────────────────────────────────────────────
+
+export interface DiarizationModelConfig {
+  /** Directory containing the segmentation model (pyannote) */
+  segmentationModelDir: string;
+  /** Absolute path to the embedding model .onnx file */
+  embeddingModelFile: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: string;
+  minDurationOn?: number;
+  minDurationOff?: number;
+  /** Number of speakers (-1 = auto-detect via threshold) */
+  numClusters?: number;
+  /** Clustering threshold when numClusters=-1 */
+  threshold?: number;
+}
+
+export interface DiarizationInitResult {
+  success: boolean;
+  sampleRate: number;
+  error?: string;
+}
+
+export interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: number;
+}
+
+export interface DiarizationResult {
+  success: boolean;
+  segments: DiarizationSegment[];
+  numSpeakers: number;
+  durationMs: number;
+  error?: string;
+}
+
 /**
  * Options for speaker identification
  */
@@ -1317,6 +1356,15 @@ export interface NativeSherpaOnnxInterface {
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
+
   // KWS methods
   initKws(config: KWSModelConfig): Promise<KWSInitResult>;
   acceptKwsWaveform(
@@ -1436,6 +1484,15 @@ export interface SherpaOnnxInterface {
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
+
   // KWS methods
   initKws(config: KWSModelConfig): Promise<KWSInitResult>;
   acceptKwsWaveform(
@@ -1487,6 +1544,7 @@ export interface SherpaOnnxInterface {
   LanguageId: LanguageIdService;
   Punctuation: PunctuationService;
   Archive: ArchiveService;
+  Diarization: DiarizationService;
 }
 
 // Result types

@@ -116,6 +116,18 @@ class SherpaOnnxTurboModuleImpl(
         implementation.releaseSpeakerId(promise)
     }
 
+    override fun initDiarization(config: ReadableMap, promise: Promise) {
+        implementation.initDiarization(config, promise)
+    }
+
+    override fun processDiarizationFile(filePath: String, numClusters: Int, threshold: Float, promise: Promise) {
+        implementation.processDiarizationFile(filePath, numClusters, threshold, promise)
+    }
+
+    override fun releaseDiarization(promise: Promise) {
+        implementation.releaseDiarization(promise)
+    }
+
     override fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         implementation.extractTarBz2(sourcePath, targetDir, promise)
     }

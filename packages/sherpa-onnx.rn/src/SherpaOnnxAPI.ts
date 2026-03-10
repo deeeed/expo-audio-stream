@@ -34,6 +34,9 @@ import type {
   PunctuationModelConfig,
   PunctuationInitResult,
   PunctuationResult,
+  DiarizationModelConfig,
+  DiarizationInitResult,
+  DiarizationResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -82,6 +85,9 @@ const createWebPlaceholder = (): ApiInterface => {
     verifySpeaker: notImplementedError,
     processSpeakerIdFile: notImplementedError,
     releaseSpeakerId: notImplementedError,
+    initDiarization: notImplementedError,
+    processDiarizationFile: notImplementedError,
+    releaseDiarization: notImplementedError,
     initKws: notImplementedError,
     acceptKwsWaveform: notImplementedError,
     resetKwsStream: notImplementedError,
@@ -323,6 +329,23 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseSpeakerId(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseSpeakerId();
+  },
+
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult> {
+    return NativeSherpaOnnx.initDiarization(config as any);
+  },
+
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult> {
+    return NativeSherpaOnnx.processDiarizationFile(filePath, numClusters, threshold);
+  },
+
+  releaseDiarization(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseDiarization();
   },
 
   // KWS methods

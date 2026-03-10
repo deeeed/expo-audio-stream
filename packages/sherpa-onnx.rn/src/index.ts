@@ -2,6 +2,7 @@ import { SherpaOnnxAPI } from './SherpaOnnxAPI';
 import { ArchiveService } from './services/ArchiveService';
 import { AsrService } from './services/AsrService';
 import { AudioTaggingService } from './services/AudioTaggingService';
+import { DiarizationService } from './services/DiarizationService';
 import { KWSService } from './services/KWSService';
 import { LanguageIdService } from './services/LanguageIdService';
 import { PunctuationService } from './services/PunctuationService';
@@ -22,6 +23,7 @@ const vadService = new VadService(api);
 const languageIdService = new LanguageIdService(api);
 const punctuationService = new PunctuationService(api);
 const archiveService = new ArchiveService(api);
+const diarizationService = new DiarizationService(api);
 
 // Create the public interface
 const SherpaOnnx: SherpaOnnxInterface = {
@@ -35,6 +37,7 @@ const SherpaOnnx: SherpaOnnxInterface = {
   LanguageId: languageIdService,
   Punctuation: punctuationService,
   Archive: archiveService,
+  Diarization: diarizationService,
 };
 
 // Export the main interface
@@ -49,6 +52,7 @@ export const KWS = kwsService;
 export const VAD = vadService;
 export const LanguageId = languageIdService;
 export const Punctuation = punctuationService;
+export const Diarization = diarizationService;
 
 // Export types
 export * from './types/api';

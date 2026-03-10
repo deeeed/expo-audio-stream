@@ -101,6 +101,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create Punctuation handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating Diarization handler...");
+        @try {
+            self.diarizationHandler = [[SherpaOnnxDiarizationHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Diarization handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Diarization handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -1126,6 +1134,81 @@ RCT_EXPORT_METHOD(releasePunctuation:(RCTPromiseResolveBlock)resolve
             resolve(result);
         } @catch (NSException *exception) {
             reject(@"ERR_PUNCTUATION_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - Diarization Methods
+
+static dispatch_queue_t diarizationSerialQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sherpaonnx.diarization", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+RCT_EXPORT_METHOD(initDiarization:(JS::NativeSherpaOnnxSpec::SpecInitDiarizationConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.segmentationModelDir()) configDict[@"segmentationModelDir"] = config.segmentationModelDir();
+    if (config.embeddingModelFile()) configDict[@"embeddingModelFile"] = config.embeddingModelFile();
+    if (config.numThreads()) configDict[@"numThreads"] = @((int)*config.numThreads());
+    if (config.debug()) configDict[@"debug"] = @(*config.debug());
+    if (config.provider()) configDict[@"provider"] = config.provider();
+    if (config.minDurationOn()) configDict[@"minDurationOn"] = @((float)*config.minDurationOn());
+    if (config.minDurationOff()) configDict[@"minDurationOff"] = @((float)*config.minDurationOff());
+    if (config.numClusters()) configDict[@"numClusters"] = @((int)*config.numClusters());
+    if (config.threshold()) configDict[@"threshold"] = @((float)*config.threshold());
+
+    dispatch_async(diarizationSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.diarizationHandler initDiarization:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_DIARIZATION_INIT", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_DIARIZATION_INIT", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(processDiarizationFile:(NSString *)filePath
+                  numClusters:(double)numClusters
+                  threshold:(double)threshold
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(diarizationSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.diarizationHandler processDiarizationFile:filePath
+                                                                       numClusters:(int)numClusters
+                                                                         threshold:(float)threshold];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_DIARIZATION_PROCESS", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_DIARIZATION_PROCESS", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releaseDiarization:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(diarizationSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.diarizationHandler releaseDiarization];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_DIARIZATION_RELEASE", exception.reason, nil);
         }
     });
 }

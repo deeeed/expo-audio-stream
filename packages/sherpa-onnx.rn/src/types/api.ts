@@ -33,6 +33,9 @@ import type {
   PunctuationModelConfig,
   PunctuationInitResult,
   PunctuationResult,
+  DiarizationModelConfig,
+  DiarizationInitResult,
+  DiarizationResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -169,6 +172,15 @@ export interface ApiInterface {
   ): Promise<VerifySpeakerResult>;
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
 
   // KWS methods
   initKws(config: KWSModelConfig): Promise<KWSInitResult>;
