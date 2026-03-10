@@ -824,26 +824,21 @@ const timeout = Number.parseInt(process.env.CDP_TIMEOUT || '5000', 10);
 // Resolve WebSocket implementation once (Node 22+ built-in, else ws package)
 const WebSocketImpl = await resolveWebSocket();
 
-// -- list-devices: safe discovery, never throws ---------------------------
+// -- list-devices: safe discovery, queries state from each agentic device --
 if (command === 'list-devices') {
-  const rawTargets = await fetchTargetsSafe(port);
-  const candidates = rawTargets.filter((t) => t.webSocketDebuggerUrl);
-  const seen = new Set();
+  const allTargets = await discoverAllTargets(port, WebSocketImpl, null).catch(() => []);
   const devices = [];
-  for (const t of candidates) {
-    const name = t.deviceName || '(unnamed)';
-    if (!seen.has(name)) {
-      seen.add(name);
-      devices.push(name);
-    }
-  }
-  // Also check for web browser target
-  const webTargets = await discoverWebTargets(port, WebSocketImpl);
-  for (const wt of webTargets) {
-    if (!seen.has(wt.deviceName)) {
-      seen.add(wt.deviceName);
-      devices.push(wt.deviceName);
-    }
+  for (const target of allTargets) {
+    let state = null;
+    try {
+      const client = await createWSClient(target.wsUrl, 2000, WebSocketImpl);
+      try {
+        state = await cdpEval(client, 'globalThis.__AGENTIC__?.getState()', 2000);
+      } finally {
+        client.close();
+      }
+    } catch { /* state unavailable */ }
+    devices.push({ name: target.deviceName, ...state });
   }
   console.log(JSON.stringify({ devices, count: devices.length }, null, 2));
   process.exit(0);

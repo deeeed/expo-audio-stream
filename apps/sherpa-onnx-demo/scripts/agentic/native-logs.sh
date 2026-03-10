@@ -8,6 +8,7 @@
 #   scripts/agentic/native-logs.sh ios              # Stream iOS simulator logs (5s)
 #   scripts/agentic/native-logs.sh android follow   # Follow Android logs in real-time
 #   scripts/agentic/native-logs.sh android 50       # Last 50 lines
+#   scripts/agentic/native-logs.sh ios 30           # Stream iOS logs, last 30 lines
 #   scripts/agentic/native-logs.sh android clear    # Clear Android logcat buffer
 
 set -euo pipefail
@@ -23,6 +24,7 @@ done
 PLATFORM="${1:-}"
 MODE="${2:-}"
 
+# Apply --device to platform-specific env vars (flag takes precedence, env vars as fallback)
 if [[ -n "$DEVICE_NAME" ]]; then
   ANDROID_DEVICE="${ANDROID_DEVICE:-$DEVICE_NAME}"
   IOS_SIMULATOR="${IOS_SIMULATOR:-$DEVICE_NAME}"
@@ -46,12 +48,20 @@ Usage:
   native-logs.sh ios <N>                                Stream iOS logs, show last N lines
   native-logs.sh android clear                          Clear Android logcat buffer
 
+Examples with --device:
+  native-logs.sh --device "Pixel 6a" android
+  native-logs.sh --device "iPhone16Pro-Gamma" ios
+
 Filter tags:
   Android: SherpaOnnx, SherpaOnnxModule, SherpaOnnxTts, SherpaOnnxAsr
   iOS:     SherpaOnnx, sherpa-onnx
 
 Options:
-  --device <name>  Target device name
+  --device <name>  Target device name (sets ANDROID_DEVICE / IOS_SIMULATOR)
+
+Environment (fallback if --device not given):
+  ANDROID_DEVICE   ADB serial for target device (optional)
+  IOS_SIMULATOR    Simulator name for iOS (default: booted)
 EOF
   exit 0
 }
@@ -79,10 +89,12 @@ android_logs() {
       echo "Logcat buffer cleared."
       ;;
     ""|dump)
+      # Dump existing logs (non-blocking: -d flag)
       # shellcheck disable=SC2086
       adb $adb_target logcat -d -v threadtime | grep -E "$ANDROID_FILTER" || echo "(no matching logs found)"
       ;;
     *)
+      # Numeric = show last N lines
       if [[ "$MODE" =~ ^[0-9]+$ ]]; then
         # shellcheck disable=SC2086
         adb $adb_target logcat -d -v threadtime | grep -E "$ANDROID_FILTER" | tail -n "$MODE"
@@ -95,6 +107,7 @@ android_logs() {
 }
 
 ios_logs() {
+  # Find booted simulator UDID
   local udid
   if [[ -n "${IOS_SIMULATOR:-}" ]]; then
     udid=$(xcrun simctl list devices -j | python3 -c "
@@ -123,22 +136,37 @@ print('')
 
   if [[ -z "$udid" ]]; then
     echo "ERROR: No booted iOS simulator found." >&2
+    echo "  Boot one with: xcrun simctl boot \"iPhone16Pro-Gamma\"" >&2
     exit 1
   fi
+
+  local sim_name
+  sim_name=$(xcrun simctl list devices -j | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for runtime, devices in data.get('devices', {}).items():
+    for d in devices:
+        if d.get('udid') == '$udid':
+            print(d.get('name', 'Unknown'))
+            sys.exit(0)
+" 2>/dev/null || echo "Unknown")
 
   local timeout=5
   local line_limit=""
 
   case "${MODE}" in
     follow)
-      timeout=0
+      echo "Following iOS simulator logs for $sim_name ($udid)..." >&2
+      echo "(Ctrl+C to stop)" >&2
+      timeout=0  # no timeout
       ;;
     "")
-      echo "Streaming iOS logs for ${timeout}s..." >&2
+      echo "Streaming iOS simulator logs for $sim_name ($udid) for ${timeout}s..." >&2
       ;;
     *)
       if [[ "$MODE" =~ ^[0-9]+$ ]]; then
         line_limit="$MODE"
+        echo "Streaming iOS simulator logs for $sim_name ($udid), last $line_limit lines..." >&2
       else
         echo "Unknown mode: $MODE" >&2
         usage
@@ -146,7 +174,10 @@ print('')
       ;;
   esac
 
+  # iOS simulator log streaming via simctl
+  # The predicate filters for our log tags
   if [[ "$timeout" -eq 0 ]]; then
+    # Follow mode — no timeout
     if [[ -n "$line_limit" ]]; then
       xcrun simctl spawn "$udid" log stream --level debug \
         --predicate "$IOS_PREDICATE" 2>/dev/null | tail -n "$line_limit"
@@ -155,6 +186,7 @@ print('')
         --predicate "$IOS_PREDICATE" 2>/dev/null
     fi
   else
+    # Timed capture
     if [[ -n "$line_limit" ]]; then
       timeout "${timeout}s" xcrun simctl spawn "$udid" log stream --level debug \
         --predicate "$IOS_PREDICATE" 2>/dev/null | tail -n "$line_limit" || true

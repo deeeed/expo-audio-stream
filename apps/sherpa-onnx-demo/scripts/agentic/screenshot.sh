@@ -1,10 +1,14 @@
 #!/bin/bash
-# Take a screenshot via the unified CDP bridge (port 7500 for sherpa-onnx-demo).
+# Take a screenshot via the unified CDP bridge.
+# Platform detection and device resolution happen inside cdp-bridge.mjs.
 #
 # Usage:
 #   scripts/agentic/screenshot.sh [--device <name>] [label]
 #
 # Output: prints JSON with { screenshot: <absolute-path>, deviceName, platform }
+#         When multiple devices are connected, broadcasts to all (or use --device).
+#
+# Keeps the last 20 screenshots (managed by cdp-bridge.mjs).
 
 set -euo pipefail
 

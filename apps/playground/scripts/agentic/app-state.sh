@@ -32,29 +32,30 @@ EXTRA_ARGS=("${POSITIONAL[@]:1}")
 
 # All platforms go through cdp-bridge.mjs (unified entry point)
 # shellcheck disable=SC2086
-BRIDGE="node scripts/agentic/cdp-bridge.mjs $DEVICE_FLAG"
+BRIDGE_CMD=(node scripts/agentic/cdp-bridge.mjs)
+[[ -n "$DEVICE_FLAG" ]] && BRIDGE_CMD+=($DEVICE_FLAG)
 
 case "$COMMAND" in
   route)
-    $BRIDGE get-route
+    "${BRIDGE_CMD[@]}" get-route
     ;;
   state)
-    $BRIDGE get-state
+    "${BRIDGE_CMD[@]}" get-state
     ;;
   eval)
-    $BRIDGE eval "${EXTRA_ARGS[@]}"
+    "${BRIDGE_CMD[@]}" eval "${EXTRA_ARGS[@]}"
     ;;
   can-go-back)
-    $BRIDGE can-go-back
+    "${BRIDGE_CMD[@]}" can-go-back
     ;;
   go-back)
-    $BRIDGE go-back
+    "${BRIDGE_CMD[@]}" go-back
     ;;
   press)
-    $BRIDGE press-test-id "${EXTRA_ARGS[@]}"
+    "${BRIDGE_CMD[@]}" press-test-id "${EXTRA_ARGS[@]}"
     ;;
   scroll)
-    $BRIDGE scroll-view "${EXTRA_ARGS[@]}"
+    "${BRIDGE_CMD[@]}" scroll-view "${EXTRA_ARGS[@]}"
     ;;
   *)
     echo "Usage: app-state.sh [--device <name>] <command> [args...]"

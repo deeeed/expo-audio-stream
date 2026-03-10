@@ -21,9 +21,22 @@ TIMEOUT=60
 
 mkdir -p .agent
 
+# Detect LAN IP (skip loopback, link-local, VPN)
+LAN_IP=$(ifconfig | awk '/inet / && !/127\./ && !/169\.254\./ {print $2}' | grep -v '^::' | head -1)
+
+print_launch_hint() {
+  if [ -n "$LAN_IP" ]; then
+    echo ""
+    echo "To open the app on Android:"
+    echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+audioplayground://expo-development-client/?url=http://${LAN_IP}:${PORT}\" com.audioplayground/.MainActivity"
+    echo ""
+  fi
+}
+
 # --- Detect a running Metro via HTTP probe ---
 if curl -sf "http://localhost:${PORT}/status" >/dev/null 2>&1; then
   echo "Metro already running on port $PORT."
+  print_launch_hint
   # If we have a log file, show recent output so the caller has context
   if [ -s "$LOGFILE" ]; then
     echo "Recent logs from $LOGFILE:"
@@ -46,11 +59,13 @@ ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
   if grep -q "React Native DevTools" "$LOGFILE" 2>/dev/null; then
     echo "Metro ready after ${ELAPSED}s."
+    print_launch_hint
     exit 0
   fi
   # Also check for Expo's ready signals
   if grep -q "Logs for your project" "$LOGFILE" 2>/dev/null; then
     echo "Metro ready after ${ELAPSED}s."
+    print_launch_hint
     exit 0
   fi
   if ! kill -0 "$METRO_PID" 2>/dev/null; then

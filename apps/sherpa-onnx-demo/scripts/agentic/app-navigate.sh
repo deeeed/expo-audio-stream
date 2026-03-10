@@ -1,6 +1,7 @@
 #!/bin/bash
 # Navigate the running sherpa-onnx-demo app to a specific screen via CDP bridge.
 # Returns JSON with previousRoute, currentRoute, deviceName, platform.
+# Optionally takes a verification screenshot (--screenshot).
 #
 # Usage:
 #   scripts/agentic/app-navigate.sh <route-path>
@@ -48,12 +49,14 @@ if [ -z "$ROUTE" ]; then
   exit 1
 fi
 
+# -- Navigate via unified CDP bridge ----------------------------------------
 echo "Navigating to $ROUTE..."
 
 # shellcheck disable=SC2086
 RESULT=$(WATCHER_PORT=7500 node scripts/agentic/cdp-bridge.mjs $DEVICE_FLAG navigate "$ROUTE" 2>&1)
 echo "$RESULT"
 
+# -- Optional screenshot (opt-in with --screenshot) ------------------------
 if [ "$TAKE_SCREENSHOT" = true ]; then
   sleep 1
   # shellcheck disable=SC2086
