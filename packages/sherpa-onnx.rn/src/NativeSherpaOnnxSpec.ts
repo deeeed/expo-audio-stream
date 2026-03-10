@@ -1,5 +1,5 @@
 import type { TurboModule } from 'react-native';
-import { TurboModuleRegistry, NativeModules, Platform } from 'react-native';
+import { TurboModuleRegistry, Platform } from 'react-native';
 import type { NativeSherpaOnnxInterface } from './types/interfaces';
 
 /**
@@ -103,6 +103,7 @@ export interface Spec extends TurboModule {
     noiseScale?: number;
     noiseScaleW?: number;
     lengthScale?: number;
+    lang?: string;
   }): Promise<{
     success: boolean;
     sampleRate: number;
@@ -138,6 +139,21 @@ export interface Spec extends TurboModule {
     modelPath?: string;
     numThreads?: number;
     debug?: boolean;
+    streaming?: boolean;
+    sampleRate?: number;
+    featureDim?: number;
+    decodingMethod?: string;
+    maxActivePaths?: number;
+    provider?: string;
+    // modelFiles fields flattened for TurboModule compat
+    modelFileEncoder?: string;
+    modelFileDecoder?: string;
+    modelFileJoiner?: string;
+    modelFileTokens?: string;
+    modelFileModel?: string;
+    modelFilePreprocessor?: string;
+    modelFileUncachedDecoder?: string;
+    modelFileCachedDecoder?: string;
   }): Promise<{
     success: boolean;
     sampleRate?: number;
@@ -169,6 +185,20 @@ export interface Spec extends TurboModule {
   }>;
 
   releaseAsr(): Promise<{ released: boolean }>;
+
+  // ASR online streaming methods
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
 
   // Audio tagging methods
   initAudioTagging(config: {
@@ -304,6 +334,184 @@ export interface Spec extends TurboModule {
 
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // Diarization methods
+  initDiarization(config: {
+    segmentationModelDir: string;
+    embeddingModelFile: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+    minDurationOn?: number;
+    minDurationOff?: number;
+    numClusters?: number;
+    threshold?: number;
+  }): Promise<{
+    success: boolean;
+    sampleRate: number;
+    error?: string;
+  }>;
+
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number,
+  ): Promise<{
+    success: boolean;
+    segments: Array<{ start: number; end: number; speaker: number }>;
+    numSpeakers: number;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseDiarization(): Promise<{ released: boolean }>;
+
+  // KWS methods
+  initKws(config: {
+    modelDir: string;
+    modelType?: string;
+    modelFileEncoder?: string;
+    modelFileDecoder?: string;
+    modelFileJoiner?: string;
+    modelFileTokens?: string;
+    keywordsFile?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+    maxActivePaths?: number;
+    keywordsScore?: number;
+    keywordsThreshold?: number;
+    numTrailingBlanks?: number;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    detected: boolean;
+    keyword: string;
+    tokens?: string[];
+    timestamps?: number[];
+    error?: string;
+  }>;
+
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: {
+    modelDir: string;
+    modelFile?: string;
+    threshold?: number;
+    minSilenceDuration?: number;
+    minSpeechDuration?: number;
+    windowSize?: number;
+    maxSpeechDuration?: number;
+    bufferSizeInSeconds?: number;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    isSpeechDetected: boolean;
+    segments: Array<{
+      start: number;
+      duration: number;
+      startTime: number;
+      endTime: number;
+    }>;
+    error?: string;
+  }>;
+
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: {
+    modelDir: string;
+    encoderFile?: string;
+    decoderFile?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{
+    success: boolean;
+    language: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  detectLanguageFromFile(filePath: string): Promise<{
+    success: boolean;
+    language: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: {
+    modelDir: string;
+    cnnBilstm?: string;
+    bpeVocab?: string;
+    numThreads?: number;
+    debug?: boolean;
+    provider?: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+
+  addPunctuation(text: string): Promise<{
+    success: boolean;
+    text: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: {
+    modelFile: string;
+    numThreads?: number;
+    provider?: string;
+    debug?: boolean;
+  }): Promise<{
+    success: boolean;
+    sampleRate: number;
+    error?: string;
+  }>;
+
+  denoiseFile(filePath: string): Promise<{
+    success: boolean;
+    outputPath: string;
+    durationMs: number;
+    error?: string;
+  }>;
+
+  releaseDenoiser(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -316,69 +524,14 @@ export interface Spec extends TurboModule {
 }
 
 /**
- * Get the native module, with proper handling for different architectures and platforms
+ * Get the native TurboModule (new architecture only).
+ * Returns null on web platform.
  */
 export function getNativeModule(): NativeSherpaOnnxInterface | null {
-  // Web platform gets a null module (for now)
   if (Platform.OS === 'web') {
     return null;
   }
-
-  // Debug: Check what modules are available
-  const sherpaModules = Object.keys(NativeModules).filter(k => k.includes('Sherpa'));
-  console.log('[SherpaOnnx] Available Sherpa modules:', sherpaModules);
-  
-  // Debug: Check all available modules 
-  const allModules = Object.keys(NativeModules);
-  console.log('[SherpaOnnx] Total available modules:', allModules.length);
-  console.log('[SherpaOnnx] First 10 modules:', allModules.slice(0, 10));
-  
-  // Check if our module is registered under any name
-  const onnxModules = allModules.filter(k => k.toLowerCase().includes('onnx') || k.toLowerCase().includes('sherpa'));
-  console.log('[SherpaOnnx] ONNX-related modules:', onnxModules);
-
-  // Try the new architecture first
-  try {
-    const turboModule = TurboModuleRegistry.getEnforcing<Spec>(
-      'SherpaOnnx'
-    ) as NativeSherpaOnnxInterface;
-    console.log('[SherpaOnnx] Loaded via TurboModule');
-    return turboModule;
-  } catch (e) {
-    console.warn('[SherpaOnnx] TurboModule failed:', e);
-    
-    // Try alternative TurboModule names
-    const possibleTurboNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx', 'SherpaOnnxSpec'];
-    for (const name of possibleTurboNames) {
-      try {
-        const turboModule = TurboModuleRegistry.getEnforcing<Spec>(name) as NativeSherpaOnnxInterface;
-        console.log(`[SherpaOnnx] Loaded via TurboModule with name: ${name}`);
-        return turboModule;
-      } catch (e2) {
-        console.warn(`[SherpaOnnx] TurboModule name ${name} failed:`, e2);
-      }
-    }
-    
-    // Fall back to old architecture if TurboModule not available
-    const bridgeModule = NativeModules.SherpaOnnx as NativeSherpaOnnxInterface;
-    if (bridgeModule) {
-      console.log('[SherpaOnnx] Loaded via Bridge');
-      return bridgeModule;
-    }
-    
-    // Try alternative Bridge module names
-    const possibleBridgeNames = ['SherpaOnnxRnModule', 'NativeSherpaOnnx'];
-    for (const name of possibleBridgeNames) {
-      const module = NativeModules[name] as NativeSherpaOnnxInterface;
-      if (module) {
-        console.log(`[SherpaOnnx] Loaded via Bridge with name: ${name}`);
-        return module;
-      }
-    }
-    
-    console.error('[SherpaOnnx] No native module found with any name!');
-    return null;
-  }
+  return TurboModuleRegistry.getEnforcing<Spec>('SherpaOnnx') as NativeSherpaOnnxInterface;
 }
 
 export default getNativeModule();

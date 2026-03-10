@@ -12,12 +12,22 @@ data class SileroVadModelConfig(
     var maxSpeechDuration: Float = 5.0F,
 )
 
+data class TenVadModelConfig(
+    var model: String = "",
+    var threshold: Float = 0.5F,
+    var minSilenceDuration: Float = 0.25F,
+    var minSpeechDuration: Float = 0.25F,
+    var windowSize: Int = 512,
+    var maxSpeechDuration: Float = 5.0F,
+)
+
 data class VadModelConfig(
     var sileroVadModelConfig: SileroVadModelConfig = SileroVadModelConfig(),
     var sampleRate: Int = 16000,
     var numThreads: Int = 1,
     var provider: String = "cpu",
     var debug: Boolean = false,
+    var tenVadModelConfig: TenVadModelConfig = TenVadModelConfig(),
 )
 
 class SpeechSegment(val start: Int, val samples: FloatArray)
@@ -50,10 +60,7 @@ class Vad(
     fun empty(): Boolean = empty(ptr)
     fun pop() = pop(ptr)
 
-    fun front(): SpeechSegment {
-        val segment = front(ptr)
-        return SpeechSegment(segment[0] as Int, segment[1] as FloatArray)
-    }
+    fun front(): SpeechSegment = front(ptr)
 
     fun clear() = clear(ptr)
 
@@ -78,7 +85,7 @@ class Vad(
     private external fun empty(ptr: Long): Boolean
     private external fun pop(ptr: Long)
     private external fun clear(ptr: Long)
-    private external fun front(ptr: Long): Array<Any>
+    private external fun front(ptr: Long): SpeechSegment
     private external fun isSpeechDetected(ptr: Long): Boolean
     private external fun reset(ptr: Long)
     private external fun flush(ptr: Long)

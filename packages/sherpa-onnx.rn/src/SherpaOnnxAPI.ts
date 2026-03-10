@@ -22,6 +22,24 @@ import type {
   TtsModelConfig,
   ValidateResult,
   VerifySpeakerResult,
+  KWSModelConfig,
+  KWSInitResult,
+  KWSAcceptWaveformResult,
+  VadModelConfig,
+  VadInitResult,
+  VadAcceptWaveformResult,
+  LanguageIdModelConfig,
+  LanguageIdInitResult,
+  LanguageIdResult,
+  PunctuationModelConfig,
+  PunctuationInitResult,
+  PunctuationResult,
+  DiarizationModelConfig,
+  DiarizationInitResult,
+  DiarizationResult,
+  DenoiserModelConfig,
+  DenoiserInitResult,
+  DenoiserResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -51,6 +69,11 @@ const createWebPlaceholder = (): ApiInterface => {
     recognizeFromSamples: notImplementedError,
     recognizeFromFile: notImplementedError,
     releaseAsr: notImplementedError,
+    createAsrOnlineStream: notImplementedError,
+    acceptAsrOnlineWaveform: notImplementedError,
+    isAsrOnlineEndpoint: notImplementedError,
+    getAsrOnlineResult: notImplementedError,
+    resetAsrOnlineStream: notImplementedError,
     initAudioTagging: notImplementedError,
     processAndComputeAudioTagging: notImplementedError,
     processAndComputeAudioSamples: notImplementedError,
@@ -65,6 +88,27 @@ const createWebPlaceholder = (): ApiInterface => {
     verifySpeaker: notImplementedError,
     processSpeakerIdFile: notImplementedError,
     releaseSpeakerId: notImplementedError,
+    initDiarization: notImplementedError,
+    processDiarizationFile: notImplementedError,
+    releaseDiarization: notImplementedError,
+    initKws: notImplementedError,
+    acceptKwsWaveform: notImplementedError,
+    resetKwsStream: notImplementedError,
+    releaseKws: notImplementedError,
+    initVad: notImplementedError,
+    acceptVadWaveform: notImplementedError,
+    resetVad: notImplementedError,
+    releaseVad: notImplementedError,
+    initLanguageId: notImplementedError,
+    detectLanguage: notImplementedError,
+    detectLanguageFromFile: notImplementedError,
+    releaseLanguageId: notImplementedError,
+    initPunctuation: notImplementedError,
+    addPunctuation: notImplementedError,
+    releasePunctuation: notImplementedError,
+    initDenoiser: notImplementedError,
+    denoiseFile: notImplementedError,
+    releaseDenoiser: notImplementedError,
     extractTarBz2: notImplementedError,
   };
 };
@@ -146,7 +190,28 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   // ASR methods
   initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
-    return NativeSherpaOnnx.initAsr(config as any);
+    // Flatten modelFiles into top-level keys for TurboModule compatibility
+    const nativeConfig: Record<string, unknown> = {
+      modelDir: config.modelDir,
+      modelType: config.modelType,
+      numThreads: config.numThreads,
+      debug: config.debug,
+      streaming: config.streaming,
+      decodingMethod: config.decodingMethod,
+      maxActivePaths: config.maxActivePaths,
+      provider: config.provider,
+    };
+    if (config.modelFiles) {
+      nativeConfig.modelFileEncoder = config.modelFiles.encoder;
+      nativeConfig.modelFileDecoder = config.modelFiles.decoder;
+      nativeConfig.modelFileJoiner = config.modelFiles.joiner;
+      nativeConfig.modelFileTokens = config.modelFiles.tokens;
+      nativeConfig.modelFileModel = config.modelFiles.model;
+      nativeConfig.modelFilePreprocessor = config.modelFiles.preprocessor;
+      nativeConfig.modelFileUncachedDecoder = config.modelFiles.uncachedDecoder;
+      nativeConfig.modelFileCachedDecoder = config.modelFiles.cachedDecoder;
+    }
+    return NativeSherpaOnnx.initAsr(nativeConfig as any);
   },
 
   recognizeFromSamples(
@@ -164,6 +229,34 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.releaseAsr();
   },
 
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.createAsrOnlineStream();
+  },
+
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.acceptAsrOnlineWaveform(sampleRate, samples);
+  },
+
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }> {
+    return NativeSherpaOnnx.isAsrOnlineEndpoint();
+  },
+
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }> {
+    return NativeSherpaOnnx.getAsrOnlineResult();
+  },
+
+  resetAsrOnlineStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetAsrOnlineStream();
+  },
+
   // Audio tagging methods
   initAudioTagging(
     config: AudioTaggingModelConfig
@@ -173,21 +266,17 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   processAndComputeAudioTagging(
     filePath: string,
-    topK?: number
+    _topK?: number
   ): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath, topK);
+    return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
   },
 
   processAndComputeAudioSamples(
     sampleRate: number,
     samples: number[],
-    topK?: number
+    _topK?: number
   ): Promise<AudioTaggingResult> {
-    return NativeSherpaOnnx.processAndComputeAudioSamples(
-      sampleRate,
-      samples,
-      topK
-    );
+    return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
   },
 
   releaseAudioTagging(): Promise<{ released: boolean }> {
@@ -246,6 +335,109 @@ export const SherpaOnnxAPI: ApiInterface = {
 
   releaseSpeakerId(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseSpeakerId();
+  },
+
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult> {
+    return NativeSherpaOnnx.initDiarization(config as any);
+  },
+
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult> {
+    return NativeSherpaOnnx.processDiarizationFile(filePath, numClusters, threshold);
+  },
+
+  releaseDiarization(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseDiarization();
+  },
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult> {
+    return NativeSherpaOnnx.initKws(config as any);
+  },
+
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult> {
+    return NativeSherpaOnnx.acceptKwsWaveform(sampleRate, samples);
+  },
+
+  resetKwsStream(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetKwsStream();
+  },
+
+  releaseKws(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseKws();
+  },
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult> {
+    return NativeSherpaOnnx.initVad(config as any);
+  },
+
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult> {
+    return NativeSherpaOnnx.acceptVadWaveform(sampleRate, samples);
+  },
+
+  resetVad(): Promise<{ success: boolean }> {
+    return NativeSherpaOnnx.resetVad();
+  },
+
+  releaseVad(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseVad();
+  },
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult> {
+    return NativeSherpaOnnx.initLanguageId(config as any);
+  },
+
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult> {
+    return NativeSherpaOnnx.detectLanguage(sampleRate, samples);
+  },
+
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult> {
+    return NativeSherpaOnnx.detectLanguageFromFile(filePath);
+  },
+
+  releaseLanguageId(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseLanguageId();
+  },
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult> {
+    return NativeSherpaOnnx.initPunctuation(config as any);
+  },
+
+  addPunctuation(text: string): Promise<PunctuationResult> {
+    return NativeSherpaOnnx.addPunctuation(text);
+  },
+
+  releasePunctuation(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releasePunctuation();
+  },
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult> {
+    return NativeSherpaOnnx.initDenoiser(config as any);
+  },
+
+  denoiseFile(filePath: string): Promise<DenoiserResult> {
+    return NativeSherpaOnnx.denoiseFile(filePath);
+  },
+
+  releaseDenoiser(): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseDenoiser();
   },
 
   // Archive methods

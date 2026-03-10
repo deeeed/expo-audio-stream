@@ -52,6 +52,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 val lexiconFile = modelConfig.getString("lexiconFile")
                 val vocoderFile = modelConfig.getString("vocoderFile")
                 val dataDirInput = modelConfig.getString("dataDir")
+                val lang = modelConfig.getString("lang")
                 val modelType = modelConfig.getString("ttsModelType") ?: "vits"
                 val sampleRate = if (modelConfig.hasKey("sampleRate")) modelConfig.getInt("sampleRate") else 16000
                 val numThreads = if (modelConfig.hasKey("numThreads")) modelConfig.getInt("numThreads") else 1
@@ -175,11 +176,20 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     }
                 }
                 
-                lexiconAbsPath?.let {
+                // Validate optional files — clear path if file is missing to avoid native protobuf parse failures
+                val effectiveLexiconAbsPath = lexiconAbsPath?.let {
                     val file = File(it)
                     if (!file.exists()) {
-                        Log.w(TAG, "Lexicon file not found: $it")
-                    }
+                        Log.w(TAG, "Lexicon file not found, ignoring: $it")
+                        null
+                    } else it
+                }
+                val effectiveVoicesAbsPath = voicesAbsPath?.let {
+                    val file = File(it)
+                    if (!file.exists()) {
+                        Log.w(TAG, "Voices file not found, ignoring: $it")
+                        null
+                    } else it
                 }
                 
                 // Create TTS model config and main config objects
@@ -192,7 +202,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         // Create VITS config
                         val vitsConfig = OfflineTtsVitsModelConfig(
                             model = modelAbsPath,
-                            lexicon = lexiconAbsPath ?: "",
+                            lexicon = effectiveLexiconAbsPath ?: "",
                             tokens = tokensAbsPath
                         )
                         
@@ -210,13 +220,16 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                         // Create Kokoro config
                         val kokoroConfig = OfflineTtsKokoroModelConfig(
                             model = modelAbsPath,
-                            voices = voicesAbsPath ?: "",
+                            voices = effectiveVoicesAbsPath ?: "",
                             tokens = tokensAbsPath
                         )
                         
                         // Set data directory and other properties
                         kokoroConfig.dataDir = dataDirAbsPath
                         kokoroConfig.lengthScale = 1.0f
+                        if (!lang.isNullOrEmpty()) {
+                            kokoroConfig.lang = lang
+                        }
                         
                         // Set in the model config
                         ttsModelConfig.kokoro = kokoroConfig
@@ -236,13 +249,13 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                             matchaConfig.vocoder = vocoderAbsPath
                         }
                         // Fall back to voicesFile for backward compatibility
-                        else if (voicesAbsPath != null) {
-                            matchaConfig.vocoder = voicesAbsPath
+                        else if (effectiveVoicesAbsPath != null) {
+                            matchaConfig.vocoder = effectiveVoicesAbsPath
                         }
-                        
-                        // Set lexicon if provided
-                        if (lexiconAbsPath != null) {
-                            matchaConfig.lexicon = lexiconAbsPath
+
+                        // Set lexicon if provided and exists
+                        if (effectiveLexiconAbsPath != null) {
+                            matchaConfig.lexicon = effectiveLexiconAbsPath
                         }
                         
                         // Set data directory
@@ -272,32 +285,27 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 // Log the configuration for debugging
                 Log.i(TAG, "TTS Config: $ttsConfig")
                 
-                // Try creating TTS with file access first (absolute paths)
-                try {
-                    tts = OfflineTts(config = ttsConfig)
-                    Log.i(TAG, "Successfully created TTS instance using file paths")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to initialize TTS with file paths: ${e.message}. Trying with assets.")
-                    // Fall back to using assets if file access fails
-                    tts = OfflineTts(reactContext.assets, ttsConfig)
-                }
+                // Create TTS instance using absolute file paths (downloaded models only)
+                tts = OfflineTts(config = ttsConfig)
+                Log.i(TAG, "Successfully created TTS instance using file paths")
                 
                 // Check if initialization was successful
                 if (tts == null) {
                     throw Exception("Failed to initialize TTS engine")
                 }
-                
-                // Store the sample rate
-                currentSampleRate = sampleRate
-                Log.i(TAG, "Using sample rate: $currentSampleRate Hz")
-                
-                // Initialize audio track with the sample rate
+
+                // Read actual sample rate from native model (overrides JS config value)
+                currentSampleRate = tts!!.sampleRate()
+                Log.i(TAG, "Native model sample rate: $currentSampleRate Hz")
+
+                // Initialize audio track with the actual model sample rate
                 initAudioTrack(currentSampleRate)
-                
+
                 // Return success result
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
                 resultMap.putInt("sampleRate", currentSampleRate)
+                resultMap.putInt("numSpeakers", tts!!.numSpeakers())
                 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)
@@ -447,10 +455,14 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     var totalSamplesWritten = 0
                     var totalCalls = 0
                     
-                    tts?.generateWithCallback(text, speakerId, speakingRate) { samples ->
+                    // Use explicit Function1 object instead of a lambda to prevent D8 from
+                    // desugaring it into ExternalSyntheticLambda, which breaks the JNI lookup
+                    // of invoke([F)Ljava/lang/Integer; in generateWithCallbackImpl.
+                    tts?.generateWithCallback(text, speakerId, speakingRate, object : Function1<FloatArray, Int> {
+                        override fun invoke(samples: FloatArray): Int {
                         if (!isGenerating) {
                             Log.i(TAG, "TTS generation interrupted by stop request")
-                            return@generateWithCallback 0  // Stop generating
+                            return 0  // Stop generating
                         }
                         
                         totalCalls++
@@ -466,10 +478,10 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                                 Thread.sleep(50)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Failed to reinitialize AudioTrack: ${e.message}")
-                                return@generateWithCallback 1 // Continue but skip playing this chunk
+                                return 1 // Continue but skip playing this chunk
                             }
                         }
-                        
+
                         try {
                             // Convert float samples to short samples for PCM_16BIT encoding
                             val shortSamples = ShortArray(samples.size)
@@ -481,16 +493,16 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                                 val clampedSample = if (sample < -1.0f) -1.0f else if (sample > 1.0f) 1.0f else sample
                                 shortSamples[i] = (clampedSample * 32767.0f).toInt().toShort()
                             }
-                            
+
                             // Write in chunks to prevent underruns - use a chunk size that's not too small
                             // and not too large (1024 samples is a good compromise)
                             val chunkSize = 2048
                             var offset = 0
-                            
+
                             while (offset < shortSamples.size) {
                                 val remainingSize = shortSamples.size - offset
                                 val currentChunkSize = kotlin.math.min(chunkSize, remainingSize)
-                                
+
                                 // Check if the AudioTrack is still valid before writing
                                 if (audioTrack?.state != AudioTrack.STATE_INITIALIZED) {
                                     Log.w(TAG, "AudioTrack disabled during chunk write, reinitializing...")
@@ -502,7 +514,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                                         continue
                                     }
                                 }
-                                
+
                                 val written = audioTrack?.write(shortSamples, offset, currentChunkSize, AudioTrack.WRITE_BLOCKING) ?: 0
                                 if (written > 0) {
                                     totalSamplesWritten += written
@@ -513,19 +525,20 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                                     offset += currentChunkSize
                                 }
                             }
-                            
+
                             if (totalCalls % 10 == 0) {
                                 Log.d(TAG, "Playing audio: $totalSamplesWritten samples written so far in $totalCalls calls")
                             }
-                            
-                            return@generateWithCallback 1  // Continue generating
+
+                            return 1  // Continue generating
                         } catch (e: Exception) {
                             Log.e(TAG, "Error during audio playback: ${e.message}")
                             e.printStackTrace() // Add stack trace for better debugging
-                            return@generateWithCallback 1  // Continue but skip playing this chunk
+                            return 1  // Continue but skip playing this chunk
                         }
-                    }
-                    
+                        } // end invoke
+                    }) // end object / generateWithCallback
+
                     Log.d(TAG, "Completed callback generation. Total samples: $totalSamplesWritten in $totalCalls callback calls")
                 } else {
                     // Generate without playback
@@ -545,7 +558,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     val filePath = "${reactContext.cacheDir.absolutePath}/$fileName.wav"
                     
                     // Use the correct sample rate from the model
-                    val saved = AudioUtils.saveAsWav(audio, 22050, filePath)
+                    val saved = AudioUtils.saveAsWav(audio, currentSampleRate, filePath)
                     Log.d(TAG, "Audio saved: $saved, file path: $filePath")
                     
                     val resultMap = Arguments.createMap()
@@ -569,7 +582,7 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                     val filePath = "${reactContext.cacheDir.absolutePath}/$fileName.wav"
                     
                     // Use the correct sample rate from the model
-                    val saved = AudioUtils.saveAsWav(audio, 22050, filePath)
+                    val saved = AudioUtils.saveAsWav(audio, currentSampleRate, filePath)
                     Log.d(TAG, "Audio saved: $saved, file path: $filePath")
                     
                     val resultMap = Arguments.createMap()
@@ -624,11 +637,8 @@ class TtsHandler(private val reactContext: ReactApplicationContext) {
                 Log.e(TAG, "Error releasing AudioTrack: ${e.message}")
             }
             
-            // IMPORTANT: VITS models use 22050Hz sample rate by default, not 16000Hz
-            // Use the model's reported sample rate, the passed sampleRate parameter is only a suggestion
-            val sherpaModelSampleRate = 22050 // Always use model's native sample rate for best quality
-            currentSampleRate = sherpaModelSampleRate
-            Log.d(TAG, "Using VITS model's native sample rate: $currentSampleRate Hz for AudioTrack")
+            val sherpaModelSampleRate = sampleRate
+            Log.d(TAG, "Using model sample rate: $sherpaModelSampleRate Hz for AudioTrack")
             
             // Calculate buffer size - use a MUCH larger multiplier to prevent underruns
             val minBufferSize = AudioTrack.getMinBufferSize(

@@ -1,4 +1,4 @@
-import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, PunctuationModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { ModelType } from '../utils/models';
 
@@ -9,6 +9,10 @@ export interface PredefinedModelConfig {
   asrConfig?: Partial<AsrModelConfig>;
   audioTaggingConfig?: Partial<AudioTaggingModelConfig>;
   speakerIdConfig?: Partial<SpeakerIdModelConfig>;
+  kwsConfig?: Partial<KWSModelConfig>;
+  vadConfig?: Partial<VadModelConfig>;
+  languageIdConfig?: Partial<LanguageIdModelConfig>;
+  punctuationConfig?: Partial<PunctuationModelConfig>;
 }
 
 // Map of model IDs to their predefined configurations
@@ -36,14 +40,13 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       dataDir: 'espeak-ng-data',
     }
   },
-  'vits-piper-en-high': {
-    id: 'vits-piper-en-high',
+  'vits-piper-en-libritts_r-medium': {
+    id: 'vits-piper-en-libritts_r-medium',
     modelType: 'tts',
     ttsConfig: {
       ttsModelType: 'vits',
-      modelFile: 'en_US-libritts-high.onnx',
+      modelFile: 'en_US-libritts_r-medium.onnx',
       tokensFile: 'tokens.txt',
-      lexiconFile: 'lexicon.txt',
       dataDir: 'espeak-ng-data',
     }
   },
@@ -56,6 +59,18 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       tokensFile: 'tokens.txt',
       voicesFile: 'voices.bin',
       dataDir: 'espeak-ng-data',
+    }
+  },
+  'kokoro-multi-lang-v1_1': {
+    id: 'kokoro-multi-lang-v1_1',
+    modelType: 'tts',
+    ttsConfig: {
+      ttsModelType: 'kokoro',
+      modelFile: 'model.onnx',
+      tokensFile: 'tokens.txt',
+      voicesFile: 'voices.bin',
+      dataDir: 'espeak-ng-data',
+      lang: 'en',
     }
   },
   'matcha-icefall-en': {
@@ -79,8 +94,8 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       numThreads: 2,
       decodingMethod: 'greedy_search',
       maxActivePaths: 4,
-      streaming: false,
-      debug: true,
+      streaming: true,
+      debug: false,
       provider: 'cpu',
       modelFiles: {
         encoder: 'encoder-epoch-99-avg-1.int8.onnx',
@@ -234,6 +249,19 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       provider: 'cpu'
     }
   },
+  'ced-mini-audio-tagging': {
+    id: 'ced-mini-audio-tagging',
+    modelType: 'audio-tagging',
+    audioTaggingConfig: {
+      modelType: 'ced',
+      modelFile: 'model.int8.onnx',
+      labelsFile: 'class_labels_indices.csv',
+      numThreads: 2,
+      topK: 5,
+      debug: true,
+      provider: 'cpu'
+    }
+  },
   'ced-base-audio-tagging': {
     id: 'ced-base-audio-tagging',
     modelType: 'audio-tagging',
@@ -247,37 +275,131 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
       provider: 'cpu'
     }
   },
-  // Speaker ID model configurations
-  'speaker-embedding-zh': {
-    id: 'speaker-embedding-zh',
+  // Speaker ID model configurations (IDs must match models.ts catalog)
+  'speaker-id-en-voxceleb': {
+    id: 'speaker-id-en-voxceleb',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
+      modelFile: '3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx',
       numThreads: 2,
-      debug: true,
+      debug: false,
       provider: 'cpu'
     }
   },
-  'speaker-embedding-en': {
-    id: 'speaker-embedding-en',
+  'speaker-id-zh-cn': {
+    id: 'speaker-id-zh-cn',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
+      modelFile: '3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx',
       numThreads: 2,
-      debug: true,
+      debug: false,
       provider: 'cpu'
     }
   },
-  'wendsonar-speaker-embedding': {
-    id: 'wendsonar-speaker-embedding',
+  'speaker-id-zh-en-advanced': {
+    id: 'speaker-id-zh-en-advanced',
     modelType: 'speaker-id',
     speakerIdConfig: {
-      modelFile: 'model.onnx',
+      modelFile: '3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx',
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu'
+    }
+  },
+  // KWS model configurations (IDs must match models.ts catalog)
+  'kws-zipformer-gigaspeech': {
+    id: 'kws-zipformer-gigaspeech',
+    modelType: 'kws',
+    kwsConfig: {
+      modelType: 'zipformer2',
+      modelFiles: {
+        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
+        tokens: 'tokens.txt',
+      },
+      keywordsFile: 'keywords.txt',
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu',
+      maxActivePaths: 4,
+      keywordsScore: 1.5,
+      keywordsThreshold: 0.25,
+      numTrailingBlanks: 2,
+    }
+  },
+  'kws-zipformer-wenetspeech': {
+    id: 'kws-zipformer-wenetspeech',
+    modelType: 'kws',
+    kwsConfig: {
+      modelType: 'zipformer2',
+      modelFiles: {
+        encoder: 'encoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        decoder: 'decoder-epoch-12-avg-2-chunk-16-left-64.onnx',
+        joiner: 'joiner-epoch-12-avg-2-chunk-16-left-64.onnx',
+        tokens: 'tokens.txt',
+      },
+      keywordsFile: 'keywords.txt',
+      numThreads: 2,
+      debug: false,
+      provider: 'cpu',
+      maxActivePaths: 4,
+      keywordsScore: 1.5,
+      keywordsThreshold: 0.25,
+      numTrailingBlanks: 2,
+    }
+  },
+  // VAD model configurations
+  'silero-vad-v5': {
+    id: 'silero-vad-v5',
+    modelType: 'vad',
+    vadConfig: {
+      modelFile: 'silero_vad_v5.onnx',
+      threshold: 0.5,
+      minSilenceDuration: 0.25,
+      minSpeechDuration: 0.25,
+      windowSize: 512,
+      maxSpeechDuration: 5.0,
       numThreads: 1,
-      debug: true,
-      provider: 'cpu'
+      debug: false,
+      provider: 'cpu',
     }
-  }
+  },
+  // Language ID model configurations
+  'whisper-tiny-multilingual': {
+    id: 'whisper-tiny-multilingual',
+    modelType: 'language-id',
+    languageIdConfig: {
+      encoderFile: 'tiny-encoder.int8.onnx',
+      decoderFile: 'tiny-decoder.int8.onnx',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
+  'whisper-small-multilingual-lang-id': {
+    id: 'whisper-small-multilingual-lang-id',
+    modelType: 'language-id',
+    languageIdConfig: {
+      encoderFile: 'small-encoder.int8.onnx',
+      decoderFile: 'small-decoder.int8.onnx',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
+  // Punctuation model configurations
+  'online-punct-en': {
+    id: 'online-punct-en',
+    modelType: 'punctuation',
+    punctuationConfig: {
+      cnnBilstm: 'model.onnx',
+      bpeVocab: 'bpe.vocab',
+      numThreads: 1,
+      debug: false,
+      provider: 'cpu',
+    }
+  },
 };
 
 /**
@@ -320,6 +442,35 @@ export function useAudioTaggingModelConfig({ modelId }: { modelId: string | null
 export function useSpeakerIdModelConfig({ modelId }: { modelId: string | null }): Partial<SpeakerIdModelConfig> | undefined {
   const config = useModelConfig({ modelId });
   return config?.speakerIdConfig;
+}
+
+/**
+ * Get KWS specific configuration for a model
+ */
+export function useKwsModelConfig({ modelId }: { modelId: string | null }): Partial<KWSModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.kwsConfig;
+}
+
+/**
+ * Get VAD specific configuration for a model
+ */
+export function useVadModelConfig({ modelId }: { modelId: string | null }): Partial<VadModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.vadConfig;
+}
+
+/**
+ * Get Language ID specific configuration for a model
+ */
+export function useLanguageIdModelConfig({ modelId }: { modelId: string | null }): Partial<LanguageIdModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.languageIdConfig;
+}
+
+export function usePunctuationModelConfig({ modelId }: { modelId: string | null }): Partial<PunctuationModelConfig> | undefined {
+  const config = useModelConfig({ modelId });
+  return config?.punctuationConfig;
 }
 
 /**

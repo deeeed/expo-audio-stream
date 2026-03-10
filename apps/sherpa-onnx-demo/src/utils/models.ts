@@ -9,9 +9,11 @@ export type ModelType =
   | 'vad'
   | 'kws'
   | 'speaker-id'
+  | 'diarization-segmentation'
   | 'language-id'
   | 'audio-tagging'
-  | 'punctuation';
+  | 'punctuation'
+  | 'denoising';
 
 export type AssetSourceType = Parameters<typeof Asset.fromModule>[0]
 
@@ -34,6 +36,7 @@ export interface ModelMetadata {
   url: string;
   version: string;
   language: string;
+  recommended?: boolean;
   // Use the new DependencyMetadata interface
   dependencies?: DependencyMetadata[];
 }
@@ -126,9 +129,9 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
 
   {
     id: 'vits-piper-en-medium',
-    name: 'VITS Piper (Medium Quality)',
+    name: 'VITS Piper ljspeech (Medium)',
     description:
-      'Compact medium-quality model for American English, balancing size and clarity for mobile apps.',
+      'Compact medium-quality single-speaker American English model, balancing size and clarity for mobile apps.',
     type: 'tts',
     size: 64.1 * 1024 * 1024, // 64.1 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-ljspeech-medium.tar.bz2',
@@ -137,27 +140,41 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
   },
 
   {
-    id: 'vits-piper-en-high',
-    name: 'VITS Piper (High Quality)',
+    id: 'vits-piper-en-libritts_r-medium',
+    name: 'VITS Piper LibriTTS-R (904 speakers)',
     description:
-      'High-fidelity English model, manageable on modern mobile devices for premium voice output.',
+      'Multi-speaker American English model with 904 voices from the LibriTTS-R dataset. Recommended for variety of speaker styles.',
     type: 'tts',
-    size: 125 * 1024 * 1024, // 125 MB
-    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts-high.tar.bz2',
-    version: 'high',
+    size: 75 * 1024 * 1024, // 75 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2',
+    version: 'medium',
     language: 'en',
+    recommended: true,
   },
 
   {
     id: 'kokoro-en',
-    name: 'Kokoro (Expressive)',
+    name: 'Kokoro v0.19 (English, 11 speakers)',
     description:
-      'Expressive synthesis model, larger but suitable for high-end devices needing unique voice capabilities.',
+      'Expressive English synthesis with 11 named speakers (af_bella, am_adam, bm_george…), 24 kHz output.',
     type: 'tts',
-    size: 305 * 1024 * 1024, // 305 MB
+    size: 686 * 1024 * 1024, // ~686 MB total
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2',
     version: '0.19',
     language: 'en',
+  },
+
+  {
+    id: 'kokoro-multi-lang-v1_1',
+    name: 'Kokoro v1.1 (EN+ZH, 103 speakers)',
+    description:
+      'Latest Kokoro model with 103 English and Chinese speakers (af_heart, am_michael, zf_xiaobei, zm_yunxi…). 24 kHz output.',
+    type: 'tts',
+    size: 718 * 1024 * 1024, // ~718 MB total
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2',
+    version: '1.1',
+    language: 'en-zh',
+    recommended: true,
   },
 
   {
@@ -170,6 +187,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-en_US-ljspeech.tar.bz2',
     version: '1.0',
     language: 'en',
+    recommended: true,
     dependencies: [
       {
         id: 'vocos-vocoder',
@@ -195,15 +213,26 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: '5.0',
     language: 'universal',
   },
+  {
+    id: 'ten-vad',
+    name: 'TEN VAD',
+    description:
+      'Tencent TEN VAD model for voice activity detection. Alternative to Silero VAD.',
+    type: 'vad',
+    size: 2.5 * 1024 * 1024, // ~2.5 MB estimated
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/ten-vad.onnx',
+    language: 'universal',
+  },
 
   // Keyword Spotting Models
+  // NOTE: Use non-mobile variant — the mobile encoder has a Reshape bug on ARM
   {
-    id: 'kws-zipformer-gigaspeech-mobile',
+    id: 'kws-zipformer-gigaspeech',
     name: 'KWS Zipformer (GigaSpeech)',
-    description: 'Optimized for mobile, trained on GigaSpeech data.',
+    description: 'English keyword spotting, trained on GigaSpeech data.',
     type: 'kws',
-    size: 14.9 * 1024 * 1024, // 14.9 MB
-    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile.tar.bz2',
+    size: 16.8 * 1024 * 1024, // 16.8 MB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2',
     version: '2024-01-01',
     language: 'en',
   },
@@ -254,6 +283,19 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx',
     version: '1.0',
     language: 'multilingual',
+  },
+
+  // Diarization Segmentation Models
+  {
+    id: 'pyannote-segmentation-3-0',
+    name: 'Pyannote Segmentation 3.0',
+    description: 'Speaker segmentation model for offline diarization (int8 quantized, ~1.5 MB).',
+    type: 'diarization-segmentation',
+    size: 1_500_000,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2',
+    version: '3.0',
+    language: 'multilingual',
+    recommended: true,
   },
 
   // Language Identification Models
@@ -328,6 +370,20 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-online-punct-en-2024-08-06.tar.bz2',
     version: '2024-08-06',
     language: 'en',
+  },
+
+  // Speech Denoising Models
+  {
+    id: 'gtcrn-speech-denoiser',
+    name: 'GTCRN Speech Denoiser',
+    description:
+      'Lightweight neural speech enhancement model. Removes background noise from audio files. Single .onnx file (~500 KB).',
+    type: 'denoising',
+    size: 500 * 1024, // ~500 KB
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speech-enhancement-models/gtcrn_simple.onnx',
+    version: '2024',
+    language: 'multilingual',
+    recommended: true,
   },
 ];
 

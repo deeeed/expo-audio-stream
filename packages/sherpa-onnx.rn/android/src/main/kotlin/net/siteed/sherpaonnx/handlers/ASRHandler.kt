@@ -112,13 +112,12 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 Log.i(TAG, "- maxActivePaths: $maxActivePaths")
                 Log.i(TAG, "- debug: $debug")
                 
-                // Extract model file paths
-                var modelFiles: Map<String, String> = emptyMap()
+                // Extract model file paths (nested map or flattened TurboModule fields)
+                val mutableModelFiles = mutableMapOf<String, String>()
                 if (modelConfig.hasKey("modelFiles")) {
                     val modelFilesMap = modelConfig.getMap("modelFiles")
                     if (modelFilesMap != null) {
                         val iterator = modelFilesMap.keySetIterator()
-                        val mutableModelFiles = mutableMapOf<String, String>()
                         while (iterator.hasNextKey()) {
                             val key = iterator.nextKey()
                             val value = modelFilesMap.getString(key)
@@ -126,9 +125,28 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                                 mutableModelFiles[key] = value
                             }
                         }
-                        modelFiles = mutableModelFiles
                     }
                 }
+                // Also read flattened modelFile* fields (TurboModule codegen doesn't support nested objects)
+                val flattenedKeys = mapOf(
+                    "modelFileEncoder" to "encoder",
+                    "modelFileDecoder" to "decoder",
+                    "modelFileJoiner" to "joiner",
+                    "modelFileTokens" to "tokens",
+                    "modelFileModel" to "model",
+                    "modelFilePreprocessor" to "preprocessor",
+                    "modelFileUncachedDecoder" to "uncachedDecoder",
+                    "modelFileCachedDecoder" to "cachedDecoder"
+                )
+                for ((flatKey, mapKey) in flattenedKeys) {
+                    if (modelConfig.hasKey(flatKey) && !mutableModelFiles.containsKey(mapKey)) {
+                        val value = modelConfig.getString(flatKey)
+                        if (value != null) {
+                            mutableModelFiles[mapKey] = value
+                        }
+                    }
+                }
+                val modelFiles: Map<String, String> = mutableModelFiles
 
                 Log.i(TAG, "Model files: $modelFiles")
                 
@@ -845,16 +863,13 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 throw Exception("Streaming ASR is not initialized")
             }
             
-            // Create stream if not exists
+            // Always create a fresh stream for file recognition
+            onlineStream?.release()
+            Log.i(TAG, "Creating new online stream")
+            onlineStream = onlineRecognizer?.createStream()
             if (onlineStream == null) {
-                Log.i(TAG, "Creating new online stream")
-                onlineStream = onlineRecognizer?.createStream()
-                if (onlineStream == null) {
-                    Log.e(TAG, "Failed to create stream")
-                    throw Exception("Failed to create stream")
-                }
-            } else {
-                Log.i(TAG, "Using existing online stream")
+                Log.e(TAG, "Failed to create stream")
+                throw Exception("Failed to create stream")
             }
             
             Log.i(TAG, "Converting audio buffer to float array")
@@ -868,84 +883,65 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             val samplesPerChunk = (sampleRate * DEFAULT_CHUNK_SIZE_MS / 1000).toInt()
             Log.i(TAG, "Using chunk size of ${DEFAULT_CHUNK_SIZE_MS}ms (${samplesPerChunk} samples)")
             
-            // Process samples in chunks
-            if (samples.size > samplesPerChunk) {
-                // Process in chunks
-                var offset = 0
-                while (offset < samples.size) {
-                    // Calculate current chunk size
-                    val currentChunkSize = samplesPerChunk.coerceAtMost(samples.size - offset)
-                    
-                    // Extract current chunk
-                    val chunk = FloatArray(currentChunkSize)
-                    System.arraycopy(samples, offset, chunk, 0, currentChunkSize)
-                    
-                    // Accept current chunk
-                    Log.i(TAG, "Processing chunk of $currentChunkSize samples at offset $offset")
-                    onlineStream?.acceptWaveform(chunk, sampleRate)
-                    
-                    // Decode if ready
-                    if (onlineRecognizer?.isReady(onlineStream!!) == true) {
-                        onlineRecognizer?.decode(onlineStream!!)
-                    }
-                    
-                    // Move to next chunk
-                    offset += currentChunkSize
-                }
-            } else {
-                // Process all at once for very short audio
-                Log.i(TAG, "Processing all ${samples.size} samples at once")
-                onlineStream?.acceptWaveform(samples, sampleRate)
-            }
-            
-            // Mark the end of input stream for file processing
-            Log.i(TAG, "Marking end of input with inputFinished()")
-            onlineStream?.inputFinished()
-            
-            // Start recognition
+            // For file-based inference with a streaming model, simulate real-time streaming:
+            // Feed audio in chunks, decode after each chunk. Collect text at endpoints but
+            // do NOT reset — resetting loses the model's accumulated context and causes empty
+            // results for subsequent segments. Accumulate the running transcript via getResult()
+            // and only take the final result after all audio + tail padding is processed.
             isRecognizing = true
-            Log.i(TAG, "Starting final decoding")
-            
-            // Decode multiple times to process all audio
-            var hasMoreFrames = true
-            var iterationCount = 0
-            val maxIterations = 20 // Increased from 10 to handle longer files
-            
-            // Keep decoding until no more ready frames or we reach max iterations
-            while (hasMoreFrames && iterationCount < maxIterations) {
-                // Check if recognizer is ready (more frames to process)
-                val isReady = onlineRecognizer?.isReady(onlineStream!!) == true
-                
-                if (isReady) {
-                    // Decode next frame
+
+            var offset = 0
+            var chunkCount = 0
+            var endpointCount = 0
+
+            val maxAbs = samples.maxOfOrNull { kotlin.math.abs(it) } ?: 0f
+            val numZero = samples.count { it == 0f }
+            Log.i(TAG, "Feeding ${samples.size} samples in ${samplesPerChunk}-sample chunks (maxAbs=$maxAbs, zeros=$numZero)")
+
+            while (offset < samples.size) {
+                val end = minOf(offset + samplesPerChunk, samples.size)
+                val chunk = samples.copyOfRange(offset, end)
+                onlineStream?.acceptWaveform(chunk, sampleRate)
+                offset = end
+                chunkCount++
+
+                while (onlineRecognizer?.isReady(onlineStream!!) == true) {
                     onlineRecognizer?.decode(onlineStream!!)
-                    iterationCount++
-                    Log.i(TAG, "Decoding iteration $iterationCount")
-                } else {
-                    hasMoreFrames = false
+                }
+
+                if (onlineRecognizer?.isEndpoint(onlineStream!!) == true) {
+                    endpointCount++
+                    val partial = onlineRecognizer?.getResult(onlineStream!!)?.text?.trim() ?: ""
+                    Log.i(TAG, "Endpoint #$endpointCount at chunk $chunkCount, partial: '$partial'")
+                    // Do NOT reset — just log; resetting clears state and empties subsequent segments
                 }
             }
-            
-            // Check if endpoint is reached
-            val isEndpoint = onlineRecognizer?.isEndpoint(onlineStream!!) == true
-            Log.i(TAG, "Endpoint detected: $isEndpoint")
-            
-            // Get result
-            val result = onlineRecognizer?.getResult(onlineStream!!)
-            Log.i(TAG, "Recognition result: ${result?.text}")
-            
-            // Reset stream for next recognition
-            Log.i(TAG, "Resetting stream after recognition")
-            onlineRecognizer?.reset(onlineStream!!)
-            
+
+            // Tail padding + inputFinished to flush look-ahead buffer
+            val tailPadSamples = (sampleRate * 0.66).toInt()
+            val tailPad = FloatArray(tailPadSamples)
+            Log.i(TAG, "Tail pad after $chunkCount chunks ($endpointCount endpoints detected)")
+            onlineStream?.acceptWaveform(tailPad, sampleRate)
+            onlineStream?.inputFinished()
+
+            while (onlineRecognizer?.isReady(onlineStream!!) == true) {
+                onlineRecognizer?.decode(onlineStream!!)
+            }
+
+            val fullText = onlineRecognizer?.getResult(onlineStream!!)?.text?.trim() ?: ""
+            Log.i(TAG, "Recognition result: '$fullText'")
+
+            // Release stream so the next file recognition gets a fresh one
+            onlineStream?.release()
+            onlineStream = null
+
             // Return results
             val resultMap = Arguments.createMap()
             resultMap.putBoolean("success", true)
-            resultMap.putString("text", result?.text ?: "")
+            resultMap.putString("text", fullText)
             resultMap.putInt("samplesLength", samples.size)
             resultMap.putInt("sampleRate", sampleRate)
-            resultMap.putBoolean("isEndpoint", isEndpoint)
-            
+
             reactContext.runOnUiQueueThread {
                 promise.resolve(resultMap)
             }
@@ -1005,6 +1001,137 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         }
     }
     
+    /**
+     * Create a persistent online stream for live streaming ASR.
+     * Matches upstream OnlineRecognizer.createStream().
+     */
+    fun createAsrOnlineStream(promise: Promise) {
+        executor.execute {
+            try {
+                if (onlineRecognizer == null) {
+                    throw Exception("Online ASR is not initialized. Call initAsr with streaming=true first.")
+                }
+                onlineStream?.release()
+                onlineStream = onlineRecognizer?.createStream()
+                if (onlineStream == null) {
+                    throw Exception("Failed to create online stream")
+                }
+                Log.i(TAG, "Created online stream for live ASR")
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                reactContext.runOnUiQueueThread { promise.resolve(resultMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating online stream: ${e.message}")
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_STREAM", "Failed to create online stream: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Feed audio samples to the persistent online stream and decode all ready frames.
+     * Matches upstream stream.acceptWaveform() + isReady/decode loop.
+     */
+    fun acceptAsrOnlineWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        executor.execute {
+            try {
+                if (onlineRecognizer == null || onlineStream == null) {
+                    throw Exception("Online stream not created. Call createAsrOnlineStream first.")
+                }
+                val samples = FloatArray(audioBuffer.size()) { audioBuffer.getDouble(it).toFloat() }
+                onlineStream?.acceptWaveform(samples, sampleRate)
+                while (onlineRecognizer?.isReady(onlineStream!!) == true) {
+                    onlineRecognizer?.decode(onlineStream!!)
+                }
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                reactContext.runOnUiQueueThread { promise.resolve(resultMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error accepting waveform: ${e.message}")
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_WAVEFORM", "Failed to accept waveform: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if an endpoint (sentence boundary) has been detected.
+     * Matches upstream OnlineRecognizer.isEndpoint(stream).
+     */
+    fun isAsrOnlineEndpoint(promise: Promise) {
+        executor.execute {
+            try {
+                if (onlineRecognizer == null || onlineStream == null) {
+                    throw Exception("Online stream not created. Call createAsrOnlineStream first.")
+                }
+                val isEndpoint = onlineRecognizer?.isEndpoint(onlineStream!!) == true
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("isEndpoint", isEndpoint)
+                reactContext.runOnUiQueueThread { promise.resolve(resultMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking endpoint: ${e.message}")
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_ENDPOINT", "Failed to check endpoint: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the current recognition result from the online stream.
+     * Matches upstream OnlineRecognizer.getResult(stream).
+     */
+    fun getAsrOnlineResult(promise: Promise) {
+        executor.execute {
+            try {
+                if (onlineRecognizer == null || onlineStream == null) {
+                    throw Exception("Online stream not created. Call createAsrOnlineStream first.")
+                }
+                val result = onlineRecognizer?.getResult(onlineStream!!)
+                val resultMap = Arguments.createMap()
+                resultMap.putString("text", result?.text?.trim() ?: "")
+                val tokensArray = Arguments.createArray()
+                result?.tokens?.forEach { tokensArray.pushString(it) }
+                resultMap.putArray("tokens", tokensArray)
+                val timestampsArray = Arguments.createArray()
+                result?.timestamps?.forEach { timestampsArray.pushDouble(it.toDouble()) }
+                resultMap.putArray("timestamps", timestampsArray)
+                reactContext.runOnUiQueueThread { promise.resolve(resultMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting result: ${e.message}")
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_RESULT", "Failed to get result: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Reset the online stream for the next utterance (after endpoint).
+     * Matches upstream OnlineRecognizer.reset(stream).
+     */
+    fun resetAsrOnlineStream(promise: Promise) {
+        executor.execute {
+            try {
+                if (onlineRecognizer == null || onlineStream == null) {
+                    throw Exception("Online stream not created. Call createAsrOnlineStream first.")
+                }
+                onlineRecognizer?.reset(onlineStream!!)
+                Log.i(TAG, "Reset online stream")
+                val resultMap = Arguments.createMap()
+                resultMap.putBoolean("success", true)
+                reactContext.runOnUiQueueThread { promise.resolve(resultMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resetting stream: ${e.message}")
+                reactContext.runOnUiQueueThread {
+                    promise.reject("ERR_ASR_RESET", "Failed to reset stream: ${e.message}")
+                }
+            }
+        }
+    }
+
     /**
      * Release all resources
      */

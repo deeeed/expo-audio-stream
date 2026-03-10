@@ -66,18 +66,14 @@ export function FileExplorer({
   const currentPath = useMemo(() => normalizePath(rawCurrentPath), [rawCurrentPath]);
   const modelRootPath = useMemo(() => normalizePath(initialModelPath), [initialModelPath]);
 
-  // Effect to handle initial path setting when initialModelPath changes
+  // Effect to handle initial path setting when initialModelPath changes.
+  // Must NOT depend on currentPath — that would reset navigation every time the user
+  // drills into a subdirectory (currentPath changes → effect re-runs → resets to root).
   useEffect(() => {
-    // This effect should only trigger navigation if the *initial* path changes
-    // and the *current* path doesn't match the new initial target.
-    const targetPath = initialModelPath ? modelRootPath : ''; // Target is root or virtual root
-    console.log(`FileExplorer Init Effect: Target=${targetPath}, Current=${currentPath}`);
-    if (currentPath !== targetPath) {
-      console.log(`FileExplorer Init Effect: Navigating to target path: ${targetPath}`);
-      onNavigate(targetPath); // Navigate to the correct initial state
-    }
-    // Depend only on the derived target paths and the navigation function
-  }, [initialModelPath, modelRootPath, onNavigate, currentPath]); // Include currentPath dependency
+    const targetPath = initialModelPath ? modelRootPath : '';
+    onNavigate(targetPath);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialModelPath, modelRootPath]); // intentionally omit onNavigate (stable setState) and currentPath
 
   const fetchItems = useCallback(async (logOnly = false) => {
     // Use the memoized normalized currentPath directly for fetching logic

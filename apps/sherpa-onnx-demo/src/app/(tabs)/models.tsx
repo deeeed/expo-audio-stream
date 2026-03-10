@@ -1,7 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, View, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '@siteed/design-system';
 import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
 import { ModelTypeSelector } from '../../components/ModelTypeSelector';
@@ -12,7 +13,17 @@ import type { ViewMode } from '../../types/models';
 import { ModelType } from '../../utils/models';
 
 export default function ModelsScreen() {
-  const [selectedType, setSelectedType] = useState<ModelType | 'all'>('all');
+  const params = useLocalSearchParams<{ type?: string }>();
+  const [selectedType, setSelectedType] = useState<ModelType | 'all'>(
+    (params.type as ModelType | 'all') ?? 'all'
+  );
+
+  // Sync filter when navigated to with a ?type= param
+  React.useEffect(() => {
+    if (params.type) {
+      setSelectedType(params.type as ModelType | 'all');
+    }
+  }, [params.type]);
   const [viewMode, setViewMode] = useState<ViewMode>('download');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [selectedModelPath, setSelectedModelPath] = useState<string | null>(null);
@@ -115,7 +126,7 @@ export default function ModelsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper withScrollView={false} useInsets={false} style={styles.container}>
       {Platform.OS === 'web' && <WebInfoBanner />}
       
       <ModelTypeSelector
@@ -148,14 +159,13 @@ export default function ModelsScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   modelManagerContainer: {
     flex: 1,

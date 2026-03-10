@@ -34,7 +34,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
@@ -67,12 +66,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 : '',
     },
     plugins: [
+      ["./plugins/withMetroPort.cjs", { port: 7500 }],
+      "./plugins/withCustomGradleConfig.cjs",
       "expo-router",
       [
-        "expo-av",
+        "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
-          "recordAudioAndPlaybackInBackgroundPermission": "Allow $(PRODUCT_NAME) to use Audio"
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
         }
       ],
       [
@@ -83,7 +83,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
           "android": {
             "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }",
-            "extraMavenRepos": ["https://www.jitpack.io"],
+            "extraMavenRepos": [],
             "gradleProperties": {
               "org.gradle.jvmargs": "-Xmx2048m",
               "reactNativeDevServerPort": "7500"

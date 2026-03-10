@@ -19,8 +19,14 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import net.siteed.sherpaonnx.handlers.ASRHandler
 import net.siteed.sherpaonnx.handlers.ArchiveHandler
 import net.siteed.sherpaonnx.handlers.AudioTaggingHandler
+import net.siteed.sherpaonnx.handlers.DiarizationHandler
+import net.siteed.sherpaonnx.handlers.KWSHandler
 import net.siteed.sherpaonnx.handlers.SpeakerIdHandler
 import net.siteed.sherpaonnx.handlers.TtsHandler
+import net.siteed.sherpaonnx.handlers.VadHandler
+import net.siteed.sherpaonnx.handlers.LanguageIdHandler
+import net.siteed.sherpaonnx.handlers.PunctuationHandler
+import net.siteed.sherpaonnx.handlers.DenoisingHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -29,6 +35,12 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val archiveHandler = ArchiveHandler(reactContext)
     private val asrHandler = ASRHandler(reactContext)
     private val speakerIdHandler = SpeakerIdHandler(reactContext)
+    private val diarizationHandler = DiarizationHandler(reactContext)
+    private val kwsHandler = KWSHandler(reactContext)
+    private val vadHandler = VadHandler(reactContext)
+    private val languageIdHandler = LanguageIdHandler(reactContext)
+    private val punctuationHandler = PunctuationHandler(reactContext)
+    private val denoisingHandler = DenoisingHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -86,6 +98,26 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     fun releaseAsr(promise: Promise) {
         asrHandler.release(promise)
+    }
+
+    fun createAsrOnlineStream(promise: Promise) {
+        asrHandler.createAsrOnlineStream(promise)
+    }
+
+    fun acceptAsrOnlineWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        asrHandler.acceptAsrOnlineWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun isAsrOnlineEndpoint(promise: Promise) {
+        asrHandler.isAsrOnlineEndpoint(promise)
+    }
+
+    fun getAsrOnlineResult(promise: Promise) {
+        asrHandler.getAsrOnlineResult(promise)
+    }
+
+    fun resetAsrOnlineStream(promise: Promise) {
+        asrHandler.resetAsrOnlineStream(promise)
     }
 
     // Audio Tagging Methods
@@ -154,6 +186,96 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
         speakerIdHandler.release(promise)
     }
 
+    // Diarization Methods
+    fun initDiarization(config: ReadableMap, promise: Promise) {
+        diarizationHandler.initDiarization(config, promise)
+    }
+
+    fun processDiarizationFile(filePath: String, numClusters: Int, threshold: Float, promise: Promise) {
+        diarizationHandler.processDiarizationFile(filePath, numClusters, threshold, promise)
+    }
+
+    fun releaseDiarization(promise: Promise) {
+        diarizationHandler.releaseDiarization(promise)
+    }
+
+    // KWS Methods
+    fun initKws(config: ReadableMap, promise: Promise) {
+        kwsHandler.init(config, promise)
+    }
+
+    fun acceptKwsWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        kwsHandler.acceptWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun resetKwsStream(promise: Promise) {
+        kwsHandler.resetStream(promise)
+    }
+
+    fun releaseKws(promise: Promise) {
+        kwsHandler.release(promise)
+    }
+
+    // VAD Methods
+    fun initVad(config: ReadableMap, promise: Promise) {
+        vadHandler.init(config, promise)
+    }
+
+    fun acceptVadWaveform(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        vadHandler.acceptWaveform(sampleRate, audioBuffer, promise)
+    }
+
+    fun resetVad(promise: Promise) {
+        vadHandler.reset(promise)
+    }
+
+    fun releaseVad(promise: Promise) {
+        vadHandler.release(promise)
+    }
+
+    // Language ID Methods
+    fun initLanguageId(config: ReadableMap, promise: Promise) {
+        languageIdHandler.init(config, promise)
+    }
+
+    fun detectLanguage(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        languageIdHandler.detectLanguage(sampleRate, audioBuffer, promise)
+    }
+
+    fun detectLanguageFromFile(filePath: String, promise: Promise) {
+        languageIdHandler.detectLanguageFromFile(filePath, promise)
+    }
+
+    fun releaseLanguageId(promise: Promise) {
+        languageIdHandler.release(promise)
+    }
+
+    // Punctuation Methods
+    fun initPunctuation(config: ReadableMap, promise: Promise) {
+        punctuationHandler.init(config, promise)
+    }
+
+    fun addPunctuation(text: String, promise: Promise) {
+        punctuationHandler.addPunctuation(text, promise)
+    }
+
+    fun releasePunctuation(promise: Promise) {
+        punctuationHandler.release(promise)
+    }
+
+    // Denoising Methods
+    fun initDenoiser(config: ReadableMap, promise: Promise) {
+        denoisingHandler.initDenoiser(config, promise)
+    }
+
+    fun denoiseFile(filePath: String, promise: Promise) {
+        denoisingHandler.denoiseFile(filePath, promise)
+    }
+
+    fun releaseDenoiser(promise: Promise) {
+        denoisingHandler.releaseDenoiser(promise)
+    }
+
     // Utility Methods
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         archiveHandler.extractTarBz2(sourcePath, targetDir, promise)
@@ -203,7 +325,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
         try {
             // React Native Architecture Info
             val archInfo = Arguments.createMap()
-            val isNewArchEnabled = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+            val isNewArchEnabled = true // New Architecture is always enabled (SDK 55+)
             
             // Check if JSI is available (for additional context)
             val isJSIAvailable = try {

@@ -693,6 +693,33 @@ export class WebSherpaOnnxImpl implements ApiInterface {
     return { released: true };
   }
 
+  async createAsrOnlineStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async acceptAsrOnlineWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }> {
+    return { isEndpoint: false };
+  }
+
+  async getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }> {
+    return { text: '', tokens: [], timestamps: [] };
+  }
+
+  async resetAsrOnlineStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
   // AUDIO TAGGING METHODS - Stubs for now
 
   async initAudioTagging(
@@ -829,6 +856,115 @@ export class WebSherpaOnnxImpl implements ApiInterface {
   }
 
   async releaseSpeakerId(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // DIARIZATION METHODS
+
+  async initDiarization(_config: any): Promise<{ success: boolean; sampleRate: number; error?: string }> {
+    return { success: false, sampleRate: 0, error: 'Diarization not implemented in web version yet' };
+  }
+
+  async processDiarizationFile(_filePath: string, _numClusters: number, _threshold: number): Promise<{ success: boolean; segments: Array<{ start: number; end: number; speaker: number }>; numSpeakers: number; durationMs: number; error?: string }> {
+    return { success: false, segments: [], numSpeakers: 0, durationMs: 0, error: 'Diarization not implemented in web version yet' };
+  }
+
+  async releaseDiarization(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // KWS METHODS
+
+  async initKws(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'KWS not implemented in web version yet' };
+  }
+
+  async acceptKwsWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; detected: boolean; keyword: string; error?: string }> {
+    return { success: false, detected: false, keyword: '', error: 'KWS not implemented in web version yet' };
+  }
+
+  async resetKwsStream(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async releaseKws(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // VAD METHODS
+
+  async initVad(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'VAD not implemented in web version yet' };
+  }
+
+  async acceptVadWaveform(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; isSpeechDetected: boolean; segments: any[]; error?: string }> {
+    return { success: false, isSpeechDetected: false, segments: [], error: 'VAD not implemented in web version yet' };
+  }
+
+  async resetVad(): Promise<{ success: boolean }> {
+    return { success: false };
+  }
+
+  async releaseVad(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // LANGUAGE ID METHODS
+
+  async initLanguageId(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async detectLanguage(
+    _sampleRate: number,
+    _samples: number[]
+  ): Promise<{ success: boolean; language: string; durationMs: number; error?: string }> {
+    return { success: false, language: '', durationMs: 0, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async detectLanguageFromFile(
+    _filePath: string
+  ): Promise<{ success: boolean; language: string; durationMs: number; error?: string }> {
+    return { success: false, language: '', durationMs: 0, error: 'Language ID not implemented in web version yet' };
+  }
+
+  async releaseLanguageId(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // PUNCTUATION METHODS
+
+  async initPunctuation(_config: any): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Punctuation not implemented in web version yet' };
+  }
+
+  async addPunctuation(
+    _text: string
+  ): Promise<{ success: boolean; text: string; durationMs: number; error?: string }> {
+    return { success: false, text: '', durationMs: 0, error: 'Punctuation not implemented in web version yet' };
+  }
+
+  async releasePunctuation(): Promise<{ released: boolean }> {
+    return { released: true };
+  }
+
+  // DENOISING METHODS
+
+  async initDenoiser(_config: any): Promise<{ success: boolean; sampleRate: number; error?: string }> {
+    return { success: false, sampleRate: 0, error: 'Denoising not implemented in web version yet' };
+  }
+
+  async denoiseFile(_filePath: string): Promise<{ success: boolean; outputPath: string; durationMs: number; error?: string }> {
+    return { success: false, outputPath: '', durationMs: 0, error: 'Denoising not implemented in web version yet' };
+  }
+
+  async releaseDenoiser(): Promise<{ released: boolean }> {
     return { released: true };
   }
 

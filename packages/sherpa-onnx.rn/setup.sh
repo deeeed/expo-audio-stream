@@ -26,18 +26,20 @@ cd "$SCRIPT_DIR"
 mkdir -p third_party
 mkdir -p prebuilt
 
+# Use the official upstream k2-fsa/sherpa-onnx, pinned to a known stable release.
+
+SHERPA_VERSION="v1.12.28"
+
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then
-  echo -e "${BLUE}Cloning sherpa-onnx repository...${NC}"
-  git clone https://github.com/deeeed/sherpa-onnx third_party/sherpa-onnx
-  cd third_party/sherpa-onnx
-  git checkout webwasm
+  echo -e "${BLUE}Cloning sherpa-onnx repository (${SHERPA_VERSION})...${NC}"
+  git clone --branch "${SHERPA_VERSION}" --depth 1 https://github.com/k2-fsa/sherpa-onnx third_party/sherpa-onnx
   cd "$SCRIPT_DIR"
 else
-  echo -e "${BLUE}Updating sherpa-onnx repository...${NC}"
+  echo -e "${BLUE}Updating sherpa-onnx repository to ${SHERPA_VERSION}...${NC}"
   cd third_party/sherpa-onnx
-  git pull origin webwasm
-
+  git fetch --tags origin
+  git checkout "${SHERPA_VERSION}"
   cd "$SCRIPT_DIR"
 fi
 

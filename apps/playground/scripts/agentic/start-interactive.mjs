@@ -86,6 +86,10 @@ const alreadyRunning = (() => {
     try { execSync(`curl -sf http://localhost:${PORT}/status`, { stdio: 'pipe' }); return true } catch { return false }
 })()
 
+// Ensure .agent dir and log file exist before watching
+fs.mkdirSync(path.dirname(LOGFILE), { recursive: true })
+if (!fs.existsSync(LOGFILE)) fs.writeFileSync(LOGFILE, '')
+
 let logSize = 0
 try { logSize = fs.statSync(LOGFILE).size } catch { /* first run */ }
 

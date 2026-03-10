@@ -1,0 +1,93 @@
+# sherpa-onnx.rn — Upgrade Roadmap
+
+## Phase 1: SDK 55 + New-Arch-Only Refactor (current)
+
+Branch: `feat/sherpa-onnx-upgrade`
+
+### App (`apps/sherpa-onnx-demo`)
+- `expo` bumped to `^55.0.0`, all expo-* packages updated via `npx expo install --fix`
+- `newArchEnabled: true` removed from `app.config.ts` (mandatory in SDK 55, no longer a flag)
+- `newArchEnabled=true` removed from `android/gradle.properties`
+- `newArchEnabled` removed from `ios/Podfile.properties.json`
+
+### Native package (`packages/sherpa-onnx.rn`)
+- Old-arch Android files deleted: `SherpaOnnxModule.kt`, `SherpaOnnxPackage.kt`
+- TurboModule files moved from `android/src/newarch/` to `android/src/main/kotlin/`
+- `android/build.gradle`: removed `isNewArchitectureEnabled()` and all conditionals; `compileSdk`/`targetSdk` 33 → 34
+- `sherpa-onnx-rn.podspec`: removed `fabric_enabled` conditionals; iOS min `11.0` → `13.4`
+- `ios/bridge/SherpaOnnxRnModule.h`: removed `#ifdef RCT_NEW_ARCH_ENABLED` guards
+- `ios/bridge/SherpaOnnxRnModule.mm`: removed old-arch `#ifdef` blocks and `RCT_EXPORT_METHOD` macros
+- `react-native.config.js`: removed Android package registration
+- `src/NativeSherpaOnnxSpec.ts`: removed fallback chain; simplified to `TurboModuleRegistry.getEnforcing`
+
+### Verification
+- `npx expo-doctor` shows no SDK mismatches in `apps/sherpa-onnx-demo`
+- App builds on Android + iOS without errors
+- `grep -r "ReactContextBaseJavaModule\|RCT_EXPORT_METHOD\|ReactPackage" packages/sherpa-onnx.rn/` returns nothing
+- Home screen shows system info from native module
+
+---
+
+## Phase 2: sherpa-onnx C++ Library Upgrade to v1.12.28
+
+**Status**: Not started
+
+### Strategy
+Switch from the stale `deeeed/sherpa-onnx#webwasm` fork to official `k2-fsa/sherpa-onnx` releases.
+Use pre-built binaries from GitHub releases (v1.12.28) rather than building from source.
+
+### Files to modify
+- `install.js` — update `BINARY_VERSION` and download URLs to k2-fsa releases
+- `build-sherpa-android.sh` — switch source URL to `https://github.com/k2-fsa/sherpa-onnx`, tag `v1.12.28`
+- `build-sherpa-ios.sh` — same URL update + OnnxRuntime version check
+- `setup.sh` — switch clone from `deeeed/sherpa-onnx#webwasm` → `k2-fsa/sherpa-onnx@v1.12.28`
+- `package.json` — bump version `0.1.0` → `0.2.0`
+
+### API compatibility check
+- Verify `SherpaOnnxImpl.kt`, `SherpaOnnxASRHandler.swift`, `SherpaOnnxTtsHandler.swift` compile against v1.12.28 C API
+- Key header: `sherpa-onnx-c-api.h` — check for breaking changes
+
+### Verification
+- `SherpaOnnx.getSystemInfo()` returns version string containing `1.12.28`
+- TTS and ASR calls succeed on-device (no crashes)
+
+---
+
+## Phase 3: Agentic Validation Loop for sherpa-onnx-demo
+
+**Status**: Done (implemented in this branch)
+
+### What was added
+- `apps/sherpa-onnx-demo/src/agentic-bridge.ts` — installs `globalThis.__AGENTIC__` with navigation, state, and fire-and-store test methods
+- `apps/sherpa-onnx-demo/src/components/AgenticBridgeSync.tsx` — invisible sync component
+- `apps/sherpa-onnx-demo/src/app/_layout.tsx` — imports `AgenticBridgeSync`
+- `apps/sherpa-onnx-demo/scripts/agentic/` — CDP bridge scripts (copied from playground, port 7500)
+- `apps/sherpa-onnx-demo/docs/AGENT_STARTING_TEMPLATE.md` — step-by-step workflow
+- `apps/sherpa-onnx-demo/docs/AGENTIC_FEEDBACK_LOOPS.md` — quick reference
+
+### Verification
+```bash
+cd apps/sherpa-onnx-demo
+node scripts/agentic/cdp-bridge.mjs list-devices
+scripts/agentic/app-state.sh eval "__AGENTIC__.testSystemInfo()"
+sleep 3
+scripts/agentic/app-state.sh eval "__AGENTIC__.getLastResult()"
+```
+
+---
+
+## Deferred: Web/WASM Fork
+
+**Repo**: `deeeed/sherpa-onnx` (branch: `webwasm`)
+
+The fork builds a single combined WASM file (`sherpa-onnx-wasm-combined.wasm`) for React Native Web / Expo Web, instead of upstream's per-module approach.
+
+**Key files in fork**:
+- `packages/sherpa-onnx.rn/src/WebSherpaOnnxImpl.ts`
+- `packages/sherpa-onnx.rn/src/WebUtils.ts`
+- `packages/sherpa-onnx.rn/build-sherpa-wasm.sh`
+- Built assets: `apps/sherpa-onnx-demo/public/wasm/` (19.5 MB WASM + 92 KB JS)
+
+**Known issue**: Shared memory/context between combined modules (documented in fork's ISSUE.md).
+
+**TODO**: Rebase `webwasm` branch onto upstream v1.12.28, then re-evaluate contributing combined WASM approach back upstream as opt-in feature.

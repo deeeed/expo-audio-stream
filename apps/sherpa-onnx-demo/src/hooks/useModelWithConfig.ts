@@ -1,9 +1,9 @@
-import type { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig, AudioTaggingModelConfig, KWSModelConfig, LanguageIdModelConfig, PunctuationModelConfig, SpeakerIdModelConfig, TtsModelConfig, VadModelConfig } from '@siteed/sherpa-onnx.rn';
 import { useMemo } from 'react';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelState } from '../contexts/ModelManagement/types';
 import type { ModelMetadata, ModelType } from '../utils/models';
-import { useAsrModelConfig, useAudioTaggingModelConfig, useModelConfig, useSpeakerIdModelConfig, useTtsModelConfig } from './useModelConfig';
+import { useAsrModelConfig, useAudioTaggingModelConfig, useKwsModelConfig, useLanguageIdModelConfig, useModelConfig, usePunctuationModelConfig, useSpeakerIdModelConfig, useTtsModelConfig, useVadModelConfig } from './useModelConfig';
 
 interface UseModelWithConfigProps {
   modelId: string | null;
@@ -165,9 +165,81 @@ interface UseSpeakerIdModelWithConfigResult extends UseModelWithConfigResult {
 export function useSpeakerIdModelWithConfig({ modelId }: UseModelWithConfigProps): UseSpeakerIdModelWithConfigResult {
   const baseResult = useModelWithConfig({ modelId });
   const speakerIdConfig = useSpeakerIdModelConfig({ modelId });
-  
+
   return {
     ...baseResult,
     speakerIdConfig,
   };
-} 
+}
+
+export function useKwsModels(): UseModelsResult {
+  return useModels({ modelType: 'kws' });
+}
+
+interface UseKwsModelWithConfigResult extends UseModelWithConfigResult {
+  kwsConfig?: Partial<KWSModelConfig>;
+}
+
+export function useKwsModelWithConfig({ modelId }: UseModelWithConfigProps): UseKwsModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const kwsConfig = useKwsModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    kwsConfig,
+  };
+}
+
+export function useVadModels(): UseModelsResult {
+  return useModels({ modelType: 'vad' });
+}
+
+interface UseVadModelWithConfigResult extends UseModelWithConfigResult {
+  vadConfig?: Partial<VadModelConfig>;
+}
+
+export function useVadModelWithConfig({ modelId }: UseModelWithConfigProps): UseVadModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const vadConfig = useVadModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    vadConfig,
+  };
+}
+
+export function useLanguageIdModels(): UseModelsResult {
+  return useModels({ modelType: 'language-id' });
+}
+
+interface UseLanguageIdModelWithConfigResult extends UseModelWithConfigResult {
+  languageIdConfig?: Partial<LanguageIdModelConfig>;
+}
+
+export function useLanguageIdModelWithConfig({ modelId }: UseModelWithConfigProps): UseLanguageIdModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const languageIdConfig = useLanguageIdModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    languageIdConfig,
+  };
+}
+
+export function usePunctuationModels(): UseModelsResult {
+  return useModels({ modelType: 'punctuation' });
+}
+
+interface UsePunctuationModelWithConfigResult extends UseModelWithConfigResult {
+  punctuationConfig?: Partial<PunctuationModelConfig>;
+}
+
+export function usePunctuationModelWithConfig({ modelId }: UseModelWithConfigProps): UsePunctuationModelWithConfigResult {
+  const baseResult = useModelWithConfig({ modelId });
+  const punctuationConfig = usePunctuationModelConfig({ modelId });
+
+  return {
+    ...baseResult,
+    punctuationConfig,
+  };
+}

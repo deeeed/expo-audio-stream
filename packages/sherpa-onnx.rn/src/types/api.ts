@@ -21,6 +21,24 @@ import type {
   IdentifySpeakerResult,
   VerifySpeakerResult,
   SpeakerIdFileProcessResult,
+  KWSModelConfig,
+  KWSInitResult,
+  KWSAcceptWaveformResult,
+  VadModelConfig,
+  VadInitResult,
+  VadAcceptWaveformResult,
+  LanguageIdModelConfig,
+  LanguageIdInitResult,
+  LanguageIdResult,
+  PunctuationModelConfig,
+  PunctuationInitResult,
+  PunctuationResult,
+  DiarizationModelConfig,
+  DiarizationInitResult,
+  DiarizationResult,
+  DenoiserModelConfig,
+  DenoiserInitResult,
+  DenoiserResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -104,6 +122,20 @@ export interface ApiInterface {
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
 
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
+
   // Audio tagging methods
   initAudioTagging(
     config: AudioTaggingModelConfig
@@ -143,6 +175,52 @@ export interface ApiInterface {
   ): Promise<VerifySpeakerResult>;
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(

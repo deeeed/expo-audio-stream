@@ -3,6 +3,11 @@ import { AsrService } from '../services/AsrService';
 import { AudioTaggingService } from '../services/AudioTaggingService';
 import { ArchiveService } from '../services/ArchiveService';
 import { SpeakerIdService } from '../services/SpeakerIdService';
+import { KWSService } from '../services/KWSService';
+import { VadService } from '../services/VadService';
+import { LanguageIdService } from '../services/LanguageIdService';
+import { PunctuationService } from '../services/PunctuationService';
+import { DiarizationService } from '../services/DiarizationService';
 
 /**
  * Provider type for model inference
@@ -137,6 +142,12 @@ export interface TtsModelConfig {
    * Dictionary directory path
    */
   dictDir?: string;
+
+  /**
+   * Language code for multi-lingual Kokoro models (e.g., "en", "zh")
+   * Required for Kokoro >= v1.0 multi-lingual models
+   */
+  lang?: string;
 
   /**
    * Rule FSTs file paths (comma-separated)
@@ -712,6 +723,18 @@ export interface SherpaOnnxStatic {
   ): Promise<AsrRecognizeResult>;
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
   initAudioTagging(
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
@@ -765,6 +788,67 @@ export interface SherpaOnnxStatic {
 }
 
 export declare const SherpaOnnx: SherpaOnnxStatic;
+
+// ----------------------------------------------------------------------------------
+// Keyword Spotting (KWS) Interfaces
+// ----------------------------------------------------------------------------------
+
+/**
+ * Configuration for Keyword Spotting model
+ */
+export interface KWSModelConfig {
+  /** Directory containing model files */
+  modelDir: string;
+  /** Model type (default: 'zipformer2') */
+  modelType?: string;
+  /** Model files (encoder, decoder, joiner, tokens) */
+  modelFiles?: {
+    encoder?: string;
+    decoder?: string;
+    joiner?: string;
+    tokens?: string;
+  };
+  /** Keywords file path relative to modelDir (default: 'keywords.txt') */
+  keywordsFile?: string;
+  /** Number of threads (default: 2) */
+  numThreads?: number;
+  /** Debug mode */
+  debug?: boolean;
+  /** Provider: 'cpu' or 'gpu' */
+  provider?: 'cpu' | 'gpu';
+  /** Max active paths for decoding (default: 4) */
+  maxActivePaths?: number;
+  /** Keywords score (default: 1.5) */
+  keywordsScore?: number;
+  /** Keywords threshold (default: 0.25) */
+  keywordsThreshold?: number;
+  /** Number of trailing blanks (default: 2) */
+  numTrailingBlanks?: number;
+}
+
+/**
+ * Result of KWS initialization
+ */
+export interface KWSInitResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Result of accepting waveform and checking for keyword detection
+ */
+export interface KWSAcceptWaveformResult {
+  success: boolean;
+  /** Whether a keyword was detected */
+  detected: boolean;
+  /** The detected keyword (empty if not detected) */
+  keyword: string;
+  /** Decoded tokens */
+  tokens?: string[];
+  /** Token timestamps */
+  timestamps?: number[];
+  error?: string;
+}
 
 // ----------------------------------------------------------------------------------
 // Speaker Identification Interfaces
@@ -1024,6 +1108,44 @@ export interface SpeakerIdFileProcessResult {
   error?: string;
 }
 
+// ─── Speaker Diarization ────────────────────────────────────────────────────
+
+export interface DiarizationModelConfig {
+  /** Directory containing the segmentation model (pyannote) */
+  segmentationModelDir: string;
+  /** Absolute path to the embedding model .onnx file */
+  embeddingModelFile: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: string;
+  minDurationOn?: number;
+  minDurationOff?: number;
+  /** Number of speakers (-1 = auto-detect via threshold) */
+  numClusters?: number;
+  /** Clustering threshold when numClusters=-1 */
+  threshold?: number;
+}
+
+export interface DiarizationInitResult {
+  success: boolean;
+  sampleRate: number;
+  error?: string;
+}
+
+export interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: number;
+}
+
+export interface DiarizationResult {
+  success: boolean;
+  segments: DiarizationSegment[];
+  numSpeakers: number;
+  durationMs: number;
+  error?: string;
+}
+
 /**
  * Options for speaker identification
  */
@@ -1039,6 +1161,147 @@ export interface SpeakerIdOptions {
    * Default: 3
    */
   minDuration?: number;
+}
+
+// ----------------------------------------------------------------------------------
+// VAD (Voice Activity Detection) Interfaces
+// ----------------------------------------------------------------------------------
+
+/**
+ * Configuration for VAD model
+ */
+export interface VadModelConfig {
+  /** Directory containing the VAD model file */
+  modelDir: string;
+  /** Model file name (e.g., "silero_vad_v5.onnx") */
+  modelFile?: string;
+  /** Probability threshold to classify as speech (default: 0.5) */
+  threshold?: number;
+  /** Minimum silence duration in seconds to split segments (default: 0.25) */
+  minSilenceDuration?: number;
+  /** Minimum speech duration in seconds (default: 0.25) */
+  minSpeechDuration?: number;
+  /** VAD frame window size in samples (default: 512) */
+  windowSize?: number;
+  /** Maximum speech duration in seconds before forcing a split (default: 5.0) */
+  maxSpeechDuration?: number;
+  /** Internal circular buffer size in seconds (default: 30.0) */
+  bufferSizeInSeconds?: number;
+  /** Number of threads (default: 1) */
+  numThreads?: number;
+  /** Debug mode */
+  debug?: boolean;
+  /** Provider: 'cpu' or 'gpu' */
+  provider?: 'cpu' | 'gpu';
+}
+
+/**
+ * Result of VAD initialization
+ */
+export interface VadInitResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * A detected speech segment
+ */
+export interface SpeechSegment {
+  /** Start position in samples */
+  start: number;
+  /** Duration in samples */
+  duration: number;
+  /** Start time in seconds (computed from start / sampleRate) */
+  startTime: number;
+  /** End time in seconds */
+  endTime: number;
+}
+
+/**
+ * Result of processing audio samples through VAD
+ */
+export interface VadAcceptWaveformResult {
+  success: boolean;
+  /** Whether speech is currently being detected */
+  isSpeechDetected: boolean;
+  /** Completed speech segments found in this chunk */
+  segments: SpeechSegment[];
+  error?: string;
+}
+
+// ----------------------------------------------------------------------------------
+// Language ID (Spoken Language Identification) Interfaces
+// ----------------------------------------------------------------------------------
+
+export interface LanguageIdModelConfig {
+  modelDir: string;
+  encoderFile?: string;
+  decoderFile?: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: 'cpu' | 'gpu';
+}
+
+export interface LanguageIdInitResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface LanguageIdResult {
+  success: boolean;
+  language: string;
+  durationMs: number;
+  error?: string;
+}
+
+// ----------------------------------------------------------------------------------
+// Punctuation Interfaces
+// ----------------------------------------------------------------------------------
+
+export interface PunctuationModelConfig {
+  modelDir: string;
+  cnnBilstm?: string;
+  bpeVocab?: string;
+  numThreads?: number;
+  debug?: boolean;
+  provider?: 'cpu' | 'gpu';
+}
+
+export interface PunctuationInitResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface PunctuationResult {
+  success: boolean;
+  text: string;
+  durationMs: number;
+  error?: string;
+}
+
+// ─── Speech Denoising ────────────────────────────────────────────────────────
+
+export interface DenoiserModelConfig {
+  /** Absolute path to the GTCRN .onnx model file */
+  modelFile: string;
+  numThreads?: number;
+  provider?: string;
+  debug?: boolean;
+}
+
+export interface DenoiserInitResult {
+  success: boolean;
+  /** Expected input sample rate (16000 for GTCRN) */
+  sampleRate: number;
+  error?: string;
+}
+
+export interface DenoiserResult {
+  success: boolean;
+  /** Absolute path to the denoised WAV file written to cache/temp */
+  outputPath: string;
+  durationMs: number;
+  error?: string;
 }
 
 // Native module interface - what we expect from the native side
@@ -1063,6 +1326,20 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<AsrRecognizeResult>;
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
+
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
 
   // Audio tagging methods
   initAudioTagging(
@@ -1103,6 +1380,52 @@ export interface NativeSherpaOnnxInterface {
   ): Promise<VerifySpeakerResult>;
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
+
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(
@@ -1137,6 +1460,20 @@ export interface SherpaOnnxInterface {
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
 
+  // ASR online streaming primitives
+  createAsrOnlineStream(): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
+  getAsrOnlineResult(): Promise<{
+    text: string;
+    tokens: string[];
+    timestamps: number[];
+  }>;
+  resetAsrOnlineStream(): Promise<{ success: boolean }>;
+
   // Audio tagging methods
   initAudioTagging(
     config: AudioTaggingModelConfig
@@ -1177,6 +1514,52 @@ export interface SherpaOnnxInterface {
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
+  // Diarization methods
+  initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  releaseDiarization(): Promise<{ released: boolean }>;
+
+  // KWS methods
+  initKws(config: KWSModelConfig): Promise<KWSInitResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  resetKwsStream(): Promise<{ success: boolean }>;
+  releaseKws(): Promise<{ released: boolean }>;
+
+  // VAD methods
+  initVad(config: VadModelConfig): Promise<VadInitResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  resetVad(): Promise<{ success: boolean }>;
+  releaseVad(): Promise<{ released: boolean }>;
+
+  // Language ID methods
+  initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
+  releaseLanguageId(): Promise<{ released: boolean }>;
+
+  // Punctuation methods
+  initPunctuation(config: PunctuationModelConfig): Promise<PunctuationInitResult>;
+  addPunctuation(text: string): Promise<PunctuationResult>;
+  releasePunctuation(): Promise<{ released: boolean }>;
+
+  // Denoising methods
+  initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
+  denoiseFile(filePath: string): Promise<DenoiserResult>;
+  releaseDenoiser(): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1191,7 +1574,13 @@ export interface SherpaOnnxInterface {
   ASR: AsrService;
   AudioTagging: AudioTaggingService;
   SpeakerId: SpeakerIdService;
+  KWS: KWSService;
+  VAD: VadService;
+  LanguageId: LanguageIdService;
+  Punctuation: PunctuationService;
   Archive: ArchiveService;
+  Diarization: DiarizationService;
+  Denoising: import('../services/DenoisingService').DenoisingService;
 }
 
 // Result types

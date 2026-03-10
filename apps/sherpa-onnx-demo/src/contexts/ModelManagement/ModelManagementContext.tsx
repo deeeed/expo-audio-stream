@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Platform , InteractionManager } from 'react-native';
+import { Platform } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { extractTarBz2 } from '../../utils/archiveUtils';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
@@ -10,9 +10,21 @@ import { DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState } from '../../utils/co
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
+function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+  let last = 0;
+  return ((...args: Parameters<T>) => {
+    const now = Date.now();
+    if (now - last >= ms) { last = now; fn(...args); }
+  }) as T;
+}
+
 // Get persistent storage directory based on platform
 const getPersistentStorageDirectory = (): string => {
-  // On iOS, documentDirectory is backed up to iCloud and persistent across app restarts
+  // documentDirectory is the Expo-recommended persistent storage location.
+  // - iOS: backed up to iCloud, persists across restarts
+  // - Android: internal storage, persists across restarts (cleared on uninstall)
+  // Note: expo-file-system v55 removed externalStorageDirectory. On modern Android (10+),
+  // scoped external storage is also wiped on uninstall, so documentDirectory is equivalent.
   return FileSystem.documentDirectory || '';
 };
 
@@ -70,7 +82,53 @@ export function ModelManagementProvider({
           if (typeof parsedStates === 'object' && parsedStates !== null) {
              // Handle migration of absolute paths to relative paths for iOS
              const migratedStates = await migrateStoredPaths(parsedStates);
-             setModelStates(migratedStates);
+             // Remove stale entries whose IDs are no longer in the catalog
+             const catalogIds = new Set(AVAILABLE_MODELS.map(m => m.id));
+             const reconciledStates: Record<string, ModelState> = {};
+             for (const [id, state] of Object.entries(migratedStates)) {
+               if (catalogIds.has(id)) {
+                 reconciledStates[id] = state as ModelState;
+               } else {
+                 console.log(`[ModelManagement] Removing stale model state: ${id} (not in catalog)`);
+               }
+             }
+             // Add new catalog entries not yet in saved state
+             for (const meta of AVAILABLE_MODELS) {
+               if (!reconciledStates[meta.id]) {
+                 const modelDir = getModelDirectoryPath(meta.id);
+                 let isOnDisk = false;
+                 try {
+                   const info = await FileSystem.getInfoAsync(modelDir);
+                   if (info.exists && info.isDirectory) {
+                     const contents = await FileSystem.readDirectoryAsync(modelDir);
+                     isOnDisk = contents.length > 0;
+                   }
+                 } catch (_) { /* ignore */ }
+                 reconciledStates[meta.id] = {
+                   metadata: meta,
+                   status: isOnDisk ? 'downloaded' as ModelStatus : 'pending' as ModelStatus,
+                   progress: isOnDisk ? 100 : 0,
+                   localPath: isOnDisk ? modelDir : undefined,
+                   error: undefined,
+                   files: undefined,
+                   extractedFiles: undefined,
+                   lastDownloaded: undefined,
+                 };
+               }
+             }
+             // Reset any stale in-progress states (app was killed mid-download)
+             let hadStaleDownloads = false;
+             for (const [id, state] of Object.entries(reconciledStates)) {
+               if (state.status === 'downloading' || state.status === 'extracting') {
+                 console.log(`[ModelManagement] Resetting stale ${state.status} state for ${id} to pending`);
+                 reconciledStates[id] = { ...state, status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined };
+                 hadStaleDownloads = true;
+               }
+             }
+             if (hadStaleDownloads) {
+               await AsyncStorage.setItem(storageKey, JSON.stringify(reconciledStates));
+             }
+             setModelStates(reconciledStates);
           } else {
              console.warn('Parsed state is not an object, starting fresh.');
              setModelStates({});
@@ -83,22 +141,49 @@ export function ModelManagementProvider({
            await AsyncStorage.removeItem(storageKey); // Clear invalid state
         }
       } else {
-        console.log(`No saved model states found for key \'${storageKey}\'. Initializing.`);
-        // Initialize state from AVAILABLE_MODELS if no state is saved
+        console.log(`No saved model states found for key \'${storageKey}\'. Initializing with filesystem check.`);
+        // Initialize state from AVAILABLE_MODELS, checking filesystem for existing downloads
         const initialStates: Record<string, ModelState> = {};
-        AVAILABLE_MODELS.forEach(meta => {
-           initialStates[meta.id] = { // Ensure structure matches ModelState
-             metadata: meta,
-             status: 'pending' as ModelStatus,
-             progress: 0,
-             localPath: undefined,
-             error: undefined,
-             files: undefined,
-             extractedFiles: undefined,
-             lastDownloaded: undefined,
-           };
-        });
+        for (const meta of AVAILABLE_MODELS) {
+          const modelDir = getModelDirectoryPath(meta.id);
+          let isOnDisk = false;
+          try {
+            const info = await FileSystem.getInfoAsync(modelDir);
+            if (info.exists && info.isDirectory) {
+              const contents = await FileSystem.readDirectoryAsync(modelDir);
+              // Consider downloaded if directory has files (not just empty)
+              isOnDisk = contents.length > 0;
+            }
+          } catch (_) { /* ignore */ }
+
+          if (isOnDisk) {
+            console.log(`[ModelManagement] Found existing model on disk: ${meta.id}`);
+            initialStates[meta.id] = {
+              metadata: meta,
+              status: 'downloaded' as ModelStatus,
+              progress: 100,
+              localPath: modelDir,
+              error: undefined,
+              files: undefined,
+              extractedFiles: undefined,
+              lastDownloaded: undefined,
+            };
+          } else {
+            initialStates[meta.id] = {
+              metadata: meta,
+              status: 'pending' as ModelStatus,
+              progress: 0,
+              localPath: undefined,
+              error: undefined,
+              files: undefined,
+              extractedFiles: undefined,
+              lastDownloaded: undefined,
+            };
+          }
+        }
         setModelStates(initialStates);
+        // Persist the reconciled state
+        await AsyncStorage.setItem(storageKey, JSON.stringify(initialStates));
       }
     } catch (error) { // Catch errors during AsyncStorage.getItem or other operations
       console.error('Critical error loading model states:', error);
@@ -149,9 +234,7 @@ export function ModelManagementProvider({
   }, [storageKey, modelStates]); // Include dependencies
 
   // Original updateModelState
-  const updateModelState = useCallback((modelId: string, updates: Partial<ModelState>) => {
-    // Add more detailed logging here
-    console.log(`[updateModelState] Updating ${modelId}:`, JSON.stringify(updates)); 
+  const updateModelState = useCallback((modelId: string, updates: Partial<ModelState>, persist = true) => {
     setModelStates((prev) => {
       const existingState = prev[modelId];
       const currentMetadata = existingState?.metadata ?? AVAILABLE_MODELS.find(m => m.id === modelId);
@@ -165,15 +248,9 @@ export function ModelManagementProvider({
           status: 'pending',
           progress: 0,
       };
-      // Log previous progress if updating progress
-      if (updates.progress !== undefined && existingState?.progress !== undefined) {
-          console.log(`[updateModelState] ${modelId} - Old progress: ${existingState.progress}, New progress: ${updates.progress}`);
-      }
       const newState = { ...baseState, ...updates };
       const newStates = { ...prev, [modelId]: newState };
-      // Log the full new state for the model being updated
-      console.log(`[updateModelState] ${modelId} - New full state:`, JSON.stringify(newState));
-      saveModelStates(newStates);
+      if (persist) saveModelStates(newStates);
       return newStates;
     });
   }, [saveModelStates]); // Include saveModelStates dependency
@@ -245,17 +322,7 @@ export function ModelManagementProvider({
     setActiveDownloads(prev => ({ ...prev, [depKey]: depResumable }));
     
     try {
-      // Use InteractionManager to keep UI responsive
-      await new Promise<void>((resolve, reject) => {
-        InteractionManager.runAfterInteractions(async () => {
-          try {
-            await depResumable.downloadAsync();
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        });
-      });
+      await depResumable.downloadAsync();
       
       extractedFileNames.push(depFileName);
       console.log(`Dependency ${dependency.name} downloaded.`);
@@ -302,8 +369,13 @@ export function ModelManagementProvider({
           return newState;
         });
 
-        if (!downloadResult || downloadResult.status !== 200) {
-          throw new Error(`Download failed with status ${downloadResult?.status || 'unknown'}`);
+        if (!downloadResult) {
+          // null result means the download was cancelled — not an error
+          updateModelState(modelId, { status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined });
+          return;
+        }
+        if (downloadResult.status !== 200) {
+          throw new Error(`Download failed with status ${downloadResult.status}`);
         }
 
         const fileInfo = await FileSystem.getInfoAsync(filePath);
@@ -318,28 +390,16 @@ export function ModelManagementProvider({
           // Update state to extracting
           updateModelState(modelId, { status: 'extracting' as ModelStatus, progress: 1 });
 
-          // Use InteractionManager for extraction to keep UI responsive
-          await new Promise<void>(resolve => {
-            InteractionManager.runAfterInteractions(async () => {
-              try {
-                const extractionResult = await extractTarBz2(filePath, modelDir);
-                if (!extractionResult.success) {
-                  throw new Error(`Extraction failed: ${extractionResult.message || 'Unknown error'}`);
-                }
-                
-                console.log(`Archive extracted successfully.`);
-                extractedFileNames = extractionResult.extractedFiles || [];
-                
-                await FileSystem.deleteAsync(filePath, { idempotent: true });
-                console.log(`Cleaned up archive file: ${filePath}`);
-                
-                resolve();
-              } catch (error) {
-                console.error(`Error during extraction:`, error);
-                throw error;
-              }
-            });
-          });
+          const extractionResult = await extractTarBz2(filePath, modelDir);
+          if (!extractionResult.success) {
+            throw new Error(`Extraction failed: ${extractionResult.message || 'Unknown error'}`);
+          }
+
+          console.log(`Archive extracted successfully.`);
+          extractedFileNames = extractionResult.extractedFiles || [];
+
+          await FileSystem.deleteAsync(filePath, { idempotent: true });
+          console.log(`Cleaned up archive file: ${filePath}`);
         } else {
           extractedFileNames = [fileName];
         }
@@ -457,16 +517,21 @@ export function ModelManagementProvider({
       // Create directory for model - do this immediately
       await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
 
-      // Define the progress callback with UI updates on main thread
-      const progressCallback = (dp: FileSystem.DownloadProgressData) => {
+      // Average speed since download start — always correct for ETA regardless of callback frequency
+      const downloadStartTime = Date.now();
+
+      // Throttled progress callback: max 4 UI updates/sec, no AsyncStorage write during download
+      const progressCallback = throttle((dp: FileSystem.DownloadProgressData) => {
+        const elapsedSec = (Date.now() - downloadStartTime) / 1000;
+        const speed = elapsedSec > 0.5 ? dp.totalBytesWritten / elapsedSec : 0;
         const newProgress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
-        console.log(`[ProgressCallback] ${modelId} - Progress: ${newProgress.toFixed(2)}`);
-        
-        // Use InteractionManager for all platforms to avoid blocking UI
-        InteractionManager.runAfterInteractions(() => {
-          updateModelState(modelId, { progress: newProgress });
-        });
-      };
+        updateModelState(modelId, {
+          progress: newProgress,
+          bytesWritten: dp.totalBytesWritten,
+          totalBytes: dp.totalBytesExpectedToWrite,
+          downloadSpeedBytesPerSec: speed,
+        }, false);
+      }, 250);
 
       // Create the download resumable object
       const downloadResumable = FileSystem.createDownloadResumable(
@@ -479,10 +544,7 @@ export function ModelManagementProvider({
       // Store in active downloads
       setActiveDownloads(prev => ({ ...prev, [modelId]: downloadResumable }));
 
-      // Run the download process in the background with InteractionManager for all platforms
-      InteractionManager.runAfterInteractions(() => {
-        startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
-      });
+      startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
 
       // Return immediately
       return;
@@ -517,14 +579,20 @@ export function ModelManagementProvider({
        }
     }
     const state = modelStates[modelId];
-    if (cancelled || state?.status === 'extracting') {
-       const errorMsg = state?.status === 'extracting' ? 'Extraction cancelled' : 'Download cancelled';
-       updateModelState(modelId, { // Use 'pending'
-           status: 'pending',
-           progress: 0, error: errorMsg, localPath: undefined,
-           files: undefined, extractedFiles: undefined,
-        });
-       console.log(`Reset state for ${modelId} due to cancellation.`);
+    // Also reset stale 'downloading' state that survives app reloads (activeDownloads is in-memory only)
+    if (cancelled || state?.status === 'extracting' || state?.status === 'downloading' || state?.status === 'error') {
+      updateModelState(modelId, {
+        status: 'pending',
+        progress: 0,
+        bytesWritten: undefined,
+        totalBytes: undefined,
+        downloadSpeedBytesPerSec: undefined,
+        error: undefined,
+        localPath: undefined,
+        files: undefined,
+        extractedFiles: undefined,
+      });
+      console.log(`Reset state for ${modelId} to pending.`);
     } else {
       console.log(`No active download/extraction found to cancel for ${modelId}.`);
     }

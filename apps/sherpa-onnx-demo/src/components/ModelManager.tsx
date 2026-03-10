@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
 import { ModelState } from '../contexts/ModelManagement/types';
 import { formatBytes } from '../utils/formatters';
@@ -79,6 +80,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
       progressAnim.setValue(0);
     }
   }, [state?.progress, isDownloading, isExtracting, progressAnim]);
+
 
   const handleDownload = async () => {
     // Disable downloads on web platform
@@ -273,6 +275,11 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     <View style={[cardStyles.card, isSelected && cardStyles.cardSelected]}>
       <View style={cardStyles.cardHeader}>
         <Text style={cardStyles.modelName}>{model.name}</Text>
+        {model.recommended && (
+          <View style={cardStyles.recommendedBadge}>
+            <Text style={cardStyles.recommendedBadgeText}>Recommended</Text>
+          </View>
+        )}
         {hasDependencies && (
           <View style={cardStyles.dependencyBadge}>
             <Text style={cardStyles.dependencyBadgeText}>Has Dependencies</Text>
@@ -289,50 +296,71 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
         <Text style={cardStyles.detailText}>Language: {model.language}</Text>
       </View>
 
-      {/* Download Progress - use animated version */}
-      {state?.status === 'downloading' && (
-        <View style={cardStyles.progressContainer}>
-          <View style={cardStyles.progressRow}>
-            <ActivityIndicator size="small" color="#2196F3" />
-            <Text style={cardStyles.progressText}>
-              Downloading...
-            </Text>
-            <Text style={cardStyles.progressPercent}>
-              {Math.round((state.progress || 0) * 100)}%
-            </Text>
-            {onCancelDownload && (
-              <TouchableOpacity 
-                style={cardStyles.cancelButton}
-                onPress={async () => {
-                  try {
-                    setIsLoading(true);
-                    await onCancelDownload(model.id);
-                  } catch (error) {
-                    Alert.alert('Cancel Error', (error as Error).message);
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <Ionicons name="close-circle" size={18} color="#ff4444" />
-                <Text style={cardStyles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            )}
+      {/* Download Progress */}
+      {state?.status === 'downloading' && (() => {
+        const speed = state.downloadSpeedBytesPerSec ?? 0;
+        const pct = Math.round((state.progress || 0) * 100);
+        const remaining = speed > 0 && state.totalBytes && state.bytesWritten !== undefined
+          ? state.totalBytes - state.bytesWritten
+          : null;
+        const etaSec = remaining !== null && speed > 0 ? Math.round(remaining / speed) : null;
+        const etaLabel = etaSec === null ? null
+          : etaSec >= 60 ? `~${Math.floor(etaSec / 60)}m ${etaSec % 60}s`
+          : `~${etaSec}s`;
+        return (
+          <View style={cardStyles.progressContainer}>
+            {/* Top row: bytes + speed */}
+            <View style={cardStyles.progressInfoRow}>
+              <Text style={cardStyles.progressBytes}>
+                {state.bytesWritten !== undefined && state.totalBytes
+                  ? `${formatBytes(state.bytesWritten)} / ${formatBytes(state.totalBytes)}`
+                  : `${pct}%`}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {speed > 0 && (
+                  <Text style={cardStyles.progressSpeed}>{formatBytes(speed)}/s</Text>
+                )}
+                {onCancelDownload && (
+                  <TouchableOpacity
+                    testID={`cancel-download-${model.id}`}
+                    onPress={async () => {
+                      try {
+                        setIsLoading(true);
+                        await onCancelDownload(model.id);
+                      } catch (error) {
+                        Alert.alert('Cancel Error', (error as Error).message);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    disabled={isLoading}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ff4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {/* Progress bar */}
+            <View style={cardStyles.progressBarContainer}>
+              <Animated.View
+                style={[
+                  cardStyles.progressBarInner,
+                  { width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }) }
+                ]}
+              />
+            </View>
+            {/* Bottom row: percent + ETA */}
+            <View style={cardStyles.progressInfoRow}>
+              <Text style={cardStyles.progressPct}>{pct}%</Text>
+              {etaLabel && <Text style={cardStyles.progressEta}>{etaLabel} left</Text>}
+            </View>
           </View>
-          <View style={cardStyles.progressBarContainer}>
-            <Animated.View 
-              style={[
-                cardStyles.progressBarInner, 
-                { width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }) }
-              ]} 
-            />
-          </View>
-        </View>
-      )}
+        );
+      })()}
 
       {/* Extraction Progress - also use animated version for indeterminate progress */}
       {state?.status === 'extracting' && (
@@ -370,7 +398,27 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       {state?.status === 'error' && (
         <View style={cardStyles.errorContainer}>
-          <Text style={cardStyles.errorText}>{state.error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <Text style={[cardStyles.errorText, { flex: 1, marginRight: 8 }]}>{state.error}</Text>
+            {onCancelDownload && (
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    setIsLoading(true);
+                    await onCancelDownload(model.id);
+                  } catch (e) {
+                    Alert.alert('Error', (e as Error).message);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                disabled={isLoading}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={20} color="#ff4444" />
+              </TouchableOpacity>
+            )}
+          </View>
           {state.extractedFiles && state.extractedFiles.length > 0 && (
             <View style={cardStyles.filesContainer}>
               <Text style={cardStyles.filesTitle}>Partially Extracted Files:</Text>
@@ -495,8 +543,9 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
+            testID={`download-model-${model.id}`}
             style={[
-              cardStyles.button, 
+              cardStyles.button,
               cardStyles.downloadButton,
               Platform.OS === 'web' && cardStyles.buttonDisabled
             ]}
@@ -533,6 +582,7 @@ type EmptyItem = {
 type ListItem = HeaderItem | ModelItem | EmptyItem;
 
 export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
+  const insets = useSafeAreaInsets();
   const {
     getAvailableModels,
     getDownloadedModels,
@@ -544,7 +594,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded'); // Start with downloaded expanded
+  const [expandedSection, setExpandedSection] = useState<SectionId | null>('downloaded');
 
   // Memoized model lists (as before)
   const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
@@ -563,6 +613,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       : downloadedModels.filter((modelState) => modelState.metadata.type === filterType),
     [downloadedModels, filterType]
   );
+
 
   // Memoized handlers (as before)
   const handleDownload = useCallback(async (modelId: string) => {
@@ -633,6 +684,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       if (item.type === 'header') {
           return (
               <TouchableOpacity
+                  testID={`section-header-${item.id}`}
                   style={styles.sectionHeader}
                   onPress={() => toggleSection(item.id)}
               >
@@ -700,7 +752,8 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
   // Render the single FlatList
   return (
     <FlatList
-      style={styles.container} // Apply container style to FlatList
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom }}
       data={listData}
       renderItem={renderListItem}
       keyExtractor={keyExtractor}
@@ -808,26 +861,37 @@ const cardStyles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 12,
   },
-  progressRow: {
+  progressInfoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
   },
-  progressText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#2196F3',
+  progressBytes: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1565C0',
   },
-  progressPercent: {
-    marginLeft: 8,
-    fontSize: 14,
+  progressSpeed: {
+    fontSize: 13,
     color: '#2196F3',
-    fontWeight: 'bold',
+    fontWeight: '500',
+  },
+  progressPct: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  progressEta: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
   },
   progressBarContainer: {
-    height: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
+    height: 8,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarOuter: {
@@ -838,11 +902,24 @@ const cardStyles = StyleSheet.create({
   },
   progressBarInner: {
     height: '100%',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#1976D2',
+    borderRadius: 4,
   },
   progressBarIndeterminate: {
-    width: '30%',
-    backgroundColor: '#2196F3',
+    width: '40%',
+    backgroundColor: '#1976D2',
+    borderRadius: 4,
+  },
+  progressRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 6,
+  },
+  progressText: {
+    fontSize: 13,
+    color: '#555',
+    flex: 1,
   },
   errorContainer: {
     marginTop: 8,
@@ -930,6 +1007,18 @@ const cardStyles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: '500',
+  },
+  recommendedBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  recommendedBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   dependencyBadge: {
     backgroundColor: '#ff9800',

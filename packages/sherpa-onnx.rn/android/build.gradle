@@ -18,26 +18,24 @@ buildscript {
 def REACT_NATIVE_VERSION = safeExtGet('reactNativeVersion', '+')
 
 apply plugin: 'com.android.library'
+apply plugin: 'com.facebook.react'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 
 android {
     namespace "net.siteed.sherpaonnx"
-    compileSdkVersion safeExtGet('compileSdkVersion', 33)
-    buildToolsVersion safeExtGet('buildToolsVersion', '33.0.0')
+    compileSdkVersion safeExtGet('compileSdkVersion', 34)
+    buildToolsVersion safeExtGet('buildToolsVersion', '34.0.0')
 
     defaultConfig {
         minSdkVersion safeExtGet('minSdkVersion', 21)
-        targetSdkVersion safeExtGet('targetSdkVersion', 33)
+        targetSdkVersion safeExtGet('targetSdkVersion', 34)
         versionCode 1
         versionName "1.0"
-        
+
         // Test instrumentation runner for integration tests
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        // Add BuildConfig field for architecture detection
-        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "${isNewArchitectureEnabled()}"
-        
+
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
         }
@@ -47,7 +45,7 @@ android {
         main {
             // Include prebuilt libraries in the correct location
             jniLibs.srcDirs = ['src/main/jniLibs']
-            
+
             // Add Java source directory for compatibility
             java.srcDirs = ['src/main/java']
         }
@@ -58,9 +56,6 @@ android {
         sourceSets {
             main {
                 kotlin.srcDirs = ['src/main/kotlin']
-            }
-            if (isNewArchitectureEnabled()) {
-                main.kotlin.srcDirs += ['src/newarch/kotlin']
             }
         }
     }
@@ -95,10 +90,6 @@ android {
     }
 }
 
-// Add back the New Architecture detection
-def isNewArchitectureEnabled() {
-    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
-}
 
 repositories {
     google()
@@ -146,10 +137,4 @@ dependencies {
     androidTestImplementation "androidx.test:runner:1.5.2"
     androidTestImplementation "androidx.test:rules:1.5.0"
 
-    // Add New Architecture dependencies conditionally
-    if (isNewArchitectureEnabled()) {
-        implementation "com.facebook.react:react-native:${REACT_NATIVE_VERSION}"
-        // implementation "com.facebook.react:react-native-bridge:${REACT_NATIVE_VERSION}"
-        // implementation "com.facebook.react:react-native-turbomodule-core:${REACT_NATIVE_VERSION}"
-    }
 } 

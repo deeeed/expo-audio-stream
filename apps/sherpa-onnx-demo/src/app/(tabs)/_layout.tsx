@@ -1,66 +1,116 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { useTheme } from '@siteed/design-system';
+import { Tabs, useSegments } from 'expo-router';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import React from 'react';
-/**
- * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
- */
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof Ionicons>['name'];
-  color: string;
-}) {
-  return <Ionicons size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { Platform, View } from 'react-native';
+
+import { CustomHeader } from '../../components/CustomHeader';
+import { useModelManagement } from '../../contexts/ModelManagement';
+
+const TAB_TITLES: Record<string, string> = {
+  index: 'Home',
+  features: 'Features',
+  models: 'Models',
+  about: 'About',
+};
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+  const segments = useSegments();
+  const { modelsState } = useModelManagement();
+  // Only show custom header for top-level tab screens (not when inside features stack)
+  const isNestedFeature = segments.length > 2 && segments[1] === 'features';
+  const currentTab = segments[1] ?? 'index';
+  const title = TAB_TITLES[currentTab] ?? 'Sherpa-ONNX';
+  const isAnyDownloading = Object.values(modelsState).some(
+    s => s.status === 'downloading' || s.status === 'extracting'
+  );
+
+  if (Platform.OS === 'web') {
+    return (
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.text,
+          tabBarStyle: {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="features"
+          options={{
+            title: 'Features',
+            tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="models"
+          options={{
+            title: 'Models',
+            tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
+            tabBarBadge: isAnyDownloading ? '↓' : undefined,
+          }}
+        />
+        <Tabs.Screen
+          name="about"
+          options={{
+            title: 'About',
+            tabBarIcon: ({ color }) => <Ionicons name="information-circle" size={28} color={color} />,
+          }}
+        />
+      </Tabs>
+    );
+  }
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#000',
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="asr"
-        options={{
-          title: 'ASR',
-          tabBarIcon: ({ color }) => <TabBarIcon name="mic" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tts"
-        options={{
-          title: 'TTS',
-          tabBarIcon: ({ color }) => <TabBarIcon name="chatbox-ellipses" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="audio-tagging"
-        options={{
-          title: 'Audio Tagging',
-          tabBarIcon: ({ color }) => <TabBarIcon name="musical-note" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="speaker-id"
-        options={{
-          title: 'Speaker ID',
-          tabBarIcon: ({ color }) => <TabBarIcon name="person" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="models"
-        options={{
-          title: 'Models',
-          tabBarIcon: ({ color }) => <TabBarIcon name="download" color={color} />,
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      {!isNestedFeature && <CustomHeader title={title} />}
+      <NativeTabs
+        tintColor={colors.primary}
+        backgroundColor={colors.background}
+        labelVisibilityMode="labeled"
+      >
+        <NativeTabs.Trigger name="index">
+          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'house', selected: 'house.fill' }}
+            md="home"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="features">
+          <NativeTabs.Trigger.Label>Features</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }}
+            md="grid_view"
+          />
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="models">
+          <NativeTabs.Trigger.Label>Models</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'arrow.down.circle', selected: 'arrow.down.circle.fill' }}
+            md="download"
+          />
+          {isAnyDownloading && <NativeTabs.Trigger.Badge>↓</NativeTabs.Trigger.Badge>}
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="about">
+          <NativeTabs.Trigger.Label>About</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'info.circle', selected: 'info.circle.fill' }}
+            md="info"
+          />
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </View>
   );
-} 
+}
