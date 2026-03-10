@@ -110,7 +110,7 @@ export function useAudioTagging() {
       try {
         const assets = SAMPLE_AUDIO_FILES.map(f => Asset.fromModule(f.module));
         await Promise.all(assets.map(a => a.downloadAsync()));
-        setLoadedAudioFiles(SAMPLE_AUDIO_FILES.map((f, i) => ({ ...f, localUri: assets[i].localUri || '' })));
+        setLoadedAudioFiles(SAMPLE_AUDIO_FILES.map((f, i) => ({ ...f, localUri: assets[i].localUri || assets[i].uri || '' })));
       } catch (err) {
         setError(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`);
       }

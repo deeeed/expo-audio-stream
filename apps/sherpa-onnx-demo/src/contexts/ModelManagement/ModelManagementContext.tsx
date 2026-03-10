@@ -6,7 +6,18 @@ import { extractTarBz2 } from '../../utils/archiveUtils';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
-import { DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState } from '../../utils/constants';
+import {
+  DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState,
+  DEFAULT_WEB_ASR_MODEL_ID, createWebAsrModelState,
+  DEFAULT_WEB_VAD_MODEL_ID, createWebVadModelState,
+  DEFAULT_WEB_KWS_MODEL_ID, createWebKwsModelState,
+  DEFAULT_WEB_DENOISER_MODEL_ID, createWebDenoiserModelState,
+  DEFAULT_WEB_DIARIZATION_MODEL_ID, createWebDiarizationModelState,
+  DEFAULT_WEB_SPEAKER_ID_MODEL_ID, createWebSpeakerIdModelState,
+  DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID, createWebAudioTaggingModelState,
+  DEFAULT_WEB_LANGUAGE_ID_MODEL_ID, createWebLanguageIdModelState,
+  DEFAULT_WEB_PUNCTUATION_MODEL_ID, createWebPunctuationModelState,
+} from '../../utils/constants';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
@@ -260,45 +271,110 @@ export function ModelManagementProvider({
     return Platform.OS === 'web' && metadata.type === 'tts';
   };
 
-  // Modify getModelState to handle web TTS models
+  // Modify getModelState to handle web preloaded models
   const getModelState = useCallback((modelId: string): ModelState | undefined => {
-    // Special handling for web platform
-    if (Platform.OS === 'web' && modelId === DEFAULT_WEB_TTS_MODEL_ID) {
-      console.log(`[getModelState] Using web-integrated TTS model for ${modelId}`);
-      const defaultTtsModel = AVAILABLE_MODELS.find(m => m.id === DEFAULT_WEB_TTS_MODEL_ID);
-      if (defaultTtsModel) {
-        return createWebTtsModelState(defaultTtsModel);
+    if (Platform.OS === 'web') {
+      const webPreloaded: Record<string, () => ModelState | undefined> = {
+        [DEFAULT_WEB_TTS_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_TTS_MODEL_ID);
+          return m ? createWebTtsModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_ASR_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_ASR_MODEL_ID);
+          return m ? createWebAsrModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_VAD_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_VAD_MODEL_ID);
+          return m ? createWebVadModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_KWS_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_KWS_MODEL_ID);
+          return m ? createWebKwsModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_DENOISER_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_DENOISER_MODEL_ID);
+          return m ? createWebDenoiserModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_DIARIZATION_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_DIARIZATION_MODEL_ID);
+          return m ? createWebDiarizationModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_SPEAKER_ID_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_SPEAKER_ID_MODEL_ID);
+          return m ? createWebSpeakerIdModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID);
+          return m ? createWebAudioTaggingModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_LANGUAGE_ID_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_LANGUAGE_ID_MODEL_ID);
+          return m ? createWebLanguageIdModelState(m) : undefined;
+        },
+        [DEFAULT_WEB_PUNCTUATION_MODEL_ID]: () => {
+          const m = AVAILABLE_MODELS.find(x => x.id === DEFAULT_WEB_PUNCTUATION_MODEL_ID);
+          return m ? createWebPunctuationModelState(m) : undefined;
+        },
+      };
+      if (modelId in webPreloaded) {
+        return webPreloaded[modelId]();
       }
-      console.warn(`[getModelState] Default web TTS model ${DEFAULT_WEB_TTS_MODEL_ID} not found`);
-      return undefined;
     }
-    
+
     return modelStates[modelId];
   }, [modelStates]);
 
+  const WEB_PRELOADED_IDS = new Set([
+    DEFAULT_WEB_TTS_MODEL_ID,
+    DEFAULT_WEB_ASR_MODEL_ID,
+    DEFAULT_WEB_VAD_MODEL_ID,
+    DEFAULT_WEB_KWS_MODEL_ID,
+    DEFAULT_WEB_DENOISER_MODEL_ID,
+    DEFAULT_WEB_DIARIZATION_MODEL_ID,
+    DEFAULT_WEB_SPEAKER_ID_MODEL_ID,
+    DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID,
+    DEFAULT_WEB_LANGUAGE_ID_MODEL_ID,
+    DEFAULT_WEB_PUNCTUATION_MODEL_ID,
+  ]);
+
   // Similarly modify isModelDownloaded
   const isModelDownloaded = (modelId: string): boolean => {
+    if (Platform.OS === 'web' && WEB_PRELOADED_IDS.has(modelId)) {
+      return true;
+    }
     const metadata = AVAILABLE_MODELS.find(m => m.id === modelId);
     if (metadata && isTtsModelOnWeb(modelId, metadata)) {
       return true; // Always true for TTS models on web
     }
-    
+
     const state = modelStates[modelId];
     return !!state && state.status === 'downloaded' && !!state.localPath;
   };
 
   // Modify getDownloadedModels for web platform
   const getDownloadedModels = useCallback((): ModelState[] => {
-    // On web platform, only provide the built-in TTS model
+    // On web platform, provide all preloaded WASM models
     if (Platform.OS === 'web') {
-      console.log('[getDownloadedModels] Using web-integrated TTS model');
-      const defaultTtsModel = AVAILABLE_MODELS.find(m => m.id === DEFAULT_WEB_TTS_MODEL_ID);
-      if (defaultTtsModel) {
-        return [createWebTtsModelState(defaultTtsModel)];
+      const states: ModelState[] = [];
+      const factories: [string, (m: ModelMetadata) => ModelState][] = [
+        [DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState],
+        [DEFAULT_WEB_ASR_MODEL_ID, createWebAsrModelState],
+        [DEFAULT_WEB_VAD_MODEL_ID, createWebVadModelState],
+        [DEFAULT_WEB_KWS_MODEL_ID, createWebKwsModelState],
+        [DEFAULT_WEB_DENOISER_MODEL_ID, createWebDenoiserModelState],
+        [DEFAULT_WEB_DIARIZATION_MODEL_ID, createWebDiarizationModelState],
+        [DEFAULT_WEB_SPEAKER_ID_MODEL_ID, createWebSpeakerIdModelState],
+        [DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID, createWebAudioTaggingModelState],
+        [DEFAULT_WEB_LANGUAGE_ID_MODEL_ID, createWebLanguageIdModelState],
+        [DEFAULT_WEB_PUNCTUATION_MODEL_ID, createWebPunctuationModelState],
+      ];
+      for (const [id, factory] of factories) {
+        const m = AVAILABLE_MODELS.find(x => x.id === id);
+        if (m) states.push(factory(m));
       }
-      return [];
+      return states;
     }
-    
+
     // For non-web platforms, get models from state that are marked as downloaded
     return Object.values(modelStates).filter(state =>
       state.status === 'downloaded' && !!state.localPath && !!state.metadata
@@ -641,6 +717,9 @@ export function ModelManagementProvider({
 
   // Original getAvailableModels (returns ModelMetadata[])
   const getAvailableModels = useCallback((): ModelMetadata[] => {
+    if (Platform.OS === 'web') {
+      return AVAILABLE_MODELS.filter(m => m.webPreloaded === true);
+    }
     return AVAILABLE_MODELS;
   }, []);
 

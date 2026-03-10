@@ -2,7 +2,7 @@ import { VAD } from '@siteed/sherpa-onnx.rn';
 import type { VadModelConfig, SpeechSegment } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system/legacy';
+import { readFileAsArrayBuffer } from '../../../utils/fileUtils';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -84,8 +84,9 @@ export default function VadScreen() {
       for (const audio of BUNDLED_AUDIO) {
         try {
           const [asset] = await Asset.loadAsync(audio.module);
-          if (asset?.localUri) {
-            const localUri = asset.localUri.replace('file://', '');
+          const uri = asset?.localUri || asset?.uri;
+          if (uri) {
+            const localUri = uri.replace('file://', '');
             items.push({ id: audio.id, name: audio.name, localUri, source: 'bundled' });
           }
         } catch (e) {
@@ -125,7 +126,7 @@ export default function VadScreen() {
       audioItemsCount: audioItems.length,
       selectedAudioId,
     });
-  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, segments, liveSegments, isSpeechDetected, liveSpeechDetected, error]);
+  }, [selectedModelId, initialized, loading, detecting, isLiveMic, liveChunks, segments, liveSegments, isSpeechDetected, liveSpeechDetected, error, audioItems, selectedAudioId, statusMessage]);
 
   // Initialize VAD
   const handleInit = useCallback(async () => {
@@ -170,11 +171,7 @@ export default function VadScreen() {
     setStatusMessage(`Processing ${selected.name}...`);
 
     try {
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync('file://' + selected.localUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const arrayBuffer = base64ToArrayBuffer(base64);
+      const arrayBuffer = await readFileAsArrayBuffer(selected.localUri);
 
       // Parse WAV header for sample rate
       const dataView = new DataView(arrayBuffer);

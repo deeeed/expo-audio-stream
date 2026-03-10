@@ -3,6 +3,7 @@ import type { KWSInitResult } from '@siteed/sherpa-onnx.rn';
 import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
+import { readFileAsArrayBuffer, readFileAsText, fileExists } from '../../../utils/fileUtils';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -151,9 +152,9 @@ export default function KwsScreen() {
     (async () => {
       try {
         const dir = await resolveModelDir(localPath);
-        const info = await FileSystem.getInfoAsync(`file://${dir}/test_wavs/test_keywords.txt`);
-        setHasTestKeywordsFile(info.exists);
-        if (info.exists) {
+        const exists = await fileExists(`${dir}/test_wavs/test_keywords.txt`);
+        setHasTestKeywordsFile(exists);
+        if (exists) {
           setUseTestKeywords(true);
         }
       } catch {
@@ -171,31 +172,31 @@ export default function KwsScreen() {
     };
   }, [initialized]);
 
-  // Resolve model subdirectory
+  // Resolve model subdirectory (native only — on web, basePath is already the model dir)
   const resolveModelDir = async (basePath: string): Promise<string> => {
     let cleanPath = basePath.replace(/^file:\/\//, '');
-    try {
-      const expoPath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
-      const contents = await FileSystem.readDirectoryAsync(expoPath);
-      const subdir = contents.find(
-        (item) => item.includes('sherpa-onnx') && item.includes('kws')
-      );
-      if (subdir) {
-        cleanPath = `${cleanPath}/${subdir}`;
+    if (Platform.OS !== 'web') {
+      try {
+        const expoPath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
+        const contents = await FileSystem.readDirectoryAsync(expoPath);
+        const subdir = contents.find(
+          (item) => item.includes('sherpa-onnx') && item.includes('kws')
+        );
+        if (subdir) {
+          cleanPath = `${cleanPath}/${subdir}`;
+        }
+      } catch {
+        // use base path
       }
-    } catch {
-      // use base path
     }
     return cleanPath;
   };
 
   // Load keywords and test wavs after init
   const loadModelAssets = async (dir: string) => {
-    const expoDir = dir.startsWith('file://') ? dir : `file://${dir}`;
-
     // Read keywords.txt
     try {
-      const kwContent = await FileSystem.readAsStringAsync(`${expoDir}/keywords.txt`);
+      const kwContent = await readFileAsText(`${dir}/keywords.txt`);
       setKeywords(parseKeywordsFile(kwContent));
     } catch (e) {
       console.warn('[KWS] Could not read keywords.txt:', e);
@@ -203,7 +204,7 @@ export default function KwsScreen() {
 
     // Read test_keywords.txt (subset keywords that match the test wavs)
     try {
-      const tkContent = await FileSystem.readAsStringAsync(`${expoDir}/test_wavs/test_keywords.txt`);
+      const tkContent = await readFileAsText(`${dir}/test_wavs/test_keywords.txt`);
       setTestKeywords(parseKeywordsFile(tkContent));
     } catch {
       // not all models have test_keywords.txt
@@ -212,7 +213,7 @@ export default function KwsScreen() {
     // Read test_wavs/ transcriptions
     const items: AudioItem[] = [];
     try {
-      const transContent = await FileSystem.readAsStringAsync(`${expoDir}/test_wavs/trans.txt`);
+      const transContent = await readFileAsText(`${dir}/test_wavs/trans.txt`);
       const lines = transContent.split('\n').filter((l) => l.trim());
       for (const line of lines) {
         const spaceIdx = line.indexOf(' ');
@@ -220,9 +221,8 @@ export default function KwsScreen() {
         const filename = line.substring(0, spaceIdx);
         const transcript = line.substring(spaceIdx + 1).trim();
         const wavPath = `${dir}/test_wavs/${filename}`;
-        // Verify file exists
-        const info = await FileSystem.getInfoAsync(`file://${wavPath}`);
-        if (info.exists) {
+        const exists = await fileExists(wavPath);
+        if (exists) {
           items.push({
             id: `model-${filename}`,
             name: `${filename}: "${transcript}"`,
@@ -244,11 +244,12 @@ export default function KwsScreen() {
       const assets = bundled.map((b) => Asset.fromModule(b.module));
       await Promise.all(assets.map((a) => a.downloadAsync()));
       for (let i = 0; i < bundled.length; i++) {
-        if (assets[i].localUri) {
+        const uri = assets[i].localUri || assets[i].uri;
+        if (uri) {
           items.push({
             id: bundled[i].id,
             name: bundled[i].name,
-            localUri: assets[i].localUri!.replace(/^file:\/\//, ''),
+            localUri: uri.replace(/^file:\/\//, ''),
             source: 'bundled',
           });
         }
@@ -452,22 +453,12 @@ export default function KwsScreen() {
     setStatusMessage(`Processing "${audioItem.name.split(':')[0]}" for keyword detection...`);
 
     try {
-      const filePath = audioItem.localUri;
-      const expoUri = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
-
-      // Read audio file as base64 -> decode to PCM samples
-      const base64 = await FileSystem.readAsStringAsync(expoUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      const binaryStr = atob(base64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
+      // Read audio file cross-platform
+      const arrayBuffer = await readFileAsArrayBuffer(audioItem.localUri);
+      const bytes = new Uint8Array(arrayBuffer);
 
       // Parse WAV header
-      const dataView = new DataView(bytes.buffer);
+      const dataView = new DataView(arrayBuffer);
       const sampleRate = dataView.getUint32(24, true);
       const headerSize = 44;
 

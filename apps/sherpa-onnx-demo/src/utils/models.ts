@@ -37,6 +37,7 @@ export interface ModelMetadata {
   version: string;
   language: string;
   recommended?: boolean;
+  webPreloaded?: boolean;
   // Use the new DependencyMetadata interface
   dependencies?: DependencyMetadata[];
 }
@@ -52,7 +53,8 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     size: 103 * 1024 * 1024, // 103 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17-mobile.tar.bz2',
     version: '2023-02-17',
-    language: 'en'
+    language: 'en',
+    webPreloaded: true
   },
 
   {
@@ -125,6 +127,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-en_US-ljspeech-low.tar.bz2',
     version: 'low',
     language: 'en',
+    webPreloaded: true,
   },
 
   {
@@ -212,6 +215,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad_v5.onnx',
     version: '5.0',
     language: 'universal',
+    webPreloaded: true,
   },
   {
     id: 'ten-vad',
@@ -235,6 +239,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2',
     version: '2024-01-01',
     language: 'en',
+    webPreloaded: true,
   },
 
   {
@@ -259,6 +264,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx',
     version: '1.0',
     language: 'en',
+    webPreloaded: true,
   },
 
   {
@@ -296,6 +302,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: '3.0',
     language: 'multilingual',
     recommended: true,
+    webPreloaded: true,
   },
 
   // Language Identification Models
@@ -309,6 +316,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2',
     version: 'tiny',
     language: 'multilingual',
+    webPreloaded: true,
   },
 
   {
@@ -333,6 +341,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/audio-tagging-models/sherpa-onnx-ced-tiny-audio-tagging-2024-04-19.tar.bz2',
     version: '2024-04-19',
     language: 'universal',
+    webPreloaded: true,
   },
 
   {
@@ -370,6 +379,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-online-punct-en-2024-08-06.tar.bz2',
     version: '2024-08-06',
     language: 'en',
+    webPreloaded: true,
   },
 
   // Speech Denoising Models
@@ -384,6 +394,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: '2024',
     language: 'multilingual',
     recommended: true,
+    webPreloaded: true,
   },
 ];
 

@@ -218,9 +218,11 @@ export function useAsr() {
     setRecognitionResult(null);
     setError(null);
     try {
-      const uri = selectedAudio.localUri.startsWith('file://')
+      const uri = selectedAudio.localUri.startsWith('http')
         ? selectedAudio.localUri
-        : `file://${selectedAudio.localUri}`;
+        : selectedAudio.localUri.startsWith('file://')
+          ? selectedAudio.localUri
+          : `file://${selectedAudio.localUri}`;
       const result = await ASR.recognizeFromFile(uri);
       if (result.success) {
         setRecognitionResult(result.text || '');
@@ -295,10 +297,11 @@ export function useAsr() {
     try {
       const asset = Asset.fromModule(audioModule);
       await asset.downloadAsync();
-      if (!asset.localUri) throw new Error('Failed to load audio asset');
+      const assetUri = asset.localUri || asset.uri;
+      if (!assetUri) throw new Error('Failed to load audio asset');
       addLog('Creating online stream...');
       await ASR.createOnlineStream();
-      const result = await ASR.recognizeFromFile(asset.localUri);
+      const result = await ASR.recognizeFromFile(assetUri);
       if (result.success && result.text) {
         addLog(`Result: "${result.text}"`);
       } else {
@@ -417,7 +420,8 @@ export function useAsr() {
         try {
           const asset = Asset.fromModule(s.module);
           await asset.downloadAsync();
-          if (asset.localUri) files.push({ ...s, localUri: asset.localUri });
+          const uri = asset.localUri || asset.uri;
+          if (uri) files.push({ ...s, localUri: uri });
         } catch (e) {
           console.error('[ASR] Error loading audio asset:', e);
         }

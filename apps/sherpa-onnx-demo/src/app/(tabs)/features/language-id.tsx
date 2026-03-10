@@ -83,8 +83,9 @@ export default function LanguageIdScreen() {
       for (const audio of BUNDLED_AUDIO) {
         try {
           const [asset] = await Asset.loadAsync(audio.module);
-          if (asset?.localUri) {
-            const localUri = asset.localUri.replace('file://', '');
+          const assetUri = asset?.localUri || asset?.uri;
+          if (assetUri) {
+            const localUri = assetUri.replace('file://', '');
             items.push({ id: audio.id, name: audio.name, localUri, source: 'bundled' });
           }
         } catch (e) {

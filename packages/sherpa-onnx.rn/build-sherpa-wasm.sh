@@ -50,6 +50,10 @@ for arg in "$@"; do
       BUILD_TYPE="speech-enhancement"
       shift
       ;;
+    --combined)
+      BUILD_TYPE="combined"
+      shift
+      ;;
     --nodejs)
       BUILD_TYPE="nodejs"
       shift
@@ -65,6 +69,7 @@ for arg in "$@"; do
       echo "  --kws                    Build only KWS module"
       echo "  --speaker-diarization    Build only Speaker Diarization module"
       echo "  --speech-enhancement     Build only Speech Enhancement module"
+      echo "  --combined               Build combined WASM (all features, no preloaded models)"
       echo "  --all                    Build all modules separately (default)"
       echo "  --help                   Show this help message"
       exit 0
@@ -160,6 +165,24 @@ build_module() {
   ./"$build_script"
   local build_result=$?
   set -e  # Re-enable exit on error
+
+  # Apply WASM-specific patches after initial build (ssentencepiece ThreadPool fix)
+  if [[ "$module_name" == "combined" ]]; then
+    local ssp_header="build-wasm-simd-combined/_deps/simple-sentencepiece-src/ssentencepiece/csrc/ssentencepiece.h"
+    if [ -f "$ssp_header" ] && ! grep -q "__EMSCRIPTEN__" "$ssp_header"; then
+      echo -e "${YELLOW}Applying ssentencepiece WASM patch (disable ThreadPool threads)...${NC}"
+      sed -i.bak 's/int32_t num_threads = std::thread::hardware_concurrency()/int32_t num_threads = 0/g' "$ssp_header"
+      rm -f "${ssp_header}.bak"
+      # Rebuild with patch applied
+      cd build-wasm-simd-combined
+      set +e
+      make -j4
+      make install
+      build_result=$?
+      set -e
+      cd ..
+    fi
+  fi
   
   if [ $build_result -ne 0 ]; then
     echo -e "${RED}Build failed for ${module_name} module.${NC}"
@@ -280,6 +303,24 @@ if [ "$BUILD_TYPE" = "all" ] || [ "$BUILD_TYPE" = "speech-enhancement" ]; then
     SUCCESSFUL_MODULES+=("speech-enhancement")
   else
     FAILED_MODULES+=("speech-enhancement")
+    OVERALL_SUCCESS=false
+  fi
+fi
+
+if [ "$BUILD_TYPE" = "combined" ]; then
+  if build_module "combined"; then
+    SUCCESSFUL_MODULES+=("combined")
+    # Copy combined WASM files to demo app public/wasm/ root (not a subdir)
+    SHERPA_COMBINED_DIR="$SCRIPT_DIR/third_party/sherpa-onnx/build-wasm-simd-combined/install/bin/wasm/combined"
+    DEMO_WASM_DIR="$SCRIPT_DIR/../apps/sherpa-onnx-demo/public/wasm"
+    if [ -d "$SHERPA_COMBINED_DIR" ] && [ -d "$DEMO_WASM_DIR" ]; then
+      echo -e "${BLUE}Copying combined WASM to demo app root wasm directory...${NC}"
+      cp "$SHERPA_COMBINED_DIR/sherpa-onnx-wasm-combined.js" "$DEMO_WASM_DIR/"
+      cp "$SHERPA_COMBINED_DIR/sherpa-onnx-wasm-combined.wasm" "$DEMO_WASM_DIR/"
+      echo -e "${GREEN}Combined WASM copied to $DEMO_WASM_DIR${NC}"
+    fi
+  else
+    FAILED_MODULES+=("combined")
     OVERALL_SUCCESS=false
   fi
 fi

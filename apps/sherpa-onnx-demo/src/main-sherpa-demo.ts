@@ -49,6 +49,10 @@ async function initializeApp() {
           `${BASE_WASM_URL}sherpa-onnx-speaker.js`,
           `${BASE_WASM_URL}sherpa-onnx-enhancement.js`,
           `${BASE_WASM_URL}sherpa-onnx-kws.js`,
+          `${BASE_WASM_URL}sherpa-onnx-audio-tagging.js`,
+          `${BASE_WASM_URL}sherpa-onnx-language-id.js`,
+          `${BASE_WASM_URL}sherpa-onnx-speaker-id.js`,
+          `${BASE_WASM_URL}sherpa-onnx-punctuation.js`,
         ]
       })
       
