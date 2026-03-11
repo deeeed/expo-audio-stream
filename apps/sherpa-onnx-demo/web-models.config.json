@@ -22,7 +22,7 @@
     "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad_v5.onnx",
     "extractDir": "public/wasm/vad",
     "singleFile": true,
-    "renameAs": "silero_vad.onnx"
+    "renameAs": "silero_vad_v5.onnx"
   },
   "kws": {
     "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2",
