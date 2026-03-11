@@ -15,77 +15,7 @@ import { DiarizationService } from '../services/DiarizationService';
  */
 export type ModelProvider = 'cpu' | 'gpu';
 
-/**
- * Configuration options for Sherpa-onnx
- */
-export interface SherpaOnnxConfig {
-  /**
-   * Path to model files
-   */
-  modelPath: string;
-  /**
-   * Language for the model (e.g., 'en', 'fr', 'zh')
-   */
-  language?: string;
-  /**
-   * Sampling rate for audio processing
-   */
-  sampleRate?: number;
-  /**
-   * Number of channels for audio processing
-   */
-  channels?: number;
-}
-
-/**
- * Result from Sherpa-onnx ASR processing
- */
-export interface SherpaOnnxResult {
-  /**
-   * Recognized text
-   */
-  text: string;
-  /**
-   * Confidence score (0-1)
-   */
-  confidence?: number;
-  /**
-   * Language detected
-   */
-  language?: string;
-  /**
-   * Segment timing information
-   */
-  segments?: Array<{
-    start: number;
-    end: number;
-    text: string;
-  }>;
-}
-
 export type TtsModelType = 'vits' | 'kokoro' | 'matcha';
-
-/**
- * Options for automatic speech recognition processing
- */
-export interface AsrOptions {
-  /**
-   * Maximum audio length in seconds
-   */
-  maxAudioLength?: number;
-  /**
-   * Enable interim results
-   */
-  interimResults?: boolean;
-  /**
-   * Enable punctuation insertion
-   */
-  enablePunctuation?: boolean;
-  /**
-   * Enable automatic language detection
-   */
-  enableLanguageDetection?: boolean;
-}
 
 /**
  * Configuration for TTS model
@@ -326,21 +256,6 @@ export interface ValidateResult {
 }
 
 /**
- * Result of listing all assets in the application bundle
- */
-export interface AssetListResult {
-  /**
-   * Array of asset paths
-   */
-  assets: string[];
-
-  /**
-   * Total number of assets found
-   */
-  count: number;
-}
-
-/**
  * Audio Tagging Model Configuration
  */
 export interface AudioTaggingModelConfig {
@@ -410,26 +325,6 @@ export interface AudioTaggingInitResult {
 
   /**
    * Error message if initialization failed
-   */
-  error?: string;
-}
-
-/**
- * Result of audio sample processing
- */
-export interface AudioProcessResult {
-  /**
-   * Whether processing was successful
-   */
-  success: boolean;
-
-  /**
-   * Number of samples that were processed
-   */
-  processedSamples: number;
-
-  /**
-   * Error message if processing failed
    */
   error?: string;
 }
@@ -559,37 +454,6 @@ export interface AudioTaggingProcessResult {
 }
 
 /**
- * Result of processing an audio file
- * @deprecated Use AudioTaggingProcessResult instead
- */
-export interface AudioFileProcessResult {
-  /**
-   * Whether processing was successful
-   */
-  success: boolean;
-
-  /**
-   * Message describing the result
-   */
-  message?: string;
-
-  /**
-   * Sample rate of the processed audio
-   */
-  sampleRate: number;
-
-  /**
-   * Number of samples that were processed
-   */
-  samples: number;
-
-  /**
-   * Error message if processing failed
-   */
-  error?: string;
-}
-
-/**
  * Configuration for ASR model
  */
 export interface AsrModelConfig {
@@ -709,85 +573,6 @@ export interface AsrRecognizeResult {
    */
   isEndpoint?: boolean;
 }
-
-export interface SherpaOnnxStatic {
-  validateLibraryLoaded(): Promise<ValidateResult>;
-  initTts(config: TtsModelConfig): Promise<TtsInitResult>;
-  generateTts(config: TtsGenerateConfig): Promise<TtsGenerateResult>;
-  stopTts(): Promise<{ stopped: boolean; message?: string }>;
-  releaseTts(): Promise<{ released: boolean }>;
-  initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
-  recognizeFromSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<AsrRecognizeResult>;
-  recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
-  releaseAsr(): Promise<{ released: boolean }>;
-  createAsrOnlineStream(): Promise<{ success: boolean }>;
-  acceptAsrOnlineWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<{ success: boolean }>;
-  isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
-  getAsrOnlineResult(): Promise<{
-    text: string;
-    tokens: string[];
-    timestamps: number[];
-  }>;
-  resetAsrOnlineStream(): Promise<{ success: boolean }>;
-  initAudioTagging(
-    config: AudioTaggingModelConfig
-  ): Promise<AudioTaggingInitResult>;
-  processAndComputeAudioTagging(
-    filePath: string,
-    topK?: number
-  ): Promise<AudioTaggingResult>;
-  processAndComputeAudioSamples(
-    sampleRate: number,
-    samples: number[],
-    topK?: number
-  ): Promise<AudioTaggingResult>;
-  releaseAudioTagging(): Promise<{ released: boolean }>;
-  initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
-  processSpeakerIdSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SpeakerIdProcessResult>;
-  computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult>;
-  registerSpeaker(
-    name: string,
-    embedding: number[]
-  ): Promise<RegisterSpeakerResult>;
-  removeSpeaker(name: string): Promise<RemoveSpeakerResult>;
-  getSpeakers(): Promise<GetSpeakersResult>;
-  identifySpeaker(
-    embedding: number[],
-    threshold: number
-  ): Promise<IdentifySpeakerResult>;
-  verifySpeaker(
-    name: string,
-    embedding: number[],
-    threshold: number
-  ): Promise<VerifySpeakerResult>;
-  processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
-  releaseSpeakerId(): Promise<{ released: boolean }>;
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
-    success: boolean;
-    message: string;
-  }>;
-
-  // Service instances
-  TTS: TtsService;
-  ASR: AsrService;
-  AudioTagging: AudioTaggingService;
-  SpeakerId: SpeakerIdService;
-  Archive: ArchiveService;
-}
-
-export declare const SherpaOnnx: SherpaOnnxStatic;
 
 // ----------------------------------------------------------------------------------
 // Keyword Spotting (KWS) Interfaces
@@ -1144,23 +929,6 @@ export interface DiarizationResult {
   numSpeakers: number;
   durationMs: number;
   error?: string;
-}
-
-/**
- * Options for speaker identification
- */
-export interface SpeakerIdOptions {
-  /**
-   * Minimum threshold for speaker similarity (0-1)
-   * Default: 0.5
-   */
-  threshold?: number;
-
-  /**
-   * Minimum duration of audio required for reliable identification (in seconds)
-   * Default: 3
-   */
-  minDuration?: number;
 }
 
 // ----------------------------------------------------------------------------------

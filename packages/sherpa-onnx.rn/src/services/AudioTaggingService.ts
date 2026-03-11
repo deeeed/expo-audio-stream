@@ -4,7 +4,6 @@ import type {
   AudioTaggingInitResult,
   AudioTaggingResult,
   AudioTaggingProcessOptions,
-  ValidateResult,
 } from '../types/interfaces';
 import { cleanFilePath } from '../utils/fileUtils';
 
@@ -17,14 +16,6 @@ export class AudioTaggingService {
 
   constructor(api: ApiInterface) {
     this.api = api;
-  }
-
-  /**
-   * Validate that the Sherpa-ONNX library is properly loaded
-   * @returns Promise that resolves with validation result
-   */
-  public validateLibrary(): Promise<ValidateResult> {
-    return this.api.validateLibraryLoaded();
   }
 
   /**

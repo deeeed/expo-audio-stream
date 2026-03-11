@@ -7,7 +7,6 @@ import type {
   AsrModelConfig,
   AsrInitResult,
   AsrRecognizeResult,
-  ValidateResult,
 } from '../types/interfaces';
 import { cleanFilePath } from '../utils/fileUtils';
 
@@ -16,20 +15,10 @@ import { cleanFilePath } from '../utils/fileUtils';
  */
 export class AsrService {
   private initialized = false;
-  private sampleRate = 0;
-  private modelType = '';
   private api: ApiInterface;
 
   constructor(api: ApiInterface) {
     this.api = api;
-  }
-
-  /**
-   * Validate that the Sherpa-ONNX library is properly loaded
-   * @returns Promise that resolves with validation result
-   */
-  public validateLibrary(): Promise<ValidateResult> {
-    return this.api.validateLibraryLoaded();
   }
 
   /**
@@ -51,34 +40,11 @@ export class AsrService {
       };
       const result = await this.api.initAsr(cleanedConfig);
       this.initialized = result.success;
-      this.sampleRate = result.sampleRate ?? 0;
-      this.modelType = result.modelType ?? '';
       return result;
     } catch (error) {
       this.initialized = false;
       throw error;
     }
-  }
-
-  /**
-   * Get the initialized status
-   */
-  public isInitialized(): boolean {
-    return this.initialized;
-  }
-
-  /**
-   * Get the sample rate
-   */
-  public getSampleRate(): number {
-    return this.sampleRate;
-  }
-
-  /**
-   * Get the model type
-   */
-  public getModelType(): string {
-    return this.modelType;
   }
 
   /**
@@ -178,8 +144,6 @@ export class AsrService {
     const result = await this.api.releaseAsr();
     if (result.released) {
       this.initialized = false;
-      this.sampleRate = 0;
-      this.modelType = '';
     }
     return result;
   }

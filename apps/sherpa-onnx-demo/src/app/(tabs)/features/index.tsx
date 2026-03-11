@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, useTheme , ScreenWrapper } from '@siteed/design-system';
 import type { AppTheme } from '@siteed/design-system';
+import { ScreenWrapper, Text, useTheme } from '@siteed/design-system';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -135,8 +135,6 @@ export default function FeaturesScreen() {
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({});
 
 function getStyles(theme: AppTheme) {
   return StyleSheet.create({
