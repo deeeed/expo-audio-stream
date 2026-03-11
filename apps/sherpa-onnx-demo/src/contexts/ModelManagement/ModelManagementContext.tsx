@@ -80,6 +80,19 @@ export interface PredefinedModelConfig {
   speakerIdConfig?: Partial<SpeakerIdModelConfig>;
 }
 
+const WEB_PRELOADED_IDS = new Set([
+  DEFAULT_WEB_TTS_MODEL_ID,
+  DEFAULT_WEB_ASR_MODEL_ID,
+  DEFAULT_WEB_VAD_MODEL_ID,
+  DEFAULT_WEB_KWS_MODEL_ID,
+  DEFAULT_WEB_DENOISER_MODEL_ID,
+  DEFAULT_WEB_DIARIZATION_MODEL_ID,
+  DEFAULT_WEB_SPEAKER_ID_MODEL_ID,
+  DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID,
+  DEFAULT_WEB_LANGUAGE_ID_MODEL_ID,
+  DEFAULT_WEB_PUNCTUATION_MODEL_ID,
+]);
+
 export function ModelManagementProvider({
   children,
   storageKey = '@model_states',
@@ -339,29 +352,11 @@ export function ModelManagementProvider({
     return modelStates[modelId];
   }, [modelStates]);
 
-  const WEB_PRELOADED_IDS = new Set([
-    DEFAULT_WEB_TTS_MODEL_ID,
-    DEFAULT_WEB_ASR_MODEL_ID,
-    DEFAULT_WEB_VAD_MODEL_ID,
-    DEFAULT_WEB_KWS_MODEL_ID,
-    DEFAULT_WEB_DENOISER_MODEL_ID,
-    DEFAULT_WEB_DIARIZATION_MODEL_ID,
-    DEFAULT_WEB_SPEAKER_ID_MODEL_ID,
-    DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID,
-    DEFAULT_WEB_LANGUAGE_ID_MODEL_ID,
-    DEFAULT_WEB_PUNCTUATION_MODEL_ID,
-  ]);
-
   // Similarly modify isModelDownloaded
   const isModelDownloaded = (modelId: string): boolean => {
     if (Platform.OS === 'web' && WEB_PRELOADED_IDS.has(modelId) && isWebModelEnabled(modelId)) {
       return true;
     }
-    const metadata = AVAILABLE_MODELS.find(m => m.id === modelId);
-    if (metadata && isTtsModelOnWeb(modelId, metadata)) {
-      return true; // Always true for TTS models on web
-    }
-
     const state = modelStates[modelId];
     return !!state && state.status === 'downloaded' && !!state.localPath;
   };

@@ -304,6 +304,7 @@ export interface AudioTaggingInstance {
   createStream: () => number;
   acceptWaveform: (stream: number, sampleRate: number, samples: Float32Array) => void;
   compute: (stream: number, topK: number) => Array<{ name: string; index: number; prob: number }>;
+  destroyStream?: (stream: number) => void;
   free: () => void;
 }
 
@@ -325,6 +326,7 @@ export interface SpokenLanguageIdInstance {
   createStream: () => number;
   acceptWaveform: (stream: number, sampleRate: number, samples: Float32Array) => void;
   compute: (stream: number) => string;
+  destroyStream?: (stream: number) => void;
   free: () => void;
 }
 
@@ -425,6 +427,6 @@ declare global {
     ) => OfflineTtsInstance;
     onSherpaOnnxReady?: (success: boolean) => void;
     _sherpaOnnxCombinedLoaded?: boolean;
-    _sherpaOnnxLoadingPromise?: Promise<void> | undefined;
+    _sherpaOnnxLoadingPromise?: Promise<void>;
   }
 }
