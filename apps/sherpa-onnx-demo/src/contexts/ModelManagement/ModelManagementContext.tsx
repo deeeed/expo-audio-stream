@@ -1,24 +1,34 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
-import { Platform } from 'react-native';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { extractTarBz2 } from '../../utils/archiveUtils';
-import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
-import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 import { AsrModelConfig, AudioTaggingModelConfig, SpeakerIdModelConfig, TtsModelConfig } from '@siteed/sherpa-onnx.rn';
+import * as FileSystem from 'expo-file-system/legacy';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import { extractTarBz2 } from '../../utils/archiveUtils';
 import {
-  DEFAULT_WEB_TTS_MODEL_ID, createWebTtsModelState,
-  DEFAULT_WEB_ASR_MODEL_ID, createWebAsrModelState,
-  DEFAULT_WEB_VAD_MODEL_ID, createWebVadModelState,
-  DEFAULT_WEB_KWS_MODEL_ID, createWebKwsModelState,
-  DEFAULT_WEB_DENOISER_MODEL_ID, createWebDenoiserModelState,
-  DEFAULT_WEB_DIARIZATION_MODEL_ID, createWebDiarizationModelState,
-  DEFAULT_WEB_SPEAKER_ID_MODEL_ID, createWebSpeakerIdModelState,
-  DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID, createWebAudioTaggingModelState,
-  DEFAULT_WEB_LANGUAGE_ID_MODEL_ID, createWebLanguageIdModelState,
-  DEFAULT_WEB_PUNCTUATION_MODEL_ID, createWebPunctuationModelState,
+  DEFAULT_WEB_ASR_MODEL_ID,
+  DEFAULT_WEB_AUDIO_TAGGING_MODEL_ID,
+  DEFAULT_WEB_DENOISER_MODEL_ID,
+  DEFAULT_WEB_DIARIZATION_MODEL_ID,
+  DEFAULT_WEB_KWS_MODEL_ID,
+  DEFAULT_WEB_LANGUAGE_ID_MODEL_ID,
+  DEFAULT_WEB_PUNCTUATION_MODEL_ID,
+  DEFAULT_WEB_SPEAKER_ID_MODEL_ID,
+  DEFAULT_WEB_TTS_MODEL_ID,
+  DEFAULT_WEB_VAD_MODEL_ID,
+  createWebAsrModelState,
+  createWebAudioTaggingModelState,
+  createWebDenoiserModelState,
+  createWebDiarizationModelState,
+  createWebKwsModelState,
+  createWebLanguageIdModelState,
+  createWebPunctuationModelState,
+  createWebSpeakerIdModelState,
+  createWebTtsModelState,
+  createWebVadModelState,
   isWebModelEnabled,
 } from '../../utils/constants';
+import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
+import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
@@ -52,16 +62,16 @@ const migrateModelPath = async (oldPath: string, modelId: string): Promise<strin
   if (oldPathInfo.exists) {
     return oldPath;
   }
-  
+
   // Create a consistent path with current container
   const newPath = getModelDirectoryPath(modelId);
-  
+
   // Verify the new path exists
   const newPathInfo = await FileSystem.getInfoAsync(newPath);
   return newPathInfo.exists ? newPath : oldPath;
 };
 
-export interface PredefinedModelConfig  {
+export interface PredefinedModelConfig {
   id: string;
   modelType: ModelType;
   ttsConfig?: Partial<TtsModelConfig>;
@@ -79,7 +89,7 @@ export function ModelManagementProvider({
   const [activeDownloads, setActiveDownloads] = useState<Record<string, FileSystem.DownloadResumable>>({});
 
   const [/* ttsModels */, /* setTtsModels */] = useState<TtsModelConfig[]>();
-  
+
   // Original loadSavedModelStates
   const loadSavedModelStates = useCallback(async () => {
     try {
@@ -92,65 +102,65 @@ export function ModelManagementProvider({
           console.log('Successfully parsed saved states:', parsedStates);
           // Basic validation: Check if it's an object
           if (typeof parsedStates === 'object' && parsedStates !== null) {
-             // Handle migration of absolute paths to relative paths for iOS
-             const migratedStates = await migrateStoredPaths(parsedStates);
-             // Remove stale entries whose IDs are no longer in the catalog
-             const catalogIds = new Set(AVAILABLE_MODELS.map(m => m.id));
-             const reconciledStates: Record<string, ModelState> = {};
-             for (const [id, state] of Object.entries(migratedStates)) {
-               if (catalogIds.has(id)) {
-                 reconciledStates[id] = state as ModelState;
-               } else {
-                 console.log(`[ModelManagement] Removing stale model state: ${id} (not in catalog)`);
-               }
-             }
-             // Add new catalog entries not yet in saved state
-             for (const meta of AVAILABLE_MODELS) {
-               if (!reconciledStates[meta.id]) {
-                 const modelDir = getModelDirectoryPath(meta.id);
-                 let isOnDisk = false;
-                 try {
-                   const info = await FileSystem.getInfoAsync(modelDir);
-                   if (info.exists && info.isDirectory) {
-                     const contents = await FileSystem.readDirectoryAsync(modelDir);
-                     isOnDisk = contents.length > 0;
-                   }
-                 } catch (_) { /* ignore */ }
-                 reconciledStates[meta.id] = {
-                   metadata: meta,
-                   status: isOnDisk ? 'downloaded' as ModelStatus : 'pending' as ModelStatus,
-                   progress: isOnDisk ? 100 : 0,
-                   localPath: isOnDisk ? modelDir : undefined,
-                   error: undefined,
-                   files: undefined,
-                   extractedFiles: undefined,
-                   lastDownloaded: undefined,
-                 };
-               }
-             }
-             // Reset any stale in-progress states (app was killed mid-download)
-             let hadStaleDownloads = false;
-             for (const [id, state] of Object.entries(reconciledStates)) {
-               if (state.status === 'downloading' || state.status === 'extracting') {
-                 console.log(`[ModelManagement] Resetting stale ${state.status} state for ${id} to pending`);
-                 reconciledStates[id] = { ...state, status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined };
-                 hadStaleDownloads = true;
-               }
-             }
-             if (hadStaleDownloads) {
-               await AsyncStorage.setItem(storageKey, JSON.stringify(reconciledStates));
-             }
-             setModelStates(reconciledStates);
+            // Handle migration of absolute paths to relative paths for iOS
+            const migratedStates = await migrateStoredPaths(parsedStates);
+            // Remove stale entries whose IDs are no longer in the catalog
+            const catalogIds = new Set(AVAILABLE_MODELS.map(m => m.id));
+            const reconciledStates: Record<string, ModelState> = {};
+            for (const [id, state] of Object.entries(migratedStates)) {
+              if (catalogIds.has(id)) {
+                reconciledStates[id] = state as ModelState;
+              } else {
+                console.log(`[ModelManagement] Removing stale model state: ${id} (not in catalog)`);
+              }
+            }
+            // Add new catalog entries not yet in saved state
+            for (const meta of AVAILABLE_MODELS) {
+              if (!reconciledStates[meta.id]) {
+                const modelDir = getModelDirectoryPath(meta.id);
+                let isOnDisk = false;
+                try {
+                  const info = await FileSystem.getInfoAsync(modelDir);
+                  if (info.exists && info.isDirectory) {
+                    const contents = await FileSystem.readDirectoryAsync(modelDir);
+                    isOnDisk = contents.length > 0;
+                  }
+                } catch (_) { /* ignore */ }
+                reconciledStates[meta.id] = {
+                  metadata: meta,
+                  status: isOnDisk ? 'downloaded' as ModelStatus : 'pending' as ModelStatus,
+                  progress: isOnDisk ? 100 : 0,
+                  localPath: isOnDisk ? modelDir : undefined,
+                  error: undefined,
+                  files: undefined,
+                  extractedFiles: undefined,
+                  lastDownloaded: undefined,
+                };
+              }
+            }
+            // Reset any stale in-progress states (app was killed mid-download)
+            let hadStaleDownloads = false;
+            for (const [id, state] of Object.entries(reconciledStates)) {
+              if (state.status === 'downloading' || state.status === 'extracting') {
+                console.log(`[ModelManagement] Resetting stale ${state.status} state for ${id} to pending`);
+                reconciledStates[id] = { ...state, status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined };
+                hadStaleDownloads = true;
+              }
+            }
+            if (hadStaleDownloads) {
+              await AsyncStorage.setItem(storageKey, JSON.stringify(reconciledStates));
+            }
+            setModelStates(reconciledStates);
           } else {
-             console.warn('Parsed state is not an object, starting fresh.');
-             setModelStates({});
-             await AsyncStorage.removeItem(storageKey);
+            console.warn('Parsed state is not an object, starting fresh.');
+            setModelStates({});
+            await AsyncStorage.removeItem(storageKey);
           }
         } catch (parseError) {
-           console.error('Error parsing saved model states JSON:', parseError);
-           console.warn('Could not parse saved state, starting fresh.');
-           setModelStates({}); // Start fresh if parsing fails
-           await AsyncStorage.removeItem(storageKey); // Clear invalid state
+          console.error('Error parsing saved model states JSON:', parseError);
+          console.warn('Could not parse saved state, starting fresh.');
+          setModelStates({}); // Start fresh if parsing fails
+          await AsyncStorage.removeItem(storageKey); // Clear invalid state
         }
       } else {
         console.log(`No saved model states found for key \'${storageKey}\'. Initializing with filesystem check.`);
@@ -211,20 +221,20 @@ export function ModelManagementProvider({
   // Helper function to migrate from absolute paths to relative paths
   const migrateStoredPaths = async (states: Record<string, ModelState>): Promise<Record<string, ModelState>> => {
     const migratedStates: Record<string, ModelState> = {};
-    
+
     for (const [modelId, state] of Object.entries(states)) {
       // Create a copy of the state to modify
       const newState = { ...state };
-      
+
       // Check if we have a localPath that needs migration
       if (state.localPath) {
         // Migrate path to current app container if needed
         newState.localPath = await migrateModelPath(state.localPath, modelId);
       }
-      
+
       migratedStates[modelId] = newState;
     }
-    
+
     return migratedStates;
   };
 
@@ -256,9 +266,9 @@ export function ModelManagementProvider({
         return prev;
       }
       const baseState: ModelState = existingState ?? {
-          metadata: currentMetadata,
-          status: 'pending',
-          progress: 0,
+        metadata: currentMetadata,
+        status: 'pending',
+        progress: 0,
       };
       const newState = { ...baseState, ...updates };
       const newStates = { ...prev, [modelId]: newState };
@@ -397,25 +407,25 @@ export function ModelManagementProvider({
     const depFileName = dependency.url.split('/').pop() || '';
     const depPath = `${modelDir}/${depFileName}`;
     console.log(`Downloading dependency: ${dependency.name} to ${depPath}`);
-    
+
     const depResumable = FileSystem.createDownloadResumable(dependency.url, depPath);
     const depKey = `${modelId}_dep_${dependency.id}`;
-    
+
     setActiveDownloads(prev => ({ ...prev, [depKey]: depResumable }));
-    
+
     try {
       await depResumable.downloadAsync();
-      
+
       extractedFileNames.push(depFileName);
       console.log(`Dependency ${dependency.name} downloaded.`);
     } catch (depError) {
       console.error(`Error downloading dependency ${dependency.name}:`, depError);
       throw new Error(`Failed to download dependency ${dependency.name}`);
     } finally {
-      setActiveDownloads(prev => { 
-        const newState = { ...prev }; 
-        delete newState[depKey]; 
-        return newState; 
+      setActiveDownloads(prev => {
+        const newState = { ...prev };
+        delete newState[depKey];
+        return newState;
       });
     }
   }, [setActiveDownloads]);
@@ -443,7 +453,7 @@ export function ModelManagementProvider({
       .then(() => downloadResumable.downloadAsync())
       .then(async (downloadResult) => {
         console.log(`Download completed for ${modelId}. Status: ${downloadResult?.status}`);
-        
+
         // Remove from active downloads
         setActiveDownloads(prev => {
           const newState = { ...prev };
@@ -465,10 +475,10 @@ export function ModelManagementProvider({
         console.log(`Downloaded file size: ${fileInfo.size} bytes`);
 
         let extractedFileNames: string[] = [];
-        
+
         if (isArchive) {
           console.log(`Extracting archive: ${filePath} to ${modelDir}...`);
-          
+
           // Update state to extracting
           updateModelState(modelId, { status: 'extracting' as ModelStatus, progress: 1 });
 
@@ -490,7 +500,7 @@ export function ModelManagementProvider({
         if (model.dependencies && model.dependencies.length > 0) {
           console.log(`Downloading ${model.dependencies.length} dependencies for ${modelId}...`);
           updateModelState(modelId, { status: 'downloading' as ModelStatus, progress: 0.95 });
-          
+
           // Process dependencies one by one
           for (const dependency of model.dependencies) {
             await downloadDependency(modelId, dependency, modelDir, extractedFileNames);
@@ -520,7 +530,7 @@ export function ModelManagementProvider({
           lastDownloaded: Date.now(),
           error: undefined,
         };
-        
+
         console.log(`Final state update for ${modelId}`);
         updateModelState(modelId, finalState);
         console.log(`Model ${modelId} successfully downloaded and processed.`);
@@ -532,7 +542,7 @@ export function ModelManagementProvider({
           progress: modelStates[modelId]?.progress || 0,
           error: error instanceof Error ? error.message : 'Unknown processing error',
         });
-        
+
         // Cleanup on error
         FileSystem.deleteAsync(modelDir, { idempotent: true }).catch(e => {
           console.log(`Error cleaning up model dir: ${e}`);
@@ -555,7 +565,7 @@ export function ModelManagementProvider({
       updateModelState(modelId, { status: 'error', error: 'Model definition not found.' });
       return;
     }
-    
+
     // For web TTS models, simulate immediate download completion
     if (isTtsModelOnWeb(modelId, model)) {
       console.log(`Web TTS model ${modelId} - simulating download`);
@@ -571,23 +581,23 @@ export function ModelManagementProvider({
       });
       return;
     }
-    
+
     const currentState = modelStates[modelId];
     if (currentState?.status === 'downloading' || currentState?.status === 'downloaded') {
       console.log(`Model ${modelId} already ${currentState.status}.`);
       return;
     }
-    
+
     const isArchive = model.url.endsWith('.tar.bz2');
     const fileName = model.url.split('/').pop() || '';
-    
+
     // Use the helper function for consistent paths
     const modelDir = getModelDirectoryPath(modelId);
     const filePath = `${modelDir}/${fileName}`;
-    
+
     try {
       console.log(`Starting download: ${modelId}`);
-      
+
       // Update initial state immediately
       updateModelState(modelId, {
         metadata: model,
@@ -595,7 +605,7 @@ export function ModelManagementProvider({
         progress: 0,
         error: undefined,
       });
-      
+
       // Create directory for model - do this immediately
       await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
 
@@ -617,12 +627,12 @@ export function ModelManagementProvider({
 
       // Create the download resumable object
       const downloadResumable = FileSystem.createDownloadResumable(
-        model.url, 
-        filePath, 
-        {}, 
+        model.url,
+        filePath,
+        {},
         progressCallback
       );
-      
+
       // Store in active downloads
       setActiveDownloads(prev => ({ ...prev, [modelId]: downloadResumable }));
 
@@ -649,16 +659,16 @@ export function ModelManagementProvider({
     if (downloadResumable) {
       try { await downloadResumable.cancelAsync(); console.log(`Cancelled main task ${modelId}`); cancelled = true; }
       catch (error) { console.error(`Error cancelling main task ${modelId}:`, error); }
-       finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[modelId]; return newState; }); }
+      finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[modelId]; return newState; }); }
     }
     const depKeys = Object.keys(activeDownloads).filter(key => key.startsWith(`${modelId}_dep_`));
     for (const key of depKeys) {
-       const depResumable = activeDownloads[key];
-       if(depResumable) {
-          try { await depResumable.cancelAsync(); console.log(`Cancelled dep task ${key}`); cancelled = true; }
-          catch(error) { console.error(`Error cancelling dep task ${key}:`, error); }
-          finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[key]; return newState; }); }
-       }
+      const depResumable = activeDownloads[key];
+      if (depResumable) {
+        try { await depResumable.cancelAsync(); console.log(`Cancelled dep task ${key}`); cancelled = true; }
+        catch (error) { console.error(`Error cancelling dep task ${key}:`, error); }
+        finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[key]; return newState; }); }
+      }
     }
     const state = modelStates[modelId];
     // Also reset stale 'downloading' state that survives app reloads (activeDownloads is in-memory only)
@@ -734,63 +744,63 @@ export function ModelManagementProvider({
     console.log(`Refreshing status for model ${modelId}...`);
     const state = modelStates[modelId];
     if (!state) return;
-    
+
     const modelMetadata = state.metadata ?? AVAILABLE_MODELS.find(m => m.id === modelId);
-    if (!modelMetadata) { 
-      console.warn(`Metadata missing for ${modelId}`); 
-      return; 
+    if (!modelMetadata) {
+      console.warn(`Metadata missing for ${modelId}`);
+      return;
     }
-    
+
     try {
       // Use a consistent path format through the helper function
       const modelDir = getModelDirectoryPath(modelId);
       console.log(`Checking model at: ${modelDir}`);
-      
+
       // Check if the stored path exists
       if (state.localPath && state.localPath !== modelDir) {
         console.log(`Migrating from stored path ${state.localPath} to standard path ${modelDir}`);
       }
-      
+
       // Check the directory
       const dirInfo = await FileSystem.getInfoAsync(modelDir);
-      
+
       if (!dirInfo.exists || !dirInfo.isDirectory) {
         console.log(`Directory ${modelDir} not found.`);
-        
+
         if (state.status === 'downloaded') {
-          updateModelState(modelId, { 
-            status: 'error', 
-            error: 'Model directory not found', 
+          updateModelState(modelId, {
+            status: 'error',
+            error: 'Model directory not found',
             localPath: modelDir,
-            files: undefined, 
-            extractedFiles: undefined, 
-            progress: 0 
+            files: undefined,
+            extractedFiles: undefined,
+            progress: 0
           });
         } else if (state.status !== 'error') {
-          updateModelState(modelId, { 
-            status: 'pending', 
-            localPath: undefined, 
-            progress: 0 
+          updateModelState(modelId, {
+            status: 'pending',
+            localPath: undefined,
+            progress: 0
           });
         }
         return;
       }
-      
+
       // Directory exists, check contents
       const filesList = await FileSystem.readDirectoryAsync(modelDir);
-      
+
       const fileInfos = await Promise.all(
         filesList.map(async (file) => {
           const itemPath = `${modelDir}/${file}`;
           const info = await FileSystem.getInfoAsync(itemPath);
-          return { 
-            path: file, 
-            size: info.exists ? info.size : 0, 
-            lastModified: info.exists ? info.modificationTime : Date.now() 
+          return {
+            path: file,
+            size: info.exists ? info.size : 0,
+            lastModified: info.exists ? info.modificationTime : Date.now()
           };
         })
       );
-      
+
       // Update state with consistent path
       updateModelState(modelId, {
         status: 'downloaded' as ModelStatus,
@@ -800,7 +810,7 @@ export function ModelManagementProvider({
         progress: 1,
         error: undefined
       });
-      
+
       console.log(`Status refresh completed for ${modelId}.`);
     } catch (error) {
       console.error(`Error refreshing status for ${modelId}:`, error);

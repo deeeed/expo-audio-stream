@@ -1,38 +1,38 @@
-import { VAD } from '@siteed/sherpa-onnx.rn'
-import type { VadModelConfig, SpeechSegment } from '@siteed/sherpa-onnx.rn'
 import {
-    useAudioRecorder,
     convertPCMToFloat32,
     ExpoAudioStreamModule,
+    useAudioRecorder,
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
+import type { SpeechSegment, VadModelConfig } from '@siteed/sherpa-onnx.rn'
+import { VAD } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
-import { readFileAsArrayBuffer } from '../../../utils/fileUtils'
-import { audioDataToSamples } from '../../../utils/audioDataUtils'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
+import { setAgenticPageState } from '../../../agentic-bridge'
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
+import {
+    AudioSelector,
+    ModelSelector,
+    PageContainer,
+    ResultsBox,
+    Section,
+    StatusBlock,
+    Text,
+    ThemedButton,
+    useTheme,
+} from '../../../components/ui'
 import {
     useVadModels,
     useVadModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
-import { setAgenticPageState } from '../../../agentic-bridge'
+import { audioDataToSamples } from '../../../utils/audioDataUtils'
 import {
     DEFAULT_LIVE_SAMPLE_RATE,
     DEFAULT_VAD_WINDOW_SIZE,
 } from '../../../utils/constants'
-import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
-import {
-    PageContainer,
-    Section,
-    StatusBlock,
-    ThemedButton,
-    ModelSelector,
-    AudioSelector,
-    ResultsBox,
-    Text,
-    useTheme,
-} from '../../../components/ui'
+import { readFileAsArrayBuffer } from '../../../utils/fileUtils'
 
 interface AudioItem {
     id: string

@@ -1,34 +1,33 @@
-import { LanguageId } from '@siteed/sherpa-onnx.rn'
-import type { LanguageIdModelConfig } from '@siteed/sherpa-onnx.rn'
 import {
-    useAudioRecorder,
     ExpoAudioStreamModule,
+    useAudioRecorder,
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
-import { audioDataToSamples } from '../../../utils/audioDataUtils'
+import type { LanguageIdModelConfig } from '@siteed/sherpa-onnx.rn'
+import { LanguageId } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
-import * as FileSystem from 'expo-file-system/legacy'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
+import { setAgenticPageState } from '../../../agentic-bridge'
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
+import {
+    AudioSelector,
+    ModelSelector,
+    PageContainer,
+    ResultsBox,
+    Section,
+    StatusBlock,
+    Text,
+    ThemedButton,
+    useTheme,
+} from '../../../components/ui'
 import {
     useLanguageIdModels,
     useLanguageIdModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
-import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
-import { setAgenticPageState } from '../../../agentic-bridge'
+import { audioDataToSamples } from '../../../utils/audioDataUtils'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
-import {
-    PageContainer,
-    Section,
-    StatusBlock,
-    ThemedButton,
-    ModelSelector,
-    AudioSelector,
-    ResultsBox,
-    Text,
-    useTheme,
-} from '../../../components/ui'
 
 interface AudioItem {
     id: string

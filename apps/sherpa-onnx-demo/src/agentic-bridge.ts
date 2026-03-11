@@ -9,9 +9,6 @@
  * CDP uses awaitPromise:false, so async results are stored and polled via getLastResult().
  */
 
-import { Platform } from 'react-native'
-import { router, type Href } from 'expo-router'
-import * as FileSystem from 'expo-file-system/legacy'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import SherpaOnnx, {
     ASR,
@@ -22,9 +19,12 @@ import SherpaOnnx, {
     SpeakerId,
     VAD,
 } from '@siteed/sherpa-onnx.rn'
+import * as FileSystem from 'expo-file-system/legacy'
+import { router, type Href } from 'expo-router'
+import { Platform } from 'react-native'
 import {
-    MODEL_STATES_STORAGE_KEY,
     DEFAULT_LIVE_SAMPLE_RATE,
+    MODEL_STATES_STORAGE_KEY,
 } from './utils/constants'
 
 // Platform-aware model base directory
@@ -66,7 +66,7 @@ let _lastAsyncResult: {
 } | null = null
 
 if (__DEV__) {
-    ;(globalThis as Record<string, unknown>).__AGENTIC__ = {
+    ; (globalThis as Record<string, unknown>).__AGENTIC__ = {
         platform: Platform.OS,
 
         navigate: (path: string) => {
@@ -507,12 +507,12 @@ if (__DEV__) {
                     if (!initResult.success)
                         throw new Error(
                             'initTts failed: ' +
-                                (
-                                    initResult as unknown as Record<
-                                        string,
-                                        unknown
-                                    >
-                                ).error
+                            (
+                                initResult as unknown as Record<
+                                    string,
+                                    unknown
+                                >
+                            ).error
                         )
 
                     const t1 = Date.now()
@@ -1225,7 +1225,7 @@ if (__DEV__) {
                         steps.acceptWaveform === 'PASS' &&
                         steps.resetStream === 'PASS' &&
                         (steps.emptyResult as Record<string, unknown>).pass ===
-                            true &&
+                        true &&
                         (steps.afterSilenceResult as Record<string, unknown>)
                             .pass === true &&
                         (steps.recognizeFromFile as Record<string, unknown>)
@@ -1351,7 +1351,7 @@ if (__DEV__) {
                     if (!detectResult.success)
                         throw new Error(
                             'detectLanguageFromFile failed: ' +
-                                detectResult.error
+                            detectResult.error
                         )
 
                     // Step 3: detect language from samples
@@ -1409,7 +1409,7 @@ if (__DEV__) {
                 } catch (e) {
                     try {
                         await LanguageId.release()
-                    } catch {}
+                    } catch { }
                     _lastAsyncResult = {
                         op,
                         status: 'error',
@@ -1489,7 +1489,7 @@ if (__DEV__) {
                 } catch (e) {
                     try {
                         await Punctuation.release()
-                    } catch {}
+                    } catch { }
                     _lastAsyncResult = {
                         op,
                         status: 'error',
@@ -1569,17 +1569,17 @@ if (__DEV__) {
                         await FileSystem.deleteAsync(tempPath, {
                             idempotent: true,
                         })
-                    } catch {}
+                    } catch { }
                     const actualAvgSpeedMBs =
                         elapsedSec > 0
                             ? Math.round(
-                                  (totalBytes / elapsedSec / 1048576) * 100
-                              ) / 100
+                                (totalBytes / elapsedSec / 1048576) * 100
+                            ) / 100
                             : 0
                     const lastDisplayedSpeedMBs =
                         progressReadings.length > 0
                             ? progressReadings[progressReadings.length - 1]
-                                  .avgSpeedMBs
+                                .avgSpeedMBs
                             : 0
                     _lastAsyncResult = {
                         op,
@@ -1593,10 +1593,10 @@ if (__DEV__) {
                             speedAccuracyPct:
                                 actualAvgSpeedMBs > 0
                                     ? Math.round(
-                                          (lastDisplayedSpeedMBs /
-                                              actualAvgSpeedMBs) *
-                                              100
-                                      )
+                                        (lastDisplayedSpeedMBs /
+                                            actualAvgSpeedMBs) *
+                                        100
+                                    )
                                     : 0,
                             progressCallbackCount: progressReadings.length,
                             progressReadings: progressReadings.slice(-10),
@@ -1607,7 +1607,7 @@ if (__DEV__) {
                         await FileSystem.deleteAsync(tempPath, {
                             idempotent: true,
                         })
-                    } catch {}
+                    } catch { }
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
                 }
             })()

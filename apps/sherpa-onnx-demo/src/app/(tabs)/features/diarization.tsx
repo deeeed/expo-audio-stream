@@ -1,13 +1,12 @@
+import type { DiarizationSegment } from '@siteed/sherpa-onnx.rn';
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  ScrollView,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { useDiarization, DiarizationAudioFile } from '../../../hooks/useDiarization';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   AudioPlayButton,
@@ -21,7 +20,7 @@ import {
   ThemedButton,
   useTheme,
 } from '../../../components/ui';
-import type { DiarizationSegment } from '@siteed/sherpa-onnx.rn';
+import { useDiarization } from '../../../hooks/useDiarization';
 
 const SPEAKER_COLORS = [
   '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
@@ -197,15 +196,15 @@ export default function DiarizationScreen() {
       <Section title="3. Configuration">
         {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
         {Platform.OS !== 'web' && (
-        <ConfigRow label="Threads:">
-          <TextInput
-            style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface, minWidth: 60 }}
-            keyboardType="numeric"
-            value={numThreads.toString()}
-            onChangeText={(v) => { const n = parseInt(v); if (!isNaN(n) && n > 0) setNumThreads(n); }}
-            editable={!initialized}
-          />
-        </ConfigRow>
+          <ConfigRow label="Threads:">
+            <TextInput
+              style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface, minWidth: 60 }}
+              keyboardType="numeric"
+              value={numThreads.toString()}
+              onChangeText={(v) => { const n = parseInt(v); if (!isNaN(n) && n > 0) setNumThreads(n); }}
+              editable={!initialized}
+            />
+          </ConfigRow>
         )}
 
         <ConfigRow label="Num Speakers (-1 = auto):">

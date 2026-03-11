@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSpeakerId } from '../../../hooks/useSpeakerId';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import {
   AudioPlayButton,
@@ -22,6 +21,7 @@ import {
   ThemedButton,
   useTheme,
 } from '../../../components/ui';
+import { useSpeakerId } from '../../../hooks/useSpeakerId';
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
@@ -106,27 +106,27 @@ export default function SpeakerIdScreen() {
         <Section title="2. Speaker ID Configuration">
           {/* Threads & Provider: hidden on web — WASM is single-threaded, CPU only */}
           {Platform.OS !== 'web' && (
-          <>
-          <ConfigRow label="Number of Threads:">
-            <TextInput
-              style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
-              keyboardType="numeric"
-              value={numThreads.toString()}
-              onChangeText={(value) => {
-                const n = parseInt(value);
-                if (!isNaN(n) && n > 0) setNumThreads(n);
-              }}
-              editable={!initialized}
-            />
-          </ConfigRow>
+            <>
+              <ConfigRow label="Number of Threads:">
+                <TextInput
+                  style={{ padding: 8, borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: theme.roundness, color: theme.colors.onSurface }}
+                  keyboardType="numeric"
+                  value={numThreads.toString()}
+                  onChangeText={(value) => {
+                    const n = parseInt(value);
+                    if (!isNaN(n) && n > 0) setNumThreads(n);
+                  }}
+                  editable={!initialized}
+                />
+              </ConfigRow>
 
-          <ConfigRow label="Provider:">
-            <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
-              <ThemedButton label="CPU" variant={provider === 'cpu' ? 'primary' : 'secondary'} onPress={() => !initialized && setProvider('cpu')} disabled={initialized} compact />
-              <ThemedButton label="GPU" variant={provider === 'gpu' ? 'primary' : 'secondary'} onPress={() => !initialized && setProvider('gpu')} disabled={initialized} compact />
-            </View>
-          </ConfigRow>
-          </>
+              <ConfigRow label="Provider:">
+                <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8 }}>
+                  <ThemedButton label="CPU" variant={provider === 'cpu' ? 'primary' : 'secondary'} onPress={() => !initialized && setProvider('cpu')} disabled={initialized} compact />
+                  <ThemedButton label="GPU" variant={provider === 'gpu' ? 'primary' : 'secondary'} onPress={() => !initialized && setProvider('gpu')} disabled={initialized} compact />
+                </View>
+              </ConfigRow>
+            </>
           )}
 
           <ConfigRow label="Debug Mode:">

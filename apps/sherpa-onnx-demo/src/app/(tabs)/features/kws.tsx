@@ -1,18 +1,12 @@
-import { KWS } from '@siteed/sherpa-onnx.rn'
-import type { KWSInitResult } from '@siteed/sherpa-onnx.rn'
 import {
-    useAudioRecorder,
     ExpoAudioStreamModule,
+    useAudioRecorder,
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
-import { audioDataToSamples } from '../../../utils/audioDataUtils'
+import type { KWSInitResult } from '@siteed/sherpa-onnx.rn'
+import { KWS } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system/legacy'
-import {
-    readFileAsArrayBuffer,
-    readFileAsText,
-    fileExists,
-} from '../../../utils/fileUtils'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -22,24 +16,29 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native'
-import {
-    useKwsModels,
-    useKwsModelWithConfig,
-} from '../../../hooks/useModelWithConfig'
 import { setAgenticPageState } from '../../../agentic-bridge'
-import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
 import {
     LoadingOverlay,
     ModelSelector,
     PageContainer,
-    ResultsBox,
     Section,
     StatusBlock,
     Text,
     ThemedButton,
-    useTheme,
+    useTheme
 } from '../../../components/ui'
+import {
+    useKwsModels,
+    useKwsModelWithConfig,
+} from '../../../hooks/useModelWithConfig'
+import { audioDataToSamples } from '../../../utils/audioDataUtils'
+import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
+import {
+    fileExists,
+    readFileAsArrayBuffer,
+    readFileAsText,
+} from '../../../utils/fileUtils'
 
 interface AudioItem {
     id: string
@@ -169,7 +168,7 @@ export default function KwsScreen() {
             setHasTestKeywordsFile(false)
             return
         }
-        ;(async () => {
+        ; (async () => {
             try {
                 const dir = await resolveModelDir(localPath)
                 const exists = await fileExists(
@@ -899,7 +898,7 @@ export default function KwsScreen() {
                                 backgroundColor: detecting
                                     ? theme.colors.surfaceVariant
                                     : (theme.colors.errorContainer ??
-                                      '#ffebee'),
+                                        '#ffebee'),
                                 borderRadius: theme.roundness,
                             }}
                             disabled={detecting}
