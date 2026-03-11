@@ -1,712 +1,947 @@
-import { KWS } from '@siteed/sherpa-onnx.rn';
-import type { KWSInitResult } from '@siteed/sherpa-onnx.rn';
-import { useAudioRecorder, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
-import { audioDataToSamples } from '../../../utils/audioDataUtils';
-import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system/legacy';
-import { readFileAsArrayBuffer, readFileAsText, fileExists } from '../../../utils/fileUtils';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { KWS } from '@siteed/sherpa-onnx.rn'
+import type { KWSInitResult } from '@siteed/sherpa-onnx.rn'
 import {
-  Platform,
-  Switch,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useKwsModels, useKwsModelWithConfig } from '../../../hooks/useModelWithConfig';
-import { setAgenticPageState } from '../../../agentic-bridge';
-import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
+    useAudioRecorder,
+    ExpoAudioStreamModule,
+    type AudioDataEvent,
+} from '@siteed/expo-audio-studio'
+import { audioDataToSamples } from '../../../utils/audioDataUtils'
+import { Asset } from 'expo-asset'
+import * as FileSystem from 'expo-file-system/legacy'
 import {
-  LoadingOverlay,
-  ModelSelector,
-  PageContainer,
-  ResultsBox,
-  Section,
-  StatusBlock,
-  Text,
-  ThemedButton,
-  useTheme,
-} from '../../../components/ui';
+    readFileAsArrayBuffer,
+    readFileAsText,
+    fileExists,
+} from '../../../utils/fileUtils'
+import { useLocalSearchParams } from 'expo-router'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import {
+    Platform,
+    Switch,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native'
+import {
+    useKwsModels,
+    useKwsModelWithConfig,
+} from '../../../hooks/useModelWithConfig'
+import { setAgenticPageState } from '../../../agentic-bridge'
+import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
+import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
+import {
+    LoadingOverlay,
+    ModelSelector,
+    PageContainer,
+    ResultsBox,
+    Section,
+    StatusBlock,
+    Text,
+    ThemedButton,
+    useTheme,
+} from '../../../components/ui'
 
 interface AudioItem {
-  id: string;
-  name: string;
-  localUri: string; // native path (no file://)
-  source: 'bundled' | 'model'; // bundled = app asset, model = from model test_wavs
+    id: string
+    name: string
+    localUri: string // native path (no file://)
+    source: 'bundled' | 'model' // bundled = app asset, model = from model test_wavs
 }
 
 // Parse keywords.txt: each line is BPE tokens like "▁HE LL O ▁WORLD"
 // ▁ marks a word boundary (space before the token). Tokens without ▁ are
 // continuation pieces of the previous word and should be concatenated directly.
 function parseKeywordsFile(content: string): string[] {
-  return content
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => {
-      const tokens = line.split(' ');
-      let result = '';
-      for (const token of tokens) {
-        if (token.startsWith('▁')) {
-          // Word boundary — add a space then the rest of the token
-          result += ' ' + token.slice(1);
-        } else {
-          // Continuation piece — concatenate directly
-          result += token;
-        }
-      }
-      return result.trim();
-    });
+    return content
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line) => {
+            const tokens = line.split(' ')
+            let result = ''
+            for (const token of tokens) {
+                if (token.startsWith('▁')) {
+                    // Word boundary — add a space then the rest of the token
+                    result += ' ' + token.slice(1)
+                } else {
+                    // Continuation piece — concatenate directly
+                    result += token
+                }
+            }
+            return result.trim()
+        })
 }
 
 export default function KwsScreen() {
-  const params = useLocalSearchParams<{ model?: string }>();
-  const theme = useTheme();
+    const params = useLocalSearchParams<{ model?: string }>()
+    const theme = useTheme()
 
-  // Model state
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(params.model ?? null);
-  const [initialized, setInitialized] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [initResult, setInitResult] = useState<KWSInitResult | null>(null);
-  const [modelDir, setModelDir] = useState<string | null>(null); // resolved model subdir
+    // Model state
+    const [selectedModelId, setSelectedModelId] = useState<string | null>(
+        params.model ?? null
+    )
+    const [initialized, setInitialized] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [statusMessage, setStatusMessage] = useState('')
+    const [initResult, setInitResult] = useState<KWSInitResult | null>(null)
+    const [modelDir, setModelDir] = useState<string | null>(null) // resolved model subdir
 
-  // Keywords
-  const [keywords, setKeywords] = useState<string[]>([]);
-  const [testKeywords, setTestKeywords] = useState<string[]>([]);
+    // Keywords
+    const [keywords, setKeywords] = useState<string[]>([])
+    const [testKeywords, setTestKeywords] = useState<string[]>([])
 
-  // Config
-  const [numThreads, setNumThreads] = useState(2);
-  const [debugMode, setDebugMode] = useState(false);
-  const [useTestKeywords, setUseTestKeywords] = useState(false);
+    // Config
+    const [numThreads, setNumThreads] = useState(2)
+    const [debugMode, setDebugMode] = useState(false)
+    const [useTestKeywords, setUseTestKeywords] = useState(false)
 
-  // Audio
-  const [audioFiles, setAudioFiles] = useState<AudioItem[]>([]);
-  const [selectedAudio, setSelectedAudio] = useState<AudioItem | null>(null);
-  const [detecting, setDetecting] = useState(false);
-  const [detectedKeyword, setDetectedKeyword] = useState<string | null>(null);
+    // Audio
+    const [audioFiles, setAudioFiles] = useState<AudioItem[]>([])
+    const [selectedAudio, setSelectedAudio] = useState<AudioItem | null>(null)
+    const [detecting, setDetecting] = useState(false)
+    const [detectedKeyword, setDetectedKeyword] = useState<string | null>(null)
 
-  // Live mic state
-  const [detectedKeywords, setDetectedKeywords] = useState<string[]>([]);
-  const [micError, setMicError] = useState<string | null>(null);
-  const [chunksProcessed, setChunksProcessed] = useState(0);
-  const [statusLog, setStatusLog] = useState<string[]>([]);
-  const recorder = useAudioRecorder();
-  const processingRef = useRef(false);
-  const queueRef = useRef<{ samples: number[]; sampleRate: number }[]>([]);
-  const recordingRef = useRef(false);
+    // Live mic state
+    const [detectedKeywords, setDetectedKeywords] = useState<string[]>([])
+    const [micError, setMicError] = useState<string | null>(null)
+    const [chunksProcessed, setChunksProcessed] = useState(0)
+    const [statusLog, setStatusLog] = useState<string[]>([])
+    const recorder = useAudioRecorder()
+    const processingRef = useRef(false)
+    const queueRef = useRef<{ samples: number[]; sampleRate: number }[]>([])
+    const recordingRef = useRef(false)
 
+    const addLog = useCallback((msg: string) => {
+        setStatusLog((prev) => [...prev.slice(-29), msg])
+    }, [])
 
+    // Hooks
+    const { downloadedModels } = useKwsModels()
+    const { kwsConfig, localPath, isDownloaded } = useKwsModelWithConfig({
+        modelId: selectedModelId,
+    })
 
-  const addLog = useCallback((msg: string) => {
-    setStatusLog((prev) => [...prev.slice(-29), msg]);
-  }, []);
+    // Register page state for agentic querying
+    useEffect(() => {
+        setAgenticPageState({
+            selectedModelId,
+            initialized,
+            loading,
+            detecting,
+            isRecording: recorder.isRecording,
+            error: error || micError || null,
+            statusMessage: statusMessage || null,
+            detectedKeyword,
+            detectedKeywords,
+            chunksProcessed,
+            downloadedModelCount: downloadedModels.length,
+            keywordCount: keywords.length,
+        })
+    }, [
+        selectedModelId,
+        initialized,
+        loading,
+        detecting,
+        recorder.isRecording,
+        error,
+        micError,
+        statusMessage,
+        detectedKeyword,
+        detectedKeywords,
+        chunksProcessed,
+        downloadedModels.length,
+        keywords.length,
+    ])
 
-  // Hooks
-  const { downloadedModels } = useKwsModels();
-  const { kwsConfig, localPath, isDownloaded } = useKwsModelWithConfig({ modelId: selectedModelId });
+    const [hasTestKeywordsFile, setHasTestKeywordsFile] = useState(false)
 
-  // Register page state for agentic querying
-  useEffect(() => {
-    setAgenticPageState({
-      selectedModelId,
-      initialized,
-      loading,
-      detecting,
-      isRecording: recorder.isRecording,
-      error: error || micError || null,
-      statusMessage: statusMessage || null,
-      detectedKeyword,
-      detectedKeywords,
-      chunksProcessed,
-      downloadedModelCount: downloadedModels.length,
-      keywordCount: keywords.length,
-    });
-  }, [selectedModelId, initialized, loading, detecting, recorder.isRecording, error, micError, statusMessage, detectedKeyword, detectedKeywords, chunksProcessed, downloadedModels.length, keywords.length]);
-
-  const [hasTestKeywordsFile, setHasTestKeywordsFile] = useState(false);
-
-  // Auto-select first downloaded model
-  useEffect(() => {
-    if (downloadedModels.length > 0 && !selectedModelId) {
-      setSelectedModelId(downloadedModels[0].metadata.id);
-    }
-  }, [downloadedModels, selectedModelId]);
-
-  // Pre-scan for test_keywords.txt when model path is available, default to using it
-  useEffect(() => {
-    if (!localPath || !isDownloaded) {
-      setHasTestKeywordsFile(false);
-      return;
-    }
-    (async () => {
-      try {
-        const dir = await resolveModelDir(localPath);
-        const exists = await fileExists(`${dir}/test_wavs/test_keywords.txt`);
-        setHasTestKeywordsFile(exists);
-        if (exists) {
-          setUseTestKeywords(true);
+    // Auto-select first downloaded model
+    useEffect(() => {
+        if (downloadedModels.length > 0 && !selectedModelId) {
+            setSelectedModelId(downloadedModels[0].metadata.id)
         }
-      } catch {
-        setHasTestKeywordsFile(false);
-      }
-    })();
-  }, [localPath, isDownloaded]);
+    }, [downloadedModels, selectedModelId])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (initialized) {
-        KWS.release().catch((e: Error) => console.error('KWS cleanup error:', e));
-      }
-    };
-  }, [initialized]);
-
-  // Resolve model subdirectory (native only — on web, basePath is already the model dir)
-  const resolveModelDir = async (basePath: string): Promise<string> => {
-    let cleanPath = basePath.replace(/^file:\/\//, '');
-    if (Platform.OS !== 'web') {
-      try {
-        const expoPath = basePath.startsWith('file://') ? basePath : `file://${basePath}`;
-        const contents = await FileSystem.readDirectoryAsync(expoPath);
-        const subdir = contents.find(
-          (item) => item.includes('sherpa-onnx') && item.includes('kws')
-        );
-        if (subdir) {
-          cleanPath = `${cleanPath}/${subdir}`;
+    // Pre-scan for test_keywords.txt when model path is available, default to using it
+    useEffect(() => {
+        if (!localPath || !isDownloaded) {
+            setHasTestKeywordsFile(false)
+            return
         }
-      } catch {
-        // use base path
-      }
-    }
-    return cleanPath;
-  };
+        ;(async () => {
+            try {
+                const dir = await resolveModelDir(localPath)
+                const exists = await fileExists(
+                    `${dir}/test_wavs/test_keywords.txt`
+                )
+                setHasTestKeywordsFile(exists)
+                if (exists) {
+                    setUseTestKeywords(true)
+                }
+            } catch {
+                setHasTestKeywordsFile(false)
+            }
+        })()
+    }, [localPath, isDownloaded])
 
-  // Load keywords and test wavs after init
-  const loadModelAssets = async (dir: string) => {
-    // Read keywords.txt
-    try {
-      let kwContent: string;
-      if (Platform.OS === 'web') {
-        // On web, fetch from public URL (WASM FS paths aren't accessible via expo-file-system)
-        const resp = await fetch(`${dir}/keywords.txt`);
-        kwContent = await resp.text();
-      } else {
-        kwContent = await readFileAsText(`${dir}/keywords.txt`);
-      }
-      setKeywords(parseKeywordsFile(kwContent));
-    } catch (e) {
-      console.warn('[KWS] Could not read keywords.txt:', e);
-    }
-
-    // Read test_keywords.txt (subset keywords that match the test wavs)
-    try {
-      if (Platform.OS === 'web') {
-        const resp = await fetch(`${dir}/test_wavs/test_keywords.txt`);
-        if (resp.ok) {
-          setTestKeywords(parseKeywordsFile(await resp.text()));
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (initialized) {
+                KWS.release().catch((e: Error) =>
+                    console.error('KWS cleanup error:', e)
+                )
+            }
         }
-      } else {
-        const tkContent = await readFileAsText(`${dir}/test_wavs/test_keywords.txt`);
-        setTestKeywords(parseKeywordsFile(tkContent));
-      }
-    } catch {
-      // not all models have test_keywords.txt
-    }
+    }, [initialized])
 
-    // Read test_wavs/ transcriptions
-    const items: AudioItem[] = [];
-    try {
-      const transContent = await readFileAsText(`${dir}/test_wavs/trans.txt`);
-      const lines = transContent.split('\n').filter((l) => l.trim());
-      for (const line of lines) {
-        const spaceIdx = line.indexOf(' ');
-        if (spaceIdx === -1) continue;
-        const filename = line.substring(0, spaceIdx);
-        const transcript = line.substring(spaceIdx + 1).trim();
-        const wavPath = `${dir}/test_wavs/${filename}`;
-        const exists = await fileExists(wavPath);
-        if (exists) {
-          items.push({
-            id: `model-${filename}`,
-            name: `${filename}: "${transcript}"`,
-            localUri: wavPath,
-            source: 'model',
-          });
+    // Resolve model subdirectory (native only — on web, basePath is already the model dir)
+    const resolveModelDir = async (basePath: string): Promise<string> => {
+        let cleanPath = basePath.replace(/^file:\/\//, '')
+        if (Platform.OS !== 'web') {
+            try {
+                const expoPath = basePath.startsWith('file://')
+                    ? basePath
+                    : `file://${basePath}`
+                const contents = await FileSystem.readDirectoryAsync(expoPath)
+                const subdir = contents.find(
+                    (item) =>
+                        item.includes('sherpa-onnx') && item.includes('kws')
+                )
+                if (subdir) {
+                    cleanPath = `${cleanPath}/${subdir}`
+                }
+            } catch {
+                // use base path
+            }
         }
-      }
-    } catch {
-      // no test wavs
+        return cleanPath
     }
 
-    // Also add bundled audio assets
-    try {
-      const bundled = [
-        { id: 'bundled-jfk', name: 'JFK Speech (no matching keywords)', module: require('@assets/audio/jfk.wav') },
-        { id: 'bundled-en', name: 'English Voice (no matching keywords)', module: require('@assets/audio/en.wav') },
-      ];
-      const assets = bundled.map((b) => Asset.fromModule(b.module));
-      await Promise.all(assets.map((a) => a.downloadAsync()));
-      for (let i = 0; i < bundled.length; i++) {
-        const uri = assets[i].localUri || assets[i].uri;
-        if (uri) {
-          items.push({
-            id: bundled[i].id,
-            name: bundled[i].name,
-            localUri: uri.replace(/^file:\/\//, ''),
-            source: 'bundled',
-          });
+    // Load keywords and test wavs after init
+    const loadModelAssets = async (dir: string) => {
+        // Read keywords.txt
+        try {
+            let kwContent: string
+            if (Platform.OS === 'web') {
+                // On web, fetch from public URL (WASM FS paths aren't accessible via expo-file-system)
+                const resp = await fetch(`${dir}/keywords.txt`)
+                kwContent = await resp.text()
+            } else {
+                kwContent = await readFileAsText(`${dir}/keywords.txt`)
+            }
+            setKeywords(parseKeywordsFile(kwContent))
+        } catch (e) {
+            console.warn('[KWS] Could not read keywords.txt:', e)
         }
-      }
-    } catch (e) {
-      console.warn('[KWS] Could not load bundled audio:', e);
-    }
 
-    setAudioFiles(items);
-  };
-
-  // --- Live mic KWS queue processing ---
-  const processKwsQueue = useCallback(async () => {
-    if (processingRef.current || !recordingRef.current) return;
-    const next = queueRef.current.shift();
-    if (!next) return;
-
-    processingRef.current = true;
-    try {
-      const result = await KWS.acceptWaveform(next.sampleRate, next.samples);
-      setChunksProcessed((c) => {
-        const newCount = c + 1;
-        if (newCount % 10 === 0) {
-          addLog(`Processed ${newCount} chunks (${next.samples.length} samples/chunk, queue: ${queueRef.current.length})`);
+        // Read test_keywords.txt (subset keywords that match the test wavs)
+        try {
+            if (Platform.OS === 'web') {
+                const resp = await fetch(`${dir}/test_wavs/test_keywords.txt`)
+                if (resp.ok) {
+                    setTestKeywords(parseKeywordsFile(await resp.text()))
+                }
+            } else {
+                const tkContent = await readFileAsText(
+                    `${dir}/test_wavs/test_keywords.txt`
+                )
+                setTestKeywords(parseKeywordsFile(tkContent))
+            }
+        } catch {
+            // not all models have test_keywords.txt
         }
-        return newCount;
-      });
-      if (result.detected && result.keyword) {
-        const kw = result.keyword;
-        setDetectedKeywords((prev) => [...prev, kw]);
-        addLog(`DETECTED: "${kw}"`);
-        setStatusMessage(`Detected: "${kw}"`);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      addLog(`ERROR: ${msg}`);
-      console.warn('[KWS] acceptWaveform error:', msg);
-      setMicError(msg);
-      // Stop recording on native crash to prevent repeated failures
-      recordingRef.current = false;
-      queueRef.current = [];
-      try { await recorder.stopRecording(); } catch { /* ignore */ }
-      return; // Don't process more chunks
-    } finally {
-      processingRef.current = false;
-      if (queueRef.current.length > 0 && recordingRef.current) {
-        processKwsQueue();
-      }
-    }
-  }, [addLog, recorder]);
 
-  const handleStartMic = useCallback(async () => {
-    if (!initialized) {
-      setError('KWS not initialized');
-      return;
-    }
-    setMicError(null);
-    setDetectedKeywords([]);
-    setChunksProcessed(0);
-    queueRef.current = [];
+        // Read test_wavs/ transcriptions
+        const items: AudioItem[] = []
+        try {
+            const transContent = await readFileAsText(
+                `${dir}/test_wavs/trans.txt`
+            )
+            const lines = transContent.split('\n').filter((l) => l.trim())
+            for (const line of lines) {
+                const spaceIdx = line.indexOf(' ')
+                if (spaceIdx === -1) continue
+                const filename = line.substring(0, spaceIdx)
+                const transcript = line.substring(spaceIdx + 1).trim()
+                const wavPath = `${dir}/test_wavs/${filename}`
+                const exists = await fileExists(wavPath)
+                if (exists) {
+                    items.push({
+                        id: `model-${filename}`,
+                        name: `${filename}: "${transcript}"`,
+                        localUri: wavPath,
+                        source: 'model',
+                    })
+                }
+            }
+        } catch {
+            // no test wavs
+        }
 
-    try {
-      const permResult = await ExpoAudioStreamModule.requestPermissionsAsync();
-      if (permResult.status !== 'granted') {
-        setError('Microphone permission denied');
-        return;
-      }
+        // Also add bundled audio assets
+        try {
+            const bundled = [
+                {
+                    id: 'bundled-jfk',
+                    name: 'JFK Speech (no matching keywords)',
+                    module: require('@assets/audio/jfk.wav'),
+                },
+                {
+                    id: 'bundled-en',
+                    name: 'English Voice (no matching keywords)',
+                    module: require('@assets/audio/en.wav'),
+                },
+            ]
+            const assets = bundled.map((b) => Asset.fromModule(b.module))
+            await Promise.all(assets.map((a) => a.downloadAsync()))
+            for (let i = 0; i < bundled.length; i++) {
+                const uri = assets[i].localUri || assets[i].uri
+                if (uri) {
+                    items.push({
+                        id: bundled[i].id,
+                        name: bundled[i].name,
+                        localUri: uri.replace(/^file:\/\//, ''),
+                        source: 'bundled',
+                    })
+                }
+            }
+        } catch (e) {
+            console.warn('[KWS] Could not load bundled audio:', e)
+        }
 
-      recordingRef.current = true;
-      setStatusMessage('Listening for keywords...');
-      addLog('Starting mic recording at 16kHz...');
-
-      await recorder.startRecording({
-        sampleRate: 16000,
-        channels: 1,
-        encoding: 'pcm_32bit',
-        interval: 100,
-        onAudioStream: async (event: AudioDataEvent) => {
-          if (!recordingRef.current) return;
-          try {
-            const samples = await audioDataToSamples(event.data);
-            if (!samples || samples.length === 0) return;
-            queueRef.current.push({ samples, sampleRate: 16000 });
-            processKwsQueue();
-          } catch (e) {
-            console.warn('[KWS] Error processing audio chunk:', e);
-          }
-        },
-      });
-      addLog('Mic recording started');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      addLog(`Mic error: ${msg}`);
-      setError(`Mic error: ${msg}`);
-      recordingRef.current = false;
-    }
-  }, [initialized, recorder, processKwsQueue, addLog]);
-
-  const handleStopMic = useCallback(async () => {
-    recordingRef.current = false;
-    queueRef.current = [];
-    try {
-      await recorder.stopRecording();
-      const msg = detectedKeywords.length > 0
-        ? `Stopped. Detected ${detectedKeywords.length} keyword(s).`
-        : `Stopped. No keywords detected (${chunksProcessed} chunks processed).`;
-      setStatusMessage(msg);
-      addLog(msg);
-    } catch (e) {
-      console.warn('[KWS] Stop error:', e);
-    }
-  }, [recorder, detectedKeywords.length, chunksProcessed, addLog]);
-
-  const handleInit = async () => {
-    if (!selectedModelId || !kwsConfig || !localPath || !isDownloaded) {
-      setError('No model selected or model not downloaded');
-      return;
+        setAudioFiles(items)
     }
 
-    setLoading(true);
-    setError(null);
-    setStatusMessage('Initializing KWS...');
+    // --- Live mic KWS queue processing ---
+    const processKwsQueue = useCallback(async () => {
+        if (processingRef.current || !recordingRef.current) return
+        const next = queueRef.current.shift()
+        if (!next) return
 
-    try {
-      const cleanPath = await resolveModelDir(localPath);
-      setModelDir(cleanPath);
-      console.log(`[KWS] Using model dir: ${cleanPath}`);
+        processingRef.current = true
+        try {
+            const result = await KWS.acceptWaveform(
+                next.sampleRate,
+                next.samples
+            )
+            setChunksProcessed((c) => {
+                const newCount = c + 1
+                if (newCount % 10 === 0) {
+                    addLog(
+                        `Processed ${newCount} chunks (${next.samples.length} samples/chunk, queue: ${queueRef.current.length})`
+                    )
+                }
+                return newCount
+            })
+            if (result.detected && result.keyword) {
+                const kw = result.keyword
+                setDetectedKeywords((prev) => [...prev, kw])
+                addLog(`DETECTED: "${kw}"`)
+                setStatusMessage(`Detected: "${kw}"`)
+            }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            addLog(`ERROR: ${msg}`)
+            console.warn('[KWS] acceptWaveform error:', msg)
+            setMicError(msg)
+            // Stop recording on native crash to prevent repeated failures
+            recordingRef.current = false
+            queueRef.current = []
+            try {
+                await recorder.stopRecording()
+            } catch {
+                /* ignore */
+            }
+            return // Don't process more chunks
+        } finally {
+            processingRef.current = false
+            if (queueRef.current.length > 0 && recordingRef.current) {
+                processKwsQueue()
+            }
+        }
+    }, [addLog, recorder])
 
-      // Decide which keywords file to use
-      const kwFile = useTestKeywords ? 'test_wavs/test_keywords.txt' : (kwsConfig.keywordsFile || 'keywords.txt');
+    const handleStartMic = useCallback(async () => {
+        if (!initialized) {
+            setError('KWS not initialized')
+            return
+        }
+        setMicError(null)
+        setDetectedKeywords([])
+        setChunksProcessed(0)
+        queueRef.current = []
 
-      const result = await KWS.init({
-        modelDir: cleanPath,
-        modelType: kwsConfig.modelType || 'zipformer2',
-        modelFiles: {
-          encoder: kwsConfig.modelFiles?.encoder || '',
-          decoder: kwsConfig.modelFiles?.decoder || '',
-          joiner: kwsConfig.modelFiles?.joiner || '',
-          tokens: kwsConfig.modelFiles?.tokens || 'tokens.txt',
-        },
-        keywordsFile: kwFile,
-        numThreads,
-        debug: debugMode,
-      });
+        try {
+            const permResult =
+                await ExpoAudioStreamModule.requestPermissionsAsync()
+            if (permResult.status !== 'granted') {
+                setError('Microphone permission denied')
+                return
+            }
 
-      if (result.success) {
-        setInitialized(true);
-        setInitResult(result);
-        setStatusMessage('KWS initialized successfully');
-        // Load keywords display and test wavs
-        await loadModelAssets(cleanPath);
-      } else {
-        setError(`KWS init failed: ${result.error}`);
-      }
-    } catch (err) {
-      setError(`KWS init error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
+            recordingRef.current = true
+            setStatusMessage('Listening for keywords...')
+            addLog(`Starting mic recording at ${DEFAULT_LIVE_SAMPLE_RATE}Hz...`)
+
+            await recorder.startRecording({
+                sampleRate: DEFAULT_LIVE_SAMPLE_RATE,
+                channels: 1,
+                encoding: 'pcm_32bit',
+                interval: 100,
+                onAudioStream: async (event: AudioDataEvent) => {
+                    if (!recordingRef.current) return
+                    try {
+                        const samples = await audioDataToSamples(event.data)
+                        if (!samples || samples.length === 0) return
+                        queueRef.current.push({
+                            samples,
+                            sampleRate: DEFAULT_LIVE_SAMPLE_RATE,
+                        })
+                        processKwsQueue()
+                    } catch (e) {
+                        console.warn('[KWS] Error processing audio chunk:', e)
+                    }
+                },
+            })
+            addLog('Mic recording started')
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            addLog(`Mic error: ${msg}`)
+            setError(`Mic error: ${msg}`)
+            recordingRef.current = false
+        }
+    }, [initialized, recorder, processKwsQueue, addLog])
+
+    const handleStopMic = useCallback(async () => {
+        recordingRef.current = false
+        queueRef.current = []
+        try {
+            await recorder.stopRecording()
+            const msg =
+                detectedKeywords.length > 0
+                    ? `Stopped. Detected ${detectedKeywords.length} keyword(s).`
+                    : `Stopped. No keywords detected (${chunksProcessed} chunks processed).`
+            setStatusMessage(msg)
+            addLog(msg)
+        } catch (e) {
+            console.warn('[KWS] Stop error:', e)
+        }
+    }, [recorder, detectedKeywords.length, chunksProcessed, addLog])
+
+    const handleInit = async () => {
+        if (!selectedModelId || !kwsConfig || !localPath || !isDownloaded) {
+            setError('No model selected or model not downloaded')
+            return
+        }
+
+        setLoading(true)
+        setError(null)
+        setStatusMessage('Initializing KWS...')
+
+        try {
+            const cleanPath = await resolveModelDir(localPath)
+            setModelDir(cleanPath)
+            console.log(`[KWS] Using model dir: ${cleanPath}`)
+
+            // Decide which keywords file to use
+            const kwFile = useTestKeywords
+                ? 'test_wavs/test_keywords.txt'
+                : kwsConfig.keywordsFile || 'keywords.txt'
+
+            const result = await KWS.init({
+                modelDir: cleanPath,
+                modelType: kwsConfig.modelType || 'zipformer2',
+                modelFiles: {
+                    encoder: kwsConfig.modelFiles?.encoder || '',
+                    decoder: kwsConfig.modelFiles?.decoder || '',
+                    joiner: kwsConfig.modelFiles?.joiner || '',
+                    tokens: kwsConfig.modelFiles?.tokens || 'tokens.txt',
+                },
+                keywordsFile: kwFile,
+                numThreads,
+                debug: debugMode,
+            })
+
+            if (result.success) {
+                setInitialized(true)
+                setInitResult(result)
+                setStatusMessage('KWS initialized successfully')
+                // Load keywords display and test wavs
+                await loadModelAssets(cleanPath)
+            } else {
+                setError(`KWS init failed: ${result.error}`)
+            }
+        } catch (err) {
+            setError(
+                `KWS init error: ${err instanceof Error ? err.message : String(err)}`
+            )
+        } finally {
+            setLoading(false)
+        }
     }
-  };
 
-  const handleRelease = async () => {
-    try {
-      if (recorder.isRecording) {
-        recordingRef.current = false;
-        await recorder.stopRecording();
-      }
-      await KWS.release();
-      setInitialized(false);
-      setInitResult(null);
-      setDetectedKeyword(null);
-      setDetectedKeywords([]);
-      setKeywords([]);
-      setTestKeywords([]);
-      setAudioFiles([]);
-      setSelectedAudio(null);
-      setModelDir(null);
-      setChunksProcessed(0);
-      setStatusMessage('KWS released');
-    } catch (err) {
-      setError(`Release error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  };
-
-  const handleDetect = async (audioItem: AudioItem) => {
-    if (!initialized) {
-      setError('KWS not initialized');
-      return;
+    const handleRelease = async () => {
+        try {
+            if (recorder.isRecording) {
+                recordingRef.current = false
+                await recorder.stopRecording()
+            }
+            await KWS.release()
+            setInitialized(false)
+            setInitResult(null)
+            setDetectedKeyword(null)
+            setDetectedKeywords([])
+            setKeywords([])
+            setTestKeywords([])
+            setAudioFiles([])
+            setSelectedAudio(null)
+            setModelDir(null)
+            setChunksProcessed(0)
+            setStatusMessage('KWS released')
+        } catch (err) {
+            setError(
+                `Release error: ${err instanceof Error ? err.message : String(err)}`
+            )
+        }
     }
 
-    setDetecting(true);
-    setDetectedKeyword(null);
-    setError(null);
-    setStatusMessage(`Processing "${audioItem.name.split(':')[0]}" for keyword detection...`);
+    const handleDetect = async (audioItem: AudioItem) => {
+        if (!initialized) {
+            setError('KWS not initialized')
+            return
+        }
 
-    try {
-      // Read audio file cross-platform
-      const arrayBuffer = await readFileAsArrayBuffer(audioItem.localUri);
-      const bytes = new Uint8Array(arrayBuffer);
+        setDetecting(true)
+        setDetectedKeyword(null)
+        setError(null)
+        setStatusMessage(
+            `Processing "${audioItem.name.split(':')[0]}" for keyword detection...`
+        )
 
-      // Parse WAV header
-      const dataView = new DataView(arrayBuffer);
-      const sampleRate = dataView.getUint32(24, true);
-      const headerSize = 44;
+        try {
+            // Read audio file cross-platform
+            const arrayBuffer = await readFileAsArrayBuffer(audioItem.localUri)
+            const bytes = new Uint8Array(arrayBuffer)
 
-      // Convert int16 LE to float32
-      const numSamples = Math.floor((bytes.length - headerSize) / 2);
-      const samples: number[] = [];
-      for (let i = 0; i < numSamples; i++) {
-        const offset = headerSize + i * 2;
-        const int16 = dataView.getInt16(offset, true);
-        samples.push(int16 / 32768.0);
-      }
+            // Parse WAV header
+            const dataView = new DataView(arrayBuffer)
+            const sampleRate = dataView.getUint32(24, true)
+            const headerSize = 44
 
-      console.log(`[KWS] Decoded ${numSamples} samples at ${sampleRate}Hz`);
+            // Convert int16 LE to float32
+            const numSamples = Math.floor((bytes.length - headerSize) / 2)
+            const samples: number[] = []
+            for (let i = 0; i < numSamples; i++) {
+                const offset = headerSize + i * 2
+                const int16 = dataView.getInt16(offset, true)
+                samples.push(int16 / 32768.0)
+            }
 
-      // Feed all samples at once — the native handler calls
-      // acceptWaveform + decode loop internally.
-      const result = await KWS.acceptWaveform(sampleRate, samples);
+            console.log(
+                `[KWS] Decoded ${numSamples} samples at ${sampleRate}Hz`
+            )
 
-      if (result.detected) {
-        setDetectedKeyword(result.keyword);
-        setStatusMessage(`Keyword detected: "${result.keyword}"`);
-        console.log(`[KWS] Detected: "${result.keyword}"`);
-      } else {
-        setDetectedKeyword('');
-        setStatusMessage('No keyword detected in this audio');
-      }
-    } catch (err) {
-      console.error('[KWS] Detection error:', err);
-      setError(`Detection error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setDetecting(false);
+            // Feed all samples at once — the native handler calls
+            // acceptWaveform + decode loop internally.
+            const result = await KWS.acceptWaveform(sampleRate, samples)
+
+            if (result.detected) {
+                setDetectedKeyword(result.keyword)
+                setStatusMessage(`Keyword detected: "${result.keyword}"`)
+                console.log(`[KWS] Detected: "${result.keyword}"`)
+            } else {
+                setDetectedKeyword('')
+                setStatusMessage('No keyword detected in this audio')
+            }
+        } catch (err) {
+            console.error('[KWS] Detection error:', err)
+            setError(
+                `Detection error: ${err instanceof Error ? err.message : String(err)}`
+            )
+        } finally {
+            setDetecting(false)
+        }
     }
-  };
 
-  const activeKeywords = useTestKeywords ? testKeywords : keywords;
-  const modelTestWavs = audioFiles.filter((a) => a.source === 'model');
-  const bundledAudio = audioFiles.filter((a) => a.source === 'bundled');
+    const activeKeywords = useTestKeywords ? testKeywords : keywords
+    const modelTestWavs = audioFiles.filter((a) => a.source === 'model')
+    const bundledAudio = audioFiles.filter((a) => a.source === 'bundled')
 
-  return (
-    <PageContainer>
-      <LoadingOverlay visible={loading} message={statusMessage || 'Processing...'} />
-
-      <StatusBlock status={!loading ? statusMessage : null} error={error} />
-
-      {/* Model Selection */}
-      <Section title="1. Select KWS Model">
-        {downloadedModels.length === 0 ? (
-          <InlineModelDownloader
-            modelType="kws"
-            emptyLabel="No KWS models downloaded."
-            onModelDownloaded={(modelId) => setSelectedModelId(modelId)}
-          />
-        ) : (
-          <ModelSelector
-            models={downloadedModels}
-            selectedId={selectedModelId}
-            onSelect={setSelectedModelId}
-            accentColor={theme.colors.error}
-          />
-        )}
-      </Section>
-
-      {/* Configuration */}
-      {selectedModelId && (
-        <Section title="2. Configuration">
-          {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
-          {Platform.OS !== 'web' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
-            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Threads:</Text>
-            <TextInput
-              style={{
-                flex: 1,
-                padding: 8,
-                borderWidth: 1,
-                borderColor: theme.colors.outlineVariant,
-                borderRadius: theme.roundness,
-                fontSize: 16,
-                color: theme.colors.onSurface,
-              }}
-              keyboardType="numeric"
-              value={numThreads.toString()}
-              onChangeText={(v) => {
-                const n = parseInt(v);
-                if (!isNaN(n) && n > 0) setNumThreads(n);
-              }}
-              editable={!initialized}
+    return (
+        <PageContainer>
+            <LoadingOverlay
+                visible={loading}
+                message={statusMessage || 'Processing...'}
             />
-          </View>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
-            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Debug:</Text>
-            <Switch value={debugMode} onValueChange={setDebugMode} disabled={initialized} />
-          </View>
-          {!initialized && hasTestKeywordsFile && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.margin.s }}>
-              <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>Use test keywords:</Text>
-              <Switch
-                testID="kws-use-test-keywords"
-                value={useTestKeywords}
-                onValueChange={setUseTestKeywords}
-              />
-            </View>
-          )}
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontStyle: 'italic', marginTop: 4 }}>
-            {useTestKeywords
-              ? 'Using test_keywords.txt (fewer keywords, matched to test audio)'
-              : 'Using keywords.txt (all keywords)'}
-          </Text>
-        </Section>
-      )}
 
-      {/* Actions */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m }}>
-        <ThemedButton
-          testID="kws-init-btn"
-          label="Initialize"
-          variant="danger"
-          onPress={handleInit}
-          disabled={loading || !selectedModelId || initialized}
-          style={{ flex: 1, marginHorizontal: 8 }}
-        />
-        <ThemedButton
-          testID="kws-release-btn"
-          label="Release"
-          variant="secondary"
-          onPress={handleRelease}
-          disabled={loading || !initialized}
-          style={{ flex: 1, marginHorizontal: 8 }}
-        />
-      </View>
-
-      {/* Active Keywords — must be prominently displayed */}
-      {initialized && activeKeywords.length > 0 && (
-        <Section title="Say these words:">
-          <View style={{ backgroundColor: '#1a237e', borderRadius: 12, padding: 16, marginBottom: 8 }}>
-            <Text variant="bodySmall" style={{ color: '#90caf9', marginBottom: 12, textAlign: 'center' }}>
-              Speak any of these keywords clearly into the microphone:
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-              {activeKeywords.map((kw, i) => (
-                <View key={i} style={{
-                  backgroundColor: '#283593',
-                  borderColor: '#5c6bc0',
-                  borderWidth: 2,
-                  borderRadius: 20,
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                }}>
-                  <Text style={{ color: '#e8eaf6', fontWeight: 'bold', fontSize: 16, textTransform: 'uppercase' }}>{kw}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Section>
-      )}
-
-      {/* Live Mic Recording */}
-      {initialized && (
-        <Section title="3. Live Microphone">
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
-            Speak keywords into the microphone. The engine processes audio in real-time.
-          </Text>
-          {!recorder.isRecording ? (
-            <ThemedButton
-              testID="kws-start-mic"
-              label="Start Listening"
-              variant="primary"
-              onPress={handleStartMic}
+            <StatusBlock
+                status={!loading ? statusMessage : null}
+                error={error}
             />
-          ) : (
-            <View>
-              <ThemedButton
-                testID="kws-stop-mic"
-                label="Stop Listening"
-                variant="danger"
-                onPress={handleStopMic}
-              />
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
-                Recording: {(recorder.durationMs / 1000).toFixed(1)}s | Chunks: {chunksProcessed}
-              </Text>
-            </View>
-          )}
-          {micError ? (
-            <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{micError}</Text>
-          ) : null}
 
+            {/* Model Selection */}
+            <Section title="1. Select KWS Model">
+                {downloadedModels.length === 0 ? (
+                    <InlineModelDownloader
+                        modelType="kws"
+                        emptyLabel="No KWS models downloaded."
+                        onModelDownloaded={(modelId) =>
+                            setSelectedModelId(modelId)
+                        }
+                    />
+                ) : (
+                    <ModelSelector
+                        models={downloadedModels}
+                        selectedId={selectedModelId}
+                        onSelect={setSelectedModelId}
+                        accentColor={theme.colors.error}
+                    />
+                )}
+            </Section>
 
-        </Section>
-      )}
+            {/* Configuration */}
+            {selectedModelId && (
+                <Section title="2. Configuration">
+                    {/* Threads: hidden on web — WASM is single-threaded (no pthread support) */}
+                    {Platform.OS !== 'web' && (
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                marginBottom: theme.margin.s,
+                            }}
+                        >
+                            <Text
+                                variant="bodyMedium"
+                                style={{
+                                    flex: 1,
+                                    color: theme.colors.onSurface,
+                                }}
+                            >
+                                Threads:
+                            </Text>
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    padding: 8,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.outlineVariant,
+                                    borderRadius: theme.roundness,
+                                    fontSize: 16,
+                                    color: theme.colors.onSurface,
+                                }}
+                                keyboardType="numeric"
+                                value={numThreads.toString()}
+                                onChangeText={(v) => {
+                                    const n = parseInt(v)
+                                    if (!isNaN(n) && n > 0) setNumThreads(n)
+                                }}
+                                editable={!initialized}
+                            />
+                        </View>
+                    )}
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginBottom: theme.margin.s,
+                        }}
+                    >
+                        <Text
+                            variant="bodyMedium"
+                            style={{ flex: 1, color: theme.colors.onSurface }}
+                        >
+                            Debug:
+                        </Text>
+                        <Switch
+                            value={debugMode}
+                            onValueChange={setDebugMode}
+                            disabled={initialized}
+                        />
+                    </View>
+                    {!initialized && hasTestKeywordsFile && (
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                marginBottom: theme.margin.s,
+                            }}
+                        >
+                            <Text
+                                variant="bodyMedium"
+                                style={{
+                                    flex: 1,
+                                    color: theme.colors.onSurface,
+                                }}
+                            >
+                                Use test keywords:
+                            </Text>
+                            <Switch
+                                testID="kws-use-test-keywords"
+                                value={useTestKeywords}
+                                onValueChange={setUseTestKeywords}
+                            />
+                        </View>
+                    )}
+                    <Text
+                        variant="bodySmall"
+                        style={{
+                            color: theme.colors.onSurfaceVariant,
+                            fontStyle: 'italic',
+                            marginTop: 4,
+                        }}
+                    >
+                        {useTestKeywords
+                            ? 'Using test_keywords.txt (fewer keywords, matched to test audio)'
+                            : 'Using keywords.txt (all keywords)'}
+                    </Text>
+                </Section>
+            )}
 
-      {/* Detected Keywords */}
-      {initialized && detectedKeywords.length > 0 && (
-        <Section title="Detected Keywords">
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {detectedKeywords.map((kw, i) => (
-              <View key={i} style={{
-                backgroundColor: theme.colors.successContainer ?? '#E8F5E9',
-                borderColor: theme.colors.success ?? '#66BB6A',
-                borderWidth: 1,
-                borderRadius: 16,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-              }}>
-                <Text variant="bodyMedium" style={{ color: theme.colors.success ?? '#2E7D32', fontWeight: '600' }}>{kw}</Text>
-              </View>
-            ))}
-          </View>
-          <ThemedButton
-            label="Clear"
-            variant="danger"
-            compact
-            onPress={() => setDetectedKeywords([])}
-            style={{ marginTop: 10, alignSelf: 'flex-start' }}
-          />
-        </Section>
-      )}
-
-      {/* Test Audio — model's own test wavs (matched to keywords) */}
-      {initialized && modelTestWavs.length > 0 && (
-        <Section title="Test Audio (from model)">
-          {modelTestWavs.map((audio) => (
-            <TouchableOpacity
-              key={audio.id}
-              testID={`kws-audio-${audio.id}`}
-              style={{
-                padding: 12,
-                marginBottom: 8,
-                backgroundColor: detecting ? theme.colors.surfaceVariant : (theme.colors.errorContainer ?? '#ffebee'),
-                borderRadius: theme.roundness,
-              }}
-              disabled={detecting}
-              onPress={() => handleDetect(audio)}
+            {/* Actions */}
+            <View
+                style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-around',
+                    marginBottom: theme.margin.m,
+                }}
             >
-              <Text variant="bodyMedium" style={{ fontWeight: '500', color: detecting ? theme.colors.onSurfaceVariant : theme.colors.onSurface }}>{audio.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </Section>
-      )}
+                <ThemedButton
+                    testID="kws-init-btn"
+                    label="Initialize"
+                    variant="danger"
+                    onPress={handleInit}
+                    disabled={loading || !selectedModelId || initialized}
+                    style={{ flex: 1, marginHorizontal: 8 }}
+                />
+                <ThemedButton
+                    testID="kws-release-btn"
+                    label="Release"
+                    variant="secondary"
+                    onPress={handleRelease}
+                    disabled={loading || !initialized}
+                    style={{ flex: 1, marginHorizontal: 8 }}
+                />
+            </View>
 
-      {/* Status Log */}
-      {statusLog.length > 0 && (
-        <Section title="Log">
-          {statusLog.map((log, i) => (
-            <Text key={i} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', lineHeight: 18 }}>
-              {log}
-            </Text>
-          ))}
-        </Section>
-      )}
-    </PageContainer>
-  );
+            {/* Active Keywords — must be prominently displayed */}
+            {initialized && activeKeywords.length > 0 && (
+                <Section title="Say these words:">
+                    <View
+                        style={{
+                            backgroundColor: '#1a237e',
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 8,
+                        }}
+                    >
+                        <Text
+                            variant="bodySmall"
+                            style={{
+                                color: '#90caf9',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}
+                        >
+                            Speak any of these keywords clearly into the
+                            microphone:
+                        </Text>
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                flexWrap: 'wrap',
+                                gap: 10,
+                                justifyContent: 'center',
+                            }}
+                        >
+                            {activeKeywords.map((kw, i) => (
+                                <View
+                                    key={i}
+                                    style={{
+                                        backgroundColor: '#283593',
+                                        borderColor: '#5c6bc0',
+                                        borderWidth: 2,
+                                        borderRadius: 20,
+                                        paddingHorizontal: 16,
+                                        paddingVertical: 10,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            color: '#e8eaf6',
+                                            fontWeight: 'bold',
+                                            fontSize: 16,
+                                            textTransform: 'uppercase',
+                                        }}
+                                    >
+                                        {kw}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </Section>
+            )}
+
+            {/* Live Mic Recording */}
+            {initialized && (
+                <Section title="3. Live Microphone">
+                    <Text
+                        variant="bodySmall"
+                        style={{
+                            color: theme.colors.onSurfaceVariant,
+                            marginBottom: 10,
+                        }}
+                    >
+                        Speak keywords into the microphone. The engine processes
+                        audio in real-time.
+                    </Text>
+                    {!recorder.isRecording ? (
+                        <ThemedButton
+                            testID="kws-start-mic"
+                            label="Start Listening"
+                            variant="primary"
+                            onPress={handleStartMic}
+                        />
+                    ) : (
+                        <View>
+                            <ThemedButton
+                                testID="kws-stop-mic"
+                                label="Stop Listening"
+                                variant="danger"
+                                onPress={handleStopMic}
+                            />
+                            <Text
+                                variant="bodySmall"
+                                style={{
+                                    color: theme.colors.onSurfaceVariant,
+                                    marginTop: 4,
+                                    textAlign: 'center',
+                                }}
+                            >
+                                Recording:{' '}
+                                {(recorder.durationMs / 1000).toFixed(1)}s |
+                                Chunks: {chunksProcessed}
+                            </Text>
+                        </View>
+                    )}
+                    {micError ? (
+                        <Text
+                            variant="bodySmall"
+                            style={{ color: theme.colors.error, marginTop: 8 }}
+                        >
+                            {micError}
+                        </Text>
+                    ) : null}
+                </Section>
+            )}
+
+            {/* Detected Keywords */}
+            {initialized && detectedKeywords.length > 0 && (
+                <Section title="Detected Keywords">
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            flexWrap: 'wrap',
+                            gap: 8,
+                        }}
+                    >
+                        {detectedKeywords.map((kw, i) => (
+                            <View
+                                key={i}
+                                style={{
+                                    backgroundColor:
+                                        theme.colors.successContainer ??
+                                        '#E8F5E9',
+                                    borderColor:
+                                        theme.colors.success ?? '#66BB6A',
+                                    borderWidth: 1,
+                                    borderRadius: 16,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 8,
+                                }}
+                            >
+                                <Text
+                                    variant="bodyMedium"
+                                    style={{
+                                        color:
+                                            theme.colors.success ?? '#2E7D32',
+                                        fontWeight: '600',
+                                    }}
+                                >
+                                    {kw}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                    <ThemedButton
+                        label="Clear"
+                        variant="danger"
+                        compact
+                        onPress={() => setDetectedKeywords([])}
+                        style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                    />
+                </Section>
+            )}
+
+            {/* Test Audio — model's own test wavs (matched to keywords) */}
+            {initialized && modelTestWavs.length > 0 && (
+                <Section title="Test Audio (from model)">
+                    {modelTestWavs.map((audio) => (
+                        <TouchableOpacity
+                            key={audio.id}
+                            testID={`kws-audio-${audio.id}`}
+                            style={{
+                                padding: 12,
+                                marginBottom: 8,
+                                backgroundColor: detecting
+                                    ? theme.colors.surfaceVariant
+                                    : (theme.colors.errorContainer ??
+                                      '#ffebee'),
+                                borderRadius: theme.roundness,
+                            }}
+                            disabled={detecting}
+                            onPress={() => handleDetect(audio)}
+                        >
+                            <Text
+                                variant="bodyMedium"
+                                style={{
+                                    fontWeight: '500',
+                                    color: detecting
+                                        ? theme.colors.onSurfaceVariant
+                                        : theme.colors.onSurface,
+                                }}
+                            >
+                                {audio.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </Section>
+            )}
+
+            {/* Status Log */}
+            {statusLog.length > 0 && (
+                <Section title="Log">
+                    {statusLog.map((log, i) => (
+                        <Text
+                            key={i}
+                            variant="bodySmall"
+                            style={{
+                                color: theme.colors.onSurfaceVariant,
+                                fontFamily:
+                                    Platform.OS === 'ios'
+                                        ? 'Menlo'
+                                        : 'monospace',
+                                lineHeight: 18,
+                            }}
+                        >
+                            {log}
+                        </Text>
+                    ))}
+                </Section>
+            )}
+        </PageContainer>
+    )
 }
