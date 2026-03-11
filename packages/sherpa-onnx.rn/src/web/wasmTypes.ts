@@ -459,6 +459,10 @@ declare global {
       module: SherpaOnnxWasmModule,
       config?: object
     ) => OfflineTtsInstance;
+    /** Factory function exposed by sherpa-onnx-kws.js (preferred). */
+    createKws?: (module: SherpaOnnxWasmModule, config: object) => KwsSpotter;
+    /** Constructor exposed by some sherpa-onnx-kws.js builds (fallback). */
+    Kws?: new (config: object, module: SherpaOnnxWasmModule) => KwsSpotter;
     onSherpaOnnxReady?: (success: boolean) => void;
     _sherpaOnnxCombinedLoaded?: boolean;
     _sherpaOnnxLoadingPromise?: Promise<void>;

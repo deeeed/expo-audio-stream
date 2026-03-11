@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@siteed/design-system';
 import { Tabs, useSegments, useRouter } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CustomHeader } from '../../components/CustomHeader';
@@ -18,16 +18,14 @@ const TAB_TITLES: Record<string, string> = {
 const WEB_BANNER_KEY = 'sherpa-web-banner-dismissed';
 
 function WebModeBanner() {
-  const [dismissed, setDismissed] = useState(true); // hidden by default until we check
-
-  useEffect(() => {
+  const [dismissed, setDismissed] = useState(() => {
     try {
-      const val = localStorage.getItem(WEB_BANNER_KEY);
-      setDismissed(val === 'true');
+      return localStorage.getItem(WEB_BANNER_KEY) === 'true';
     } catch {
-      setDismissed(false);
+      // localStorage unavailable (private browsing, storage blocked) — show banner
+      return false;
     }
-  }, []);
+  });
 
   const handleDismiss = useCallback(() => {
     setDismissed(true);

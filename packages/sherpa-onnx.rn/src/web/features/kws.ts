@@ -91,12 +91,10 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         };
 
         // Create KWS via global createKws/Kws (from sherpa-onnx-kws.js)
-        const createKwsFn = (window as any).createKws;
-        const KwsCtor = (window as any).Kws;
-        if (typeof createKwsFn === 'function') {
-          this.kwsSpotter = createKwsFn(M, configObj) as KwsSpotter;
-        } else if (typeof KwsCtor === 'function') {
-          this.kwsSpotter = new KwsCtor(configObj, M) as KwsSpotter;
+        if (typeof window.createKws === 'function') {
+          this.kwsSpotter = window.createKws(M, configObj);
+        } else if (typeof window.Kws === 'function') {
+          this.kwsSpotter = new window.Kws(configObj, M);
         } else {
           return {
             success: false,
