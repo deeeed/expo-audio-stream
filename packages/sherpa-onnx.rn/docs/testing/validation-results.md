@@ -140,7 +140,7 @@ After building native libraries + model strategy:
 - Each level builds confidence for the next
 
 ### 2. **Model Management Architecture**
-- Based on proven sherpa-onnx-demo model management system
+- Based on proven sherpa-voice model management system
 - Supports 8 model types with 332+ predefined models
 - Lightweight subset perfect for CI testing (< 100MB)
 - Scalable from CI to development to production testing
@@ -233,7 +233,7 @@ The native integration testing framework is **successfully implemented and fully
 - ✅ **Scalable model management** from CI (59.5MB) to production (1.5GB+)
 - ✅ **CI-friendly approach** with fast, reliable validation in 0.049s
 - ✅ **Comprehensive documentation** with clear implementation guidelines
-- ✅ **Production-ready architecture** based on proven sherpa-onnx-demo patterns
+- ✅ **Production-ready architecture** based on proven sherpa-voice patterns
 
 The framework now provides a robust foundation for sherpa-onnx.rn development with:
 - **Multiple testing tiers** suitable for different environments

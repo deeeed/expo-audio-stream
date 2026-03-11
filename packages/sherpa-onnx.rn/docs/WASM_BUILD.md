@@ -1,6 +1,6 @@
 # WASM Build Guide
 
-This document explains how to build the sherpa-onnx WebAssembly binaries used by the web platform in `apps/sherpa-onnx-demo`.
+This document explains how to build the sherpa-onnx WebAssembly binaries used by the web platform in `apps/sherpa-voice`.
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ cd packages/sherpa-onnx.rn
 
 Output files are copied to:
 - `packages/sherpa-onnx.rn/prebuilt/web/combined/sherpa-onnx-wasm-combined.{js,wasm}`
-- `apps/sherpa-onnx-demo/public/wasm/sherpa-onnx-wasm-combined.{js,wasm}` (deployed directly)
+- `apps/sherpa-voice/public/wasm/sherpa-onnx-wasm-combined.{js,wasm}` (deployed directly)
 
 ### Per-Feature Builds
 
@@ -117,7 +117,7 @@ Web browser fetches model from /wasm/{feature}/{model.onnx}
               └── C API create functions reference FS paths as strings
 ```
 
-Model files are served as static files from `apps/sherpa-onnx-demo/public/wasm/`.
+Model files are served as static files from `apps/sherpa-voice/public/wasm/`.
 
 ---
 
@@ -173,7 +173,7 @@ To export additional C API functions in the combined build:
 
 1. Add the function name to `set(exported_functions ...)` in `wasm/combined/CMakeLists.txt`
 2. Rebuild: `./build-sherpa-wasm.sh --combined`
-3. Copy output: auto-copied to `apps/sherpa-onnx-demo/public/wasm/`
+3. Copy output: auto-copied to `apps/sherpa-voice/public/wasm/`
 
 ---
 

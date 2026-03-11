@@ -50,7 +50,7 @@ public/wasm/
 
 > **Tip**: Use the demo app's download script to fetch models:
 > ```bash
-> cd apps/sherpa-onnx-demo
+> cd apps/sherpa-voice
 > ./scripts/download-web-models.sh
 > ```
 > This reads `web-models.config.json` and downloads configured models to `public/wasm/`.
@@ -335,7 +335,7 @@ cd packages/sherpa-onnx.rn
 
 Output is copied to:
 - `packages/sherpa-onnx.rn/prebuilt/web/combined/`
-- `apps/sherpa-onnx-demo/public/wasm/`
+- `apps/sherpa-voice/public/wasm/`
 
 See [WASM_BUILD.md](./WASM_BUILD.md) for full build details, exported C API functions, and troubleshooting.
 

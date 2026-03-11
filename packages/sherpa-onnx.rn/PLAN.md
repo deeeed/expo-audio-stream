@@ -4,7 +4,7 @@
 
 Branch: `feat/sherpa-onnx-upgrade`
 
-### App (`apps/sherpa-onnx-demo`)
+### App (`apps/sherpa-voice`)
 - `expo` bumped to `^55.0.0`, all expo-* packages updated via `npx expo install --fix`
 - `newArchEnabled: true` removed from `app.config.ts` (mandatory in SDK 55, no longer a flag)
 - `newArchEnabled=true` removed from `android/gradle.properties`
@@ -21,7 +21,7 @@ Branch: `feat/sherpa-onnx-upgrade`
 - `src/NativeSherpaOnnxSpec.ts`: removed fallback chain; simplified to `TurboModuleRegistry.getEnforcing`
 
 ### Verification
-- `npx expo-doctor` shows no SDK mismatches in `apps/sherpa-onnx-demo`
+- `npx expo-doctor` shows no SDK mismatches in `apps/sherpa-voice`
 - App builds on Android + iOS without errors
 - `grep -r "ReactContextBaseJavaModule\|RCT_EXPORT_METHOD\|ReactPackage" packages/sherpa-onnx.rn/` returns nothing
 - Home screen shows system info from native module
@@ -53,21 +53,21 @@ Use pre-built binaries from GitHub releases (v1.12.28) rather than building from
 
 ---
 
-## Phase 3: Agentic Validation Loop for sherpa-onnx-demo
+## Phase 3: Agentic Validation Loop for sherpa-voice
 
 **Status**: Done (implemented in this branch)
 
 ### What was added
-- `apps/sherpa-onnx-demo/src/agentic-bridge.ts` — installs `globalThis.__AGENTIC__` with navigation, state, and fire-and-store test methods
-- `apps/sherpa-onnx-demo/src/components/AgenticBridgeSync.tsx` — invisible sync component
-- `apps/sherpa-onnx-demo/src/app/_layout.tsx` — imports `AgenticBridgeSync`
-- `apps/sherpa-onnx-demo/scripts/agentic/` — CDP bridge scripts (copied from playground, port 7500)
-- `apps/sherpa-onnx-demo/docs/AGENT_STARTING_TEMPLATE.md` — step-by-step workflow
-- `apps/sherpa-onnx-demo/docs/AGENTIC_FEEDBACK_LOOPS.md` — quick reference
+- `apps/sherpa-voice/src/agentic-bridge.ts` — installs `globalThis.__AGENTIC__` with navigation, state, and fire-and-store test methods
+- `apps/sherpa-voice/src/components/AgenticBridgeSync.tsx` — invisible sync component
+- `apps/sherpa-voice/src/app/_layout.tsx` — imports `AgenticBridgeSync`
+- `apps/sherpa-voice/scripts/agentic/` — CDP bridge scripts (copied from playground, port 7500)
+- `apps/sherpa-voice/docs/AGENT_STARTING_TEMPLATE.md` — step-by-step workflow
+- `apps/sherpa-voice/docs/AGENTIC_FEEDBACK_LOOPS.md` — quick reference
 
 ### Verification
 ```bash
-cd apps/sherpa-onnx-demo
+cd apps/sherpa-voice
 node scripts/agentic/cdp-bridge.mjs list-devices
 scripts/agentic/app-state.sh eval "__AGENTIC__.testSystemInfo()"
 sleep 3
@@ -86,7 +86,7 @@ The fork builds a single combined WASM file (`sherpa-onnx-wasm-combined.wasm`) f
 - `packages/sherpa-onnx.rn/src/WebSherpaOnnxImpl.ts`
 - `packages/sherpa-onnx.rn/src/WebUtils.ts`
 - `packages/sherpa-onnx.rn/build-sherpa-wasm.sh`
-- Built assets: `apps/sherpa-onnx-demo/public/wasm/` (19.5 MB WASM + 92 KB JS)
+- Built assets: `apps/sherpa-voice/public/wasm/` (19.5 MB WASM + 92 KB JS)
 
 **Known issue**: Shared memory/context between combined modules (documented in fork's ISSUE.md).
 

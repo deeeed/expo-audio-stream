@@ -33,7 +33,7 @@ Our project stores ONNX models in the following locations:
 
 - **Main VAD model**: `apps/playground/assets/silero_vad.onnx`
 - **Language/Speaker models**: `apps/playground/assets/models/*.onnx`
-- **Sherpa ONNX models**: Various locations in `apps/sherpa-onnx-demo/`
+- **Sherpa ONNX models**: Various locations in `apps/sherpa-voice/`
 
 ## Adding New Models
 

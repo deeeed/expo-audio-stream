@@ -8887,9 +8887,48 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo":
+"@siteed/sherpa-onnx.rn@workspace:^, @siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn":
   version: 0.0.0-use.local
-  resolution: "@siteed/sherpa-onnx-demo@workspace:apps/sherpa-onnx-demo"
+  resolution: "@siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn"
+  dependencies:
+    "@babel/core": "npm:^7.26.10"
+    "@babel/preset-env": "npm:^7.26.9"
+    "@commitlint/config-conventional": "npm:^17.0.2"
+    "@evilmartians/lefthook": "npm:^1.5.0"
+    "@expo/config-plugins": "npm:~54.0.0"
+    "@react-native-community/cli": "npm:^18.0.0"
+    "@react-native/eslint-config": "npm:^0.73.1"
+    "@siteed/publisher": "npm:^0.6.0"
+    "@types/adm-zip": "npm:^0"
+    "@types/babel__core": "npm:^7"
+    "@types/babel__preset-env": "npm:^7"
+    "@types/jest": "npm:^29.5.5"
+    "@types/progress": "npm:^2"
+    "@types/react": "npm:^19.1.0"
+    adm-zip: "npm:^0.5.16"
+    commitlint: "npm:^17.0.2"
+    del-cli: "npm:^5.1.0"
+    eslint: "npm:^8.51.0"
+    eslint-config-prettier: "npm:^9.0.0"
+    eslint-plugin-prettier: "npm:^5.0.1"
+    expo-file-system: "npm:^19.0.0"
+    jest: "npm:^29.7.0"
+    node-fetch: "npm:2"
+    prettier: "npm:^3.0.3"
+    progress: "npm:^2.0.3"
+    react: "npm:19.1.0"
+    react-native: "npm:0.81.5"
+    react-native-builder-bob: "npm:^0.37.0"
+    typescript: "npm:^5.8.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  languageName: unknown
+  linkType: soft
+
+"@siteed/sherpa-voice@workspace:apps/sherpa-voice":
+  version: 0.0.0-use.local
+  resolution: "@siteed/sherpa-voice@workspace:apps/sherpa-voice"
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/plugin-proposal-decorators": "npm:^7.25.9"
@@ -8957,45 +8996,6 @@ __metadata:
     rimraf: "npm:^6.0.1"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.3.3"
-  languageName: unknown
-  linkType: soft
-
-"@siteed/sherpa-onnx.rn@workspace:^, @siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn":
-  version: 0.0.0-use.local
-  resolution: "@siteed/sherpa-onnx.rn@workspace:packages/sherpa-onnx.rn"
-  dependencies:
-    "@babel/core": "npm:^7.26.10"
-    "@babel/preset-env": "npm:^7.26.9"
-    "@commitlint/config-conventional": "npm:^17.0.2"
-    "@evilmartians/lefthook": "npm:^1.5.0"
-    "@expo/config-plugins": "npm:~54.0.0"
-    "@react-native-community/cli": "npm:^18.0.0"
-    "@react-native/eslint-config": "npm:^0.73.1"
-    "@siteed/publisher": "npm:^0.6.0"
-    "@types/adm-zip": "npm:^0"
-    "@types/babel__core": "npm:^7"
-    "@types/babel__preset-env": "npm:^7"
-    "@types/jest": "npm:^29.5.5"
-    "@types/progress": "npm:^2"
-    "@types/react": "npm:^19.1.0"
-    adm-zip: "npm:^0.5.16"
-    commitlint: "npm:^17.0.2"
-    del-cli: "npm:^5.1.0"
-    eslint: "npm:^8.51.0"
-    eslint-config-prettier: "npm:^9.0.0"
-    eslint-plugin-prettier: "npm:^5.0.1"
-    expo-file-system: "npm:^19.0.0"
-    jest: "npm:^29.7.0"
-    node-fetch: "npm:2"
-    prettier: "npm:^3.0.3"
-    progress: "npm:^2.0.3"
-    react: "npm:19.1.0"
-    react-native: "npm:0.81.5"
-    react-native-builder-bob: "npm:^0.37.0"
-    typescript: "npm:^5.8.3"
-  peerDependencies:
-    react: "*"
-    react-native: "*"
   languageName: unknown
   linkType: soft
 

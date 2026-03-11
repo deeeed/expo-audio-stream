@@ -71,7 +71,7 @@ playground/vendor/
 apps/playground/.env.development
 apps/playground/.env.production
 apps/playground/audioplayground-b0b0f366d11e.json
-apps/sherpa-onnx-demo/assets/models/
+apps/sherpa-voice/assets/models/
 
 # FFmpeg libraries and headers
 packages/react-native-essentia/android/src/main/jniLibs/**/ffmpeg/
@@ -85,9 +85,9 @@ packages/react-native-essentia/third_party/essentia
 packages/sherpa-onnx.rn/prebuilt/
 packages/sherpa-onnx.rn/lib/
 packages/sherpa-onnx.rn/android/src/main/jniLibs/**/*.so
-apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.js
-apps/sherpa-onnx-demo/public/sherpa-onnx-wasm-combined.wasm
-apps/sherpa-onnx-demo/public/wasm/
+apps/sherpa-voice/public/sherpa-onnx-wasm-combined.js
+apps/sherpa-voice/public/sherpa-onnx-wasm-combined.wasm
+apps/sherpa-voice/public/wasm/
 
 # Detox artifacts
 **/fastlane/detox/**

@@ -111,7 +111,7 @@ fi
 
 # Create necessary directories
 mkdir -p prebuilt/web
-mkdir -p ../apps/sherpa-onnx-demo/public/wasm
+mkdir -p ../apps/sherpa-voice/public/wasm
 
 # Function to check if prerequisites are met for a module
 check_prerequisites() {
@@ -214,7 +214,7 @@ build_module() {
     # Copy files to the demo app if the directory exists and build was successful
     if [ -d "$build_output_path" ] && [ "$(ls -A "$build_output_path" 2>/dev/null)" ]; then
       # Use absolute path resolution that works in both bash and zsh
-      demo_app_path="$SCRIPT_DIR/../../apps/sherpa-onnx-demo"
+      demo_app_path="$SCRIPT_DIR/../../apps/sherpa-voice"
       demo_app_abs_path="$(cd "$demo_app_path" 2>/dev/null && pwd)"
       
       if [ -n "$demo_app_abs_path" ]; then
@@ -312,7 +312,7 @@ if [ "$BUILD_TYPE" = "combined" ]; then
     SUCCESSFUL_MODULES+=("combined")
     # Copy combined WASM files to demo app public/wasm/ root (not a subdir)
     SHERPA_COMBINED_DIR="$SCRIPT_DIR/third_party/sherpa-onnx/build-wasm-simd-combined/install/bin/wasm/combined"
-    DEMO_WASM_DIR="$SCRIPT_DIR/../apps/sherpa-onnx-demo/public/wasm"
+    DEMO_WASM_DIR="$SCRIPT_DIR/../apps/sherpa-voice/public/wasm"
     if [ -d "$SHERPA_COMBINED_DIR" ] && [ -d "$DEMO_WASM_DIR" ]; then
       echo -e "${BLUE}Copying combined WASM to demo app root wasm directory...${NC}"
       cp "$SHERPA_COMBINED_DIR/sherpa-onnx-wasm-combined.js" "$DEMO_WASM_DIR/"
@@ -372,8 +372,8 @@ for module in "${SUCCESSFUL_MODULES[@]}"; do
   # Integration instructions for all modules
   echo -e "\n${BLUE}For integration in React Native Web:${NC}"
   echo -e "${YELLOW}1. Copy files from $build_path to your public directory${NC}"
-  echo -e "${YELLOW}   mkdir -p $SCRIPT_DIR/../../apps/sherpa-onnx-demo/public/wasm/${module}"
-  echo -e "${YELLOW}   cp -r \"$build_path\"/* $SCRIPT_DIR/../../apps/sherpa-onnx-demo/public/wasm/${module}/"
+  echo -e "${YELLOW}   mkdir -p $SCRIPT_DIR/../../apps/sherpa-voice/public/wasm/${module}"
+  echo -e "${YELLOW}   cp -r \"$build_path\"/* $SCRIPT_DIR/../../apps/sherpa-voice/public/wasm/${module}/"
   echo -e "${YELLOW}2. Import the module in your code:${NC}"
 
   # Module-specific import examples

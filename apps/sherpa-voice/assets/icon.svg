@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a73e8"/>
+      <stop offset="100%" stop-color="#0d47a1"/>
+    </linearGradient>
+    <linearGradient id="mic" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0e0e0"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4fc3f7"/>
+      <stop offset="100%" stop-color="#81d4fa"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+  <!-- Microphone body -->
+  <rect x="432" y="240" width="160" height="280" rx="80" ry="80" fill="url(#mic)"/>
+  <!-- Microphone arc -->
+  <path d="M352 480 Q352 620 512 620 Q672 620 672 480" fill="none" stroke="white" stroke-width="36" stroke-linecap="round"/>
+  <!-- Microphone stand -->
+  <line x1="512" y1="620" x2="512" y2="720" stroke="white" stroke-width="36" stroke-linecap="round"/>
+  <!-- Microphone base -->
+  <line x1="420" y1="720" x2="604" y2="720" stroke="white" stroke-width="36" stroke-linecap="round"/>
+  <!-- Sound waves left -->
+  <path d="M300 380 Q260 460 300 540" fill="none" stroke="url(#wave)" stroke-width="24" stroke-linecap="round" opacity="0.8"/>
+  <path d="M240 340 Q180 460 240 580" fill="none" stroke="url(#wave)" stroke-width="20" stroke-linecap="round" opacity="0.5"/>
+  <!-- Sound waves right -->
+  <path d="M724 380 Q764 460 724 540" fill="none" stroke="url(#wave)" stroke-width="24" stroke-linecap="round" opacity="0.8"/>
+  <path d="M784 340 Q844 460 784 580" fill="none" stroke="url(#wave)" stroke-width="20" stroke-linecap="round" opacity="0.5"/>
+</svg>
