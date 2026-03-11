@@ -6,7 +6,7 @@ import type {
 } from '@siteed/sherpa-onnx.rn'
 import { TTS } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTtsModels, useTtsModelWithConfig } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS } from '../utils/constants'
 import { setAgenticPageState } from '../agentic-bridge'
@@ -39,8 +39,6 @@ export function useTts() {
     const [debugMode, setDebugMode] = useState(false)
     const [provider, setProvider] = useState<ModelProvider>('cpu')
     const [autoPlay, setAutoPlay] = useState(true)
-
-    const lastAutoInitRef = useRef<string | null>(null)
 
     const { downloadedModels } = useTtsModels()
     const { ttsConfig, localPath, isDownloaded } = useTtsModelWithConfig({
@@ -88,16 +86,6 @@ export function useTts() {
         }
     }, [downloadedModels, selectedModelId])
 
-    // Auto-init when model is selected and downloaded
-    useEffect(() => {
-        if (!selectedModelId || !isDownloaded || ttsInitialized || isLoading)
-            return
-        if (lastAutoInitRef.current === selectedModelId) return
-        lastAutoInitRef.current = selectedModelId
-        handleInitTts()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedModelId, isDownloaded, ttsInitialized, isLoading])
-
     const handleModelSelect = async (modelId: string) => {
         if (modelId === selectedModelId) return
         if (ttsInitialized) {
@@ -112,7 +100,6 @@ export function useTts() {
                 )
             }
         }
-        lastAutoInitRef.current = null
         setSelectedModelId(modelId)
     }
 
