@@ -18,6 +18,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.enableLogging = false
         this.exportIntervalSamples = 0
         this.currentPosition = 0 // Track current position in seconds
+        this.streamFormat = 'raw'
     }
 
     handleMessage(event) {
@@ -37,6 +38,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
                 }
                 this.exportBitDepth =
                     event.data.exportBitDepth || this.recordBitDepth
+                this.streamFormat = event.data.streamFormat || 'raw'
                 
                 // Handle position parameter for device switching
                 if (typeof event.data.position === 'number' && event.data.position > 0) {
@@ -149,19 +151,23 @@ class RecorderProcessor extends AudioWorkletProcessor {
         // Resample if needed
         const resampledChunk = this.resample(mergedChunk, this.exportSampleRate)
 
-        // Convert bit depth if needed
+        // Convert bit depth if needed (used for file storage format)
         const finalBuffer =
             this.recordBitDepth !== this.exportBitDepth
                 ? this.convertBitDepth(resampledChunk, this.exportBitDepth)
                 : resampledChunk
 
+        // For float32 stream format, send the resampled Float32 data directly
+        // (skipping the bit-depth conversion roundtrip)
+        const streamData = this.streamFormat === 'float32' ? resampledChunk : finalBuffer
+
         // Calculate the duration in seconds
-        const chunkDuration = finalBuffer.length / this.exportSampleRate
-        
+        const chunkDuration = resampledChunk.length / this.exportSampleRate
+
         // Send processed chunk with the current position
         this.port.postMessage({
             command: 'newData',
-            recordedData: finalBuffer,
+            recordedData: streamData,
             sampleRate: this.exportSampleRate,
             bitDepth: this.exportBitDepth,
             numberOfChannels: this.numberOfChannels,

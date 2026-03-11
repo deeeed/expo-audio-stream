@@ -880,13 +880,26 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
         var resultDict: [String: Any] = [
             "fileUri": manager.recordingFileURL?.absoluteString ?? "",
             "lastEmittedSize": totalDataSize,
-            "encoded": data.base64EncodedString(),
             "deltaSize": data.count,
             "position": Int64(recordingTime * 1000),
             "mimeType": manager.mimeType,
             "totalSize": totalDataSize,
             "streamUuid": manager.recordingUUID?.uuidString ?? UUID().uuidString
         ]
+
+        if manager.recordingSettings?.streamFormat == "float32" {
+            let sampleCount = data.count / 2
+            var floatArray = [Float](repeating: 0, count: sampleCount)
+            data.withUnsafeBytes { ptr in
+                let int16Ptr = ptr.bindMemory(to: Int16.self)
+                for i in 0..<sampleCount {
+                    floatArray[i] = Float(int16Ptr[i]) / 32768.0
+                }
+            }
+            resultDict["pcmFloat32"] = floatArray
+        } else {
+            resultDict["encoded"] = data.base64EncodedString()
+        }
         
         if let compressionInfo = compressionInfo {
             resultDict["compression"] = compressionInfo

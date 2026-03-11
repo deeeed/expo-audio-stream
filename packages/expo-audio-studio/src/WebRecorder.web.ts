@@ -336,6 +336,7 @@ export class WebRecorder {
                 interval,
                 position: this.position, // Pass the current position to the processor
                 enableLogging: true,
+                streamFormat: this.config.streamFormat,
             })
 
             // Connect the source to the AudioWorkletNode and start recording

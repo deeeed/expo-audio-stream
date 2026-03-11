@@ -78,6 +78,7 @@ const baseRecordingConfig: RecordingConfig = {
             bitrate: DEFAULT_BITRATE,
         },
     },
+    streamFormat: 'float32',
     autoResumeAfterInterruption: true,
     deviceDisconnectionBehavior: 'fallback',
     ios: {
@@ -172,7 +173,7 @@ export default function RecordScreen() {
     // Add state for advanced mode
     const [advancedMode, setAdvancedMode] = useState(false)
     
-    const audioChunks = useRef<string[]>([])
+
     const webAudioChunks = useRef<Float32Array>(new Float32Array(0))
     const [streamConfig, setStreamConfig] =
         useState<StartRecordingResult | null>(null)
@@ -306,20 +307,7 @@ export default function RecordScreen() {
                 
                 if (!eventDataSize || eventDataSize === 0) return
 
-                if (typeof data === 'string') {
-                    // For native platforms (iOS/Android)
-                    if (audioChunks.current) {
-                        audioChunks.current.push(data)
-                    }
-                    
-                    // Only process if needed
-                    if (isProgressiveBatchRunning && 
-                        enableLiveTranscription && 
-                        addAudioData) {
-                        addAudioData(data)
-                    }
-                } else if (data instanceof Float32Array) {
-                    // For web platforms - update visualization buffer
+                if (data instanceof Float32Array) {
                     if (webAudioChunks.current) {
                         const newLength = Math.min(
                             MAX_AUDIO_BUFFER_LENGTH, 
@@ -692,7 +680,6 @@ export default function RecordScreen() {
 
             // Clear previous audio chunks
             webAudioChunks.current = new Float32Array(0)
-            audioChunks.current = []
             currentSize.current = 0
             setLiveWebAudio(null)
 

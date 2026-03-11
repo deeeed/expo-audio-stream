@@ -4,7 +4,6 @@ import {
     ExpoAudioStreamModule,
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
-import { audioDataToSamples } from '../utils/audioDataUtils'
 import { resolveModelDir } from '../utils/fileUtils'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
@@ -307,11 +306,16 @@ export function useAsr() {
                 channels: 1,
                 encoding: 'pcm_32bit',
                 interval: 100,
+                streamFormat: 'float32',
                 onAudioStream: async (event: AudioDataEvent) => {
                     if (!streamCreatedRef.current) return
                     try {
-                        const samples = await audioDataToSamples(event.data)
-                        if (!samples || samples.length === 0) return
+                        if (!(event.data instanceof Float32Array)) {
+                            console.warn('[ASR] Expected Float32Array but got', typeof event.data)
+                            return
+                        }
+                        const samples = Array.from(event.data)
+                        if (samples.length === 0) return
                         liveAsr.feedAudio(samples, DEFAULT_LIVE_SAMPLE_RATE)
                     } catch (e) {
                         console.warn('[ASR] Audio chunk error:', e)

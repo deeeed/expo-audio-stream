@@ -26,7 +26,6 @@ import {
     useLanguageIdModels,
     useLanguageIdModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
-import { audioDataToSamples } from '../../../utils/audioDataUtils'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
 
 interface AudioItem {
@@ -245,11 +244,16 @@ export default function LanguageIdScreen() {
                 channels: 1,
                 encoding: 'pcm_32bit',
                 interval: 100,
+                streamFormat: 'float32',
                 onAudioStream: async (event: AudioDataEvent) => {
                     if (!recordingRef.current) return
                     try {
-                        const samples = await audioDataToSamples(event.data)
-                        if (!samples || samples.length === 0) return
+                        if (!(event.data instanceof Float32Array)) {
+                            console.warn('[LanguageId] Expected Float32Array but got', typeof event.data)
+                            return
+                        }
+                        const samples = Array.from(event.data)
+                        if (samples.length === 0) return
                         samplesBufferRef.current.push(...samples)
                         setLiveChunks((prev) => prev + 1)
 

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- feat(expo-audio-studio): `streamFormat: 'float32'` option on `RecordingConfig` — native delivers `Float32Array` to `onAudioStream`, eliminating base64 encode/decode on the bridge. Default `'raw'` preserves existing behavior.
 
 ## [2.18.6] - 2026-03-06
 ### Fixed

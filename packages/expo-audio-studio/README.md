@@ -171,6 +171,35 @@ const AudioApp = () => (
 );
 ```
 
+### Stream Format (Float32 mode)
+
+When using `onAudioStream` for ML inference, VAD, or any DSP pipeline, set `streamFormat: 'float32'` on your `RecordingConfig` to receive audio samples as `Float32Array` instead of base64-encoded strings.
+
+| Option | `'raw'` (default) | `'float32'` |
+|---|---|---|
+| `onAudioStream` data type | base64 `string` (native) / `Float32Array` (web) | `Float32Array` on all platforms |
+| Bridge overhead | base64 encode → decode → Int16 parse → normalize | Native Int16→Float32 conversion, no base64 |
+
+**When to use:** Any consumer that processes audio samples in JS — speech recognition, VAD, keyword spotting, speaker ID, audio tagging. Not needed for flows that only store/upload the recorded file.
+
+```typescript
+const { startRecording } = useAudioRecorder();
+
+await startRecording({
+  sampleRate: 16000,
+  channels: 1,
+  encoding: 'pcm_32bit',
+  streamFormat: 'float32',          // <-- opt in
+  onAudioStream: async (event) => {
+    // event.data is always Float32Array with streamFormat: 'float32'
+    const samples = event.data as Float32Array;
+    await myModel.feed(samples);
+  },
+});
+```
+
+Default `'raw'` preserves existing behavior — no changes needed for current consumers.
+
 ### Audio Analysis
 
 - **extractAudioAnalysis**: Extract comprehensive audio features for detailed analysis

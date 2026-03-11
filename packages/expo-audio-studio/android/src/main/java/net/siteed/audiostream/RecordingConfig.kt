@@ -66,6 +66,7 @@ data class RecordingConfig(
     val deviceDisconnectionBehavior: String? = null,
     val audioFocusStrategy: String? = null,
     val bufferDurationSeconds: Double? = null,
+    val streamFormat: String = "raw",
 ) {
     companion object {
         fun fromMap(options: Map<String, Any?>?): Result<Pair<RecordingConfig, AudioFormatInfo>> {
@@ -158,6 +159,7 @@ data class RecordingConfig(
                 deviceDisconnectionBehavior = deviceDisconnectionBehavior,
                 audioFocusStrategy = audioFocusStrategy,
                 bufferDurationSeconds = (options["bufferDurationSeconds"] as? Number)?.toDouble(),
+                streamFormat = options.getStringOrDefault("streamFormat", "raw"),
             )
 
             // Validate sample rate and channels

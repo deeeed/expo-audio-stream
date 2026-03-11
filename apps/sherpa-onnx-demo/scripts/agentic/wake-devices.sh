@@ -31,6 +31,9 @@ wake_ios() {
   while IFS= read -r udid; do
     echo "  Sending deeplink to simulator $udid"
     xcrun simctl openurl "$udid" "${SCHEME}://" 2>/dev/null || true
+    # Prevent Expo dev menu onboarding modal (expo-dev-menu)
+    xcrun simctl spawn "$udid" defaults write "$BUNDLE_ID" EXDevMenuIsOnboardingFinished -bool YES 2>/dev/null || true
+    xcrun simctl spawn "$udid" defaults write "$BUNDLE_ID" EXDevMenuDisableAutoLaunch -bool YES 2>/dev/null || true
   done <<< "$devices"
 }
 
@@ -48,6 +51,15 @@ wake_android() {
       -a android.intent.action.VIEW \
       -d "${SCHEME}://" \
       "$BUNDLE_ID" 2>/dev/null | grep -E "Complete|Error" || true
+    # Prevent Expo dev menu onboarding modal (expo-dev-menu)
+    adb -s "$serial" shell run-as "$BUNDLE_ID" sh -c \
+      "mkdir -p /data/data/$BUNDLE_ID/shared_prefs && cat > /data/data/$BUNDLE_ID/shared_prefs/expo.modules.devmenu.sharedpreferences.xml << 'PREFS'
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name=\"isOnboardingFinished\" value=\"true\" />
+    <boolean name=\"showsAtLaunch\" value=\"false\" />
+</map>
+PREFS" 2>/dev/null || true
   done <<< "$devices"
 }
 

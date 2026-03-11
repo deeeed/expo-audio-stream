@@ -22,7 +22,7 @@ const sidebars: SidebarsConfig = {
         {
             type: 'category',
             label: 'Usage',
-            items: ['usage/standalone-recording', 'usage/shared-recording'],
+            items: ['usage/standalone-recording', 'usage/shared-recording', 'usage/ml-streaming'],
         },
         {
           type: 'category',

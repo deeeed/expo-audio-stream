@@ -58,6 +58,9 @@ export interface RecordingConfig {
     
     // Performance options
     bufferDurationSeconds?: number // Buffer duration in seconds (controls audio buffer size)
+
+    // Stream format
+    streamFormat?: 'float32' | 'raw' // Controls data type in onAudioStream. 'float32' delivers Float32Array on all platforms; 'raw' (default) delivers base64 string on native, Float32Array on web.
 }
 
 ```
