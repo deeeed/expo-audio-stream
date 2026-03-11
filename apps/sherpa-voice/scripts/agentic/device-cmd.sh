@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 PORT="${WATCHER_PORT:-7500}"
-BUNDLE_ID="${APP_BUNDLE_ID:-net.siteed.sherpavoice}"
+BUNDLE_ID="${APP_BUNDLE_ID:-net.siteed.sherpavoice.development}"
 DEVICE_FLAG=()
 PLATFORM="all"
 
@@ -56,6 +56,13 @@ case "${CMD:-}" in
       node scripts/agentic/cdp-bridge.mjs "${DEVICE_FLAG[@]}" eval \
         "NativeModules?.DevSettings?.show?.() ?? 'not supported'"
     fi
+    ;;
+
+  suppress-onboarding)
+    # Mark Expo dev menu onboarding as finished via JS (works on any device including physical)
+    node scripts/agentic/cdp-bridge.mjs "${DEVICE_FLAG[@]}" eval \
+      "require('expo-modules-core').NativeModulesProxy.DevMenuPreferences.setPreferencesAsync({isOnboardingFinished: true, showsAtLaunch: false})" \
+      2>/dev/null && echo '{"suppressed":true}' || echo '{"suppressed":false,"error":"CDP eval failed"}'
     ;;
 
   dismiss-dev-menu|dismiss)
@@ -104,6 +111,7 @@ case "${CMD:-}" in
     echo "  reload          Reload the JS bundle"
     echo "  debug           Open React Native debugger / Hermes DevTools"
     echo "  dev-menu        Open the React Native developer menu"
+    echo "  suppress-onboarding  Suppress Expo dev menu onboarding (via CDP, works on any device)"
     echo "  dismiss         Dismiss Expo dev menu / onboarding modal"
     exit 1
     ;;

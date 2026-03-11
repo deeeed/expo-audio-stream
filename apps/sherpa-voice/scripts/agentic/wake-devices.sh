@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 SCHEME="${APP_SCHEME:-exp+sherpa-voice}"
-BUNDLE_ID="${APP_BUNDLE_ID:-net.siteed.sherpavoice}"
+BUNDLE_ID="${APP_BUNDLE_ID:-net.siteed.sherpavoice.development}"
 PLATFORM="${1:-all}"
 
 wake_ios() {

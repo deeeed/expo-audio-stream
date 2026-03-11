@@ -8,7 +8,7 @@
     "android": "RCT_METRO_PORT=7500 NODE_ENV=development expo run:android --port 7500",
     "ios": "RCT_METRO_PORT=7500 NODE_ENV=development expo run:ios --device --port 7500",
     "open:android": "open -a \"Android Studio\" ./android",
-    "open:ios": "open -a Xcode ./ios",
+    "open:ios": "open -a Xcode ios/SherpaVoiceDev.xcworkspace 2>/dev/null || open -a Xcode ios/SherpaVoice.xcworkspace",
     "devices": "WATCHER_PORT=7500 node scripts/agentic/cdp-bridge.mjs list-devices",
     "status": "WATCHER_PORT=7500 node scripts/agentic/cdp-bridge.mjs list-devices",
     "reload": "WATCHER_PORT=7500 bash scripts/agentic/device-cmd.sh reload",
@@ -18,7 +18,18 @@
     "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
     "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest sherpa-voice",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "setup:development": "bash scripts/setup-env.sh development",
+    "setup:production": "bash scripts/setup-env.sh production",
+    "setup:production:force": "bash scripts/setup-env.sh production force",
+    "build:ios:development": "APP_VARIANT=development npx eas build --platform ios --profile development --local",
+    "build:ios:production": "NODE_ENV=production APP_VARIANT=production npx eas build --platform ios --profile production",
+    "build:ios:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform ios --profile production --local --no-wait",
+    "build:android:development": "APP_VARIANT=development npx eas build --platform android --profile development --local",
+    "build:android:production": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production",
+    "build:android:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production --local --no-wait",
+    "ota-update:production": "APP_VARIANT=production npx eas update --channel production",
+    "ota-update:development": "APP_VARIANT=development npx eas update --channel development"
   },
   "jest": {
     "preset": "jest-expo"
@@ -57,6 +68,7 @@
     "expo-status-bar": "~55.0.4",
     "expo-symbols": "~55.0.5",
     "expo-system-ui": "~55.0.9",
+    "expo-updates": "~55.0.11",
     "expo-web-browser": "~55.0.9",
     "react": "19.2.0",
     "react-dom": "19.2.0",
