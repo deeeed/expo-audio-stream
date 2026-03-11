@@ -1,5 +1,6 @@
 import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn';
-import { useAudioRecorder, convertPCMToFloat32, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
+import { useAudioRecorder, ExpoAudioStreamModule, type AudioDataEvent } from '@siteed/expo-audio-studio';
+import { audioDataToSamples } from '../utils/audioDataUtils';
 import { Asset } from 'expo-asset';
 import { createAudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -25,15 +26,6 @@ export type LoadedAudioFile = {
   module: number;
   localUri: string;
 };
-
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
 
 export function useAsr() {
   const params = useLocalSearchParams<{
@@ -255,30 +247,14 @@ export function useAsr() {
       await recorder.startRecording({
         sampleRate: 16000,
         channels: 1,
-        encoding: 'pcm_16bit',
+        encoding: 'pcm_32bit',
         interval: 100,
         onAudioStream: async (event: AudioDataEvent) => {
           if (!streamCreatedRef.current) return;
           try {
-            let samples: number[];
-            if (event.data instanceof Float32Array) {
-              samples = Array.from(event.data);
-            } else if (event.data instanceof Int16Array) {
-              samples = new Array(event.data.length);
-              for (let i = 0; i < event.data.length; i++) {
-                samples[i] = event.data[i] / 32768;
-              }
-            } else if (typeof event.data === 'string') {
-              const buffer = base64ToArrayBuffer(event.data as string);
-              const { pcmValues } = await convertPCMToFloat32({ buffer, bitDepth: 16, skipWavHeader: true });
-              samples = Array.from(pcmValues);
-            } else if ((event.data as unknown) instanceof ArrayBuffer) {
-              const { pcmValues } = await convertPCMToFloat32({ buffer: event.data as unknown as ArrayBuffer, bitDepth: 16, skipWavHeader: true });
-              samples = Array.from(pcmValues);
-            } else {
-              return;
-            }
-            if (samples.length > 0) liveAsr.feedAudio(samples, 16000);
+            const samples = await audioDataToSamples(event.data);
+            if (!samples || samples.length === 0) return;
+            liveAsr.feedAudio(samples, 16000);
           } catch (e) {
             console.warn('[ASR] Audio chunk error:', e);
           }
