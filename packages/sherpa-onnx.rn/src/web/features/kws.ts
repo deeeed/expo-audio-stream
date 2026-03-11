@@ -1,5 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { KwsSpotter, KwsStream } from '../wasmTypes';
+import type { KWSModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -9,25 +10,35 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
     private kwsSpotter: KwsSpotter | null = null;
     private kwsStream: KwsStream | null = null;
 
-    async initKws(config: any): Promise<{ success: boolean; error?: string }> {
+    async initKws(
+      config: KWSModelConfig
+    ): Promise<{ success: boolean; error?: string }> {
       try {
         await loadCombinedWasm();
 
-        const debug = config?.debug ? 1 : 0;
+        const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
         const M = window.Module;
 
-        const keywordsFile = config?.keywordsFile || 'keywords.txt';
-        const modelDir = config?.modelDir || '/wasm/kws';
+        const keywordsFile = config.keywordsFile || 'keywords.txt';
+        const modelDir = config.modelDir;
 
         // Ensure WASM FS directories exist
         const dirParts = modelDir.split('/').filter((p: string) => p);
         let currentDir = '';
         for (const part of dirParts) {
           currentDir += '/' + part;
-          try { M.FS.mkdir(currentDir); } catch (_e) { /* exists */ }
+          try {
+            M.FS.mkdir(currentDir);
+          } catch (_e) {
+            /* exists */
+          }
         }
-        try { M.FS.mkdir(modelDir + '/test_wavs'); } catch (_e) { /* exists */ }
+        try {
+          M.FS.mkdir(modelDir + '/test_wavs');
+        } catch (_e) {
+          /* exists */
+        }
 
         // Load model files into WASM FS (fetch from public URL, write to same path)
         const files = [
@@ -35,15 +46,21 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
           { url: `${modelDir}/decoder.onnx`, dest: `${modelDir}/decoder.onnx` },
           { url: `${modelDir}/joiner.onnx`, dest: `${modelDir}/joiner.onnx` },
           { url: `${modelDir}/tokens.txt`, dest: `${modelDir}/tokens.txt` },
-          { url: `${modelDir}/${keywordsFile}`, dest: `${modelDir}/keywords.txt` },
+          {
+            url: `${modelDir}/${keywordsFile}`,
+            dest: `${modelDir}/keywords.txt`,
+          },
         ];
 
         for (const f of files) {
           try {
             if (M.FS.analyzePath(f.dest).exists) continue;
-          } catch (_e) { /* not found */ }
+          } catch (_e) {
+            /* not found */
+          }
           const resp = await fetch(f.url);
-          if (!resp.ok) throw new Error(`Failed to fetch ${f.url}: HTTP ${resp.status}`);
+          if (!resp.ok)
+            throw new Error(`Failed to fetch ${f.url}: HTTP ${resp.status}`);
           const data = await resp.arrayBuffer();
           M.FS.writeFile(f.dest, new Uint8Array(data));
         }
@@ -66,10 +83,10 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
             modelingUnit: '',
             bpeVocab: '',
           },
-          maxActivePaths: config?.maxActivePaths ?? 4,
-          numTrailingBlanks: config?.numTrailingBlanks ?? 1,
-          keywordsScore: config?.keywordsScore ?? 1.0,
-          keywordsThreshold: config?.keywordsThreshold ?? 0.25,
+          maxActivePaths: config.maxActivePaths ?? 4,
+          numTrailingBlanks: config.numTrailingBlanks ?? 1,
+          keywordsScore: config.keywordsScore ?? 1.0,
+          keywordsThreshold: config.keywordsThreshold ?? 0.25,
           keywordsFile: `${modelDir}/keywords.txt`,
         };
 
@@ -81,16 +98,25 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         } else if (typeof KwsCtor === 'function') {
           this.kwsSpotter = new KwsCtor(configObj, M) as KwsSpotter;
         } else {
-          return { success: false, error: 'Neither createKws nor Kws available on window' };
+          return {
+            success: false,
+            error: 'Neither createKws nor Kws available on window',
+          };
         }
 
         if (!this.kwsSpotter?.handle) {
-          return { success: false, error: 'KWS spotter creation failed (null handle)' };
+          return {
+            success: false,
+            error: 'KWS spotter creation failed (null handle)',
+          };
         }
 
         this.kwsStream = this.kwsSpotter.createStream();
         if (!this.kwsStream?.handle) {
-          return { success: false, error: 'KWS stream creation failed (null handle)' };
+          return {
+            success: false,
+            error: 'KWS stream creation failed (null handle)',
+          };
         }
 
         return { success: true };

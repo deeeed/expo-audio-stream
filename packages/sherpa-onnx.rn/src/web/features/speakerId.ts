@@ -39,19 +39,28 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         await loadCombinedWasm();
 
         if (!window.SherpaOnnx.SpeakerId) {
-          return { success: false, embeddingDim: 0, error: 'SpeakerId module not loaded' };
+          return {
+            success: false,
+            embeddingDim: 0,
+            error: 'SpeakerId module not loaded',
+          };
         }
 
         const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[SpeakerId] Loading model (threads=${numThreads}, debug=${debug})...`);
+        console.log(
+          `[SpeakerId] Loading model (threads=${numThreads}, debug=${debug})...`
+        );
         const loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
           model: '/wasm/speaker-id/model.onnx',
           debug,
         });
 
-        this.speakerExtractor = window.SherpaOnnx.SpeakerId.createExtractor(loadedModel, { numThreads, debug });
+        this.speakerExtractor = window.SherpaOnnx.SpeakerId.createExtractor(
+          loadedModel,
+          { numThreads, debug }
+        );
         const dim = this.speakerExtractor.dim();
         this.speakerManager = window.SherpaOnnx.SpeakerId.createManager(dim);
 
@@ -59,13 +68,24 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         return { success: true, embeddingDim: dim };
       } catch (error) {
         console.error('[SpeakerId] initSpeakerId failed:', error);
-        return { success: false, embeddingDim: 0, error: (error as Error).message };
+        return {
+          success: false,
+          embeddingDim: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
-    async processSpeakerIdSamples({ sampleRate, samples: rawSamples }: WaveformInput): Promise<SpeakerIdProcessResult> {
+    async processSpeakerIdSamples({
+      sampleRate,
+      samples: rawSamples,
+    }: WaveformInput): Promise<SpeakerIdProcessResult> {
       if (!this.speakerExtractor) {
-        return { success: false, samplesProcessed: 0, error: 'Speaker ID not initialized' };
+        return {
+          success: false,
+          samplesProcessed: 0,
+          error: 'Speaker ID not initialized',
+        };
       }
       try {
         if (!this.speakerIdStream) {
@@ -73,27 +93,52 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
           this.speakerIdSamplesProcessed = 0;
         }
         const samples = new Float32Array(rawSamples);
-        this.speakerExtractor.acceptWaveform(this.speakerIdStream, sampleRate, samples);
+        this.speakerExtractor.acceptWaveform(
+          this.speakerIdStream,
+          sampleRate,
+          samples
+        );
         this.speakerIdSamplesProcessed += samples.length;
-        return { success: true, samplesProcessed: this.speakerIdSamplesProcessed };
+        return {
+          success: true,
+          samplesProcessed: this.speakerIdSamplesProcessed,
+        };
       } catch (error) {
-        return { success: false, samplesProcessed: 0, error: (error as Error).message };
+        return {
+          success: false,
+          samplesProcessed: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
     async computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult> {
       if (!this.speakerExtractor || !this.speakerIdStream) {
-        return { success: false, embedding: [], durationMs: 0, embeddingDim: 0, error: 'No audio processed' };
+        return {
+          success: false,
+          embedding: [],
+          durationMs: 0,
+          embeddingDim: 0,
+          error: 'No audio processed',
+        };
       }
       try {
         const startMs = performance.now();
         this.speakerExtractor.inputFinished(this.speakerIdStream);
 
         if (!this.speakerExtractor.isReady(this.speakerIdStream)) {
-          return { success: false, embedding: [], durationMs: 0, embeddingDim: 0, error: 'Not enough audio for embedding' };
+          return {
+            success: false,
+            embedding: [],
+            durationMs: 0,
+            embeddingDim: 0,
+            error: 'Not enough audio for embedding',
+          };
         }
 
-        const embedding = this.speakerExtractor.computeEmbedding(this.speakerIdStream);
+        const embedding = this.speakerExtractor.computeEmbedding(
+          this.speakerIdStream
+        );
         const durationMs = performance.now() - startMs;
 
         // Clean up stream
@@ -108,16 +153,28 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
           embeddingDim: embedding.length,
         };
       } catch (error) {
-        return { success: false, embedding: [], durationMs: 0, embeddingDim: 0, error: (error as Error).message };
+        return {
+          success: false,
+          embedding: [],
+          durationMs: 0,
+          embeddingDim: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
-    async registerSpeaker({ name, embedding }: RegisterSpeakerInput): Promise<RegisterSpeakerResult> {
+    async registerSpeaker({
+      name,
+      embedding,
+    }: RegisterSpeakerInput): Promise<RegisterSpeakerResult> {
       if (!this.speakerManager) {
         return { success: false, error: 'Speaker ID not initialized' };
       }
       const ok = this.speakerManager.add(name, new Float32Array(embedding));
-      return { success: ok, error: ok ? undefined : 'Failed to register speaker' };
+      return {
+        success: ok,
+        error: ok ? undefined : 'Failed to register speaker',
+      };
     }
 
     async removeSpeaker(name: string): Promise<RemoveSpeakerResult> {
@@ -130,17 +187,33 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
 
     async getSpeakers(): Promise<GetSpeakersResult> {
       if (!this.speakerManager) {
-        return { success: false, speakers: [], count: 0, error: 'Speaker ID not initialized' };
+        return {
+          success: false,
+          speakers: [],
+          count: 0,
+          error: 'Speaker ID not initialized',
+        };
       }
       const speakers = this.speakerManager.getAllSpeakers();
       return { success: true, speakers, count: speakers.length };
     }
 
-    async identifySpeaker({ embedding, threshold }: IdentifySpeakerInput): Promise<IdentifySpeakerResult> {
+    async identifySpeaker({
+      embedding,
+      threshold,
+    }: IdentifySpeakerInput): Promise<IdentifySpeakerResult> {
       if (!this.speakerManager) {
-        return { success: false, speakerName: '', identified: false, error: 'Speaker ID not initialized' };
+        return {
+          success: false,
+          speakerName: '',
+          identified: false,
+          error: 'Speaker ID not initialized',
+        };
       }
-      const name = this.speakerManager.search(new Float32Array(embedding), threshold);
+      const name = this.speakerManager.search(
+        new Float32Array(embedding),
+        threshold
+      );
       return {
         success: true,
         speakerName: name,
@@ -148,17 +221,39 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
       };
     }
 
-    async verifySpeaker({ name, embedding, threshold }: VerifySpeakerInput): Promise<VerifySpeakerResult> {
+    async verifySpeaker({
+      name,
+      embedding,
+      threshold,
+    }: VerifySpeakerInput): Promise<VerifySpeakerResult> {
       if (!this.speakerManager) {
-        return { success: false, verified: false, error: 'Speaker ID not initialized' };
+        return {
+          success: false,
+          verified: false,
+          error: 'Speaker ID not initialized',
+        };
       }
-      const verified = this.speakerManager.verify(name, new Float32Array(embedding), threshold);
+      const verified = this.speakerManager.verify(
+        name,
+        new Float32Array(embedding),
+        threshold
+      );
       return { success: true, verified };
     }
 
-    async processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult> {
+    async processSpeakerIdFile(
+      filePath: string
+    ): Promise<SpeakerIdFileProcessResult> {
       if (!this.speakerExtractor) {
-        return { success: false, durationMs: 0, embedding: [], embeddingDim: 0, sampleRate: 0, samples: 0, error: 'Speaker ID not initialized' };
+        return {
+          success: false,
+          durationMs: 0,
+          embedding: [],
+          embeddingDim: 0,
+          sampleRate: 0,
+          samples: 0,
+          error: 'Speaker ID not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -170,7 +265,15 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
 
         if (!this.speakerExtractor.isReady(stream)) {
           this.speakerExtractor.destroyStream(stream);
-          return { success: false, durationMs: 0, embedding: [], embeddingDim: 0, sampleRate, samples: samples.length, error: 'Not enough audio for embedding' };
+          return {
+            success: false,
+            durationMs: 0,
+            embedding: [],
+            embeddingDim: 0,
+            sampleRate,
+            samples: samples.length,
+            error: 'Not enough audio for embedding',
+          };
         }
 
         const embedding = this.speakerExtractor.computeEmbedding(stream);
@@ -186,21 +289,41 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
           samples: samples.length,
         };
       } catch (error) {
-        return { success: false, durationMs: 0, embedding: [], embeddingDim: 0, sampleRate: 0, samples: 0, error: (error as Error).message };
+        return {
+          success: false,
+          durationMs: 0,
+          embedding: [],
+          embeddingDim: 0,
+          sampleRate: 0,
+          samples: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
     async releaseSpeakerId(): Promise<{ released: boolean }> {
       if (this.speakerIdStream && this.speakerExtractor) {
-        try { this.speakerExtractor.destroyStream(this.speakerIdStream); } catch (_) { console.error('[SpeakerId] releaseSpeakerId stream failed:', _); }
+        try {
+          this.speakerExtractor.destroyStream(this.speakerIdStream);
+        } catch (_) {
+          console.error('[SpeakerId] releaseSpeakerId stream failed:', _);
+        }
         this.speakerIdStream = null;
       }
       if (this.speakerManager) {
-        try { this.speakerManager.free(); } catch (_) { console.error('[SpeakerId] releaseSpeakerId manager failed:', _); }
+        try {
+          this.speakerManager.free();
+        } catch (_) {
+          console.error('[SpeakerId] releaseSpeakerId manager failed:', _);
+        }
         this.speakerManager = null;
       }
       if (this.speakerExtractor) {
-        try { this.speakerExtractor.free(); } catch (_) { console.error('[SpeakerId] releaseSpeakerId extractor failed:', _); }
+        try {
+          this.speakerExtractor.free();
+        } catch (_) {
+          console.error('[SpeakerId] releaseSpeakerId extractor failed:', _);
+        }
         this.speakerExtractor = null;
       }
       return { released: true };

@@ -21,14 +21,19 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config?.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[Punctuation] Loading model (threads=${numThreads}, debug=${debug})...`);
+        console.log(
+          `[Punctuation] Loading model (threads=${numThreads}, debug=${debug})...`
+        );
         const loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
           cnnBilstm: '/wasm/punctuation/model.onnx',
           bpeVocab: '/wasm/punctuation/bpe.vocab',
           debug,
         });
 
-        this.punctuation = window.SherpaOnnx.Punctuation.createPunctuation(loadedModel, { numThreads, debug });
+        this.punctuation = window.SherpaOnnx.Punctuation.createPunctuation(
+          loadedModel,
+          { numThreads, debug }
+        );
         console.log('[Punctuation] Initialized successfully');
         return { success: true };
       } catch (error) {
@@ -44,7 +49,12 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
       error?: string;
     }> {
       if (!this.punctuation) {
-        return { success: false, text: '', durationMs: 0, error: 'Punctuation not initialized' };
+        return {
+          success: false,
+          text: '',
+          durationMs: 0,
+          error: 'Punctuation not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -52,13 +62,22 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
         const durationMs = performance.now() - startMs;
         return { success: true, text: result, durationMs };
       } catch (error) {
-        return { success: false, text: '', durationMs: 0, error: (error as Error).message };
+        return {
+          success: false,
+          text: '',
+          durationMs: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
     async releasePunctuation(): Promise<{ released: boolean }> {
       if (this.punctuation) {
-        try { this.punctuation.free(); } catch (_) { console.error('[Punctuation] releasePunctuation failed:', _); }
+        try {
+          this.punctuation.free();
+        } catch (_) {
+          console.error('[Punctuation] releasePunctuation failed:', _);
+        }
         this.punctuation = null;
       }
       return { released: true };

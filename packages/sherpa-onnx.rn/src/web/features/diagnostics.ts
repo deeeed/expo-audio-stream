@@ -1,5 +1,9 @@
 import { loadCombinedWasm } from '../wasmLoader';
-import type { ArchitectureInfo, SystemInfo, ExtractTarBz2Input } from '../../types/api';
+import type {
+  ArchitectureInfo,
+  SystemInfo,
+  ExtractTarBz2Input,
+} from '../../types/api';
 import type {
   TestOnnxIntegrationResult,
   ValidateResult,

@@ -16,7 +16,11 @@ let _legacyCallbacks: ((loaded: boolean) => void)[] = [];
 
 function notifyLegacyReady(loaded: boolean): void {
   _legacyCallbacks.forEach((cb) => {
-    try { cb(loaded); } catch (_e) { /* ignore */ }
+    try {
+      cb(loaded);
+    } catch (_e) {
+      /* ignore */
+    }
   });
   _legacyCallbacks = [];
 }
@@ -31,7 +35,9 @@ export const loadWasmModule = async (
   if (typeof window === 'undefined') return false;
   if (_legacyLoaded) return true;
   if (_legacyLoading) {
-    return new Promise<boolean>((resolve) => { _legacyCallbacks.push(resolve); });
+    return new Promise<boolean>((resolve) => {
+      _legacyCallbacks.push(resolve);
+    });
   }
   _legacyLoading = true;
 
@@ -166,13 +172,10 @@ export async function loadCombinedWasm(): Promise<void> {
     //    creates window.Module) but BEFORE loading sherpa-onnx-combined.js
     //    (which may also hook it — we preserve the chain).
     const readyPromise = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => {
-          if (isSherpaOnnxReady()) resolve();
-          else reject(new Error('Sherpa ONNX WASM loading timeout (180s)'));
-        },
-        180_000
-      );
+      const timeout = setTimeout(() => {
+        if (isSherpaOnnxReady()) resolve();
+        else reject(new Error('Sherpa ONNX WASM loading timeout (180s)'));
+      }, 180_000);
 
       // If Module.FS is already available the WASM already finished compiling
       // (e.g. cached, instantaneous — just poll to let feature modules load).
@@ -206,7 +209,8 @@ export async function loadCombinedWasm(): Promise<void> {
       window.onSherpaOnnxReady = (success: boolean) => {
         clearTimeout(timeout);
         if (success) resolve();
-        else if (isSherpaOnnxReady()) resolve(); // partial load still OK
+        else if (isSherpaOnnxReady())
+          resolve(); // partial load still OK
         else reject(new Error('Sherpa ONNX feature modules failed to load'));
       };
     });

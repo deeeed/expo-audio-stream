@@ -23,7 +23,9 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[TTS] Loading ${config.ttsModelType || 'vits'} model (threads=${numThreads}, debug=${debug})...`);
+        console.log(
+          `[TTS] Loading ${config.ttsModelType || 'vits'} model (threads=${numThreads}, debug=${debug})...`
+        );
         const loadedModel = await window.SherpaOnnx.TTS.loadModel({
           type: config.ttsModelType || 'vits',
           model: '/wasm/tts/model.onnx',
@@ -32,7 +34,10 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
           debug,
         });
 
-        this.tts = window.SherpaOnnx.TTS.createOfflineTts(loadedModel, { numThreads, debug });
+        this.tts = window.SherpaOnnx.TTS.createOfflineTts(loadedModel, {
+          numThreads,
+          debug,
+        });
         this.ttsSampleRate = this.tts.sampleRate;
         this.ttsNumSpeakers = this.tts.numSpeakers;
 

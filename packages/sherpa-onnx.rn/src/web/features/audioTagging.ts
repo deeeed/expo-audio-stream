@@ -6,7 +6,10 @@ import type {
   AudioTaggingModelConfig,
   AudioTaggingResult,
 } from '../../types/interfaces';
-import type { AudioTaggingFileInput, AudioTaggingSamplesInput } from '../../types/api';
+import type {
+  AudioTaggingFileInput,
+  AudioTaggingSamplesInput,
+} from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -27,7 +30,9 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[AudioTagging] Loading model (threads=${numThreads}, debug=${debug})...`);
+        console.log(
+          `[AudioTagging] Loading model (threads=${numThreads}, debug=${debug})...`
+        );
         const loadedModel = await window.SherpaOnnx.AudioTagging.loadModel({
           ced: '/wasm/audio-tagging/model.onnx',
           labels: '/wasm/audio-tagging/labels.txt',
@@ -47,9 +52,16 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async processAndComputeAudioTagging({ filePath }: AudioTaggingFileInput): Promise<AudioTaggingResult> {
+    async processAndComputeAudioTagging({
+      filePath,
+    }: AudioTaggingFileInput): Promise<AudioTaggingResult> {
       if (!this.audioTagger) {
-        return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
+        return {
+          success: false,
+          durationMs: 0,
+          events: [],
+          error: 'Audio tagging not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -64,17 +76,37 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
         return {
           success: true,
           durationMs,
-          events: events.map((e) => ({ name: e.name, prob: e.prob, index: e.index })),
+          events: events.map((e) => ({
+            name: e.name,
+            prob: e.prob,
+            index: e.index,
+          })),
         };
       } catch (error) {
-        console.error('[AudioTagging] processAndComputeAudioTagging failed:', error);
-        return { success: false, durationMs: 0, events: [], error: (error as Error).message };
+        console.error(
+          '[AudioTagging] processAndComputeAudioTagging failed:',
+          error
+        );
+        return {
+          success: false,
+          durationMs: 0,
+          events: [],
+          error: (error as Error).message,
+        };
       }
     }
 
-    async processAndComputeAudioSamples({ sampleRate, samples: rawSamples }: AudioTaggingSamplesInput): Promise<AudioTaggingResult> {
+    async processAndComputeAudioSamples({
+      sampleRate,
+      samples: rawSamples,
+    }: AudioTaggingSamplesInput): Promise<AudioTaggingResult> {
       if (!this.audioTagger) {
-        return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
+        return {
+          success: false,
+          durationMs: 0,
+          events: [],
+          error: 'Audio tagging not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -89,17 +121,33 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
         return {
           success: true,
           durationMs,
-          events: events.map((e) => ({ name: e.name, prob: e.prob, index: e.index })),
+          events: events.map((e) => ({
+            name: e.name,
+            prob: e.prob,
+            index: e.index,
+          })),
         };
       } catch (error) {
-        console.error('[AudioTagging] processAndComputeAudioSamples failed:', error);
-        return { success: false, durationMs: 0, events: [], error: (error as Error).message };
+        console.error(
+          '[AudioTagging] processAndComputeAudioSamples failed:',
+          error
+        );
+        return {
+          success: false,
+          durationMs: 0,
+          events: [],
+          error: (error as Error).message,
+        };
       }
     }
 
     async releaseAudioTagging(): Promise<{ released: boolean }> {
       if (this.audioTagger) {
-        try { this.audioTagger.free(); } catch (_) { console.error('[AudioTagging] releaseAudioTagging failed:', _); }
+        try {
+          this.audioTagger.free();
+        } catch (_) {
+          console.error('[AudioTagging] releaseAudioTagging failed:', _);
+        }
         this.audioTagger = null;
       }
       return { released: true };

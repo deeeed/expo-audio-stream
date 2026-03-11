@@ -87,7 +87,9 @@ export function decodeWav(
     dataOffset += 8 + chunkSize;
   }
 
-  const numSamples = Math.floor((buffer.byteLength - dataOffset) / 2 / channels);
+  const numSamples = Math.floor(
+    (buffer.byteLength - dataOffset) / 2 / channels
+  );
   const samples = new Float32Array(numSamples);
   for (let i = 0; i < numSamples; i++) {
     // Take first channel only for mono ASR

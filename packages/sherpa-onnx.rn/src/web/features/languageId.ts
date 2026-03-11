@@ -23,14 +23,19 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config?.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[LanguageId] Loading model (threads=${numThreads}, debug=${debug})...`);
+        console.log(
+          `[LanguageId] Loading model (threads=${numThreads}, debug=${debug})...`
+        );
         const loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
           encoder: '/wasm/language-id/tiny-encoder.onnx',
           decoder: '/wasm/language-id/tiny-decoder.onnx',
           debug,
         });
 
-        this.languageId = window.SherpaOnnx.LanguageId.createLanguageId(loadedModel, { numThreads, debug });
+        this.languageId = window.SherpaOnnx.LanguageId.createLanguageId(
+          loadedModel,
+          { numThreads, debug }
+        );
         console.log('[LanguageId] Initialized successfully');
         return { success: true };
       } catch (error) {
@@ -39,14 +44,22 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async detectLanguage({ sampleRate, samples: rawSamples }: WaveformInput): Promise<{
+    async detectLanguage({
+      sampleRate,
+      samples: rawSamples,
+    }: WaveformInput): Promise<{
       success: boolean;
       language: string;
       durationMs: number;
       error?: string;
     }> {
       if (!this.languageId) {
-        return { success: false, language: '', durationMs: 0, error: 'Language ID not initialized' };
+        return {
+          success: false,
+          language: '',
+          durationMs: 0,
+          error: 'Language ID not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -58,7 +71,12 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         const durationMs = performance.now() - startMs;
         return { success: true, language: lang, durationMs };
       } catch (error) {
-        return { success: false, language: '', durationMs: 0, error: (error as Error).message };
+        return {
+          success: false,
+          language: '',
+          durationMs: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
@@ -69,7 +87,12 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       error?: string;
     }> {
       if (!this.languageId) {
-        return { success: false, language: '', durationMs: 0, error: 'Language ID not initialized' };
+        return {
+          success: false,
+          language: '',
+          durationMs: 0,
+          error: 'Language ID not initialized',
+        };
       }
       try {
         const startMs = performance.now();
@@ -81,13 +104,22 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         const durationMs = performance.now() - startMs;
         return { success: true, language: lang, durationMs };
       } catch (error) {
-        return { success: false, language: '', durationMs: 0, error: (error as Error).message };
+        return {
+          success: false,
+          language: '',
+          durationMs: 0,
+          error: (error as Error).message,
+        };
       }
     }
 
     async releaseLanguageId(): Promise<{ released: boolean }> {
       if (this.languageId) {
-        try { this.languageId.free(); } catch (_) { console.error('[LanguageId] releaseLanguageId failed:', _); }
+        try {
+          this.languageId.free();
+        } catch (_) {
+          console.error('[LanguageId] releaseLanguageId failed:', _);
+        }
         this.languageId = null;
       }
       return { released: true };

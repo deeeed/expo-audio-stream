@@ -1,5 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { VoiceActivityDetector } from '../wasmTypes';
+import type { VadModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
@@ -8,31 +9,34 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     private vad: VoiceActivityDetector | null = null;
 
-    async initVad(config: any): Promise<{ success: boolean; error?: string }> {
+    async initVad(
+      config: VadModelConfig
+    ): Promise<{ success: boolean; error?: string }> {
       try {
         await loadCombinedWasm();
 
-        const debug = config?.debug ? 1 : 0;
+        const debug = config.debug ? 1 : 0;
+        const modelFile = config.modelFile ?? 'silero_vad.onnx';
 
         console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
         const loadedModel = await window.SherpaOnnx.VAD.loadModel({
-          model: '/wasm/vad/silero_vad.onnx',
+          model: `${config.modelDir}/${modelFile}`,
           modelDir: 'vad-models',
-          fileName: 'silero_vad.onnx',
+          fileName: modelFile,
           debug,
         });
 
         this.vad = window.SherpaOnnx.VAD.createVoiceActivityDetector(
           loadedModel,
           {
-            threshold: config?.threshold ?? 0.5,
-            minSilenceDuration: config?.minSilenceDuration ?? 0.3,
-            minSpeechDuration: config?.minSpeechDuration ?? 0.1,
-            windowSize: config?.windowSize ?? 512,
-            maxSpeechDuration: config?.maxSpeechDuration ?? 30.0,
+            threshold: config.threshold ?? 0.5,
+            minSilenceDuration: config.minSilenceDuration ?? 0.3,
+            minSpeechDuration: config.minSpeechDuration ?? 0.1,
+            windowSize: config.windowSize ?? 512,
+            maxSpeechDuration: config.maxSpeechDuration ?? 30.0,
             sampleRate: 16000,
             numThreads: 1, // WASM is single-threaded
-            bufferSizeInSeconds: config?.bufferSizeInSeconds ?? 5.0,
+            bufferSizeInSeconds: config.bufferSizeInSeconds ?? 5.0,
             debug,
           }
         );

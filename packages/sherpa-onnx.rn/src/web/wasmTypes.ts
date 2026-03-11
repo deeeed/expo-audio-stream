@@ -24,7 +24,10 @@ export interface SherpaOnnxWasmModule {
   FS: {
     mkdir: (path: string, mode?: number) => void;
     writeFile: (path: string, data: Uint8Array | string) => void;
-    readFile: (path: string, opts?: { encoding: string }) => string | Uint8Array;
+    readFile: (
+      path: string,
+      opts?: { encoding: string }
+    ) => string | Uint8Array;
     stat: (path: string) => { size: number; isDir: boolean; mode: number };
     readdir: (path: string) => string[];
     unlink: (path: string) => void;
@@ -207,9 +210,17 @@ export interface SherpaOnnxTtsModule {
     espeakDataZip?: string;
     debug?: boolean | number;
     modelDir?: string;
-  }) => Promise<{ modelDir: string; type: string; files: Record<string, string> }>;
+  }) => Promise<{
+    modelDir: string;
+    type: string;
+    files: Record<string, string>;
+  }>;
   createOfflineTts: (
-    loadedModel: { modelDir: string; type: string; files: Record<string, string> },
+    loadedModel: {
+      modelDir: string;
+      type: string;
+      files: Record<string, string>;
+    },
     options?: { numThreads?: number; debug?: boolean | number }
   ) => OfflineTtsInstance;
 }
@@ -265,7 +276,11 @@ export interface SherpaOnnxSpeechEnhancementModule {
   }) => Promise<{ modelDir: string; modelPath: string }>;
   createDenoiser: (
     loadedModel: { modelDir: string; modelPath: string },
-    options?: { debug?: boolean | number; numThreads?: number; provider?: string }
+    options?: {
+      debug?: boolean | number;
+      numThreads?: number;
+      provider?: string;
+    }
   ) => OfflineSpeechDenoiserInstance;
 }
 
@@ -302,8 +317,15 @@ export interface AudioTaggingInstance {
   handle: number;
   topK: number;
   createStream: () => number;
-  acceptWaveform: (stream: number, sampleRate: number, samples: Float32Array) => void;
-  compute: (stream: number, topK: number) => Array<{ name: string; index: number; prob: number }>;
+  acceptWaveform: (
+    stream: number,
+    sampleRate: number,
+    samples: Float32Array
+  ) => void;
+  compute: (
+    stream: number,
+    topK: number
+  ) => Array<{ name: string; index: number; prob: number }>;
   destroyStream?: (stream: number) => void;
   free: () => void;
 }
@@ -324,7 +346,11 @@ export interface SherpaOnnxAudioTaggingModule {
 export interface SpokenLanguageIdInstance {
   handle: number;
   createStream: () => number;
-  acceptWaveform: (stream: number, sampleRate: number, samples: Float32Array) => void;
+  acceptWaveform: (
+    stream: number,
+    sampleRate: number,
+    samples: Float32Array
+  ) => void;
   compute: (stream: number) => string;
   destroyStream?: (stream: number) => void;
   free: () => void;
@@ -339,7 +365,11 @@ export interface SherpaOnnxLanguageIdModule {
   }) => Promise<{ modelDir: string; encoderPath: string; decoderPath: string }>;
   createLanguageId: (
     loadedModel: { modelDir: string; encoderPath: string; decoderPath: string },
-    options?: { numThreads?: number; debug?: boolean | number; tailPaddings?: number }
+    options?: {
+      numThreads?: number;
+      debug?: boolean | number;
+      tailPaddings?: number;
+    }
   ) => SpokenLanguageIdInstance;
 }
 
@@ -347,7 +377,11 @@ export interface SpeakerEmbeddingExtractorInstance {
   handle: number;
   dim: () => number;
   createStream: () => number;
-  acceptWaveform: (stream: number, sampleRate: number, samples: Float32Array) => void;
+  acceptWaveform: (
+    stream: number,
+    sampleRate: number,
+    samples: Float32Array
+  ) => void;
   inputFinished: (stream: number) => void;
   isReady: (stream: number) => boolean;
   computeEmbedding: (stream: number) => Float32Array;

@@ -32,7 +32,9 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         // Map model architecture names to ASR load types.
         // zipformer/zipformer2 models use the transducer architecture (encoder+decoder+joiner).
         const rawType = config.modelType || 'transducer';
-        const asrType = ['zipformer', 'zipformer2'].includes(rawType) ? 'transducer' : rawType;
+        const asrType = ['zipformer', 'zipformer2'].includes(rawType)
+          ? 'transducer'
+          : rawType;
 
         const loadedModel = await window.SherpaOnnx.ASR.loadModel({
           type: asrType,
@@ -56,7 +58,10 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         );
 
         if (!this.asrOnlineRecognizer || !this.asrOnlineRecognizer.handle) {
-          return { success: false, error: 'Failed to create online recognizer — WASM config error' };
+          return {
+            success: false,
+            error: 'Failed to create online recognizer — WASM config error',
+          };
         }
 
         return { success: true, sampleRate, modelType: rawType };
@@ -66,21 +71,27 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async recognizeFromSamples({ sampleRate, samples }: WaveformInput): Promise<AsrRecognizeResult> {
+    async recognizeFromSamples({
+      sampleRate,
+      samples,
+    }: WaveformInput): Promise<AsrRecognizeResult> {
       if (!this.asrOnlineRecognizer) {
         return { success: false, text: '', error: 'ASR not initialized' };
       }
       try {
         const float32 = new Float32Array(samples);
         const stream = this.asrOnlineRecognizer.createStream();
-        stream.acceptWaveform(sampleRate, float32);
-        stream.inputFinished();
-        while (this.asrOnlineRecognizer.isReady(stream)) {
-          this.asrOnlineRecognizer.decode(stream);
+        try {
+          stream.acceptWaveform(sampleRate, float32);
+          stream.inputFinished();
+          while (this.asrOnlineRecognizer.isReady(stream)) {
+            this.asrOnlineRecognizer.decode(stream);
+          }
+          const result = this.asrOnlineRecognizer.getResult(stream);
+          return { success: true, text: result.text };
+        } finally {
+          stream.free();
         }
-        const result = this.asrOnlineRecognizer.getResult(stream);
-        stream.free();
-        return { success: true, text: result.text };
       } catch (error) {
         return {
           success: false,
@@ -107,14 +118,17 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
           );
         }
         const stream = this.asrOnlineRecognizer.createStream();
-        stream.acceptWaveform(decoded.sampleRate, decoded.samples);
-        stream.inputFinished();
-        while (this.asrOnlineRecognizer.isReady(stream)) {
-          this.asrOnlineRecognizer.decode(stream);
+        try {
+          stream.acceptWaveform(decoded.sampleRate, decoded.samples);
+          stream.inputFinished();
+          while (this.asrOnlineRecognizer.isReady(stream)) {
+            this.asrOnlineRecognizer.decode(stream);
+          }
+          const result = this.asrOnlineRecognizer.getResult(stream);
+          return { success: true, text: result.text };
+        } finally {
+          stream.free();
         }
-        const result = this.asrOnlineRecognizer.getResult(stream);
-        stream.free();
-        return { success: true, text: result.text };
       } catch (error) {
         return {
           success: false,
@@ -126,7 +140,11 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
 
     async releaseAsr(): Promise<{ released: boolean }> {
       if (this.asrOnlineStream) {
-        try { this.asrOnlineStream.free(); } catch (_) { console.error('[ASR] releaseAsr stream failed:', _); }
+        try {
+          this.asrOnlineStream.free();
+        } catch (_) {
+          console.error('[ASR] releaseAsr stream failed:', _);
+        }
         this.asrOnlineStream = null;
       }
       if (this.asrOnlineRecognizer) {
@@ -154,13 +172,20 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       }
       // Free previous stream if any
       if (this.asrOnlineStream) {
-        try { this.asrOnlineStream.free(); } catch (_) { /* ignore */ }
+        try {
+          this.asrOnlineStream.free();
+        } catch (_) {
+          /* ignore */
+        }
       }
       this.asrOnlineStream = this.asrOnlineRecognizer.createStream();
       return { success: true };
     }
 
-    async acceptAsrOnlineWaveform({ sampleRate, samples }: WaveformInput): Promise<{ success: boolean }> {
+    async acceptAsrOnlineWaveform({
+      sampleRate,
+      samples,
+    }: WaveformInput): Promise<{ success: boolean }> {
       if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
         return { success: false };
       }
@@ -176,7 +201,9 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
         return { isEndpoint: false };
       }
-      return { isEndpoint: this.asrOnlineRecognizer.isEndpoint(this.asrOnlineStream) };
+      return {
+        isEndpoint: this.asrOnlineRecognizer.isEndpoint(this.asrOnlineStream),
+      };
     }
 
     async getAsrOnlineResult(): Promise<{

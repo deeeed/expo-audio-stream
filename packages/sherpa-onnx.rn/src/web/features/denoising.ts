@@ -27,11 +27,15 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config?.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[Denoiser] Loading model (threads=${numThreads}, debug=${debug})...`);
-        const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel({
-          model: '/wasm/enhancement/gtcrn.onnx',
-          debug,
-        });
+        console.log(
+          `[Denoiser] Loading model (threads=${numThreads}, debug=${debug})...`
+        );
+        const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel(
+          {
+            model: '/wasm/enhancement/gtcrn.onnx',
+            debug,
+          }
+        );
 
         this.denoiser = window.SherpaOnnx.SpeechEnhancement.createDenoiser(
           loadedModel,

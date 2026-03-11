@@ -28,24 +28,25 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config?.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
-        console.log(`[Diarization] Loading models (threads=${numThreads}, debug=${debug})...`);
-        const loadedModel = await window.SherpaOnnx.SpeakerDiarization.loadModel({
-          segmentation: '/wasm/speakers/segmentation.onnx',
-          embedding: '/wasm/speakers/embedding.onnx',
-          debug,
-        });
+        console.log(
+          `[Diarization] Loading models (threads=${numThreads}, debug=${debug})...`
+        );
+        const loadedModel =
+          await window.SherpaOnnx.SpeakerDiarization.loadModel({
+            segmentation: '/wasm/speakers/segmentation.onnx',
+            embedding: '/wasm/speakers/embedding.onnx',
+            debug,
+          });
 
-        this.diarization = window.SherpaOnnx.SpeakerDiarization.createDiarization(
-          loadedModel,
-          {
+        this.diarization =
+          window.SherpaOnnx.SpeakerDiarization.createDiarization(loadedModel, {
             numClusters: config?.numClusters ?? -1,
             threshold: config?.threshold ?? 0.5,
             minDurationOn: config?.minDurationOn,
             minDurationOff: config?.minDurationOff,
             numThreads,
             debug,
-          }
-        );
+          });
 
         console.log(
           `[Diarization] Initialized: sampleRate=${this.diarization.sampleRate}`
@@ -65,7 +66,11 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async processDiarizationFile({ filePath, numClusters, threshold }: DiarizationFileInput): Promise<{
+    async processDiarizationFile({
+      filePath,
+      numClusters,
+      threshold,
+    }: DiarizationFileInput): Promise<{
       success: boolean;
       segments: Array<{ start: number; end: number; speaker: number }>;
       numSpeakers: number;
