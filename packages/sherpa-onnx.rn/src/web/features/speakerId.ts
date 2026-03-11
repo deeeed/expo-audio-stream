@@ -51,8 +51,12 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         console.log(
           `[SpeakerId] Loading model (threads=${numThreads}, debug=${debug})...`
         );
+        // Web-only: config.modelDir is set to '/wasm/speaker-id' by ModelManagement
+        // (createWebSpeakerIdModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native SpeakerId uses the TurboModule.
+        const modelDir = config.modelDir || '/wasm/speaker-id';
         const loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
-          model: '/wasm/speaker-id/model.onnx',
+          model: `${modelDir}/model.onnx`,
           debug,
         });
 

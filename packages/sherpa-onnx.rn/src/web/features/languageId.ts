@@ -25,9 +25,13 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         console.log(
           `[LanguageId] Loading model (threads=${numThreads}, debug=${debug})...`
         );
+        // Web-only: config.modelDir is set to '/wasm/language-id' by ModelManagement
+        // (createWebLanguageIdModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native LanguageId uses the TurboModule.
+        const modelDir = config?.modelDir || '/wasm/language-id';
         const loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
-          encoder: '/wasm/language-id/tiny-encoder.onnx',
-          decoder: '/wasm/language-id/tiny-decoder.onnx',
+          encoder: `${modelDir}/tiny-encoder.onnx`,
+          decoder: `${modelDir}/tiny-decoder.onnx`,
           debug,
         });
 

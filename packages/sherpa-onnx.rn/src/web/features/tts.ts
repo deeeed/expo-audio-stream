@@ -25,11 +25,15 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
         console.log(
           `[TTS] Loading ${config.ttsModelType || 'vits'} model (threads=${numThreads}, debug=${debug})...`
         );
+        // Web-only: config.modelDir is set to '/wasm/tts' by ModelManagement
+        // (createWebTtsModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native TTS uses the TurboModule.
+        const modelDir = config.modelDir || '/wasm/tts';
         const loadedModel = await window.SherpaOnnx.TTS.loadModel({
           type: config.ttsModelType || 'vits',
-          model: '/wasm/tts/model.onnx',
-          tokens: '/wasm/tts/tokens.txt',
-          espeakDataZip: '/wasm/tts/espeak-ng-data.zip',
+          model: `${modelDir}/model.onnx`,
+          tokens: `${modelDir}/tokens.txt`,
+          espeakDataZip: `${modelDir}/espeak-ng-data.zip`,
           debug,
         });
 

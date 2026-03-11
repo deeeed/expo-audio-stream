@@ -21,6 +21,9 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
         const sampleRate = 16000;
+        // Web-only: config.modelDir is set to '/wasm/asr' by ModelManagement
+        // (createWebAsrModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native ASR uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/asr';
 
         // Map model architecture names to ASR load types.

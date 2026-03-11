@@ -23,9 +23,13 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
         console.log(
           `[Punctuation] Loading model (threads=${numThreads}, debug=${debug})...`
         );
+        // Web-only: config.modelDir is set to '/wasm/punctuation' by ModelManagement
+        // (createWebPunctuationModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native Punctuation uses the TurboModule.
+        const modelDir = config?.modelDir || '/wasm/punctuation';
         const loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
-          cnnBilstm: '/wasm/punctuation/model.onnx',
-          bpeVocab: '/wasm/punctuation/bpe.vocab',
+          cnnBilstm: `${modelDir}/model.onnx`,
+          bpeVocab: `${modelDir}/bpe.vocab`,
           debug,
         });
 

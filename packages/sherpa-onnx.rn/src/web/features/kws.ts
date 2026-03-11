@@ -20,6 +20,9 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         const M = window.Module;
 
         const keywordsFile = config.keywordsFile || 'keywords.txt';
+        // Web-only: config.modelDir is set to '/wasm/kws' by ModelManagement
+        // (createWebKwsModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native KWS uses the TurboModule.
         const modelDir = config.modelDir;
 
         // Ensure WASM FS directories exist

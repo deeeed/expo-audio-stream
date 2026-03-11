@@ -17,6 +17,9 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
         const debug = config.debug ? 1 : 0;
         const modelFile = config.modelFile ?? 'silero_vad.onnx';
 
+        // Web-only: config.modelDir is set to '/wasm/vad' by ModelManagement
+        // (createWebVadModelState in constants.ts), pointing to model files
+        // pre-served by download-web-models.sh. Native VAD uses the TurboModule.
         console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
         const loadedModel = await window.SherpaOnnx.VAD.loadModel({
           model: `${config.modelDir}/${modelFile}`,
