@@ -1,6 +1,7 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeakerDiarizationInstance } from '../wasmTypes';
+import type { DiarizationFileInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -64,11 +65,7 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async processDiarizationFile(
-      _filePath: string,
-      _numClusters: number,
-      _threshold: number
-    ): Promise<{
+    async processDiarizationFile({ filePath, numClusters, threshold }: DiarizationFileInput): Promise<{
       success: boolean;
       segments: Array<{ start: number; end: number; speaker: number }>;
       numSpeakers: number;
@@ -88,14 +85,14 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         const startMs = performance.now();
 
         // Update clustering config if params changed
-        if (_numClusters !== -1 || _threshold !== 0.5) {
+        if (numClusters !== -1 || threshold !== 0.5) {
           this.diarization.setConfig({
-            clustering: { numClusters: _numClusters, threshold: _threshold },
+            clustering: { numClusters, threshold },
           });
         }
 
-        // On web, _filePath is a URL — fetch and decode
-        const { samples } = await fetchAndDecodeAudio(_filePath);
+        // On web, filePath is a URL — fetch and decode
+        const { samples } = await fetchAndDecodeAudio(filePath);
 
         const segments = this.diarization.process(samples);
         const durationMs = performance.now() - startMs;
@@ -125,8 +122,8 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       if (this.diarization) {
         try {
           this.diarization.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[Diarization] releaseDiarization failed:', _);
         }
         this.diarization = null;
       }

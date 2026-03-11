@@ -56,7 +56,7 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async denoiseFile(_filePath: string): Promise<{
+    async denoiseFile(filePath: string): Promise<{
       success: boolean;
       outputPath: string;
       durationMs: number;
@@ -73,8 +73,8 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
       try {
         const startMs = performance.now();
 
-        // On web, _filePath is a URL — fetch the audio and decode it
-        const { samples, sampleRate } = await fetchAndDecodeAudio(_filePath);
+        // On web, filePath is a URL — fetch the audio and decode it
+        const { samples, sampleRate } = await fetchAndDecodeAudio(filePath);
 
         const result = this.denoiser.run(samples, sampleRate);
         const durationMs = performance.now() - startMs;
@@ -103,8 +103,8 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
       if (this.denoiser) {
         try {
           this.denoiser.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[Denoiser] releaseDenoiser failed:', _);
         }
         this.denoiser = null;
       }

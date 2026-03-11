@@ -1,5 +1,5 @@
 import { loadCombinedWasm } from '../wasmLoader';
-import type { ArchitectureInfo, SystemInfo } from '../../types/api';
+import type { ArchitectureInfo, SystemInfo, ExtractTarBz2Input } from '../../types/api';
 import type {
   TestOnnxIntegrationResult,
   ValidateResult,
@@ -122,10 +122,7 @@ export function DiagnosticsMixin<TBase extends Constructor>(Base: TBase) {
       };
     }
 
-    async extractTarBz2(
-      _sourcePath: string,
-      _targetDir: string
-    ): Promise<{
+    async extractTarBz2(_input: ExtractTarBz2Input): Promise<{
       success: boolean;
       message: string;
       extractedFiles: string[];

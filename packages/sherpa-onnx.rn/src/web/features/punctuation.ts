@@ -37,7 +37,7 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async addPunctuation(_text: string): Promise<{
+    async addPunctuation(text: string): Promise<{
       success: boolean;
       text: string;
       durationMs: number;
@@ -48,7 +48,7 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
       }
       try {
         const startMs = performance.now();
-        const result = this.punctuation.addPunct(_text);
+        const result = this.punctuation.addPunct(text);
         const durationMs = performance.now() - startMs;
         return { success: true, text: result, durationMs };
       } catch (error) {
@@ -58,7 +58,7 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
 
     async releasePunctuation(): Promise<{ released: boolean }> {
       if (this.punctuation) {
-        try { this.punctuation.free(); } catch (_e) { /* ignore */ }
+        try { this.punctuation.free(); } catch (_) { console.error('[Punctuation] releasePunctuation failed:', _); }
         this.punctuation = null;
       }
       return { released: true };

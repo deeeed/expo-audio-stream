@@ -97,7 +97,7 @@ export class KWSService {
         };
       }
 
-      return await this.api.acceptKwsWaveform(sampleRate, samples);
+      return await this.api.acceptKwsWaveform({ sampleRate, samples });
     } catch (error) {
       return {
         success: false,

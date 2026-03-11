@@ -100,7 +100,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await this.api.processSpeakerIdSamples(sampleRate, samples);
+      return await this.api.processSpeakerIdSamples({ sampleRate, samples });
     } catch (error) {
       return {
         success: false,
@@ -156,7 +156,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await this.api.registerSpeaker(name, embedding);
+      return await this.api.registerSpeaker({ name, embedding });
     } catch (error) {
       return {
         success: false,
@@ -234,7 +234,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await this.api.identifySpeaker(embedding, threshold);
+      return await this.api.identifySpeaker({ embedding, threshold });
     } catch (error) {
       return {
         success: false,
@@ -266,7 +266,7 @@ export class SpeakerIdService {
         };
       }
 
-      return await this.api.verifySpeaker(name, embedding, threshold);
+      return await this.api.verifySpeaker({ name, embedding, threshold });
     } catch (error) {
       return {
         success: false,

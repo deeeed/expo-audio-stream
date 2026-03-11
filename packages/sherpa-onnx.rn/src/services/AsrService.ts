@@ -61,7 +61,7 @@ export class AsrService {
       throw new Error('ASR is not initialized. Call initialize() first.');
     }
 
-    return this.api.recognizeFromSamples(sampleRate, samples);
+    return this.api.recognizeFromSamples({ sampleRate, samples });
   }
 
   /**
@@ -100,7 +100,7 @@ export class AsrService {
     if (!this.initialized) {
       throw new Error('ASR is not initialized. Call initialize() first.');
     }
-    return this.api.acceptAsrOnlineWaveform(sampleRate, samples);
+    return this.api.acceptAsrOnlineWaveform({ sampleRate, samples });
   }
 
   /**

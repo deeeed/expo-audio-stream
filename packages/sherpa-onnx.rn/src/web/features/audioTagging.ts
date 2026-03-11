@@ -6,6 +6,7 @@ import type {
   AudioTaggingModelConfig,
   AudioTaggingResult,
 } from '../../types/interfaces';
+import type { AudioTaggingFileInput, AudioTaggingSamplesInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -46,19 +47,18 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async processAndComputeAudioTagging(
-      _filePath: string
-    ): Promise<AudioTaggingResult> {
+    async processAndComputeAudioTagging({ filePath }: AudioTaggingFileInput): Promise<AudioTaggingResult> {
       if (!this.audioTagger) {
         return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
       }
       try {
         const startMs = performance.now();
-        const { samples, sampleRate } = await fetchAndDecodeAudio(_filePath);
+        const { samples, sampleRate } = await fetchAndDecodeAudio(filePath);
 
         const stream = this.audioTagger.createStream();
         this.audioTagger.acceptWaveform(stream, sampleRate, samples);
         const events = this.audioTagger.compute(stream, -1);
+        this.audioTagger.destroyStream?.(stream);
         const durationMs = performance.now() - startMs;
 
         return {
@@ -72,20 +72,18 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async processAndComputeAudioSamples(
-      _sampleRate: number,
-      _samples: number[]
-    ): Promise<AudioTaggingResult> {
+    async processAndComputeAudioSamples({ sampleRate, samples: rawSamples }: AudioTaggingSamplesInput): Promise<AudioTaggingResult> {
       if (!this.audioTagger) {
         return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
       }
       try {
         const startMs = performance.now();
-        const samples = new Float32Array(_samples);
+        const samples = new Float32Array(rawSamples);
 
         const stream = this.audioTagger.createStream();
-        this.audioTagger.acceptWaveform(stream, _sampleRate, samples);
+        this.audioTagger.acceptWaveform(stream, sampleRate, samples);
         const events = this.audioTagger.compute(stream, -1);
+        this.audioTagger.destroyStream?.(stream);
         const durationMs = performance.now() - startMs;
 
         return {
@@ -101,7 +99,7 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
 
     async releaseAudioTagging(): Promise<{ released: boolean }> {
       if (this.audioTagger) {
-        try { this.audioTagger.free(); } catch (_e) { /* ignore */ }
+        try { this.audioTagger.free(); } catch (_) { console.error('[AudioTagging] releaseAudioTagging failed:', _); }
         this.audioTagger = null;
       }
       return { released: true };

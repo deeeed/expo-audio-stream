@@ -1,5 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { VoiceActivityDetector } from '../wasmTypes';
+import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -44,10 +45,7 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async acceptVadWaveform(
-      _sampleRate: number,
-      samples: number[]
-    ): Promise<{
+    async acceptVadWaveform({ sampleRate, samples }: WaveformInput): Promise<{
       success: boolean;
       isSpeechDetected: boolean;
       segments: any[];
@@ -71,8 +69,8 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
         while (!this.vad.isEmpty()) {
           const seg = this.vad.front();
           this.vad.pop();
-          const startTime = seg.start / (_sampleRate || 16000);
-          const endTime = startTime + seg.n / (_sampleRate || 16000);
+          const startTime = seg.start / (sampleRate || 16000);
+          const endTime = startTime + seg.n / (sampleRate || 16000);
           segments.push({
             startTime,
             endTime,
@@ -95,8 +93,8 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
       if (this.vad) {
         try {
           this.vad.reset();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[VAD] resetVad failed:', _);
         }
       }
       return { success: true };
@@ -106,8 +104,8 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
       if (this.vad) {
         try {
           this.vad.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[VAD] releaseVad failed:', _);
         }
         this.vad = null;
       }

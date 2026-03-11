@@ -1,4 +1,16 @@
-import type { ApiInterface, ArchitectureInfo, SystemInfo } from './types/api';
+import type {
+  ApiInterface,
+  ArchitectureInfo,
+  SystemInfo,
+  WaveformInput,
+  AudioTaggingFileInput,
+  AudioTaggingSamplesInput,
+  DiarizationFileInput,
+  RegisterSpeakerInput,
+  IdentifySpeakerInput,
+  VerifySpeakerInput,
+  ExtractTarBz2Input,
+} from './types/api';
 import type {
   AsrInitResult,
   AsrModelConfig,
@@ -115,29 +127,84 @@ const createWebPlaceholder = (): ApiInterface => {
 
 // Use the native module if available, otherwise use web implementation if on web, or a placeholder
 // This ensures we never have a null module - we either have a real implementation or a placeholder
-const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
-  extractTarBz2: (
+// NativeSherpaOnnx is typed with the TurboModule's positional-param interface; SherpaOnnxAPI
+// adapts those to the object-param ApiInterface that callers see.
+const NativeSherpaOnnx: Omit<
+  ApiInterface,
+  | 'extractTarBz2'
+  | 'recognizeFromSamples'
+  | 'acceptAsrOnlineWaveform'
+  | 'processAndComputeAudioTagging'
+  | 'processAndComputeAudioSamples'
+  | 'processDiarizationFile'
+  | 'acceptKwsWaveform'
+  | 'acceptVadWaveform'
+  | 'detectLanguage'
+  | 'processSpeakerIdSamples'
+  | 'registerSpeaker'
+  | 'identifySpeaker'
+  | 'verifySpeaker'
+> & {
+  extractTarBz2(
     sourcePath: string,
     targetDir: string
-  ) => Promise<{
-    success: boolean;
-    message: string;
-    extractedFiles?: string[];
-  }>;
-  processAndComputeAudioTagging: (
+  ): Promise<{ success: boolean; message: string; extractedFiles?: string[] }>;
+  recognizeFromSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<AsrRecognizeResult>;
+  acceptAsrOnlineWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<{ success: boolean }>;
+  processAndComputeAudioTagging(
     filePath: string,
     topK?: number
-  ) => Promise<AudioTaggingResult>;
-  processAndComputeAudioSamples: (
+  ): Promise<AudioTaggingResult>;
+  processAndComputeAudioSamples(
     sampleRate: number,
     samples: number[],
     topK?: number
-  ) => Promise<AudioTaggingResult>;
-  getArchitectureInfo: () => Promise<ArchitectureInfo>;
-  getSystemInfo: () => Promise<SystemInfo>;
-} =
-  NativeModuleImport ||
-  (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder());
+  ): Promise<AudioTaggingResult>;
+  processDiarizationFile(
+    filePath: string,
+    numClusters: number,
+    threshold: number
+  ): Promise<DiarizationResult>;
+  acceptKwsWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<KWSAcceptWaveformResult>;
+  acceptVadWaveform(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<VadAcceptWaveformResult>;
+  detectLanguage(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<LanguageIdResult>;
+  processSpeakerIdSamples(
+    sampleRate: number,
+    samples: number[]
+  ): Promise<SpeakerIdProcessResult>;
+  registerSpeaker(
+    name: string,
+    embedding: number[]
+  ): Promise<RegisterSpeakerResult>;
+  identifySpeaker(
+    embedding: number[],
+    threshold: number
+  ): Promise<IdentifySpeakerResult>;
+  verifySpeaker(
+    name: string,
+    embedding: number[],
+    threshold: number
+  ): Promise<VerifySpeakerResult>;
+  getArchitectureInfo(): Promise<ArchitectureInfo>;
+  getSystemInfo(): Promise<SystemInfo>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+} = (NativeModuleImport ||
+  (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder())) as any;
 
 // Log a warning if we're using the placeholder on a non-web platform
 if (!NativeModuleImport && Platform.OS !== 'web') {
@@ -214,10 +281,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initAsr(nativeConfig as any);
   },
 
-  recognizeFromSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<AsrRecognizeResult> {
+  recognizeFromSamples({ sampleRate, samples }: WaveformInput): Promise<AsrRecognizeResult> {
     return NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
   },
 
@@ -234,10 +298,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.createAsrOnlineStream();
   },
 
-  acceptAsrOnlineWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<{ success: boolean }> {
+  acceptAsrOnlineWaveform({ sampleRate, samples }: WaveformInput): Promise<{ success: boolean }> {
     return NativeSherpaOnnx.acceptAsrOnlineWaveform(sampleRate, samples);
   },
 
@@ -264,18 +325,11 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initAudioTagging(config as any);
   },
 
-  processAndComputeAudioTagging(
-    filePath: string,
-    _topK?: number
-  ): Promise<AudioTaggingResult> {
+  processAndComputeAudioTagging({ filePath }: AudioTaggingFileInput): Promise<AudioTaggingResult> {
     return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
   },
 
-  processAndComputeAudioSamples(
-    sampleRate: number,
-    samples: number[],
-    _topK?: number
-  ): Promise<AudioTaggingResult> {
+  processAndComputeAudioSamples({ sampleRate, samples }: AudioTaggingSamplesInput): Promise<AudioTaggingResult> {
     return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
   },
 
@@ -288,10 +342,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initSpeakerId(config as any);
   },
 
-  processSpeakerIdSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SpeakerIdProcessResult> {
+  processSpeakerIdSamples({ sampleRate, samples }: WaveformInput): Promise<SpeakerIdProcessResult> {
     return NativeSherpaOnnx.processSpeakerIdSamples(sampleRate, samples);
   },
 
@@ -299,10 +350,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.computeSpeakerEmbedding();
   },
 
-  registerSpeaker(
-    name: string,
-    embedding: number[]
-  ): Promise<RegisterSpeakerResult> {
+  registerSpeaker({ name, embedding }: RegisterSpeakerInput): Promise<RegisterSpeakerResult> {
     return NativeSherpaOnnx.registerSpeaker(name, embedding);
   },
 
@@ -314,18 +362,11 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.getSpeakers();
   },
 
-  identifySpeaker(
-    embedding: number[],
-    threshold: number
-  ): Promise<IdentifySpeakerResult> {
+  identifySpeaker({ embedding, threshold }: IdentifySpeakerInput): Promise<IdentifySpeakerResult> {
     return NativeSherpaOnnx.identifySpeaker(embedding, threshold);
   },
 
-  verifySpeaker(
-    name: string,
-    embedding: number[],
-    threshold: number
-  ): Promise<VerifySpeakerResult> {
+  verifySpeaker({ name, embedding, threshold }: VerifySpeakerInput): Promise<VerifySpeakerResult> {
     return NativeSherpaOnnx.verifySpeaker(name, embedding, threshold);
   },
 
@@ -342,11 +383,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initDiarization(config as any);
   },
 
-  processDiarizationFile(
-    filePath: string,
-    numClusters: number,
-    threshold: number
-  ): Promise<DiarizationResult> {
+  processDiarizationFile({ filePath, numClusters, threshold }: DiarizationFileInput): Promise<DiarizationResult> {
     return NativeSherpaOnnx.processDiarizationFile(filePath, numClusters, threshold);
   },
 
@@ -359,10 +396,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initKws(config as any);
   },
 
-  acceptKwsWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<KWSAcceptWaveformResult> {
+  acceptKwsWaveform({ sampleRate, samples }: WaveformInput): Promise<KWSAcceptWaveformResult> {
     return NativeSherpaOnnx.acceptKwsWaveform(sampleRate, samples);
   },
 
@@ -379,10 +413,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initVad(config as any);
   },
 
-  acceptVadWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<VadAcceptWaveformResult> {
+  acceptVadWaveform({ sampleRate, samples }: WaveformInput): Promise<VadAcceptWaveformResult> {
     return NativeSherpaOnnx.acceptVadWaveform(sampleRate, samples);
   },
 
@@ -399,10 +430,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initLanguageId(config as any);
   },
 
-  detectLanguage(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<LanguageIdResult> {
+  detectLanguage({ sampleRate, samples }: WaveformInput): Promise<LanguageIdResult> {
     return NativeSherpaOnnx.detectLanguage(sampleRate, samples);
   },
 
@@ -441,10 +469,7 @@ export const SherpaOnnxAPI: ApiInterface = {
   },
 
   // Archive methods
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
+  extractTarBz2({ sourcePath, targetDir }: ExtractTarBz2Input): Promise<{
     success: boolean;
     message: string;
     extractedFiles: string[];

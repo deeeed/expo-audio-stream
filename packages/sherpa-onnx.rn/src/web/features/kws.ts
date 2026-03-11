@@ -1,5 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { KwsSpotter, KwsStream } from '../wasmTypes';
+import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -99,10 +100,7 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async acceptKwsWaveform(
-      sampleRate: number,
-      samples: number[]
-    ): Promise<{
+    async acceptKwsWaveform({ sampleRate, samples }: WaveformInput): Promise<{
       success: boolean;
       detected: boolean;
       keyword: string;
@@ -152,8 +150,8 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         try {
           this.kwsStream.free();
           this.kwsStream = this.kwsSpotter.createStream();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[KWS] resetKwsStream failed:', _);
         }
       }
       return { success: true };
@@ -163,16 +161,16 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
       if (this.kwsStream) {
         try {
           this.kwsStream.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[KWS] releaseKws stream failed:', _);
         }
         this.kwsStream = null;
       }
       if (this.kwsSpotter) {
         try {
           this.kwsSpotter.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[KWS] releaseKws spotter failed:', _);
         }
         this.kwsSpotter = null;
       }

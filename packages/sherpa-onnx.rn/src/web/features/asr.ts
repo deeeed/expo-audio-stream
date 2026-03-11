@@ -10,6 +10,7 @@ import type {
   AsrModelConfig,
   AsrRecognizeResult,
 } from '../../types/interfaces';
+import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -65,10 +66,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async recognizeFromSamples(
-      sampleRate: number,
-      samples: number[]
-    ): Promise<AsrRecognizeResult> {
+    async recognizeFromSamples({ sampleRate, samples }: WaveformInput): Promise<AsrRecognizeResult> {
       if (!this.asrOnlineRecognizer) {
         return { success: false, text: '', error: 'ASR not initialized' };
       }
@@ -128,22 +126,22 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
 
     async releaseAsr(): Promise<{ released: boolean }> {
       if (this.asrOnlineStream) {
-        try { this.asrOnlineStream.free(); } catch (_e) { /* ignore */ }
+        try { this.asrOnlineStream.free(); } catch (_) { console.error('[ASR] releaseAsr stream failed:', _); }
         this.asrOnlineStream = null;
       }
       if (this.asrOnlineRecognizer) {
         try {
           this.asrOnlineRecognizer.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[ASR] releaseAsr recognizer failed:', _);
         }
         this.asrOnlineRecognizer = null;
       }
       if (this.asrRecognizer) {
         try {
           this.asrRecognizer.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[ASR] releaseAsr offline recognizer failed:', _);
         }
         this.asrRecognizer = null;
       }
@@ -162,10 +160,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       return { success: true };
     }
 
-    async acceptAsrOnlineWaveform(
-      sampleRate: number,
-      samples: number[]
-    ): Promise<{ success: boolean }> {
+    async acceptAsrOnlineWaveform({ sampleRate, samples }: WaveformInput): Promise<{ success: boolean }> {
       if (!this.asrOnlineRecognizer || !this.asrOnlineStream) {
         return { success: false };
       }

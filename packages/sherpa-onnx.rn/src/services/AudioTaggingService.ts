@@ -71,18 +71,16 @@ export class AudioTaggingService {
 
     // Use our safer dedicated methods for both files and samples
     if (options.filePath) {
-      // Pass the filePath directly to the native method
-      return this.api.processAndComputeAudioTagging(
-        cleanFilePath(options.filePath),
-        options.topK
-      );
+      return this.api.processAndComputeAudioTagging({
+        filePath: cleanFilePath(options.filePath),
+        topK: options.topK,
+      });
     } else if (options.samples && options.sampleRate) {
-      // Pass the samples and sampleRate separately to the native method
-      return this.api.processAndComputeAudioSamples(
-        options.sampleRate,
-        options.samples,
-        options.topK
-      );
+      return this.api.processAndComputeAudioSamples({
+        sampleRate: options.sampleRate,
+        samples: options.samples,
+        topK: options.topK,
+      });
     } else {
       throw new Error(
         'Either filePath or (samples and sampleRate) must be provided'

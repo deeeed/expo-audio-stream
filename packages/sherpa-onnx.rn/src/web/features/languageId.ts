@@ -1,6 +1,7 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { SpokenLanguageIdInstance } from '../wasmTypes';
+import type { WaveformInput } from '../../types/api';
 
 type Constructor<T = {}> = new (...args: any[]) => T;
 
@@ -38,10 +39,7 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async detectLanguage(
-      _sampleRate: number,
-      _samples: number[]
-    ): Promise<{
+    async detectLanguage({ sampleRate, samples: rawSamples }: WaveformInput): Promise<{
       success: boolean;
       language: string;
       durationMs: number;
@@ -52,10 +50,11 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       }
       try {
         const startMs = performance.now();
-        const samples = new Float32Array(_samples);
+        const samples = new Float32Array(rawSamples);
         const stream = this.languageId.createStream();
-        this.languageId.acceptWaveform(stream, _sampleRate, samples);
+        this.languageId.acceptWaveform(stream, sampleRate, samples);
         const lang = this.languageId.compute(stream);
+        this.languageId.destroyStream?.(stream);
         const durationMs = performance.now() - startMs;
         return { success: true, language: lang, durationMs };
       } catch (error) {
@@ -63,7 +62,7 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       }
     }
 
-    async detectLanguageFromFile(_filePath: string): Promise<{
+    async detectLanguageFromFile(filePath: string): Promise<{
       success: boolean;
       language: string;
       durationMs: number;
@@ -74,10 +73,11 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
       }
       try {
         const startMs = performance.now();
-        const { samples, sampleRate } = await fetchAndDecodeAudio(_filePath);
+        const { samples, sampleRate } = await fetchAndDecodeAudio(filePath);
         const stream = this.languageId.createStream();
         this.languageId.acceptWaveform(stream, sampleRate, samples);
         const lang = this.languageId.compute(stream);
+        this.languageId.destroyStream?.(stream);
         const durationMs = performance.now() - startMs;
         return { success: true, language: lang, durationMs };
       } catch (error) {
@@ -87,7 +87,7 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
 
     async releaseLanguageId(): Promise<{ released: boolean }> {
       if (this.languageId) {
-        try { this.languageId.free(); } catch (_e) { /* ignore */ }
+        try { this.languageId.free(); } catch (_) { console.error('[LanguageId] releaseLanguageId failed:', _); }
         this.languageId = null;
       }
       return { released: true };

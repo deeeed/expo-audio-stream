@@ -91,8 +91,8 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
       if (this.tts) {
         try {
           this.tts.free();
-        } catch (_e) {
-          // ignore
+        } catch (_) {
+          console.error('[TTS] releaseTts failed:', _);
         }
         this.tts = null;
       }

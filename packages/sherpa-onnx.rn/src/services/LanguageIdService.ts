@@ -67,7 +67,7 @@ export class LanguageIdService {
         };
       }
 
-      return await this.api.detectLanguage(sampleRate, samples);
+      return await this.api.detectLanguage({ sampleRate, samples });
     } catch (error) {
       return {
         success: false,
