@@ -21,6 +21,8 @@ import SherpaOnnx, {
 } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { router, type Href } from 'expo-router'
+import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
+import { LegacyEventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
 import {
     DEFAULT_LIVE_SAMPLE_RATE,
@@ -342,7 +344,7 @@ if (__DEV__) {
                         )
                     }
                     const result =
-                        await SherpaOnnx.processAndComputeAudioTagging(filePath)
+                        await SherpaOnnx.processAndComputeAudioTagging({ filePath })
                     _lastAsyncResult = { op, status: 'success', result }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
@@ -581,7 +583,7 @@ if (__DEV__) {
 
                     const t1 = Date.now()
                     const tagResult =
-                        await SherpaOnnx.processAndComputeAudioTagging(wav)
+                        await SherpaOnnx.processAndComputeAudioTagging({ filePath: wav })
                     timing.inferenceMs = Date.now() - t1
 
                     const t2 = Date.now()
@@ -1730,6 +1732,73 @@ if (__DEV__) {
                         status: 'error',
                         error: String(e),
                         result: { timing },
+                    }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        /**
+         * Validates that streamFormat:'float32' delivers Float32Array (not base64 string)
+         * on the native bridge. Records ~1s then stops.
+         */
+        testStreamFormatFloat32: (format?: 'float32' | 'raw') => {
+            const streamFormat = format ?? 'float32'
+            const op = 'streamFormat_' + streamFormat
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    const result = await new Promise<Record<string, unknown>>(
+                        (resolve, reject) => {
+                            const emitter = new LegacyEventEmitter(
+                                ExpoAudioStreamModule
+                            )
+                            const sub = emitter.addListener(
+                                'AudioData',
+                                async (eventData: Record<string, unknown>) => {
+                                    sub.remove()
+                                    await ExpoAudioStreamModule.stopRecording()
+                                    resolve({
+                                        hasFloat32:
+                                            eventData.pcmFloat32 != null,
+                                        hasEncoded:
+                                            eventData.encoded != null,
+                                        float32Type:
+                                            eventData.pcmFloat32 != null
+                                                ? Object.prototype.toString.call(
+                                                      eventData.pcmFloat32
+                                                  )
+                                                : null,
+                                        float32Length:
+                                            eventData.pcmFloat32 != null
+                                                ? (
+                                                      eventData.pcmFloat32 as
+                                                          | Float32Array
+                                                          | number[]
+                                                  ).length
+                                                : null,
+                                        deltaSize: eventData.deltaSize,
+                                    })
+                                }
+                            )
+                            ExpoAudioStreamModule.startRecording({
+                                sampleRate: 16000,
+                                channels: 1,
+                                encoding: 'pcm_16bit',
+                                interval: 500,
+                                streamFormat,
+                            }).catch((e: unknown) => {
+                                sub.remove()
+                                reject(e)
+                            })
+                        }
+                    )
+                    _lastAsyncResult = { op, status: 'success', result }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
                     }
                 }
             })()

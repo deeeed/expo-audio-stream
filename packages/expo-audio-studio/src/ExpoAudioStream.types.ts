@@ -38,10 +38,7 @@ export interface AudioStreamStatus {
     compression?: CompressionInfo
 }
 
-export interface AudioDataEvent {
-    /** Audio data as base64 string (native), Float32Array (web), or Int16Array
-     *  (web — some browsers deliver Int16Array before stream format is normalized). */
-    data: string | Float32Array | Int16Array
+interface AudioDataEventBase {
     /** Current position in the audio stream in bytes */
     position: number
     /** URI to the file being recorded */
@@ -56,6 +53,20 @@ export interface AudioDataEvent {
         data?: string | Blob
     }
 }
+
+export interface AudioDataEventRaw extends AudioDataEventBase {
+    /** Audio data as base64 string (native), Float32Array (web), or Int16Array (web) */
+    data: string | Float32Array | Int16Array
+    streamFormat?: undefined | 'raw'
+}
+
+export interface AudioDataEventFloat32 extends AudioDataEventBase {
+    /** Audio data as Float32Array with samples in [-1, 1] range */
+    data: Float32Array
+    streamFormat: 'float32'
+}
+
+export type AudioDataEvent = AudioDataEventRaw | AudioDataEventFloat32
 
 /**
  * Audio encoding types supported by the library.
@@ -485,6 +496,19 @@ export interface RecordingConfig {
      * Optimal iOS: >= 0.1 seconds
      */
     bufferDurationSeconds?: number
+
+    /**
+     * Format for the audio stream data delivered to `onAudioStream`.
+     *
+     * - `'raw'` (default): base64-encoded PCM bytes on native, Float32Array on web
+     * - `'float32'`: Float32Array with samples in [-1, 1] on all platforms.
+     *   Eliminates base64 encode/decode overhead on the native bridge.
+     *   Android (new arch): delivered as Float32Array via JSI.
+     *   iOS: delivered as regular Array<number>, normalized to Float32Array in JS.
+     *
+     * @default 'raw'
+     */
+    streamFormat?: 'float32' | 'raw'
 }
 
 export interface NotificationConfig {

@@ -11,6 +11,9 @@ const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
 // Internal event payload from native module
 export interface AudioEventPayload {
     encoded?: string
+    /** Float32 samples in [-1, 1] — sent by native when streamFormat='float32'.
+     *  Android new arch delivers Float32Array; iOS delivers number[]. */
+    pcmFloat32?: Float32Array | number[]
     buffer?: Float32Array
     fileUri: string
     lastEmittedSize: number

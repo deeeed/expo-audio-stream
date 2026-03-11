@@ -32,7 +32,6 @@ import {
     useKwsModels,
     useKwsModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
-import { audioDataToSamples } from '../../../utils/audioDataUtils'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
 import {
     fileExists,
@@ -389,11 +388,12 @@ export default function KwsScreen() {
                 channels: 1,
                 encoding: 'pcm_32bit',
                 interval: 100,
+                streamFormat: 'float32',
                 onAudioStream: async (event: AudioDataEvent) => {
                     if (!recordingRef.current) return
                     try {
-                        const samples = await audioDataToSamples(event.data)
-                        if (!samples || samples.length === 0) return
+                        const samples = Array.from(event.data as Float32Array)
+                        if (samples.length === 0) return
                         queueRef.current.push({
                             samples,
                             sampleRate: DEFAULT_LIVE_SAMPLE_RATE,

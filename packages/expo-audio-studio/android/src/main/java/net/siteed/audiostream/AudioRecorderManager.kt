@@ -1623,7 +1623,7 @@ class AudioRecorderManager(
     }
 
     private fun emitAudioData(audioData: ByteArray, length: Int) {
-        val encodedBuffer = audioDataEncoder.encodeToBase64(audioData)
+        val isFloat32Stream = recordingConfig.streamFormat == "float32"
 
         // Use cached file size instead of file system call
         val fileSize = if (recordingConfig.output.primary.enabled) cachedPrimaryFileSize else 0L
@@ -1677,21 +1677,43 @@ class AudioRecorderManager(
             )
         } else null
         
+        val baseBundle = if (isFloat32Stream) {
+            val sampleCount = length / 2
+            val float32 = FloatArray(sampleCount)
+            for (i in 0 until sampleCount) {
+                val lo = audioData[i * 2].toInt() and 0xFF
+                val hi = audioData[i * 2 + 1].toInt() and 0xFF
+                float32[i] = ((hi shl 8) or lo).toShort() / 32768f
+            }
+            bundleOf(
+                "fileUri" to audioFile?.toURI().toString(),
+                "lastEmittedSize" to from,
+                "pcmFloat32" to float32,
+                "deltaSize" to length,
+                "position" to positionInMs,
+                "mimeType" to mimeType,
+                "totalSize" to fileSize,
+                "streamUuid" to streamUuid,
+                "compression" to compressionBundle
+            )
+        } else {
+            val encodedBuffer = audioDataEncoder.encodeToBase64(audioData)
+            bundleOf(
+                "fileUri" to audioFile?.toURI().toString(),
+                "lastEmittedSize" to from,
+                "encoded" to encodedBuffer,
+                "deltaSize" to length,
+                "position" to positionInMs,
+                "mimeType" to mimeType,
+                "totalSize" to fileSize,
+                "streamUuid" to streamUuid,
+                "compression" to compressionBundle
+            )
+        }
+
         mainHandler.post {
             try {
-                eventSender.sendExpoEvent(
-                    Constants.AUDIO_EVENT_NAME, bundleOf(
-                        "fileUri" to audioFile?.toURI().toString(),
-                        "lastEmittedSize" to from,
-                        "encoded" to encodedBuffer,
-                        "deltaSize" to length,
-                        "position" to positionInMs,
-                        "mimeType" to mimeType,
-                        "totalSize" to fileSize,
-                        "streamUuid" to streamUuid,
-                        "compression" to compressionBundle
-                    )
-                )
+                eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
             } catch (e: Exception) {
                 LogUtils.e(CLASS_NAME, "Failed to send event", e)
             }

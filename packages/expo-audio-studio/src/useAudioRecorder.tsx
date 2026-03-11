@@ -325,6 +325,7 @@ export function useAudioRecorder({
                 position,
                 streamUuid,
                 encoded,
+                pcmFloat32,
                 mimeType,
                 buffer,
                 compression,
@@ -347,33 +348,50 @@ export function useAudioRecorder({
             try {
                 // Coming from native ( ios / android ) otherwise buffer is set
                 if (Platform.OS !== 'web') {
-                    // Read the audio file as a base64 string for comparison
-                    if (!encoded) {
-                        logger?.error(`Encoded audio data is missing`)
-                        throw new Error('Encoded audio data is missing')
+                    const compressionPayload =
+                        compression && startResultRef.current?.compression
+                            ? {
+                                  data: compression.data,
+                                  size: compression.totalSize,
+                                  mimeType:
+                                      startResultRef.current.compression
+                                          ?.mimeType,
+                                  bitrate:
+                                      startResultRef.current.compression
+                                          ?.bitrate,
+                                  format: startResultRef.current.compression
+                                      ?.format,
+                              }
+                            : undefined
+                    if (pcmFloat32 != null) {
+                        // Android new arch delivers Float32Array; iOS delivers number[] — normalize both
+                        const float32 =
+                            pcmFloat32 instanceof Float32Array
+                                ? pcmFloat32
+                                : new Float32Array(pcmFloat32 as number[])
+                        onAudioStreamRef.current?.({
+                            data: float32,
+                            streamFormat: 'float32',
+                            position,
+                            fileUri,
+                            eventDataSize: deltaSize,
+                            totalSize,
+                            compression: compressionPayload,
+                        })
+                    } else {
+                        if (!encoded) {
+                            logger?.error(`Encoded audio data is missing`)
+                            throw new Error('Encoded audio data is missing')
+                        }
+                        onAudioStreamRef.current?.({
+                            data: encoded,
+                            position,
+                            fileUri,
+                            eventDataSize: deltaSize,
+                            totalSize,
+                            compression: compressionPayload,
+                        })
                     }
-                    onAudioStreamRef.current?.({
-                        data: encoded,
-                        position,
-                        fileUri,
-                        eventDataSize: deltaSize,
-                        totalSize,
-                        compression:
-                            compression && startResultRef.current?.compression
-                                ? {
-                                      data: compression.data,
-                                      size: compression.totalSize,
-                                      mimeType:
-                                          startResultRef.current.compression
-                                              ?.mimeType,
-                                      bitrate:
-                                          startResultRef.current.compression
-                                              ?.bitrate,
-                                      format: startResultRef.current.compression
-                                          ?.format,
-                                  }
-                                : undefined,
-                    })
                 } else if (buffer) {
                     // Coming from web
                     const webEvent: AudioDataEvent = {

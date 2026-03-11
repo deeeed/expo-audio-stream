@@ -128,6 +128,7 @@ struct RecordingSettings {
     var deviceId: String?
     var deviceDisconnectionBehavior: DeviceDisconnectionBehavior = .FALLBACK
     var bufferDurationSeconds: Double?
+    var streamFormat: String = "raw"
     
     static func fromDictionary(_ dict: [String: Any]) -> Result<RecordingSettings, Error> {
         // Parse output configuration
@@ -302,7 +303,9 @@ struct RecordingSettings {
         if let bufferDuration = dict["bufferDurationSeconds"] as? Double {
             settings.bufferDurationSeconds = bufferDuration
         }
-        
+
+        settings.streamFormat = dict["streamFormat"] as? String ?? "raw"
+
         return .success(settings)
     }
 }
