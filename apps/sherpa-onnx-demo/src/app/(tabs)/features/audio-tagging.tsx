@@ -199,6 +199,9 @@ export default function AudioTaggingScreen() {
           </View>
         </ConfigRow>
 
+        {/* Threads & Provider: hidden on web — WASM is single-threaded, CPU only */}
+        {Platform.OS !== 'web' && (
+        <>
         <ConfigRow label="Num Threads:">
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TextInput
@@ -233,6 +236,8 @@ export default function AudioTaggingScreen() {
             )}
           </View>
         </ConfigRow>
+        </>
+        )}
 
         <ConfigRow label="Debug Mode:">
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

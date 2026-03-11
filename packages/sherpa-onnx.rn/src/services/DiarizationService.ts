@@ -71,11 +71,11 @@ export class DiarizationService {
           error: 'Diarization is not initialized',
         };
       }
-      return await this.api.processDiarizationFile(
-        cleanFilePath(filePath),
+      return await this.api.processDiarizationFile({
+        filePath: cleanFilePath(filePath),
         numClusters,
-        threshold
-      );
+        threshold,
+      });
     } catch (error) {
       return {
         success: false,

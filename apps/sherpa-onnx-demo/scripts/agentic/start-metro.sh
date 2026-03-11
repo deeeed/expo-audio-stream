@@ -26,7 +26,6 @@ LAN_IP=$(ifconfig | awk '/inet / && !/127\./ && !/169\.254\./ {print $2}' | grep
 
 print_launch_hint() {
   if [ -n "$LAN_IP" ]; then
-    ENCODED_URL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('http://${LAN_IP}:${PORT}', safe=''))" 2>/dev/null || echo "http%3A%2F%2F${LAN_IP}%3A${PORT}")
     echo ""
     echo "To open the app on Android:"
     echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+sherpa-onnx-demo://expo-development-client/?url=http://${LAN_IP}:${PORT}\" com.deeeed.sherpaonnxdemo/.MainActivity"

@@ -1,4 +1,16 @@
-import type { ApiInterface, ArchitectureInfo, SystemInfo } from './types/api';
+import type {
+  ApiInterface,
+  ArchitectureInfo,
+  SystemInfo,
+  WaveformInput,
+  AudioTaggingFileInput,
+  AudioTaggingSamplesInput,
+  DiarizationFileInput,
+  RegisterSpeakerInput,
+  IdentifySpeakerInput,
+  VerifySpeakerInput,
+  ExtractTarBz2Input,
+} from './types/api';
 import type {
   AsrInitResult,
   AsrModelConfig,
@@ -47,110 +59,29 @@ import { Platform } from 'react-native';
 import NativeModuleImport from './NativeSherpaOnnxSpec';
 import { WebSherpaOnnxImpl } from './WebSherpaOnnxImpl';
 
-// Create a web placeholder implementation for WASM support in the future
-const createWebPlaceholder = (): ApiInterface => {
-  const notImplementedError = (): never => {
-    throw new Error(
-      'Web implementation not yet available - will support WASM in the future'
-    );
-  };
+// On web, WebSherpaOnnxImpl already implements ApiInterface directly (object params).
+// On native, NativeModuleImport uses positional args — SherpaOnnxAPI adapts them below.
+const webImpl: ApiInterface | null =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Platform.OS === 'web' ? (new WebSherpaOnnxImpl() as any) : null;
 
-  return {
-    // Return basic error-throwing implementations for each method
-    testOnnxIntegration: notImplementedError,
-    validateLibraryLoaded: notImplementedError,
-    getArchitectureInfo: notImplementedError,
-    getSystemInfo: notImplementedError,
-    initTts: notImplementedError,
-    generateTts: notImplementedError,
-    stopTts: notImplementedError,
-    releaseTts: notImplementedError,
-    initAsr: notImplementedError,
-    recognizeFromSamples: notImplementedError,
-    recognizeFromFile: notImplementedError,
-    releaseAsr: notImplementedError,
-    createAsrOnlineStream: notImplementedError,
-    acceptAsrOnlineWaveform: notImplementedError,
-    isAsrOnlineEndpoint: notImplementedError,
-    getAsrOnlineResult: notImplementedError,
-    resetAsrOnlineStream: notImplementedError,
-    initAudioTagging: notImplementedError,
-    processAndComputeAudioTagging: notImplementedError,
-    processAndComputeAudioSamples: notImplementedError,
-    releaseAudioTagging: notImplementedError,
-    initSpeakerId: notImplementedError,
-    processSpeakerIdSamples: notImplementedError,
-    computeSpeakerEmbedding: notImplementedError,
-    registerSpeaker: notImplementedError,
-    removeSpeaker: notImplementedError,
-    getSpeakers: notImplementedError,
-    identifySpeaker: notImplementedError,
-    verifySpeaker: notImplementedError,
-    processSpeakerIdFile: notImplementedError,
-    releaseSpeakerId: notImplementedError,
-    initDiarization: notImplementedError,
-    processDiarizationFile: notImplementedError,
-    releaseDiarization: notImplementedError,
-    initKws: notImplementedError,
-    acceptKwsWaveform: notImplementedError,
-    resetKwsStream: notImplementedError,
-    releaseKws: notImplementedError,
-    initVad: notImplementedError,
-    acceptVadWaveform: notImplementedError,
-    resetVad: notImplementedError,
-    releaseVad: notImplementedError,
-    initLanguageId: notImplementedError,
-    detectLanguage: notImplementedError,
-    detectLanguageFromFile: notImplementedError,
-    releaseLanguageId: notImplementedError,
-    initPunctuation: notImplementedError,
-    addPunctuation: notImplementedError,
-    releasePunctuation: notImplementedError,
-    initDenoiser: notImplementedError,
-    denoiseFile: notImplementedError,
-    releaseDenoiser: notImplementedError,
-    extractTarBz2: notImplementedError,
-  };
-};
+// NativeSherpaOnnx is only used on native (positional-arg TurboModule interface).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NativeSherpaOnnx = NativeModuleImport as any;
 
-// Use the native module if available, otherwise use web implementation if on web, or a placeholder
-// This ensures we never have a null module - we either have a real implementation or a placeholder
-const NativeSherpaOnnx: Omit<ApiInterface, 'extractTarBz2'> & {
-  extractTarBz2: (
-    sourcePath: string,
-    targetDir: string
-  ) => Promise<{
-    success: boolean;
-    message: string;
-    extractedFiles?: string[];
-  }>;
-  processAndComputeAudioTagging: (
-    filePath: string,
-    topK?: number
-  ) => Promise<AudioTaggingResult>;
-  processAndComputeAudioSamples: (
-    sampleRate: number,
-    samples: number[],
-    topK?: number
-  ) => Promise<AudioTaggingResult>;
-  getArchitectureInfo: () => Promise<ArchitectureInfo>;
-  getSystemInfo: () => Promise<SystemInfo>;
-} =
-  NativeModuleImport ||
-  (Platform.OS === 'web' ? new WebSherpaOnnxImpl() : createWebPlaceholder());
-
-// Log a warning if we're using the placeholder on a non-web platform
+// Log a warning if the native module is missing on a native platform
 if (!NativeModuleImport && Platform.OS !== 'web') {
   console.warn(
-    'SherpaOnnx native module not available on this platform, using fallback implementation'
+    'SherpaOnnx native module not available on this platform'
   );
 }
 
 /**
  * Implementation of the SherpaOnnx API
- * This provides type-safe access to the native methods
+ * On web: delegates directly to WebSherpaOnnxImpl (which already implements ApiInterface).
+ * On native: adapts positional-arg TurboModule calls to the object-param ApiInterface.
  */
-export const SherpaOnnxAPI: ApiInterface = {
+const nativeAdapter: ApiInterface = {
   testOnnxIntegration(): Promise<TestOnnxIntegrationResult> {
     return NativeSherpaOnnx.testOnnxIntegration();
   },
@@ -214,10 +145,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initAsr(nativeConfig as any);
   },
 
-  recognizeFromSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<AsrRecognizeResult> {
+  recognizeFromSamples({ sampleRate, samples }: WaveformInput): Promise<AsrRecognizeResult> {
     return NativeSherpaOnnx.recognizeFromSamples(sampleRate, samples);
   },
 
@@ -234,10 +162,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.createAsrOnlineStream();
   },
 
-  acceptAsrOnlineWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<{ success: boolean }> {
+  acceptAsrOnlineWaveform({ sampleRate, samples }: WaveformInput): Promise<{ success: boolean }> {
     return NativeSherpaOnnx.acceptAsrOnlineWaveform(sampleRate, samples);
   },
 
@@ -264,18 +189,11 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initAudioTagging(config as any);
   },
 
-  processAndComputeAudioTagging(
-    filePath: string,
-    _topK?: number
-  ): Promise<AudioTaggingResult> {
+  processAndComputeAudioTagging({ filePath }: AudioTaggingFileInput): Promise<AudioTaggingResult> {
     return NativeSherpaOnnx.processAndComputeAudioTagging(filePath);
   },
 
-  processAndComputeAudioSamples(
-    sampleRate: number,
-    samples: number[],
-    _topK?: number
-  ): Promise<AudioTaggingResult> {
+  processAndComputeAudioSamples({ sampleRate, samples }: AudioTaggingSamplesInput): Promise<AudioTaggingResult> {
     return NativeSherpaOnnx.processAndComputeAudioSamples(sampleRate, samples);
   },
 
@@ -288,10 +206,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initSpeakerId(config as any);
   },
 
-  processSpeakerIdSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SpeakerIdProcessResult> {
+  processSpeakerIdSamples({ sampleRate, samples }: WaveformInput): Promise<SpeakerIdProcessResult> {
     return NativeSherpaOnnx.processSpeakerIdSamples(sampleRate, samples);
   },
 
@@ -299,10 +214,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.computeSpeakerEmbedding();
   },
 
-  registerSpeaker(
-    name: string,
-    embedding: number[]
-  ): Promise<RegisterSpeakerResult> {
+  registerSpeaker({ name, embedding }: RegisterSpeakerInput): Promise<RegisterSpeakerResult> {
     return NativeSherpaOnnx.registerSpeaker(name, embedding);
   },
 
@@ -314,18 +226,11 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.getSpeakers();
   },
 
-  identifySpeaker(
-    embedding: number[],
-    threshold: number
-  ): Promise<IdentifySpeakerResult> {
+  identifySpeaker({ embedding, threshold }: IdentifySpeakerInput): Promise<IdentifySpeakerResult> {
     return NativeSherpaOnnx.identifySpeaker(embedding, threshold);
   },
 
-  verifySpeaker(
-    name: string,
-    embedding: number[],
-    threshold: number
-  ): Promise<VerifySpeakerResult> {
+  verifySpeaker({ name, embedding, threshold }: VerifySpeakerInput): Promise<VerifySpeakerResult> {
     return NativeSherpaOnnx.verifySpeaker(name, embedding, threshold);
   },
 
@@ -342,11 +247,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initDiarization(config as any);
   },
 
-  processDiarizationFile(
-    filePath: string,
-    numClusters: number,
-    threshold: number
-  ): Promise<DiarizationResult> {
+  processDiarizationFile({ filePath, numClusters, threshold }: DiarizationFileInput): Promise<DiarizationResult> {
     return NativeSherpaOnnx.processDiarizationFile(filePath, numClusters, threshold);
   },
 
@@ -359,10 +260,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initKws(config as any);
   },
 
-  acceptKwsWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<KWSAcceptWaveformResult> {
+  acceptKwsWaveform({ sampleRate, samples }: WaveformInput): Promise<KWSAcceptWaveformResult> {
     return NativeSherpaOnnx.acceptKwsWaveform(sampleRate, samples);
   },
 
@@ -379,10 +277,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initVad(config as any);
   },
 
-  acceptVadWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<VadAcceptWaveformResult> {
+  acceptVadWaveform({ sampleRate, samples }: WaveformInput): Promise<VadAcceptWaveformResult> {
     return NativeSherpaOnnx.acceptVadWaveform(sampleRate, samples);
   },
 
@@ -399,10 +294,7 @@ export const SherpaOnnxAPI: ApiInterface = {
     return NativeSherpaOnnx.initLanguageId(config as any);
   },
 
-  detectLanguage(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<LanguageIdResult> {
+  detectLanguage({ sampleRate, samples }: WaveformInput): Promise<LanguageIdResult> {
     return NativeSherpaOnnx.detectLanguage(sampleRate, samples);
   },
 
@@ -441,19 +333,20 @@ export const SherpaOnnxAPI: ApiInterface = {
   },
 
   // Archive methods
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
+  extractTarBz2({ sourcePath, targetDir }: ExtractTarBz2Input): Promise<{
     success: boolean;
     message: string;
     extractedFiles: string[];
   }> {
     return NativeSherpaOnnx.extractTarBz2(sourcePath, targetDir).then(
-      (result) => ({
+      (result: { success: boolean; message: string; extractedFiles?: string[] }) => ({
         ...result,
         extractedFiles: result.extractedFiles || [],
       })
     );
   },
 };
+
+// On web use WebSherpaOnnxImpl directly (already implements ApiInterface with object params).
+// On native use the adapter that converts object params → positional TurboModule args.
+export const SherpaOnnxAPI: ApiInterface = webImpl ?? nativeAdapter;

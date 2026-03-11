@@ -47,7 +47,7 @@ export function useDenoising() {
         const assets = SAMPLE_AUDIO_FILES.map(f => Asset.fromModule(f.module));
         await Promise.all(assets.map(a => a.downloadAsync()));
         setLoadedAudioFiles(
-          SAMPLE_AUDIO_FILES.map((f, i) => ({ ...f, localUri: assets[i].localUri || '' }))
+          SAMPLE_AUDIO_FILES.map((f, i) => ({ ...f, localUri: assets[i].localUri || assets[i].uri || '' }))
         );
       } catch (err) {
         console.error('[useDenoising] Failed to load audio assets:', err);
@@ -113,9 +113,11 @@ export function useDenoising() {
     setStatusMessage('Denoising audio...');
 
     try {
-      const uri = audioFile.localUri.startsWith('file://')
+      const uri = audioFile.localUri.startsWith('http')
         ? audioFile.localUri
-        : `file://${audioFile.localUri}`;
+        : audioFile.localUri.startsWith('file://')
+          ? audioFile.localUri
+          : `file://${audioFile.localUri}`;
 
       const result = await Denoising.denoiseFile(uri);
       if (result.success) {

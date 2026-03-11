@@ -158,7 +158,7 @@ export class ArchiveService {
     targetDir: string
   ): Promise<ExtractionResult> {
     try {
-      return await this.api.extractTarBz2(sourcePath, targetDir);
+      return await this.api.extractTarBz2({ sourcePath, targetDir });
     } catch (error) {
       console.error('Error extracting tar.bz2:', error);
       return {

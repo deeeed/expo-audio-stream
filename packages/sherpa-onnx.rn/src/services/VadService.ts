@@ -72,7 +72,7 @@ export class VadService {
         };
       }
 
-      return await this.api.acceptVadWaveform(sampleRate, samples);
+      return await this.api.acceptVadWaveform({ sampleRate, samples });
     } catch (error) {
       return {
         success: false,

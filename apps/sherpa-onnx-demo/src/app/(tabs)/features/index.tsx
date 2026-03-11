@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, useTheme } from '@siteed/design-system';
 import type { AppTheme } from '@siteed/design-system';
+import { ScreenWrapper, Text, useTheme } from '@siteed/design-system';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { ScreenWrapper } from '@siteed/design-system';
+import { isWebFeatureRouteEnabled } from '../../../config/webFeatures';
 
 
 interface FeatureCardProps {
@@ -121,17 +121,20 @@ function FeatureCard({ title, description, icon, route, color }: FeatureCardProp
 export default function FeaturesScreen() {
   const theme = useTheme();
 
+  // On web, only show features that are enabled in webFeatures config
+  const visibleFeatures = Platform.OS === 'web'
+    ? FEATURES.filter(f => isWebFeatureRouteEnabled(f.route))
+    : FEATURES;
+
   return (
     <ScreenWrapper useInsets={false} contentContainerStyle={{ padding: theme.padding.m }}>
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>Explore sherpa-onnx capabilities</Text>
-      {FEATURES.map((feature) => (
+      {visibleFeatures.map((feature) => (
         <FeatureCard key={feature.route} {...feature} />
       ))}
     </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({});
 
 function getStyles(theme: AppTheme) {
   return StyleSheet.create({

@@ -100,6 +100,45 @@ export interface SystemInfo {
   error?: string;
 }
 
+// Shared input interfaces
+export interface WaveformInput {
+  sampleRate: number;
+  samples: number[];
+}
+
+// Per-feature input interfaces
+export interface AudioTaggingFileInput {
+  filePath: string;
+  topK?: number;
+}
+export interface AudioTaggingSamplesInput {
+  sampleRate: number;
+  samples: number[];
+  topK?: number;
+}
+export interface DiarizationFileInput {
+  filePath: string;
+  numClusters: number;
+  threshold: number;
+}
+export interface RegisterSpeakerInput {
+  name: string;
+  embedding: number[];
+}
+export interface IdentifySpeakerInput {
+  embedding: number[];
+  threshold: number;
+}
+export interface VerifySpeakerInput {
+  name: string;
+  embedding: number[];
+  threshold: number;
+}
+export interface ExtractTarBz2Input {
+  sourcePath: string;
+  targetDir: string;
+}
+
 export interface ApiInterface {
   // Test methods
   testOnnxIntegration(): Promise<TestOnnxIntegrationResult>;
@@ -115,19 +154,13 @@ export interface ApiInterface {
 
   // ASR methods
   initAsr(config: AsrModelConfig): Promise<AsrInitResult>;
-  recognizeFromSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<AsrRecognizeResult>;
+  recognizeFromSamples(input: WaveformInput): Promise<AsrRecognizeResult>;
   recognizeFromFile(filePath: string): Promise<AsrRecognizeResult>;
   releaseAsr(): Promise<{ released: boolean }>;
 
   // ASR online streaming primitives
   createAsrOnlineStream(): Promise<{ success: boolean }>;
-  acceptAsrOnlineWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<{ success: boolean }>;
+  acceptAsrOnlineWaveform(input: WaveformInput): Promise<{ success: boolean }>;
   isAsrOnlineEndpoint(): Promise<{ isEndpoint: boolean }>;
   getAsrOnlineResult(): Promise<{
     text: string;
@@ -141,74 +174,45 @@ export interface ApiInterface {
     config: AudioTaggingModelConfig
   ): Promise<AudioTaggingInitResult>;
   processAndComputeAudioTagging(
-    filePath: string,
-    topK?: number
+    input: AudioTaggingFileInput
   ): Promise<AudioTaggingResult>;
   processAndComputeAudioSamples(
-    sampleRate: number,
-    samples: number[],
-    topK?: number
+    input: AudioTaggingSamplesInput
   ): Promise<AudioTaggingResult>;
   releaseAudioTagging(): Promise<{ released: boolean }>;
 
   // Speaker ID methods
   initSpeakerId(config: SpeakerIdModelConfig): Promise<SpeakerIdInitResult>;
-  processSpeakerIdSamples(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<SpeakerIdProcessResult>;
+  processSpeakerIdSamples(input: WaveformInput): Promise<SpeakerIdProcessResult>;
   computeSpeakerEmbedding(): Promise<SpeakerEmbeddingResult>;
-  registerSpeaker(
-    name: string,
-    embedding: number[]
-  ): Promise<RegisterSpeakerResult>;
+  registerSpeaker(input: RegisterSpeakerInput): Promise<RegisterSpeakerResult>;
   removeSpeaker(name: string): Promise<RemoveSpeakerResult>;
   getSpeakers(): Promise<GetSpeakersResult>;
-  identifySpeaker(
-    embedding: number[],
-    threshold: number
-  ): Promise<IdentifySpeakerResult>;
-  verifySpeaker(
-    name: string,
-    embedding: number[],
-    threshold: number
-  ): Promise<VerifySpeakerResult>;
+  identifySpeaker(input: IdentifySpeakerInput): Promise<IdentifySpeakerResult>;
+  verifySpeaker(input: VerifySpeakerInput): Promise<VerifySpeakerResult>;
   processSpeakerIdFile(filePath: string): Promise<SpeakerIdFileProcessResult>;
   releaseSpeakerId(): Promise<{ released: boolean }>;
 
   // Diarization methods
   initDiarization(config: DiarizationModelConfig): Promise<DiarizationInitResult>;
-  processDiarizationFile(
-    filePath: string,
-    numClusters: number,
-    threshold: number
-  ): Promise<DiarizationResult>;
+  processDiarizationFile(input: DiarizationFileInput): Promise<DiarizationResult>;
   releaseDiarization(): Promise<{ released: boolean }>;
 
   // KWS methods
   initKws(config: KWSModelConfig): Promise<KWSInitResult>;
-  acceptKwsWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<KWSAcceptWaveformResult>;
+  acceptKwsWaveform(input: WaveformInput): Promise<KWSAcceptWaveformResult>;
   resetKwsStream(): Promise<{ success: boolean }>;
   releaseKws(): Promise<{ released: boolean }>;
 
   // VAD methods
   initVad(config: VadModelConfig): Promise<VadInitResult>;
-  acceptVadWaveform(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<VadAcceptWaveformResult>;
+  acceptVadWaveform(input: WaveformInput): Promise<VadAcceptWaveformResult>;
   resetVad(): Promise<{ success: boolean }>;
   releaseVad(): Promise<{ released: boolean }>;
 
   // Language ID methods
   initLanguageId(config: LanguageIdModelConfig): Promise<LanguageIdInitResult>;
-  detectLanguage(
-    sampleRate: number,
-    samples: number[]
-  ): Promise<LanguageIdResult>;
+  detectLanguage(input: WaveformInput): Promise<LanguageIdResult>;
   detectLanguageFromFile(filePath: string): Promise<LanguageIdResult>;
   releaseLanguageId(): Promise<{ released: boolean }>;
 
@@ -223,10 +227,7 @@ export interface ApiInterface {
   releaseDenoiser(): Promise<{ released: boolean }>;
 
   // Archive methods
-  extractTarBz2(
-    sourcePath: string,
-    targetDir: string
-  ): Promise<{
+  extractTarBz2(input: ExtractTarBz2Input): Promise<{
     success: boolean;
     message: string;
     extractedFiles: string[];

@@ -33,6 +33,13 @@
  *   WEB_HEADLESS    Run browser headless (default: false)
  *   WEB_TIMEOUT     Navigation/wait timeout in ms (default: 30000)
  *   CDP_PORT        Chrome remote debugging port (default: 9222)
+ *
+ * Known limitation — live microphone on macOS:
+ *   macOS TCC (privacy framework) attributes getUserMedia requests to the
+ *   process that spawned Chrome (node), not to the Chrome bundle itself.
+ *   The permission is silently denied and the audio stream produces silence.
+ *   File-based audio testing works fine. For live mic validation use a
+ *   regular browser session opened manually.
  */
 
 import { chromium } from 'playwright';
@@ -156,9 +163,23 @@ async function cmdLaunch() {
   // Use system Chrome ('channel: chrome') for non-headless mode since
   // Playwright's bundled Chromium crashes on macOS with
   // --remote-debugging-port in non-headless mode.
+  //
+  // --use-fake-ui-for-media-stream: auto-approve getUserMedia without dialog
+  //   and route the real microphone (required even when permissions are granted
+  //   programmatically via context.grantPermissions).
+  // --autoplay-policy=no-user-gesture-required: Chrome creates AudioContext in
+  //   `suspended` state when there is no user gesture. page.evaluate() calls do
+  //   not count as a user gesture, so the AudioWorklet's process() would never
+  //   fire and recording would appear active but produce silence. This flag
+  //   starts AudioContext in `running` state immediately.
+  const launchArgs = [
+    `--remote-debugging-port=${CDP_PORT}`,
+    '--use-fake-ui-for-media-stream',
+    '--autoplay-policy=no-user-gesture-required',
+  ];
   const launchOptions = {
     headless: HEADLESS,
-    args: [`--remote-debugging-port=${CDP_PORT}`],
+    args: launchArgs,
   };
   if (!HEADLESS) {
     launchOptions.channel = 'chrome';
@@ -167,9 +188,38 @@ async function cmdLaunch() {
 
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
-    permissions: ['microphone'],
   });
+
+  // Grant microphone permission explicitly for the app origin.
+  // Passing permissions in newContext() grants for all origins but may not
+  // work reliably with system Chrome; specifying the origin is more robust.
+  await context.grantPermissions(['microphone'], { origin: `http://localhost:${PORT}` });
+
   const page = await context.newPage();
+
+  // Patch AudioContext before any app code runs.
+  // Chrome starts AudioContext in `suspended` state when there is no user
+  // gesture. page.evaluate() calls are not user gestures, so the AudioWorklet
+  // process() method would never fire and recording produces silence.
+  // This patch auto-resumes every AudioContext immediately after construction,
+  // bypassing the autoplay policy regardless of Chrome flags.
+  await page.addInitScript(() => {
+    const _AC = window.AudioContext || window.webkitAudioContext;
+    if (_AC) {
+      window.AudioContext = class extends _AC {
+        constructor(opts) {
+          super(opts);
+          if (this.state === 'suspended') {
+            this.resume().catch(() => {});
+          }
+        }
+      };
+      // Safari / older Chrome
+      if (window.webkitAudioContext) {
+        window.webkitAudioContext = window.AudioContext;
+      }
+    }
+  });
 
   setupConsoleCapture(page);
 

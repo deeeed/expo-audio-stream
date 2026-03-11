@@ -12,6 +12,12 @@ import {
     StartRecordingResult,
 } from './ExpoAudioStream.types'
 import { WebRecorder } from './WebRecorder.web'
+import {
+    DEFAULT_BIT_DEPTH,
+    DEFAULT_INTERVAL_MS,
+    DEFAULT_ANALYSIS_INTERVAL_MS,
+    DEFAULT_MAX_BUFFER_SIZE,
+} from './constants'
 import { AudioEventPayload } from './events'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 
@@ -79,7 +85,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         audioWorkletUrl,
         featuresExtratorUrl,
         logger,
-        maxBufferSize = 100, // Default to storing last 100 chunks (1 chunk = 0.5 seconds)
+        maxBufferSize = DEFAULT_MAX_BUFFER_SIZE,
     }: ExpoAudioStreamWebProps) {
         const mockNativeModule = {
             addListener: () => {},
@@ -96,9 +102,9 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         this.pausedTime = 0
         this.currentDurationMs = 0
         this.currentSize = 0
-        this.bitDepth = 32 // Default
-        this.currentInterval = 1000 // Default interval in ms
-        this.currentIntervalAnalysis = 500 // Default analysis interval in ms
+        this.bitDepth = DEFAULT_BIT_DEPTH
+        this.currentInterval = DEFAULT_INTERVAL_MS
+        this.currentIntervalAnalysis = DEFAULT_ANALYSIS_INTERVAL_MS
         this.lastEmittedSize = 0
         this.lastEmittedTime = 0
         this.latestPosition = 0

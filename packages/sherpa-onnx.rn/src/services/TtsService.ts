@@ -4,7 +4,6 @@ import type {
   TtsInitResult,
   TtsModelConfig,
   TtsOptions,
-  ValidateResult,
 } from '../types/interfaces';
 import { cleanFilePath } from '../utils/fileUtils';
 
@@ -19,14 +18,6 @@ export class TtsService {
 
   constructor(api: ApiInterface) {
     this.api = api;
-  }
-
-  /**
-   * Validate that the Sherpa-ONNX library is properly loaded
-   * @returns Promise that resolves with validation result
-   */
-  public validateLibrary(): Promise<ValidateResult> {
-    return this.api.validateLibraryLoaded();
   }
 
   /**

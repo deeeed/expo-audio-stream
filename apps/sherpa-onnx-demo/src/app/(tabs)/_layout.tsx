@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@siteed/design-system';
-import { Tabs, useSegments } from 'expo-router';
+import { Tabs, useSegments, useRouter } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
-import { Platform, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CustomHeader } from '../../components/CustomHeader';
 import { useModelManagement } from '../../contexts/ModelManagement';
@@ -15,9 +15,64 @@ const TAB_TITLES: Record<string, string> = {
   about: 'About',
 };
 
+const WEB_BANNER_KEY = 'sherpa-web-banner-dismissed';
+
+function WebModeBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(WEB_BANNER_KEY) === 'true';
+    } catch {
+      // localStorage unavailable (private browsing, storage blocked) — show banner
+      return false;
+    }
+  });
+
+  const handleDismiss = useCallback(() => {
+    setDismissed(true);
+    try { localStorage.setItem(WEB_BANNER_KEY, 'true'); } catch {}
+  }, []);
+
+  if (dismissed) return null;
+
+  return (
+    <View style={bannerStyles.container}>
+      <Text style={bannerStyles.text}>
+        Running in web mode — features use built-in models only. Download the native app for full model selection.
+      </Text>
+      <Pressable onPress={handleDismiss} style={bannerStyles.closeButton}>
+        <Text style={bannerStyles.closeText}>✕</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#E3F2FD',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  text: {
+    flex: 1,
+    color: '#1565C0',
+    fontSize: 13,
+  },
+  closeButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  closeText: {
+    color: '#1565C0',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
 export default function TabLayout() {
   const { colors } = useTheme();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const { modelsState } = useModelManagement();
   // Only show custom header for top-level tab screens (not when inside features stack)
   const isNestedFeature = segments.length > 2 && segments[1] === 'features';
@@ -27,10 +82,14 @@ export default function TabLayout() {
     s => s.status === 'downloading' || s.status === 'extracting'
   );
 
+  const router = useRouter();
+
   if (Platform.OS === 'web') {
     return (
-      <Tabs
-        screenOptions={{
+      <View style={{ flex: 1 }}>
+        <WebModeBanner />
+        <Tabs
+          screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.text,
@@ -53,13 +112,20 @@ export default function TabLayout() {
             title: 'Features',
             tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} />,
           }}
+          listeners={{
+            tabPress: (e) => {
+              // If already inside a nested feature screen, pop to the features index
+              if (isNestedFeature) {
+                e.preventDefault();
+                router.replace('/(tabs)/features');
+              }
+            },
+          }}
         />
         <Tabs.Screen
           name="models"
           options={{
-            title: 'Models',
-            tabBarIcon: ({ color }) => <Ionicons name="download" size={28} color={color} />,
-            tabBarBadge: isAnyDownloading ? '↓' : undefined,
+            href: null, // Models are preloaded on web — hide the tab
           }}
         />
         <Tabs.Screen
@@ -69,7 +135,8 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <Ionicons name="information-circle" size={28} color={color} />,
           }}
         />
-      </Tabs>
+        </Tabs>
+      </View>
     );
   }
 

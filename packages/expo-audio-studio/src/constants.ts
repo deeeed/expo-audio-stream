@@ -16,3 +16,6 @@ export const INFO_CHUNK_ID = 0x494e464f // "INFO"
 // Default values
 export const DEFAULT_SAMPLE_RATE: SampleRate = 16000
 export const DEFAULT_BIT_DEPTH: BitDepth = 32
+export const DEFAULT_INTERVAL_MS = 1000
+export const DEFAULT_ANALYSIS_INTERVAL_MS = 500
+export const DEFAULT_MAX_BUFFER_SIZE = 100

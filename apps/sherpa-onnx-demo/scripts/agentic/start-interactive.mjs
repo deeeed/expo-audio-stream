@@ -3,7 +3,8 @@
  * start-interactive.mjs
  *
  * Tails .agent/metro.log and proxies keypresses to Metro/Expo:
- *   r  — reload JS bundle          (POST /reload)
+ *   r  — reload JS bundle          (POST /reload + CDP reload)
+ *   w  — launch web browser       (Playwright CDP-enabled Chrome)
  *   d  — open dev menu            (POST /open-dev-menu)
  *   j  — open debugger            (POST /open-debugger)
  *   c  — clear screen
@@ -17,7 +18,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '../..')
@@ -25,6 +26,7 @@ const portIdx = process.argv.indexOf('--port')
 const PORT = portIdx !== -1 ? process.argv[portIdx + 1] : '7500'
 const LOGFILE = path.join(ROOT, '.agent/metro.log')
 const PIDFILE = path.join(ROOT, '.agent/metro.pid')
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function metroPost(endpoint) {
@@ -36,11 +38,36 @@ function metroPost(endpoint) {
     }
 }
 
+const WEB_BROWSER = path.join(ROOT, 'scripts/agentic/web-browser.mjs')
+const CDP_BRIDGE = path.join(ROOT, 'scripts/agentic/cdp-bridge.mjs')
+
+function cdpReload(device) {
+    try {
+        execSync(`WATCHER_PORT=${PORT} node ${CDP_BRIDGE} --device ${device} reload`, { stdio: 'pipe' })
+        return true
+    } catch {
+        return false
+    }
+}
+
+function launchWebBrowser() {
+    try { execSync(`node ${WEB_BROWSER} close`, { stdio: 'pipe' }) } catch { /* none running */ }
+    const child = spawn('node', [WEB_BROWSER, 'launch'], {
+        stdio: 'inherit',
+        detached: false,
+        env: { ...process.env, WATCHER_PORT: PORT },
+    })
+    child.on('error', (err) => {
+        process.stdout.write(`\x1b[31m✗ Failed to launch browser: ${err.message}\x1b[0m\n`)
+    })
+}
+
 function showHelp() {
     process.stdout.write([
         '',
         '\x1b[1mKeyboard shortcuts:\x1b[0m',
         '  r  Reload JS bundle',
+        '  w  Launch web browser (CDP-enabled)',
         '  d  Open developer menu',
         '  j  Open JS debugger',
         '  c  Clear screen',
@@ -109,17 +136,20 @@ process.stdin.on('data', (key) => {
 
     switch (key.toLowerCase()) {
         case 'r': {
-            process.stdout.write('\x1b[32m› Reloading...\x1b[0m\n')
-            try {
-                execSync(
-                    `WATCHER_PORT=${PORT} bash ${path.join(__dirname, 'device-cmd.sh')} reload`,
-                    { stdio: 'pipe' }
-                )
-            } catch {
-                metroPost('/reload')
+            const nativeOk = metroPost('/reload')
+            const webOk = cdpReload('web')
+            if (nativeOk || webOk) {
+                const targets = [nativeOk && 'native', webOk && 'web'].filter(Boolean).join(', ')
+                process.stdout.write(`\x1b[32m› Reloading (${targets})...\x1b[0m\n`)
+            } else {
+                process.stdout.write('\x1b[31m✗ Reload failed — is Metro running?\x1b[0m\n')
             }
             break
         }
+        case 'w':
+            process.stdout.write('\x1b[32m› Launching web browser (CDP-enabled)...\x1b[0m\n')
+            launchWebBrowser()
+            break
         case 'd': {
             const ok = metroPost('/open-dev-menu')
             process.stdout.write(ok

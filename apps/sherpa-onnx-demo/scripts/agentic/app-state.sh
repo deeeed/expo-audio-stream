@@ -53,6 +53,9 @@ case "$COMMAND" in
   press)
     "${BRIDGE_CMD[@]}" press-test-id "${EXTRA_ARGS[@]}"
     ;;
+  scroll)
+    "${BRIDGE_CMD[@]}" scroll-view "${EXTRA_ARGS[@]}"
+    ;;
   *)
     echo "Usage: app-state.sh [--device <name>] <command> [args...]"
     echo ""
@@ -63,6 +66,8 @@ case "$COMMAND" in
     echo "  can-go-back                    Check if navigation can go back"
     echo "  go-back                        Navigate back"
     echo "  press <testId>                 Press a component by testID"
+    echo "  scroll [--test-id <id>] [--offset <n>] [--no-animated]"
+    echo "                                 Scroll a ScrollView/FlatList by testID or globally"
     echo ""
     echo "Options:"
     echo "  --device <name>        Target a specific device (substring match)"
