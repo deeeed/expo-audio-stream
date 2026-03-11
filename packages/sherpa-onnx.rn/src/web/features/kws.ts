@@ -2,8 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { KwsSpotter, KwsStream } from '../wasmTypes';
 import type { KWSModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function KwsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

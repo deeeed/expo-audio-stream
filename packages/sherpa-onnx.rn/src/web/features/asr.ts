@@ -1,22 +1,16 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import { decodeWav } from '../audioUtils';
-import type {
-  OfflineRecognizer,
-  OnlineRecognizer,
-  OnlineStream,
-} from '../wasmTypes';
+import type { OnlineRecognizer, OnlineStream } from '../wasmTypes';
 import type {
   AsrInitResult,
   AsrModelConfig,
   AsrRecognizeResult,
 } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function AsrMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private asrRecognizer: OfflineRecognizer | null = null;
     private asrOnlineRecognizer: OnlineRecognizer | null = null;
     private asrOnlineStream: OnlineStream | null = null;
 
@@ -154,14 +148,6 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
           console.error('[ASR] releaseAsr recognizer failed:', _);
         }
         this.asrOnlineRecognizer = null;
-      }
-      if (this.asrRecognizer) {
-        try {
-          this.asrRecognizer.free();
-        } catch (_) {
-          console.error('[ASR] releaseAsr offline recognizer failed:', _);
-        }
-        this.asrRecognizer = null;
       }
       return { released: true };
     }

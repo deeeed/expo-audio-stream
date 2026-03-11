@@ -1,7 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { OnlinePunctuationInstance } from '../wasmTypes';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

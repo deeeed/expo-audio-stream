@@ -2,8 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeakerDiarizationInstance } from '../wasmTypes';
 import type { DiarizationFileInput } from '../../types/api';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

@@ -8,8 +8,7 @@ import type {
   TestOnnxIntegrationResult,
   ValidateResult,
 } from '../../types/interfaces';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function DiagnosticsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

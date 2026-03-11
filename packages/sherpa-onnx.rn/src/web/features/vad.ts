@@ -2,8 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { VoiceActivityDetector } from '../wasmTypes';
 import type { VadModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function VadMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

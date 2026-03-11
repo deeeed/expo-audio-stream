@@ -22,8 +22,7 @@ import type {
   IdentifySpeakerInput,
   VerifySpeakerInput,
 } from '../../types/api';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {

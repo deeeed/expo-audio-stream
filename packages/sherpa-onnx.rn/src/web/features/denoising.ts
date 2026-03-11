@@ -1,8 +1,7 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import { samplesToWav, fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeechDenoiserInstance } from '../wasmTypes';
-
-type Constructor<T = {}> = new (...args: any[]) => T;
+import type { Constructor } from './mixinUtils';
 
 export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
