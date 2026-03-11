@@ -27,10 +27,29 @@ export function samplesToWav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
+// Module-level references so stopAudioPlayback() can interrupt active playback.
+let _activeSource: AudioBufferSourceNode | null = null;
+let _activeContext: AudioContext | null = null;
+
+/** Stop any audio currently playing via playAudioSamples(). No-op if nothing is playing. */
+export function stopAudioPlayback(): void {
+  if (_activeSource) {
+    try { _activeSource.stop(); } catch (_) {}
+    _activeSource = null;
+  }
+  if (_activeContext) {
+    _activeContext.close().catch(() => {});
+    _activeContext = null;
+  }
+}
+
 export async function playAudioSamples(
   samples: Float32Array,
   sampleRate: number
 ): Promise<void> {
+  // Stop any previous playback before starting new one.
+  stopAudioPlayback();
+
   type AudioContextType = typeof window.AudioContext;
   const AudioContext: AudioContextType =
     window.AudioContext ||
@@ -50,8 +69,15 @@ export async function playAudioSamples(
   source.connect(audioContext.destination);
   source.start();
 
+  _activeSource = source;
+  _activeContext = audioContext;
+
   return new Promise((resolve) => {
-    source.onended = () => resolve();
+    source.onended = () => {
+      _activeSource = null;
+      _activeContext = null;
+      resolve();
+    };
   });
 }
 

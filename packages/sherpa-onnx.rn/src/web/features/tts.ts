@@ -1,5 +1,5 @@
 import { loadCombinedWasm } from '../wasmLoader';
-import { samplesToWav, playAudioSamples } from '../audioUtils';
+import { samplesToWav, playAudioSamples, stopAudioPlayback } from '../audioUtils';
 import type { OfflineTtsInstance } from '../wasmTypes';
 import type {
   TtsGenerateConfig,
@@ -89,6 +89,7 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
     }
 
     async stopTts(): Promise<{ stopped: boolean; message?: string }> {
+      stopAudioPlayback();
       return { stopped: true };
     }
 
