@@ -78,6 +78,7 @@ const baseRecordingConfig: RecordingConfig = {
             bitrate: DEFAULT_BITRATE,
         },
     },
+    streamFormat: 'float32',
     autoResumeAfterInterruption: true,
     deviceDisconnectionBehavior: 'fallback',
     ios: {
@@ -319,7 +320,7 @@ export default function RecordScreen() {
                         addAudioData(data)
                     }
                 } else if (data instanceof Float32Array) {
-                    // For web platforms - update visualization buffer
+                    // Float32Array from web or native with streamFormat:'float32'
                     if (webAudioChunks.current) {
                         const newLength = Math.min(
                             MAX_AUDIO_BUFFER_LENGTH, 
