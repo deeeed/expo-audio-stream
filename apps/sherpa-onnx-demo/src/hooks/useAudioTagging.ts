@@ -70,8 +70,6 @@ export function useAudioTagging() {
     const [debugMode, setDebugMode] = useState(true)
     const [provider, setProvider] = useState<'cpu' | 'gpu'>('cpu')
 
-    const lastAutoInitRef = useRef<string | null>(null)
-    const reinitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const initedConfigRef = useRef<{
         modelId: string | null
         topK: number
@@ -102,16 +100,7 @@ export function useAudioTagging() {
         }
     }, [downloadedModels, selectedModelId])
 
-    // Auto-init when model is selected and downloaded
-    useEffect(() => {
-        if (!selectedModelId || !isDownloaded || initialized || loading) return
-        if (lastAutoInitRef.current === selectedModelId) return
-        lastAutoInitRef.current = selectedModelId
-        handleInitAudioTagging()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedModelId, isDownloaded, initialized, loading])
-
-    // Detect config drift and auto-reinit after a debounce
+    // Detect config drift — show a "needs reinit" indicator without auto-triggering
     useEffect(() => {
         if (!initialized || !initedConfigRef.current) return
         const c = initedConfigRef.current
@@ -122,18 +111,6 @@ export function useAudioTagging() {
             c.debugMode !== debugMode ||
             c.provider !== provider
         setNeedsReinit(changed)
-        if (changed) {
-            if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current)
-            reinitTimerRef.current = setTimeout(() => {
-                handleInitAudioTagging()
-            }, 1500)
-        } else {
-            if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current)
-        }
-        return () => {
-            if (reinitTimerRef.current) clearTimeout(reinitTimerRef.current)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialized, selectedModelId, topK, numThreads, debugMode, provider])
 
     // Load audio assets on mount
@@ -180,7 +157,6 @@ export function useAudioTagging() {
                 setAudioTaggingResults(null)
             }
             setNeedsReinit(false)
-            lastAutoInitRef.current = null
             setSelectedModelId(modelId)
         },
         [initialized, selectedModelId]

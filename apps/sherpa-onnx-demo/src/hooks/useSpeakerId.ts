@@ -7,7 +7,7 @@ import {
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert } from 'react-native'
 import {
     useSpeakerIdModelWithConfig,
@@ -60,8 +60,6 @@ export function useSpeakerId() {
         isLoading: boolean
     }>({ isLoading: false })
 
-    const lastAutoInitRef = useRef<string | null>(null)
-
     const { downloadedModels } = useSpeakerIdModels()
     const { speakerIdConfig, localPath, isDownloaded } =
         useSpeakerIdModelWithConfig({ modelId: selectedModelId })
@@ -72,15 +70,6 @@ export function useSpeakerId() {
             setSelectedModelId(downloadedModels[0].metadata.id)
         }
     }, [downloadedModels, selectedModelId])
-
-    // Auto-init when model is selected and downloaded
-    useEffect(() => {
-        if (!selectedModelId || !isDownloaded || initialized || loading) return
-        if (lastAutoInitRef.current === selectedModelId) return
-        lastAutoInitRef.current = selectedModelId
-        handleInitSpeakerId()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedModelId, isDownloaded, initialized, loading])
 
     // Load audio assets on mount
     useEffect(() => {
@@ -136,7 +125,6 @@ export function useSpeakerId() {
     const handleModelSelect = async (modelId: string) => {
         if (modelId === selectedModelId) return
         if (initialized) await handleReleaseSpeakerId()
-        lastAutoInitRef.current = null
         setSelectedModelId(modelId)
     }
 
