@@ -3,7 +3,7 @@
  * start-interactive.mjs
  *
  * Tails .agent/metro.log and proxies keypresses to Metro/Expo:
- *   r  — reload JS bundle          (native: POST /reload, web: CDP Page.reload)
+ *   r  — reload JS bundle          (POST /reload + CDP reload)
  *   w  — launch web browser       (Playwright CDP-enabled Chrome)
  *   d  — open dev menu            (POST /open-dev-menu)
  *   j  — open debugger            (POST /open-debugger)
@@ -43,7 +43,7 @@ const CDP_BRIDGE = path.join(ROOT, 'scripts/agentic/cdp-bridge.mjs')
 
 function cdpReload(device) {
     try {
-        execSync(`node ${CDP_BRIDGE} --device ${device} reload`, { stdio: 'pipe' })
+        execSync(`WATCHER_PORT=${PORT} node ${CDP_BRIDGE} --device ${device} reload`, { stdio: 'pipe' })
         return true
     } catch {
         return false
@@ -52,7 +52,11 @@ function cdpReload(device) {
 
 function launchWebBrowser() {
     try { execSync(`node ${WEB_BROWSER} close`, { stdio: 'pipe' }) } catch { /* none running */ }
-    const child = spawn('node', [WEB_BROWSER, 'launch'], { stdio: 'inherit', detached: false })
+    const child = spawn('node', [WEB_BROWSER, 'launch'], {
+        stdio: 'inherit',
+        detached: false,
+        env: { ...process.env, WATCHER_PORT: PORT },
+    })
     child.on('error', (err) => {
         process.stdout.write(`\x1b[31m✗ Failed to launch browser: ${err.message}\x1b[0m\n`)
     })
@@ -63,7 +67,7 @@ function showHelp() {
         '',
         '\x1b[1mKeyboard shortcuts:\x1b[0m',
         '  r  Reload JS bundle',
-        '  w  Open web browser',
+        '  w  Launch web browser (CDP-enabled)',
         '  d  Open developer menu',
         '  j  Open JS debugger',
         '  c  Clear screen',

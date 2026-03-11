@@ -75,6 +75,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/plugin-proposal-decorators": "^7.25.9",
+    "@playwright/test": "^1.58.2",
     "@types/jest": "^29.5.12",
     "@types/react": "~19.2.10",
     "@types/react-test-renderer": "^18.3.0",

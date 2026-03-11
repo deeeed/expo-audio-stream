@@ -39,8 +39,8 @@ export interface AudioStreamStatus {
 }
 
 export interface AudioDataEvent {
-    /** Audio data as base64 string (native) or Float32Array/Int16Array (web) */
-    data: string | Float32Array | Int16Array
+    /** Audio data as base64 string (native) or Float32Array (web) */
+    data: string | Float32Array
     /** Current position in the audio stream in bytes */
     position: number
     /** URI to the file being recorded */

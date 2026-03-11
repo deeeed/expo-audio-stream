@@ -6456,7 +6456,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@playwright/test@npm:^1.50.0":
+"@playwright/test@npm:^1.50.0, @playwright/test@npm:^1.58.2":
   version: 1.58.2
   resolution: "@playwright/test@npm:1.58.2"
   dependencies:
@@ -8896,6 +8896,7 @@ __metadata:
     "@expo/vector-icons": "npm:^15.0.3"
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@gorhom/portal": "npm:^1.0.14"
+    "@playwright/test": "npm:^1.58.2"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/slider": "npm:5.1.2"
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
