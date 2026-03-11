@@ -310,7 +310,10 @@ export function useAsr() {
                 onAudioStream: async (event: AudioDataEvent) => {
                     if (!streamCreatedRef.current) return
                     try {
-                        if (!(event.data instanceof Float32Array)) return
+                        if (!(event.data instanceof Float32Array)) {
+                            console.warn('[ASR] Expected Float32Array but got', typeof event.data)
+                            return
+                        }
                         const samples = Array.from(event.data)
                         if (samples.length === 0) return
                         liveAsr.feedAudio(samples, DEFAULT_LIVE_SAMPLE_RATE)

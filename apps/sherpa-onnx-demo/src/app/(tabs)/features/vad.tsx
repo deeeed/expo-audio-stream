@@ -292,7 +292,10 @@ export default function VadScreen() {
                 onAudioStream: async (event: AudioDataEvent) => {
                     if (!recordingRef.current) return
                     try {
-                        if (!(event.data instanceof Float32Array)) return
+                        if (!(event.data instanceof Float32Array)) {
+                            console.warn('[VAD] Expected Float32Array but got', typeof event.data)
+                            return
+                        }
                         const samples = Array.from(event.data)
                         if (samples.length === 0) return
                         const result = await VAD.acceptWaveform(
