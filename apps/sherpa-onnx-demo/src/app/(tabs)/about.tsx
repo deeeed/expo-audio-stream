@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, useTheme } from '@siteed/design-system';
+import { Text, useTheme , ScreenWrapper } from '@siteed/design-system';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Linking, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { ScreenWrapper } from '@siteed/design-system';
 import Constants from 'expo-constants';
 
 const LINKS = [

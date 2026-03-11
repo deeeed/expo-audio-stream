@@ -80,7 +80,7 @@ export function AudioPlayButton({ uri, label, disabled, style, compact = false }
       playerRef.current = null;
     }
     releaseGlobalPlayer(stop);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   useEffect(() => {
