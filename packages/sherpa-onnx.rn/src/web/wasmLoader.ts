@@ -173,13 +173,16 @@ export async function loadCombinedWasm(): Promise<void> {
     //    (which may also hook it — we preserve the chain).
     const readyPromise = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        pollCancelled = true;
         if (isSherpaOnnxReady()) resolve();
         else reject(new Error('Sherpa ONNX WASM loading timeout (180s)'));
       }, 180_000);
 
       // If Module.FS is already available the WASM already finished compiling
       // (e.g. cached, instantaneous — just poll to let feature modules load).
+      let pollCancelled = false;
       const pollReady = () => {
+        if (pollCancelled) return;
         if (isSherpaOnnxReady()) {
           clearTimeout(timeout);
           resolve();
@@ -207,6 +210,7 @@ export async function loadCombinedWasm(): Promise<void> {
       // Also accept the onSherpaOnnxReady callback fired by
       // sherpa-onnx-combined.js (for the case where it loaded first).
       window.onSherpaOnnxReady = (success: boolean) => {
+        pollCancelled = true;
         clearTimeout(timeout);
         if (success) resolve();
         else if (isSherpaOnnxReady())
