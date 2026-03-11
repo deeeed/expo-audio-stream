@@ -5,6 +5,7 @@ import {
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
 import { audioDataToSamples } from '../utils/audioDataUtils'
+import { resolveModelDir } from '../utils/fileUtils'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -133,35 +134,6 @@ export function useAsr() {
             setSelectedModelId(visibleModels[0].metadata.id)
         }
     }, [visibleModels, selectedModelId])
-
-    // Resolve the model directory (handles sherpa-onnx subdirectory layout)
-    const resolveModelDir = async (rawPath: string): Promise<string> => {
-        let cleanPath = rawPath.replace(/^file:\/\//, '')
-        try {
-            const dirContents = await FileSystem.readDirectoryAsync(rawPath)
-            const sherpaDir = dirContents.find((item) =>
-                item.includes('sherpa-onnx')
-            )
-            if (sherpaDir) {
-                const subPath = `${rawPath}/${sherpaDir}`
-                const subInfo = await FileSystem.getInfoAsync(subPath)
-                if (subInfo.exists && subInfo.isDirectory) {
-                    const subContents =
-                        await FileSystem.readDirectoryAsync(subPath)
-                    if (
-                        subContents.some(
-                            (f) => f.endsWith('.onnx') || f === 'tokens.txt'
-                        )
-                    ) {
-                        cleanPath = cleanPath + '/' + sherpaDir
-                    }
-                }
-            }
-        } catch (_) {
-            /* use original path */
-        }
-        return cleanPath
-    }
 
     const handleInitAsr = async (configOverride?: Partial<AsrModelConfig>) => {
         if (!selectedModelId) {

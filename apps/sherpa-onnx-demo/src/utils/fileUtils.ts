@@ -73,3 +73,29 @@ export async function fileExists(uri: string): Promise<boolean> {
   const info = await FileSystem.getInfoAsync(toNativeUri(uri));
   return info.exists;
 }
+
+/**
+ * Resolve the effective model directory path.
+ * Sherpa-onnx tarballs extract into a `sherpa-onnx-*` subdirectory — descend
+ * into it automatically when the ONNX files live there.
+ */
+export async function resolveModelDir(rawPath: string): Promise<string> {
+  let cleanPath = rawPath.replace(/^file:\/\//, '');
+  try {
+    const dirContents = await FileSystem.readDirectoryAsync(rawPath);
+    const sherpaDir = dirContents.find((item) => item.includes('sherpa-onnx'));
+    if (sherpaDir) {
+      const subPath = `${rawPath}/${sherpaDir}`;
+      const subInfo = await FileSystem.getInfoAsync(subPath);
+      if (subInfo.exists && subInfo.isDirectory) {
+        const subContents = await FileSystem.readDirectoryAsync(subPath);
+        if (subContents.some((f) => f.endsWith('.onnx') || f === 'tokens.txt')) {
+          cleanPath = cleanPath + '/' + sherpaDir;
+        }
+      }
+    }
+  } catch (_) {
+    /* use original path */
+  }
+  return cleanPath;
+}
