@@ -74,7 +74,7 @@ const bannerStyles = StyleSheet.create({
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
   const { modelsState } = useModelManagement();
   // Only show custom header for top-level tab screens (not when inside features stack)
   const isNestedFeature = segments.length > 2 && segments[1] === 'features';
