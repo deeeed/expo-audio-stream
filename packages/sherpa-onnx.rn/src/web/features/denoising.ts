@@ -1,0 +1,114 @@
+import { loadCombinedWasm } from '../wasmLoader';
+import { samplesToWav, fetchAndDecodeAudio } from '../audioUtils';
+import type { OfflineSpeechDenoiserInstance } from '../wasmTypes';
+
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private denoiser: OfflineSpeechDenoiserInstance | null = null;
+
+    async initDenoiser(config: any): Promise<{
+      success: boolean;
+      sampleRate: number;
+      error?: string;
+    }> {
+      try {
+        await loadCombinedWasm();
+
+        if (!window.SherpaOnnx.SpeechEnhancement) {
+          return {
+            success: false,
+            sampleRate: 0,
+            error: 'SpeechEnhancement module not loaded',
+          };
+        }
+
+        const debug = config?.debug ? 1 : 0;
+        const numThreads = 1; // WASM is single-threaded
+
+        console.log(`[Denoiser] Loading model (threads=${numThreads}, debug=${debug})...`);
+        const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel({
+          model: '/wasm/enhancement/gtcrn.onnx',
+          debug,
+        });
+
+        this.denoiser = window.SherpaOnnx.SpeechEnhancement.createDenoiser(
+          loadedModel,
+          { numThreads, debug }
+        );
+
+        console.log(
+          `[Denoiser] Initialized: sampleRate=${this.denoiser.sampleRate}`
+        );
+
+        return {
+          success: true,
+          sampleRate: this.denoiser.sampleRate,
+        };
+      } catch (error) {
+        console.error('[Denoiser] initDenoiser failed:', error);
+        return {
+          success: false,
+          sampleRate: 0,
+          error: (error as Error).message,
+        };
+      }
+    }
+
+    async denoiseFile(_filePath: string): Promise<{
+      success: boolean;
+      outputPath: string;
+      durationMs: number;
+      error?: string;
+    }> {
+      if (!this.denoiser) {
+        return {
+          success: false,
+          outputPath: '',
+          durationMs: 0,
+          error: 'Denoiser not initialized',
+        };
+      }
+      try {
+        const startMs = performance.now();
+
+        // On web, _filePath is a URL — fetch the audio and decode it
+        const { samples, sampleRate } = await fetchAndDecodeAudio(_filePath);
+
+        const result = this.denoiser.run(samples, sampleRate);
+        const durationMs = performance.now() - startMs;
+
+        // Create a downloadable WAV blob
+        const wav = samplesToWav(result.samples, result.sampleRate);
+        const outputPath = URL.createObjectURL(wav);
+
+        return {
+          success: true,
+          outputPath,
+          durationMs,
+        };
+      } catch (error) {
+        console.error('[Denoiser] denoiseFile failed:', error);
+        return {
+          success: false,
+          outputPath: '',
+          durationMs: 0,
+          error: (error as Error).message,
+        };
+      }
+    }
+
+    async releaseDenoiser(): Promise<{ released: boolean }> {
+      if (this.denoiser) {
+        try {
+          this.denoiser.free();
+        } catch (_e) {
+          // ignore
+        }
+        this.denoiser = null;
+      }
+      return { released: true };
+    }
+  };
+}

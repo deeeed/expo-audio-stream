@@ -1,0 +1,67 @@
+import { loadCombinedWasm } from '../wasmLoader';
+import type { OnlinePunctuationInstance } from '../wasmTypes';
+
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private punctuation: OnlinePunctuationInstance | null = null;
+
+    async initPunctuation(config: any): Promise<{
+      success: boolean;
+      error?: string;
+    }> {
+      try {
+        await loadCombinedWasm();
+
+        if (!window.SherpaOnnx.Punctuation) {
+          return { success: false, error: 'Punctuation module not loaded' };
+        }
+
+        const debug = config?.debug ? 1 : 0;
+        const numThreads = 1; // WASM is single-threaded
+
+        console.log(`[Punctuation] Loading model (threads=${numThreads}, debug=${debug})...`);
+        const loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
+          cnnBilstm: '/wasm/punctuation/model.onnx',
+          bpeVocab: '/wasm/punctuation/bpe.vocab',
+          debug,
+        });
+
+        this.punctuation = window.SherpaOnnx.Punctuation.createPunctuation(loadedModel, { numThreads, debug });
+        console.log('[Punctuation] Initialized successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('[Punctuation] initPunctuation failed:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+
+    async addPunctuation(_text: string): Promise<{
+      success: boolean;
+      text: string;
+      durationMs: number;
+      error?: string;
+    }> {
+      if (!this.punctuation) {
+        return { success: false, text: '', durationMs: 0, error: 'Punctuation not initialized' };
+      }
+      try {
+        const startMs = performance.now();
+        const result = this.punctuation.addPunct(_text);
+        const durationMs = performance.now() - startMs;
+        return { success: true, text: result, durationMs };
+      } catch (error) {
+        return { success: false, text: '', durationMs: 0, error: (error as Error).message };
+      }
+    }
+
+    async releasePunctuation(): Promise<{ released: boolean }> {
+      if (this.punctuation) {
+        try { this.punctuation.free(); } catch (_e) { /* ignore */ }
+        this.punctuation = null;
+      }
+      return { released: true };
+    }
+  };
+}

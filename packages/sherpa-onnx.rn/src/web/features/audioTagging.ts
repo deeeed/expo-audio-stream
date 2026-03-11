@@ -1,0 +1,110 @@
+import { loadCombinedWasm } from '../wasmLoader';
+import { fetchAndDecodeAudio } from '../audioUtils';
+import type { AudioTaggingInstance } from '../wasmTypes';
+import type {
+  AudioTaggingInitResult,
+  AudioTaggingModelConfig,
+  AudioTaggingResult,
+} from '../../types/interfaces';
+
+type Constructor<T = {}> = new (...args: any[]) => T;
+
+export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
+  return class extends Base {
+    private audioTagger: AudioTaggingInstance | null = null;
+
+    async initAudioTagging(
+      config: AudioTaggingModelConfig
+    ): Promise<AudioTaggingInitResult> {
+      try {
+        await loadCombinedWasm();
+
+        if (!window.SherpaOnnx.AudioTagging) {
+          return { success: false, error: 'AudioTagging module not loaded' };
+        }
+
+        const debug = config.debug ? 1 : 0;
+        const numThreads = 1; // WASM is single-threaded
+
+        console.log(`[AudioTagging] Loading model (threads=${numThreads}, debug=${debug})...`);
+        const loadedModel = await window.SherpaOnnx.AudioTagging.loadModel({
+          ced: '/wasm/audio-tagging/model.onnx',
+          labels: '/wasm/audio-tagging/labels.txt',
+          debug,
+        });
+
+        this.audioTagger = window.SherpaOnnx.AudioTagging.createAudioTagging(
+          loadedModel,
+          { topK: config.topK || 5, numThreads, debug }
+        );
+
+        console.log('[AudioTagging] Initialized successfully');
+        return { success: true };
+      } catch (error) {
+        console.error('[AudioTagging] initAudioTagging failed:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+
+    async processAndComputeAudioTagging(
+      _filePath: string
+    ): Promise<AudioTaggingResult> {
+      if (!this.audioTagger) {
+        return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
+      }
+      try {
+        const startMs = performance.now();
+        const { samples, sampleRate } = await fetchAndDecodeAudio(_filePath);
+
+        const stream = this.audioTagger.createStream();
+        this.audioTagger.acceptWaveform(stream, sampleRate, samples);
+        const events = this.audioTagger.compute(stream, -1);
+        const durationMs = performance.now() - startMs;
+
+        return {
+          success: true,
+          durationMs,
+          events: events.map((e) => ({ name: e.name, prob: e.prob, index: e.index })),
+        };
+      } catch (error) {
+        console.error('[AudioTagging] processAndComputeAudioTagging failed:', error);
+        return { success: false, durationMs: 0, events: [], error: (error as Error).message };
+      }
+    }
+
+    async processAndComputeAudioSamples(
+      _sampleRate: number,
+      _samples: number[]
+    ): Promise<AudioTaggingResult> {
+      if (!this.audioTagger) {
+        return { success: false, durationMs: 0, events: [], error: 'Audio tagging not initialized' };
+      }
+      try {
+        const startMs = performance.now();
+        const samples = new Float32Array(_samples);
+
+        const stream = this.audioTagger.createStream();
+        this.audioTagger.acceptWaveform(stream, _sampleRate, samples);
+        const events = this.audioTagger.compute(stream, -1);
+        const durationMs = performance.now() - startMs;
+
+        return {
+          success: true,
+          durationMs,
+          events: events.map((e) => ({ name: e.name, prob: e.prob, index: e.index })),
+        };
+      } catch (error) {
+        console.error('[AudioTagging] processAndComputeAudioSamples failed:', error);
+        return { success: false, durationMs: 0, events: [], error: (error as Error).message };
+      }
+    }
+
+    async releaseAudioTagging(): Promise<{ released: boolean }> {
+      if (this.audioTagger) {
+        try { this.audioTagger.free(); } catch (_e) { /* ignore */ }
+        this.audioTagger = null;
+      }
+      return { released: true };
+    }
+  };
+}

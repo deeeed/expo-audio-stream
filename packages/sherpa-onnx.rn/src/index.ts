@@ -63,4 +63,4 @@ export * from './types/api';
 export * from './types/interfaces';
 
 // Export web utilities
-export { loadWasmModule } from './WebUtils';
+export { loadWasmModule } from './web/wasmLoader';
