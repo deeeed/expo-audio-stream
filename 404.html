@@ -1,0 +1,39 @@
+<!-- 404 pages for github pages to redirect correctly -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>404 - Not Found</title>
+    <script type="text/javascript">
+        // Extract the pathname from the URL
+        var pathname = window.location.pathname;
+
+        // Don't redirect static HTML files — let them 404 naturally
+        if (pathname.endsWith('.html') && pathname !== '/index.html') {
+            // This is a direct .html file request that doesn't exist; don't redirect
+        } else {
+            // Redirect logic based on pathname (SPA client-side routing)
+            let playgroundPath = '/expo-audio-stream/playground/';
+            let docsPath = '/expo-audio-stream/docs/';
+            let sherpaVoicePath = '/expo-audio-stream/sherpa-voice/';
+            if (pathname.startsWith(playgroundPath)) {
+                window.location.href = playgroundPath;
+            } else if (pathname.startsWith(docsPath)) {
+                window.location.href = docsPath;
+            } else if (pathname.startsWith(sherpaVoicePath)) {
+                window.location.href = sherpaVoicePath;
+            } else {
+                // Default redirect (e.g., to the home page)
+                window.location.href = '/expo-audio-stream/';
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <h1>404 - Not Found</h1>
+    <p>Redirecting...</p>
+</body>
+
+</html>
