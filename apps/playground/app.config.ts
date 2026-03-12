@@ -150,7 +150,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             checkAutomatically: "ON_LOAD",
             useEmbeddedUpdate: true
         },
-        runtimeVersion: '1.10.0',
+        runtimeVersion: '1.10.1',
         owner: 'deeeed',
         plugins: [
             [
