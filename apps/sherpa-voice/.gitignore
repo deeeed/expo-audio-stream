@@ -50,3 +50,6 @@ public/wasm/
 
 # agentic scripts runtime
 .agent/
+
+# Detox artifacts
+artifacts/

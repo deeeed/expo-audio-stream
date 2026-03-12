@@ -23,21 +23,13 @@ describe('App Screenshots', () => {
 
     tabs.forEach(tab => {
       it(`should capture ${tab.name} tab screenshot`, async () => {
-        // Navigate to the tab - use index-based selection for tabs
-        // This avoids the ambiguity with multiple "Record" text elements
-        if (tab.name === 'Record') {
-          // For Record tab, we're already there in the first test
-          // or we can use a more specific approach
-          if (device.getPlatform() === 'android') {
-            // For Android, try to find the tab by its position in the tab bar
-            await element(by.text(tab.name)).atIndex(0).tap();
-          } else {
-            // For iOS
-            await element(by.label(tab.name)).atIndex(0).tap();
-          }
+        // Navigate to the tab
+        // iOS: use by.label() to target tab bar items (by.text matches content too)
+        // Android: by.text() works fine
+        if (device.getPlatform() === 'ios') {
+          await element(by.label(tab.name)).atIndex(0).tap();
         } else {
-          // For other tabs, the text selector works fine
-          await element(by.text(tab.name)).tap();
+          await element(by.text(tab.name)).atIndex(0).tap();
         }
         
         // Wait for the tab content to load

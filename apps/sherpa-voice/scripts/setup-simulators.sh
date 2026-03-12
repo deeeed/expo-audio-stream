@@ -59,8 +59,8 @@ setup_macos_simulators() {
     # for better compatibility with different bash versions
     simulator_names=("iPhone 16 Pro Max" "iPad Pro 13-inch (M4)")
     simulator_types=(
-        "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max" 
-        "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4"
+        "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max"
+        "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB"
     )
     
     # Fallback device types in case the latest aren't available
@@ -272,7 +272,7 @@ setup_android_emulators() {
             CONFIG_FILE="$HOME/.android/avd/${EMULATOR_NAME}.avd/config.ini"
             if [ -f "$CONFIG_FILE" ]; then
                 print_info "Optimizing emulator configuration..."
-                # 16GB data partition — large APKs need room for dex optimization
+                # 16GB data partition — sherpa-onnx APKs are 150MB+, need room for dex optimization
                 sed -i '' 's/^disk.dataPartition.size=.*/disk.dataPartition.size=16G/' "$CONFIG_FILE" 2>/dev/null \
                     || echo "disk.dataPartition.size=16G" >> "$CONFIG_FILE"
                 echo "hw.ramSize=4096" >> "$CONFIG_FILE"

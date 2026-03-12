@@ -1,3 +1,5 @@
+const IS_PRODUCTION = process.env.APP_VARIANT === 'production';
+const APP_NAME = IS_PRODUCTION ? 'SherpaVoice' : 'SherpaVoiceDev';
 const ANDROID_AVD = process.env.ANDROID_AVD || 'medium';
 
 /** @type {Detox.DetoxConfig} */
@@ -19,13 +21,13 @@ module.exports = {
   apps: {
     'ios.debug': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/AudioDevPlayground.app',
-      build: 'xcodebuild -workspace ios/AudioDevPlayground.xcworkspace -scheme AudioDevPlayground -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build'
+      binaryPath: `ios/build/Build/Products/Debug-iphonesimulator/${APP_NAME}.app`,
+      build: `xcodebuild -workspace ios/${APP_NAME}.xcworkspace -scheme ${APP_NAME} -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build`
     },
     'ios.release': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/AudioPlayground.app',
-      build: 'xcodebuild -workspace ios/AudioPlayground.xcworkspace -scheme AudioPlayground -configuration Release -sdk iphonesimulator -derivedDataPath ios/build'
+      binaryPath: `ios/build/Build/Products/Release-iphonesimulator/${APP_NAME}.app`,
+      build: `xcodebuild -workspace ios/${APP_NAME}.xcworkspace -scheme ${APP_NAME} -configuration Release -sdk iphonesimulator -derivedDataPath ios/build`
     },
     'android.debug': {
       type: 'android.apk',
@@ -33,7 +35,7 @@ module.exports = {
       testBinaryPath: 'android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk',
       build: 'cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug',
       reversePorts: [
-        7365, 7366
+        7500, 7501
       ]
     },
     'android.release': {
@@ -42,7 +44,7 @@ module.exports = {
       testBinaryPath: 'android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk',
       build: 'cd android && ./gradlew assembleRelease assembleAndroidTest -DtestBuildType=release',
       reversePorts: [
-        7365, 7366
+        7500, 7501
       ]
     }
   },
@@ -50,7 +52,7 @@ module.exports = {
     simulator: {
       type: 'ios.simulator',
       device: {
-        name: 'AudioPlayground-Dev'
+        name: 'SherpaVoice-Dev'
       }
     },
     ipadPro: {
