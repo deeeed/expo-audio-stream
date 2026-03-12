@@ -71,7 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         slug: "sherpa-voice",
         version: packageVersion,
         orientation: "portrait",
-        icon: "./assets/icon.png",
+        icon: IS_PRODUCTION ? "./assets/icon.png" : "./assets/icon-dev.png",
         userInterfaceStyle: "light",
         scheme: "sherpa-voice",
         splash: {
@@ -93,7 +93,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
         android: {
             adaptiveIcon: {
-                foregroundImage: "./assets/adaptive-icon.png",
+                foregroundImage: IS_PRODUCTION ? "./assets/adaptive-icon.png" : "./assets/adaptive-icon-dev.png",
                 backgroundColor: IS_PRODUCTION ? '#1a73e8' : '#ffffff',
             },
             package: APP_IDENTIFIER,
@@ -111,6 +111,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                     ? '/expo-audio-stream/sherpa-voice/'
                     : '',
         },
+        runtimeVersion: '1.0.0',
         ...(validatedEnv.EAS_PROJECT_ID ? {
             updates: {
                 url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,
@@ -118,7 +119,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                 checkAutomatically: "ON_LOAD",
                 useEmbeddedUpdate: true,
             },
-            runtimeVersion: '1.0.0',
         } : {}),
         owner: 'deeeed',
         plugins: [
@@ -131,6 +131,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                     "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
                 }
             ],
+            ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ? ["10.0.2.2", "localhost"] : "*" }] as const,
             [
                 "expo-build-properties",
                 {
@@ -142,7 +143,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         "extraMavenRepos": [],
                         "useLegacyPackaging": false,
                         "gradleProperties": {
-                            "org.gradle.jvmargs": "-Xmx2048m",
+                            "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
                             "reactNativeDevServerPort": "7500"
                         }
                     }
