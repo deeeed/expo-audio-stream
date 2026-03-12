@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the model management strategy for integration testing the sherpa-onnx.rn React Native package. The strategy is based on analysis of the sherpa-onnx-demo app's sophisticated model management system.
+This document outlines the model management strategy for integration testing the sherpa-onnx.rn React Native package. The strategy is based on analysis of the sherpa-voice app's sophisticated model management system.
 
 ## Model Categories for Testing
 
@@ -113,7 +113,7 @@ For automated testing:
 
 ### Model Storage Locations
 
-Following the sherpa-onnx-demo pattern:
+Following the sherpa-voice pattern:
 
 ```
 Models Directory Structure:
@@ -147,7 +147,7 @@ Models Directory Structure:
 
 ### Model Configuration Format
 
-Based on sherpa-onnx-demo model registry:
+Based on sherpa-voice model registry:
 
 ```kotlin
 val modelConfig = mapOf(
@@ -174,7 +174,7 @@ val modelConfig = mapOf(
 1. **Scalable Testing**: Start with lightweight, progress to comprehensive
 2. **CI-Friendly**: Fast tests that don't require large downloads
 3. **Realistic Validation**: Tests actual model configurations and workflows
-4. **Production-Ready**: Based on proven sherpa-onnx-demo architecture
+4. **Production-Ready**: Based on proven sherpa-voice architecture
 5. **Cross-Platform**: Consistent approach across Android, iOS, and Web
 6. **Maintainable**: Clear separation between simulation and real testing
 

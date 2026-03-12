@@ -1,0 +1,33 @@
+diff --git a/android/detox/src/full/java/com/wix/detox/reactnative/idlingresources/factory/FabricDetoxIdlingResourceFactoryStrategy.kt b/android/detox/src/full/java/com/wix/detox/reactnative/idlingresources/factory/FabricDetoxIdlingResourceFactoryStrategy.kt
+index 379410dbe5e670b80e3c519912191a99a5b87508..a96170fc780ca0b7135152def6838c5603f405ab 100644
+--- a/android/detox/src/full/java/com/wix/detox/reactnative/idlingresources/factory/FabricDetoxIdlingResourceFactoryStrategy.kt
++++ b/android/detox/src/full/java/com/wix/detox/reactnative/idlingresources/factory/FabricDetoxIdlingResourceFactoryStrategy.kt
+@@ -1,5 +1,6 @@
+ package com.wix.detox.reactnative.idlingresources.factory
+ 
++import android.util.Log
+ import com.facebook.react.ReactApplication
+ import com.wix.detox.reactnative.getCurrentReactContextSafe
+ import com.wix.detox.reactnative.idlingresources.DetoxIdlingResource
+@@ -18,14 +19,19 @@ class FabricDetoxIdlingResourceFactoryStrategy(private val reactApplication: Rea
+         withContext(Dispatchers.Main) {
+             val reactContext = reactApplication.getCurrentReactContextSafe()
+ 
+-            val result = mutableMapOf(
++            val result = mutableMapOf<IdlingResourcesName, DetoxIdlingResource>(
+                 IdlingResourcesName.UI to FabricUIManagerIdlingResources(reactContext),
+                 IdlingResourcesName.Animations to AnimatedModuleIdlingResource(reactContext),
+                 IdlingResourcesName.Timers to FabricTimersIdlingResource(reactContext),
+-                IdlingResourcesName.Network to NetworkIdlingResource(reactContext),
+                 IdlingResourcesName.AsyncStorage to StabilizedIdlingResource(AsyncStorageIdlingResource(reactContext), 2)
+             )
+ 
++            try {
++                result[IdlingResourcesName.Network] = NetworkIdlingResource(reactContext)
++            } catch (e: Exception) {
++                Log.w("Detox", "NetworkIdlingResource unavailable (New Architecture), skipping network sync", e)
++            }
++
+             return@withContext result
+         }
+ }

@@ -123,7 +123,7 @@ class SystemInfoIntegrationTest: XCTestCase {
 
 ```bash
 # Run iOS integration tests
-cd apps/sherpa-onnx-demo/ios
+cd apps/sherpa-voice/ios
 ./run-integration-tests.sh
 
 # Or run via Xcode

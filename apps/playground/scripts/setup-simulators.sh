@@ -221,59 +221,61 @@ setup_android_emulators() {
     echo "$EXISTING_AVDS"
     
     # Define the emulator we want to use
-    # This must match the name in .detoxrc.js
+    # This must match the name in .detoxrc.js (ANDROID_AVD env var, default 'medium')
     EMULATOR_NAME="medium"
-    
+    # API 34 (Android 14) — API 36 has scoped storage issues with Detox screenshots
+    PREFERRED_API="34"
+    PREFERRED_DEVICE="pixel_8"
+
     # Check if our emulator already exists
     if echo "$EXISTING_AVDS" | grep -q "$EMULATOR_NAME"; then
         print_success "Android emulator '$EMULATOR_NAME' already exists"
     else
         print_info "Creating Android emulator '$EMULATOR_NAME'..."
-        
-        # Find the latest system image (prefer x86_64 for better performance)
-        SYSTEM_IMAGES=$("$AVD_MANAGER" list | grep -E "system-images.*android")
-        SYSTEM_IMAGE=""
-        
-        # First try for x86_64 Google APIs
-        if echo "$SYSTEM_IMAGES" | grep -q "system-images;android-33;google_apis;x86_64"; then
-            SYSTEM_IMAGE="system-images;android-33;google_apis;x86_64"
-        # Then try for x86 Google APIs
-        elif echo "$SYSTEM_IMAGES" | grep -q "system-images;android-33;google_apis;x86"; then
-            SYSTEM_IMAGE="system-images;android-33;google_apis;x86"
-        # Then try for any recent API level
-        elif echo "$SYSTEM_IMAGES" | grep -q "system-images;android-[0-9]*;google_apis;x86_64"; then
-            SYSTEM_IMAGE=$(echo "$SYSTEM_IMAGES" | grep -o "system-images;android-[0-9]*;google_apis;x86_64" | sort -r | head -1)
-        # Finally, try for any available image
-        elif echo "$SYSTEM_IMAGES" | grep -q "system-images;android-[0-9]*;[^;]*;x86_64"; then
-            SYSTEM_IMAGE=$(echo "$SYSTEM_IMAGES" | grep -o "system-images;android-[0-9]*;[^;]*;x86_64" | sort -r | head -1)
-        elif echo "$SYSTEM_IMAGES" | grep -q "system-images;android-[0-9]*;[^;]*;x86"; then
-            SYSTEM_IMAGE=$(echo "$SYSTEM_IMAGES" | grep -o "system-images;android-[0-9]*;[^;]*;x86" | sort -r | head -1)
+
+        # Detect architecture
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "arm64" || "$ARCH" == "aarch64" ]]; then
+            ABI="arm64-v8a"
+        else
+            ABI="x86_64"
         fi
-        
-        if [[ -z "$SYSTEM_IMAGE" ]]; then
-            print_error "No suitable Android system image found."
-            print_info "Please install a system image using Android Studio's SDK Manager."
-            return 1
+
+        SYSTEM_IMAGE="system-images;android-${PREFERRED_API};google_apis;${ABI}"
+
+        # Check if the preferred system image is installed
+        SDK_MANAGER="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
+        if [[ ! -f "$SDK_MANAGER" ]]; then
+            SDK_MANAGER="$ANDROID_SDK/tools/bin/sdkmanager"
         fi
-        
+
+        INSTALLED_IMAGES=$("$SDK_MANAGER" --list_installed 2>/dev/null | grep "system-images")
+
+        if ! echo "$INSTALLED_IMAGES" | grep -q "$SYSTEM_IMAGE"; then
+            print_info "Installing system image: $SYSTEM_IMAGE"
+            yes | "$SDK_MANAGER" "$SYSTEM_IMAGE" 2>/dev/null
+        fi
+
         print_info "Using system image: $SYSTEM_IMAGE"
-        
+
         # Create the AVD
-        "$AVD_MANAGER" create avd \
+        echo "no" | "$AVD_MANAGER" create avd \
             --name "$EMULATOR_NAME" \
             --package "$SYSTEM_IMAGE" \
-            --device "pixel_6" \
+            --device "$PREFERRED_DEVICE" \
             --force
-            
+
         if [ $? -eq 0 ]; then
             print_success "Created Android emulator: $EMULATOR_NAME"
-            
-            # Update config to make the emulator faster
+
+            # Update config for performance and adequate storage
             CONFIG_FILE="$HOME/.android/avd/${EMULATOR_NAME}.avd/config.ini"
             if [ -f "$CONFIG_FILE" ]; then
-                print_info "Optimizing emulator performance..."
-                echo "hw.ramSize=2048" >> "$CONFIG_FILE"
-                echo "disk.dataPartition.size=6000M" >> "$CONFIG_FILE"
+                print_info "Optimizing emulator configuration..."
+                # 16GB data partition — large APKs need room for dex optimization
+                sed -i '' 's/^disk.dataPartition.size=.*/disk.dataPartition.size=16G/' "$CONFIG_FILE" 2>/dev/null \
+                    || echo "disk.dataPartition.size=16G" >> "$CONFIG_FILE"
+                echo "hw.ramSize=4096" >> "$CONFIG_FILE"
                 echo "hw.gpu.enabled=yes" >> "$CONFIG_FILE"
                 echo "hw.gpu.mode=host" >> "$CONFIG_FILE"
                 echo "hw.keyboard=yes" >> "$CONFIG_FILE"

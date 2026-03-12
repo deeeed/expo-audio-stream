@@ -62,7 +62,7 @@ Without this fix, `SherpaOnnxCreateOnlinePunctuation` calls `abort()` in any WAS
 
 ## 3. No other upstream code changes needed
 
-The remaining work (JS wrappers, WebSherpaOnnxImpl, model registration) is all in our own code (`@siteed/sherpa-onnx.rn` and `apps/sherpa-onnx-demo`), not in upstream sherpa-onnx.
+The remaining work (JS wrappers, WebSherpaOnnxImpl, model registration) is all in our own code (`@siteed/sherpa-onnx.rn` and `apps/sherpa-voice`), not in upstream sherpa-onnx.
 
 ---
 

@@ -60,7 +60,7 @@
     "postinstall": "node ./install.js",
     "codegen": "npx @react-native-community/cli codegen",
     "regenerate-codegen": "npx react-native codegen && mkdir -p ios/generated/SherpaOnnxSpec && cp -R build/generated/ios/SherpaOnnxSpec/* ios/generated/SherpaOnnxSpec/",
-    "test:android": "cd ../../apps/sherpa-onnx-demo/android && ./gradlew :siteed_sherpa-onnx.rn:connectedAndroidTest",
+    "test:android": "cd ../../apps/sherpa-voice/android && ./gradlew :siteed_sherpa-onnx.rn:connectedAndroidTest",
     "test:ios:info": "./ios-testing-info.sh"
   },
   "keywords": [

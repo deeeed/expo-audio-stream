@@ -1,3 +1,5 @@
+const ANDROID_AVD = process.env.ANDROID_AVD || 'medium';
+
 /** @type {Detox.DetoxConfig} */
 module.exports = {
   testRunner: {
@@ -48,7 +50,7 @@ module.exports = {
     simulator: {
       type: 'ios.simulator',
       device: {
-        type: 'iPhone 16 Pro Max'
+        name: 'AudioPlayground-Dev'
       }
     },
     ipadPro: {
@@ -66,7 +68,7 @@ module.exports = {
     emulator: {
       type: 'android.emulator',
       device: {
-        avdName: 'medium'
+        avdName: ANDROID_AVD
       }
     }
   },

@@ -269,6 +269,39 @@ generate_ios_screenshots() {
     echo "Generated: $(date)" >> "$IOS_SCREENSHOTS_DIR/version_info.txt"
 }
 
+detect_android_avd() {
+    if [[ -n "$ANDROID_AVD" ]]; then
+        echo "$ANDROID_AVD"
+        return
+    fi
+
+    local ANDROID_SDK=${ANDROID_HOME:-$ANDROID_SDK_ROOT}
+    if [[ -z "$ANDROID_SDK" ]]; then
+        echo "medium"
+        return
+    fi
+
+    local EMULATOR="$ANDROID_SDK/emulator/emulator"
+    if [[ ! -f "$EMULATOR" ]]; then
+        echo "medium"
+        return
+    fi
+
+    local AVDS=$("$EMULATOR" -list-avds 2>/dev/null)
+    if echo "$AVDS" | grep -q "medium"; then
+        echo "medium"
+    else
+        # Use the first available AVD
+        local FIRST_AVD=$(echo "$AVDS" | head -1)
+        if [[ -n "$FIRST_AVD" ]]; then
+            echo "WARNING: AVD 'medium' not found, using '$FIRST_AVD'" >&2
+            echo "$FIRST_AVD"
+        else
+            echo "medium"
+        fi
+    fi
+}
+
 generate_android_screenshots() {
     echo "$(date): Generating Android screenshots using app: $APP_NAME (variant: $APP_VARIANT)"
 
@@ -348,13 +381,17 @@ generate_android_screenshots() {
     # Temporarily set DETOX_ARTIFACTS_LOCATION to version-specific directory
     export DETOX_ARTIFACTS_LOCATION="$ANDROID_SCREENSHOTS_DIR"
 
+    local AVD_NAME=$(detect_android_avd)
+    echo "$(date): Using Android AVD: $AVD_NAME"
+
     # Export app name so Detox can find the correct APK
     export APP_NAME="app"  # Gradle always uses this name for the APK
-    APP_VARIANT=$APP_VARIANT yarn detox test -c android.emu.release e2e/screenshots.test.ts
+    ANDROID_AVD=$AVD_NAME APP_VARIANT=$APP_VARIANT yarn detox test -c android.emu.release e2e/screenshots.test.ts
     
     # Create version info file
     echo "App: $APP_NAME ($APP_VARIANT)" > "$ANDROID_SCREENSHOTS_DIR/version_info.txt"
     echo "Version: $APP_VERSION" >> "$ANDROID_SCREENSHOTS_DIR/version_info.txt"
+    echo "AVD: $AVD_NAME" >> "$ANDROID_SCREENSHOTS_DIR/version_info.txt"
     echo "Generated: $(date)" >> "$ANDROID_SCREENSHOTS_DIR/version_info.txt"
     
     # If we created a versioned APK, note it in the version_info file

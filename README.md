@@ -47,11 +47,11 @@ Key features:
   <p>Or try the web version at <a href="https://deeeed.github.io/expo-audio-stream/playground/">https://deeeed.github.io/expo-audio-stream/playground/</a></p>
 </div>
 
-### Sherpa-ONNX Demo
+### Sherpa Voice
 
-A focused demo showcasing the integration of the Sherpa-ONNX speech recognition and text-to-speech capabilities.
+On-device speech recognition, text-to-speech, and audio intelligence powered by Sherpa-ONNX.
 
-Try it at [https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/](https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/)
+Try it at [https://deeeed.github.io/expo-audio-stream/sherpa-voice/](https://deeeed.github.io/expo-audio-stream/sherpa-voice/)
 
 ### Essentia Demo
 
@@ -96,7 +96,7 @@ Key features:
 - Cross-platform support for iOS, Android, and Web
 - Optimized native implementation with web compatibility
 
-For more details, check out the [sherpa-onnx demo](https://deeeed.github.io/expo-audio-stream/sherpa-onnx-demo/) or refer to the package source.
+For more details, check out the [Sherpa Voice demo](https://deeeed.github.io/expo-audio-stream/sherpa-voice/) or refer to the package source.
 
 ## Roadmap
 

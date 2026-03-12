@@ -55,7 +55,7 @@ cd apps/playground/android
 
 ```bash
 # XCTest via CLI
-cd apps/sherpa-onnx-demo/ios
+cd apps/sherpa-voice/ios
 ./run-integration-tests.sh
 
 # Via Xcode
@@ -67,7 +67,7 @@ open sherpaonnxdemo.xcworkspace
 
 ```bash
 # System info validation (browser-based)
-cd apps/sherpa-onnx-demo
+cd apps/sherpa-voice
 yarn web
 # Navigate to system info tab
 ```

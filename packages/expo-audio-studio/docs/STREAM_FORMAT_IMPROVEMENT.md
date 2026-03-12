@@ -24,7 +24,7 @@ Float32 (AudioContext)
 
 The Float32→Int16→float roundtrip is lossy and entirely avoidable — the file encoding has nothing to do with what the stream callback receives.
 
-With `encoding: 'pcm_32bit'` the worklet skips `convertBitDepth` and posts Float32Array directly, reducing to one pass (`Array.from`). This is the workaround applied in `sherpa-onnx-demo` for now.
+With `encoding: 'pcm_32bit'` the worklet skips `convertBitDepth` and posts Float32Array directly, reducing to one pass (`Array.from`). This is the workaround applied in `sherpa-voice` for now.
 
 ### Native (iOS & Android)
 
@@ -172,7 +172,7 @@ export type AudioDataEvent = AudioDataEventRaw | AudioDataEventFloat32
 
 Or simpler: just document that `data` is always `Float32Array` when `streamFormat: 'float32'` is set, and consumers narrow the type themselves with a helper.
 
-### 5. Consumer side — `sherpa-onnx-demo`
+### 5. Consumer side — `sherpa-voice`
 
 Once the library delivers Float32Array unconditionally, `audioDataToSamples` in `audioDataUtils.ts` becomes a one-liner or disappears entirely:
 
@@ -224,11 +224,11 @@ No conversion utility needed. The `audioDataUtils.ts` file can be deleted.
 | `android/.../RecordingConfig.kt` | Add `streamFormat` field |
 | `ios/AudioStreamManager.swift` | Emit float array instead of base64 when `streamFormat == "float32"` |
 | `ios/RecordingSettings.swift` | Add `streamFormat` field |
-| `apps/sherpa-onnx-demo/src/utils/audioDataUtils.ts` | Remove or simplify once library guarantees Float32Array |
+| `apps/sherpa-voice/src/utils/audioDataUtils.ts` | Remove or simplify once library guarantees Float32Array |
 
 ---
 
 ## Related
 
-- Current workaround in `sherpa-onnx-demo`: `encoding: 'pcm_32bit'` avoids the lossy Float32→Int16 roundtrip on web (merged in same branch as this doc)
+- Current workaround in `sherpa-voice`: `encoding: 'pcm_32bit'` avoids the lossy Float32→Int16 roundtrip on web (merged in same branch as this doc)
 - `audioDataUtils.ts` centralises the conversion logic in the meantime so there is a single place to update when the library fix lands

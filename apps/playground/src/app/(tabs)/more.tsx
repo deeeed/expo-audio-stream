@@ -2,7 +2,7 @@ import React, { memo, useCallback, useMemo, useState, useRef } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { Image, Pressable, StyleSheet, View } from 'react-native'
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import Animated, {
     useAnimatedStyle,
@@ -145,11 +145,8 @@ const AppInfoBanner = memo(function AppInfoBanner({
                         color: theme.colors.onTertiaryContainer,
                     }}
                 >
-                    Audio Playground is a professional audio recording application featuring advanced
-                    real-time waveform visualization. It demonstrates high-quality audio processing
-                    capabilities including live recording, playback, and visual representation of
-                    audio signals. Perfect for developers and audio enthusiasts looking to understand
-                    audio processing in mobile applications.
+                    Real-time audio recording, visualization, and analysis for React Native.
+                    Live waveforms, spectrograms, and AI-powered processing — all running on device.
                 </Text>
             )}
         </>
@@ -235,6 +232,22 @@ export const MoreScreen = () => {
             </View>
 
             <AppInfoBanner theme={theme} />
+
+            <View style={styles.configSection}>
+                <Text style={styles.sectionTitle}>Links</Text>
+                <ListItem
+                    contentContainerStyle={styles.listItemContainer}
+                    label="GitHub Repository"
+                    subLabel="Star or fork the project"
+                    onPress={() => Linking.openURL('https://github.com/deeeed/expo-audio-stream')}
+                />
+                <ListItem
+                    contentContainerStyle={styles.listItemContainer}
+                    label="Siteed.net"
+                    subLabel="More projects by Arthur Breton"
+                    onPress={() => Linking.openURL('https://siteed.net')}
+                />
+            </View>
 
             <LabelSwitch
                 label="Dark Mode"
