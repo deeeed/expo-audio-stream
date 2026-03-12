@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_siteed_expo_audio_ui=self.webpackChunk_siteed_expo_audio_ui||[]).push([[339],{"./src/INSTALL.md":module=>{module.exports="First skia needs to be installed\n\n```\n$ npx expo install @shopify/react-native-skia\n$ yarn setup-skia-web\n```"}}]);
