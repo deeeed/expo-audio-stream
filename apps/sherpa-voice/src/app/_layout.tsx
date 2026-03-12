@@ -1,7 +1,7 @@
 import 'intl-pluralrules';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,11 +17,13 @@ function AppContent() {
   const { darkMode } = useThemePreferences();
   const theme = useTheme();
 
+  const baseTheme = darkMode ? DarkTheme : DefaultTheme;
   const navigationTheme = {
-    ...DefaultTheme,
+    ...baseTheme,
     ...theme,
+    dark: !!darkMode,
     colors: {
-      ...DefaultTheme.colors,
+      ...baseTheme.colors,
       ...theme.colors,
     },
     fonts: DefaultTheme.fonts,
