@@ -126,7 +126,7 @@ export default function ModelsScreen() {
   };
 
   return (
-    <ScreenWrapper withScrollView={false} useInsets={false} style={styles.container}>
+    <ScreenWrapper withScrollView={false} style={styles.container}>
       {Platform.OS === 'web' && <WebInfoBanner />}
       
       <ModelTypeSelector

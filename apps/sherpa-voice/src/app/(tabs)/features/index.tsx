@@ -127,7 +127,7 @@ export default function FeaturesScreen() {
     : FEATURES;
 
   return (
-    <ScreenWrapper useInsets={false} contentContainerStyle={{ padding: theme.padding.m }}>
+    <ScreenWrapper contentContainerStyle={{ padding: theme.padding.m }}>
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>Explore sherpa-onnx capabilities</Text>
       {visibleFeatures.map((feature) => (
         <FeatureCard key={feature.route} {...feature} />

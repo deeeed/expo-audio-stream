@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, useTheme , ScreenWrapper } from '@siteed/design-system';
-import { useRouter } from 'expo-router';
 import React from 'react';
 import { Linking, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
+
+import { useAppUpdates } from '../../hooks/useAppUpdates';
+import { Updater } from '../../components/Updater';
 
 const LINKS = [
   {
@@ -55,9 +57,14 @@ function LinkRow({ label, icon, url, description }: typeof LINKS[0]) {
 export default function AboutScreen() {
   const theme = useTheme();
   const version = Constants.expoConfig?.version ?? '0.1.0';
+  const {
+    checkUpdates, checking, downloading, doUpdate,
+    canUpdate, isUpdateAvailable, runtimeVersion, lastChecked, error,
+  } = useAppUpdates();
+  const isWeb = Platform.OS === 'web';
 
   return (
-    <ScreenWrapper useInsets={false} contentContainerStyle={{ padding: theme.padding.m }}>
+    <ScreenWrapper contentContainerStyle={{ padding: theme.padding.m }}>
       {/* Hero */}
       <View style={[styles.hero, { backgroundColor: theme.colors.primary, borderRadius: theme.roundness * 3 }]}>
         <View style={[styles.heroIcon, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
@@ -67,9 +74,23 @@ export default function AboutScreen() {
           Sherpa Voice
         </Text>
         <Text variant="bodyMedium" style={{ color: 'rgba(255,255,255,0.8)' }}>
-          v{version}
+          v{version} · Runtime: {typeof runtimeVersion === 'string' ? runtimeVersion : 'unknown'}
         </Text>
       </View>
+
+      {/* OTA Updates */}
+      {!isWeb && (
+        <Updater
+          isUpdateAvailable={isUpdateAvailable}
+          checking={checking}
+          downloading={downloading}
+          onUpdate={doUpdate}
+          onCheck={() => checkUpdates(false)}
+          canUpdate={canUpdate}
+          lastChecked={lastChecked}
+          error={error}
+        />
+      )}
 
       {/* GitHub Star CTA */}
       <TouchableOpacity

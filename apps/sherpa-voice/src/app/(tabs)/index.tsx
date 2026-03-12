@@ -83,7 +83,7 @@ const SherpaOnnxDemo: React.FC = () => {
   };
 
   return (
-    <ScreenWrapper useInsets={false} contentContainerStyle={styles.scrollContent}>
+    <ScreenWrapper contentContainerStyle={styles.scrollContent}>
         <Text style={styles.subtitle}>System Status</Text>
 
         <View style={styles.statusCard}>

@@ -142,7 +142,6 @@ export default function TabLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      {!isNestedFeature && <CustomHeader title={title} />}
       <NativeTabs
         tintColor={colors.primary}
         backgroundColor={colors.background}

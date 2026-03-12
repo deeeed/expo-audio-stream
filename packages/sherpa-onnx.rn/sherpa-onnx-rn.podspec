@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
 
   # Source files (new architecture only)
-  # NOTE: codegen files are NOT included here — React-Codegen pod auto-generates them.
+  # NOTE: codegen files are NOT included here -- React-Codegen pod auto-generates them.
   # Including them breaks Swift module compilation (C++ headers like std::optional
   # are incompatible with Swift's module builder).
   s.source_files = [
@@ -108,7 +108,7 @@ import CSherpaOnnx
         done
       else
         echo ""
-        echo "❌ ERROR: iOS libraries not found!"
+        echo "ERROR: iOS libraries not found!"
         echo ""
         echo "The sherpa-onnx iOS libraries need to be built before using this package."
         echo ""
@@ -155,7 +155,7 @@ import CSherpaOnnx
           done
         else
           echo ""
-          echo "❌ ERROR: iOS Simulator libraries not found!"
+          echo "ERROR: iOS Simulator libraries not found!"
           echo ""
           echo "Building for iOS Simulator but libraries are missing at:"
           echo "  $SIMULATOR_DIR"
@@ -181,7 +181,7 @@ import CSherpaOnnx
           done
         else
           echo ""
-          echo "❌ ERROR: iOS Device libraries not found!"
+          echo "ERROR: iOS Device libraries not found!"
           echo ""
           echo "Building for iOS Device but libraries are missing at:"
           echo "  $DEVICE_DIR"
@@ -200,6 +200,6 @@ import CSherpaOnnx
     :output_files => sherpa_libraries.map { |lib| "${PODS_TARGET_SRCROOT}/prebuilt/ios/current/#{lib}" }
   }
 
-  # TurboModule dependencies — install_modules_dependencies handles all RN deps
+  # TurboModule dependencies -- install_modules_dependencies handles all RN deps
   install_modules_dependencies(s)
 end

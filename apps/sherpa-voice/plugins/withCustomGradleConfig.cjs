@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { withProjectBuildGradle } = require('@expo/config-plugins');
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 
 /**
  * Align Kotlin JVM target with Java 17 across all subprojects.
- * Required because @pchmn/expo-material3-theme (transitive dep of
- * @siteed/design-system) uses Kotlin that may default to JVM 21.
- * Copied from apps/playground/plugins/withCustomGradleConfig.cjs.
+ * Also sets Gradle JVM args to survive prebuild --clean.
+ * Consistent with apps/playground/plugins/withCustomGradleConfig.cjs.
  */
 module.exports = function withCustomGradleConfig(config) {
-  return withProjectBuildGradle(config, (config) => {
+  config = withProjectBuildGradle(config, (config) => {
     if (config.modResults.contents.includes('jvmTarget')) {
       return config;
     }
@@ -44,6 +43,27 @@ module.exports = function withCustomGradleConfig(config) {
 
     return config;
   });
+
+  config = withGradleProperties(config, (config) => {
+    const gradleProperties = config.modResults;
+
+    const setProperty = (key, value) => {
+      const index = gradleProperties.findIndex(prop => prop.key === key);
+      if (index !== -1) {
+        gradleProperties[index].value = value;
+      } else {
+        gradleProperties.push({ key, value, type: 'property' });
+      }
+    };
+
+    setProperty('org.gradle.jvmargs', '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError');
+    setProperty('org.gradle.parallel', 'true');
+    setProperty('org.gradle.daemon', 'true');
+    setProperty('org.gradle.caching', 'true');
+    return config;
+  });
+
+  return config;
 };
 
 function findClosingBrace(str, startIndex) {
