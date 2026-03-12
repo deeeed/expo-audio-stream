@@ -9,7 +9,7 @@ import { CustomHeader } from '../../components/CustomHeader';
 import { useModelManagement } from '../../contexts/ModelManagement';
 
 const TAB_TITLES: Record<string, string> = {
-  index: 'Home',
+  index: 'Features',
   features: 'Features',
   models: 'Models',
   about: 'About',
@@ -101,10 +101,7 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="index"
-          options={{
-            title: 'Home',
-            tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="features"
@@ -141,19 +138,14 @@ export default function TabLayout() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {!isNestedFeature && <CustomHeader title={title} />}
       <NativeTabs
         tintColor={colors.primary}
         backgroundColor={colors.background}
         labelVisibilityMode="labeled"
+        initialRouteName="features"
       >
-        <NativeTabs.Trigger name="index">
-          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon
-            sf={{ default: 'house', selected: 'house.fill' }}
-            md="home"
-          />
-        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="features">
           <NativeTabs.Trigger.Label>Features</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon

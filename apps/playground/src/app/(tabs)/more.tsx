@@ -145,11 +145,8 @@ const AppInfoBanner = memo(function AppInfoBanner({
                         color: theme.colors.onTertiaryContainer,
                     }}
                 >
-                    Audio Playground is a professional audio recording application featuring advanced
-                    real-time waveform visualization. It demonstrates high-quality audio processing
-                    capabilities including live recording, playback, and visual representation of
-                    audio signals. Perfect for developers and audio enthusiasts looking to understand
-                    audio processing in mobile applications.
+                    Real-time audio recording, visualization, and analysis for React Native.
+                    Live waveforms, spectrograms, and AI-powered processing — all running on device.
                 </Text>
             )}
         </>
@@ -246,20 +243,8 @@ export const MoreScreen = () => {
                 />
                 <ListItem
                     contentContainerStyle={styles.listItemContainer}
-                    label="Sponsor"
-                    subLabel="Support this work on GitHub Sponsors"
-                    onPress={() => Linking.openURL('https://github.com/sponsors/deeeed')}
-                />
-                <ListItem
-                    contentContainerStyle={styles.listItemContainer}
-                    label="@deeeed"
-                    subLabel="More projects from Arthur Breton"
-                    onPress={() => Linking.openURL('https://github.com/deeeed')}
-                />
-                <ListItem
-                    contentContainerStyle={styles.listItemContainer}
-                    label="siteed.net"
-                    subLabel="React Native tools & libraries"
+                    label="Siteed.net"
+                    subLabel="More projects by Arthur Breton"
                     onPress={() => Linking.openURL('https://siteed.net')}
                 />
             </View>

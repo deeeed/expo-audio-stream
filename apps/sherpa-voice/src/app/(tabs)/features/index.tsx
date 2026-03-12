@@ -128,7 +128,9 @@ export default function FeaturesScreen() {
 
   return (
     <ScreenWrapper contentContainerStyle={{ padding: theme.padding.m }}>
-      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>Explore sherpa-onnx capabilities</Text>
+      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>
+        On-device ML features — no internet required. Tap any feature to get started.
+      </Text>
       {visibleFeatures.map((feature) => (
         <FeatureCard key={feature.route} {...feature} />
       ))}
