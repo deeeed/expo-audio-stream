@@ -111,7 +111,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                     ? '/expo-audio-stream/sherpa-voice/'
                     : '',
         },
-        runtimeVersion: '1.0.0',
+        runtimeVersion: '1.0.1',
         ...(validatedEnv.EAS_PROJECT_ID ? {
             updates: {
                 url: 'https://u.expo.dev/' + validatedEnv.EAS_PROJECT_ID,

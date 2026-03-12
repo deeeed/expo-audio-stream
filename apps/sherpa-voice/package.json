@@ -1,6 +1,6 @@
 {
   "name": "@siteed/sherpa-voice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "./src/main-sherpa-demo.ts",
   "scripts": {
     "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
@@ -57,7 +57,8 @@
     "build:android:production": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production",
     "build:android:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production --local --no-wait",
     "ota-update:production": "APP_VARIANT=production npx eas update --channel production",
-    "ota-update:development": "APP_VARIANT=development npx eas update --channel development"
+    "ota-update:development": "APP_VARIANT=development npx eas update --channel development",
+    "publish:store": "bash scripts/deploy-sherpa-voice.sh"
   },
   "jest": {
     "preset": "jest-expo"

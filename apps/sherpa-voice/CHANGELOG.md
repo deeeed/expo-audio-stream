@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [1.0.1] - 2026-03-12
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
+## [1.0.0] - 2026-03-12
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
 ### Added
 - EAS build configuration with development and production profiles
 - Expo Updates (OTA) with per-channel updates (development / production)
