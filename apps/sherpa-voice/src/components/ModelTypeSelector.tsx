@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@siteed/design-system';
 import React, { useCallback } from 'react';
 import {
   StyleSheet,
@@ -23,48 +24,52 @@ export function ModelTypeSelector({
   onSelectType,
   modelCounts,
 }: ModelTypeSelectorProps) {
+  const { colors } = useTheme();
   const handleSelectType = useCallback((type: ModelType | 'all') => {
     onSelectType(type);
   }, [onSelectType]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant }]}>
       <View style={styles.filterContainer}>
-        {MODEL_TYPES.map((option) => (
-          <TouchableOpacity
-            key={option.type}
-            style={[
-              styles.filterButton,
-              selectedType === option.type && styles.filterButtonSelected,
-            ]}
-            onPress={() => handleSelectType(option.type)}>
-            <Text
+        {MODEL_TYPES.map((option) => {
+          const isSelected = selectedType === option.type;
+          return (
+            <TouchableOpacity
+              key={option.type}
               style={[
-                styles.filterButtonText,
-                selectedType === option.type && styles.filterButtonTextSelected,
-              ]}>
-              {option.label}
-            </Text>
-            <View
-              style={[
-                styles.countBadge,
-                selectedType === option.type && styles.countBadgeSelected,
-              ]}>
+                styles.filterButton,
+                { backgroundColor: isSelected ? colors.primary : colors.surfaceVariant },
+              ]}
+              onPress={() => handleSelectType(option.type)}>
               <Text
                 style={[
-                  styles.countBadgeText,
-                  selectedType === option.type && styles.countBadgeTextSelected,
+                  styles.filterButtonText,
+                  { color: isSelected ? colors.onPrimary : colors.onSurface },
                 ]}>
-                {modelCounts[option.type].available}
+                {option.label}
               </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <View
+                style={[
+                  styles.countBadge,
+                  { backgroundColor: isSelected ? colors.primaryContainer : colors.outlineVariant },
+                ]}>
+                <Text
+                  style={[
+                    styles.countBadgeText,
+                    { color: isSelected ? colors.onPrimaryContainer : colors.onSurfaceVariant },
+                  ]}>
+                  {modelCounts[option.type].available}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
         {selectedType !== 'all' && (
           <TouchableOpacity
             style={styles.clearButton}
             onPress={() => handleSelectType('all')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
+            <Ionicons name="close-circle" size={20} color={colors.onSurfaceVariant} />
           </TouchableOpacity>
         )}
       </View>
@@ -74,11 +79,9 @@ export function ModelTypeSelector({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -89,43 +92,27 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
     minWidth: 120,
   },
-  filterButtonSelected: {
-    backgroundColor: '#2196F3',
-  },
   filterButtonText: {
     fontSize: 14,
-    color: '#333',
     marginRight: 8,
   },
-  filterButtonTextSelected: {
-    color: '#fff',
-  },
   countBadge: {
-    backgroundColor: '#e0e0e0',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 12,
     minWidth: 24,
     alignItems: 'center',
   },
-  countBadgeSelected: {
-    backgroundColor: '#1976D2',
-  },
   countBadgeText: {
     fontSize: 12,
-    color: '#666',
-  },
-  countBadgeTextSelected: {
-    color: '#fff',
   },
   clearButton: {
     padding: 4,
     marginLeft: 4,
   },
-}); 
+});

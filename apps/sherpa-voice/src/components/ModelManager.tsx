@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@siteed/design-system';
 
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +47,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   onBrowseFiles,
   onCancelDownload
 }) {
+  const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
   const [fileDetails, setFileDetails] = useState<{
@@ -272,9 +274,9 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   }, [state?.progress, state?.status, model.name]);
 
   return (
-    <View style={[cardStyles.card, isSelected && cardStyles.cardSelected]}>
+    <View style={[cardStyles.card, { backgroundColor: colors.surface }, isSelected && cardStyles.cardSelected]}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.modelName}>{model.name}</Text>
+        <Text style={[cardStyles.modelName, { color: colors.onSurface }]}>{model.name}</Text>
         {model.recommended && (
           <View style={cardStyles.recommendedBadge}>
             <Text style={cardStyles.recommendedBadgeText}>Recommended</Text>
@@ -285,15 +287,15 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
             <Text style={cardStyles.dependencyBadgeText}>Has Dependencies</Text>
           </View>
         )}
-        <Text style={cardStyles.modelSize}>{formatBytes(model.size)}</Text>
+        <Text style={[cardStyles.modelSize, { color: colors.onSurfaceVariant }]}>{formatBytes(model.size)}</Text>
       </View>
-      
-      <Text style={cardStyles.modelDescription}>{model.description}</Text>
-      
-      <View style={cardStyles.modelDetails}>
-        <Text style={cardStyles.detailText}>Type: {model.type}</Text>
-        <Text style={cardStyles.detailText}>Version: {model.version}</Text>
-        <Text style={cardStyles.detailText}>Language: {model.language}</Text>
+
+      <Text style={[cardStyles.modelDescription, { color: colors.onSurfaceVariant }]}>{model.description}</Text>
+
+      <View style={[cardStyles.modelDetails, { backgroundColor: colors.surfaceVariant }]}>
+        <Text style={[cardStyles.detailText, { color: colors.onSurfaceVariant }]}>Type: {model.type}</Text>
+        <Text style={[cardStyles.detailText, { color: colors.onSurfaceVariant }]}>Version: {model.version}</Text>
+        <Text style={[cardStyles.detailText, { color: colors.onSurfaceVariant }]}>Language: {model.language}</Text>
       </View>
 
       {/* Download Progress */}
@@ -439,8 +441,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       {/* Show file list when toggled */}
       {showFiles && state?.status === 'downloaded' && (
-        <View style={cardStyles.filesContainer}>
-          <Text style={cardStyles.filesTitle}>Model Files:</Text>
+        <View style={[cardStyles.filesContainer, { backgroundColor: colors.surfaceVariant }]}>
+          <Text style={[cardStyles.filesTitle, { color: colors.onSurface }]}>Model Files:</Text>
           {fileListError ? (
             <Text style={cardStyles.errorText}>{fileListError}</Text>
           ) : (
@@ -475,8 +477,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       {/* Show dependencies if expanded and has dependencies */}
       {isExpanded && hasDependencies && (
-        <View style={cardStyles.dependenciesContainer}>
-          <Text style={cardStyles.dependenciesTitle}>Dependencies:</Text>
+        <View style={[cardStyles.dependenciesContainer, { backgroundColor: colors.surfaceVariant }]}>
+          <Text style={[cardStyles.dependenciesTitle, { color: colors.onSurface }]}>Dependencies:</Text>
           {model.dependencies?.map((dependency: DependencyMetadata) => (
             <View key={dependency.id} style={cardStyles.dependencyItem}>
               <Text style={cardStyles.dependencyName}>{dependency.name}</Text>
@@ -583,6 +585,7 @@ type ListItem = HeaderItem | ModelItem | EmptyItem;
 
 export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: ModelManagerProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const {
     getAvailableModels,
     getDownloadedModels,
@@ -685,12 +688,11 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
           return (
               <TouchableOpacity
                   testID={`section-header-${item.id}`}
-                  style={styles.sectionHeader}
+                  style={[styles.sectionHeader, { backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant }]}
                   onPress={() => toggleSection(item.id)}
               >
-                  <Text style={styles.sectionTitle}>{item.title}</Text>
-                  <Text style={styles.sectionCount}>({item.count})</Text>
-                  {/* Optional: Add expand/collapse icon based on item.isExpanded */}
+                  <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>{item.title}</Text>
+                  <Text style={[styles.sectionCount, { color: colors.onSurfaceVariant }]}>({item.count})</Text>
               </TouchableOpacity>
           );
       }
@@ -698,7 +700,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       if (item.type === 'empty') {
          return (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>{item.message}</Text>
+              <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>{item.message}</Text>
             </View>
          );
       }
@@ -752,7 +754,7 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
   // Render the single FlatList
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingBottom: insets.bottom }}
       data={listData}
       renderItem={renderListItem}
@@ -772,7 +774,6 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
@@ -785,9 +786,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#fff', // White background for headers
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0', // Separator line
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sectionTitle: {
     fontSize: 16,
@@ -795,15 +794,12 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     fontSize: 14,
-    color: '#666',
   },
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
-    backgroundColor: '#f9f9f9', // Slightly different background for empty message
   },
   emptyText: {
-    color: '#999',
     fontSize: 16,
   },
 });
@@ -811,10 +807,9 @@ const styles = StyleSheet.create({
 // Styles for the ModelCard component
 const cardStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 8,
-    marginHorizontal: 16, // Add horizontal margin to cards
-    marginVertical: 8, // Add vertical margin to cards
+    marginHorizontal: 16,
+    marginVertical: 8,
     padding: 16,
     elevation: 2,
     shadowColor: '#000',
@@ -839,22 +834,18 @@ const cardStyles = StyleSheet.create({
   },
   modelSize: {
     fontSize: 14,
-    color: '#666',
   },
   modelDescription: {
     fontSize: 14,
-    color: '#444',
     marginBottom: 12,
   },
   modelDetails: {
-    backgroundColor: '#f8f8f8',
     borderRadius: 4,
     padding: 8,
     marginBottom: 12,
   },
   detailText: {
     fontSize: 14,
-    color: '#555',
     marginBottom: 4,
   },
   progressContainer: {
@@ -935,7 +926,6 @@ const cardStyles = StyleSheet.create({
   filesContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#f5f5f5',
     borderRadius: 6,
   },
   filesTitle: {
@@ -945,7 +935,6 @@ const cardStyles = StyleSheet.create({
   },
   fileText: {
     fontSize: 14,
-    color: '#333',
     marginBottom: 4,
   },
   modelPath: {
@@ -1034,7 +1023,6 @@ const cardStyles = StyleSheet.create({
   },
   dependenciesContainer: {
     padding: 12,
-    backgroundColor: '#f5f5f5',
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
   },
@@ -1046,7 +1034,6 @@ const cardStyles = StyleSheet.create({
   dependencyItem: {
     padding: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
     borderRadius: 4,
   },
   dependencyName: {
@@ -1055,7 +1042,6 @@ const cardStyles = StyleSheet.create({
   },
   dependencyDescription: {
     fontSize: 12,
-    color: '#666',
     marginVertical: 4,
   },
   dependencySize: {
