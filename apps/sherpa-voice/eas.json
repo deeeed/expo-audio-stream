@@ -29,8 +29,28 @@
         ]
       }
     },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "preview",
+        "EAS_PROJECT_ID": "5360ada5-3236-4b98-8b54-4d680e9267c6",
+        "NPM_AUTH_TOKEN": "NONE",
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false",
+        "YARN_ENABLE_GLOBAL_CACHE": "false",
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8"
+      }
+    },
     "production": {
       "channel": "production",
+      "developmentClient": false,
       "env": {
         "APP_VARIANT": "production",
         "EAS_PROJECT_ID": "5360ada5-3236-4b98-8b54-4d680e9267c6",
@@ -56,10 +76,16 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": ""
+        "ascAppId": "6760437954"
       },
       "android": {
         "track": "internal",
+        "releaseStatus": "draft"
+      }
+    },
+    "open-testing": {
+      "android": {
+        "track": "beta",
         "releaseStatus": "draft"
       }
     }
