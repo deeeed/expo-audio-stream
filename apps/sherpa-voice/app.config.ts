@@ -128,7 +128,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             [
                 "expo-audio",
                 {
-                    "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+                    "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+                    "enableBackgroundPlayback": false
                 }
             ],
             ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ? ["10.0.2.2", "localhost"] : "*" }] as const,
