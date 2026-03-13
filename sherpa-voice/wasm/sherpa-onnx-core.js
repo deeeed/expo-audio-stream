@@ -124,27 +124,45 @@
             throw new Error(`Failed to create directory ${dirPath}`);
           }
         }
-        
-        // Fetch the file
-        if (debug) console.log(`Fetching ${url}`);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-        }
-        
-        const buffer = await response.arrayBuffer();
-        
-        if (!buffer || buffer.byteLength === 0) {
-          throw new Error(`Empty response from ${url}`);
-        }
-        
-        if (debug) console.log(`Downloaded ${url}, size: ${buffer.byteLength} bytes`);
-        
-        // Write the file
+
+        // Check IndexedDB cache first
+        var data = null;
         try {
-          global.Module.FS.writeFile(targetPath, new Uint8Array(buffer));
-          
+          var cached = await SherpaOnnx.Cache.get(url);
+          if (cached) {
+            if (debug) console.log(`[Cache HIT] ${url} (${cached.byteLength} bytes)`);
+            data = cached;
+          }
+        } catch (_cacheErr) {
+          // Cache unavailable, proceed with fetch
+        }
+
+        if (!data) {
+          // Fetch the file
+          if (debug) console.log(`[Cache MISS] Fetching ${url}`);
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+          }
+
+          const buffer = await response.arrayBuffer();
+
+          if (!buffer || buffer.byteLength === 0) {
+            throw new Error(`Empty response from ${url}`);
+          }
+
+          data = new Uint8Array(buffer);
+          if (debug) console.log(`Downloaded ${url}, size: ${data.byteLength} bytes`);
+
+          // Cache the fetched data (fire-and-forget)
+          SherpaOnnx.Cache.put(url, data).catch(function() {});
+        }
+
+        // Write the file to WASM FS
+        try {
+          global.Module.FS.writeFile(targetPath, data instanceof Uint8Array ? data : new Uint8Array(data));
+
           // Verify the file was written
           try {
             const stat = global.Module.FS.stat(targetPath);
@@ -152,7 +170,7 @@
           } catch (statErr) {
             throw new Error(`Failed to verify file was written: ${statErr.message}`);
           }
-          
+
           // Return both the success status and the actual path used
           return {
             success: true,
@@ -282,40 +300,56 @@
     
     loadFile: async function(url, localPath) {
       console.log(`DEBUG: DIRECT loadFile called with url: ${url}, localPath: ${localPath}`);
-      
+
       try {
         console.log(`Loading file from ${url} to ${localPath}`);
-        
+
         // Get the directory
         const lastSlash = localPath.lastIndexOf('/');
         if (lastSlash > 0) {
           const dirPath = localPath.substring(0, lastSlash);
           console.log(`Ensuring directory exists: ${dirPath}`);
-          
+
           // Use the ensureDirectory function directly to avoid any reference issues
           this.ensureDirectory(dirPath);
         }
-        
-        // Fetch the file
-        console.log(`Fetching ${url}`);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+
+        // Check IndexedDB cache first
+        var data = null;
+        try {
+          var cached = await SherpaOnnx.Cache.get(url);
+          if (cached) {
+            console.log(`[Cache HIT] ${url} (${cached.byteLength} bytes)`);
+            data = cached;
+          }
+        } catch (_cacheErr) {}
+
+        if (!data) {
+          // Fetch the file
+          console.log(`[Cache MISS] Fetching ${url}`);
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+          }
+
+          const buffer = await response.arrayBuffer();
+
+          if (!buffer || buffer.byteLength === 0) {
+            throw new Error(`Empty response from ${url}`);
+          }
+
+          data = new Uint8Array(buffer);
+          console.log(`Downloaded ${url}, size: ${data.byteLength} bytes`);
+
+          // Cache fire-and-forget
+          SherpaOnnx.Cache.put(url, data).catch(function() {});
         }
-        
-        const buffer = await response.arrayBuffer();
-        
-        if (!buffer || buffer.byteLength === 0) {
-          throw new Error(`Empty response from ${url}`);
-        }
-        
-        console.log(`Downloaded ${url}, size: ${buffer.byteLength} bytes`);
-        
+
         // Write the file
         try {
-          global.Module.FS.writeFile(localPath, new Uint8Array(buffer));
-          
+          global.Module.FS.writeFile(localPath, data instanceof Uint8Array ? data : new Uint8Array(data));
+
           // Verify the file was written
           try {
             const stat = global.Module.FS.stat(localPath);
@@ -323,7 +357,7 @@
           } catch (statErr) {
             throw new Error(`Failed to verify file was written: ${statErr.message}`);
           }
-          
+
           return true;
         } catch (writeErr) {
           console.error(`Error writing file to ${localPath}:`, writeErr);
@@ -625,32 +659,47 @@
                 original: file
               });
             } else if (file.url) {
-              // Load file from URL
-              if (debug) console.log(`Fetching file from ${file.url}`);
-              const response = await fetch(file.url);
-              
-              if (!response.ok) {
-                console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
-                fileResults.push({
-                  success: false,
-                  error: `HTTP error: ${response.status}`,
-                  original: file
-                });
-                continue;
+              // Load file from URL — check cache first
+              var fileData = null;
+              try {
+                var cachedFile = await SherpaOnnx.Cache.get(file.url);
+                if (cachedFile) {
+                  if (debug) console.log(`[Cache HIT] ${file.url} (${cachedFile.byteLength} bytes)`);
+                  fileData = cachedFile;
+                }
+              } catch (_cacheErr) {}
+
+              if (!fileData) {
+                if (debug) console.log(`[Cache MISS] Fetching file from ${file.url}`);
+                const response = await fetch(file.url);
+
+                if (!response.ok) {
+                  console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
+                  fileResults.push({
+                    success: false,
+                    error: `HTTP error: ${response.status}`,
+                    original: file
+                  });
+                  continue;
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                fileData = new Uint8Array(arrayBuffer);
+                // Cache fire-and-forget
+                SherpaOnnx.Cache.put(file.url, fileData).catch(function() {});
               }
-              
+
               // Write the downloaded file
               const filename = this.joinPaths(uniqueDir, file.filename);
               const directoryPath = filename.substring(0, filename.lastIndexOf('/'));
-              
+
               if (debug) console.log(`Writing downloaded file to ${filename}`);
-              
+
               // Ensure the directory exists
               this.mkdirp(directoryPath);
-              
-              // Get binary data and write to file
-              const arrayBuffer = await response.arrayBuffer();
-              FS.writeFile(filename, new Uint8Array(arrayBuffer), { encoding: 'binary' });
+
+              // Write to file
+              FS.writeFile(filename, fileData instanceof Uint8Array ? fileData : new Uint8Array(fileData), { encoding: 'binary' });
               
               fileResults.push({
                 success: true,
@@ -678,21 +727,36 @@
         // Now process archives with the correct model directory path
         for (const file of archiveFiles) {
           try {
-            if (debug) console.log(`Fetching archive from ${file.url}`);
-            const response = await fetch(file.url);
-            
-            if (!response.ok) {
-              console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
-              fileResults.push({
-                success: false,
-                error: `HTTP error: ${response.status}`,
-                original: file
-              });
-              continue;
+            var archiveData = null;
+            try {
+              var cachedArchive = await SherpaOnnx.Cache.get(file.url);
+              if (cachedArchive) {
+                if (debug) console.log(`[Cache HIT] archive ${file.url} (${cachedArchive.byteLength} bytes)`);
+                archiveData = cachedArchive.buffer || cachedArchive;
+              }
+            } catch (_cacheErr) {}
+
+            if (!archiveData) {
+              if (debug) console.log(`[Cache MISS] Fetching archive from ${file.url}`);
+              const response = await fetch(file.url);
+
+              if (!response.ok) {
+                console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
+                fileResults.push({
+                  success: false,
+                  error: `HTTP error: ${response.status}`,
+                  original: file
+                });
+                continue;
+              }
+
+              archiveData = await response.arrayBuffer();
+              // Cache archive fire-and-forget
+              SherpaOnnx.Cache.put(file.url, new Uint8Array(archiveData)).catch(function() {});
             }
-            
+
             if (debug) console.log(`Processing archive ${file.url}`);
-            const zipData = await response.arrayBuffer();
+            const zipData = archiveData;
             
             // Set the extract path to the created model directory if not specified
             const extractPath = file.extractToPath || uniqueDir;
@@ -889,6 +953,102 @@
     }
   };
   
+  // IndexedDB cache for model files
+  SherpaOnnx.Cache = {
+    DB_NAME: 'sherpa-onnx-model-cache',
+    STORE_NAME: 'files',
+    _db: null,
+
+    /**
+     * Open (or create) the IndexedDB database
+     * @returns {Promise<IDBDatabase>}
+     */
+    openDB: function() {
+      if (this._db) return Promise.resolve(this._db);
+      const self = this;
+      return new Promise(function(resolve, reject) {
+        const request = indexedDB.open(self.DB_NAME, 1);
+        request.onupgradeneeded = function(event) {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(self.STORE_NAME)) {
+            db.createObjectStore(self.STORE_NAME);
+          }
+        };
+        request.onsuccess = function(event) {
+          self._db = event.target.result;
+          resolve(self._db);
+        };
+        request.onerror = function(event) {
+          console.warn('[Cache] Failed to open IndexedDB:', event.target.error);
+          reject(event.target.error);
+        };
+      });
+    },
+
+    /**
+     * Retrieve a cached file by URL key
+     * @param {string} key - URL used as cache key
+     * @returns {Promise<Uint8Array|null>}
+     */
+    get: async function(key) {
+      try {
+        const db = await this.openDB();
+        return new Promise(function(resolve) {
+          const tx = db.transaction('files', 'readonly');
+          const store = tx.objectStore('files');
+          const request = store.get(key);
+          request.onsuccess = function() { resolve(request.result || null); };
+          request.onerror = function() { resolve(null); };
+        });
+      } catch (_) {
+        return null;
+      }
+    },
+
+    /**
+     * Store a file in the cache
+     * @param {string} key - URL used as cache key
+     * @param {Uint8Array} data - File data to cache
+     * @returns {Promise<void>}
+     */
+    put: async function(key, data) {
+      try {
+        const db = await this.openDB();
+        return new Promise(function(resolve) {
+          const tx = db.transaction('files', 'readwrite');
+          const store = tx.objectStore('files');
+          store.put(data, key);
+          tx.oncomplete = function() { resolve(); };
+          tx.onerror = function() { resolve(); };
+        });
+      } catch (_) {
+        // Silently fail — cache is best-effort
+      }
+    },
+
+    /**
+     * Clear all cached model files
+     * @returns {Promise<void>}
+     */
+    clear: async function() {
+      try {
+        const db = await this.openDB();
+        return new Promise(function(resolve) {
+          const tx = db.transaction('files', 'readwrite');
+          const store = tx.objectStore('files');
+          store.clear();
+          tx.oncomplete = function() {
+            console.log('[Cache] All cached files cleared');
+            resolve();
+          };
+          tx.onerror = function() { resolve(); };
+        });
+      } catch (_) {
+        // Silently fail
+      }
+    },
+  };
+
   // Expose SherpaOnnx to the global object
   global.SherpaOnnx = SherpaOnnx;
 })(typeof window !== 'undefined' ? window : global); 

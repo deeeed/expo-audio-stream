@@ -27,14 +27,9 @@
      */
     loadModel: async function(modelConfig) {
       const modelDir = modelConfig.modelDir || 'asr-models';
-      
-      // Create directory if it doesn't exist
-      // Note: Emscripten FS uses errno=20 for EEXIST (differs from POSIX errno=17)
-      try {
-        global.Module.FS.mkdir(modelDir, 0o777);
-      } catch(e) {
-        if (e.code !== 'EEXIST' && e.errno !== 20) throw e;
-      }
+
+      // Create directory (and parents) if it doesn't exist
+      SherpaOnnx.FileSystem.safeCreateDirectory(modelDir, !!modelConfig.debug);
       
       // Collection for actual file paths
       const actualPaths = {};
