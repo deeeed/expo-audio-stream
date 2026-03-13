@@ -1,2 +1,4 @@
-# Build artifacts
+# Build artifacts (tsc emits .d.ts next to source when declaration is on)
 src/**/*.d.ts
+# Keep intentional shims
+!src/types/expo-modules-core-shim.d.ts

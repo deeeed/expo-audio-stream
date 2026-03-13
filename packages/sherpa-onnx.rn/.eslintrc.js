@@ -1,4 +1,5 @@
 module.exports = {
+  ignorePatterns: ['third_party/', 'lib/'],
   overrides: [
     {
       files: ['third_party/**/*.js'],
@@ -12,4 +13,4 @@ module.exports = {
       }
     }
   ]
-}; 
+};

@@ -6,7 +6,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function VadMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private vad: VoiceActivityDetector | null = null;
+    vad: VoiceActivityDetector | null = null;
 
     async initVad(
       config: VadModelConfig

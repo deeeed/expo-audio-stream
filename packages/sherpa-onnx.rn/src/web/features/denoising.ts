@@ -5,7 +5,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private denoiser: OfflineSpeechDenoiserInstance | null = null;
+    denoiser: OfflineSpeechDenoiserInstance | null = null;
 
     async initDenoiser(config: any): Promise<{
       success: boolean;

@@ -11,9 +11,9 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function TtsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private tts: OfflineTtsInstance | null = null;
-    private ttsSampleRate = 0;
-    private ttsNumSpeakers = 0;
+    tts: OfflineTtsInstance | null = null;
+    ttsSampleRate = 0;
+    ttsNumSpeakers = 0;
 
     async initTts(config: TtsModelConfig): Promise<TtsInitResult> {
       try {

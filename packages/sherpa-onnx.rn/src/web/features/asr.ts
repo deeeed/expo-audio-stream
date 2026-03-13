@@ -11,8 +11,8 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function AsrMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private asrOnlineRecognizer: OnlineRecognizer | null = null;
-    private asrOnlineStream: OnlineStream | null = null;
+    asrOnlineRecognizer: OnlineRecognizer | null = null;
+    asrOnlineStream: OnlineStream | null = null;
 
     async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
       try {

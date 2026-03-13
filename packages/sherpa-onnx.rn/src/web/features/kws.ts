@@ -6,8 +6,8 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function KwsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private kwsSpotter: KwsSpotter | null = null;
-    private kwsStream: KwsStream | null = null;
+    kwsSpotter: KwsSpotter | null = null;
+    kwsStream: KwsStream | null = null;
 
     async initKws(
       config: KWSModelConfig

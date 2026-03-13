@@ -6,7 +6,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private languageId: SpokenLanguageIdInstance | null = null;
+    languageId: SpokenLanguageIdInstance | null = null;
 
     async initLanguageId(config: any): Promise<{
       success: boolean;
