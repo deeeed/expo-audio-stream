@@ -8,6 +8,7 @@ import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert } from 'react-native'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import {
     useAudioTaggingModels,
     useAudioTaggingModelWithConfig,
@@ -215,6 +216,8 @@ export function useAudioTagging() {
                 topK,
                 debug: debugMode,
                 provider,
+                modelBaseUrl: getWebModelBaseUrl('audioTagging'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             }
 
             try {

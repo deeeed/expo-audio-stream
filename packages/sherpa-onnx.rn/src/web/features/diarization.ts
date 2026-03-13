@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeakerDiarizationInstance } from '../wasmTypes';
 import type { DiarizationFileInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -34,12 +34,16 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebDiarizationModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Diarization uses the TurboModule.
         const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
-        const loadedModel =
-          await window.SherpaOnnx.SpeakerDiarization.loadModel({
-            segmentation: `${modelDir}/segmentation.onnx`,
-            embedding: `${modelDir}/embedding.onnx`,
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.SpeakerDiarization!.loadModel({
+            segmentation: `${fetchBase}/segmentation.onnx`,
+            embedding: `${fetchBase}/embedding.onnx`,
+            modelDir,
             debug,
-          });
+          })
+        );
 
         this.diarization =
           window.SherpaOnnx.SpeakerDiarization.createDiarization(loadedModel, {

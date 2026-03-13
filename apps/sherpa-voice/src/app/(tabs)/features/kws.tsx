@@ -18,6 +18,7 @@ import {
 } from 'react-native'
 import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils'
 import {
     LoadingOverlay,
     ModelSelector,
@@ -169,14 +170,14 @@ export default function KwsScreen() {
         }
         ; (async () => {
             try {
-                const dir = await resolveModelDir(localPath)
+                const base =
+                    getWebModelBaseUrl('kws') ??
+                    (await resolveModelDir(localPath))
                 const exists = await fileExists(
-                    `${dir}/test_wavs/test_keywords.txt`
+                    `${base}/test_wavs/test_keywords.txt`
                 )
                 setHasTestKeywordsFile(exists)
-                if (exists) {
-                    setUseTestKeywords(true)
-                }
+                if (exists) setUseTestKeywords(true)
             } catch {
                 setHasTestKeywordsFile(false)
             }
@@ -219,12 +220,15 @@ export default function KwsScreen() {
 
     // Load keywords and test wavs after init
     const loadModelAssets = async (dir: string) => {
+        const webBase = getWebModelBaseUrl('kws')
+
         // Read keywords.txt
         try {
             let kwContent: string
             if (Platform.OS === 'web') {
-                // On web, fetch from public URL (WASM FS paths aren't accessible via expo-file-system)
-                const resp = await fetch(`${dir}/keywords.txt`)
+                const url = `${webBase ?? dir}/keywords.txt`
+                const resp = await fetch(url)
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
                 kwContent = await resp.text()
             } else {
                 kwContent = await readFileAsText(`${dir}/keywords.txt`)
@@ -237,7 +241,8 @@ export default function KwsScreen() {
         // Read test_keywords.txt (subset keywords that match the test wavs)
         try {
             if (Platform.OS === 'web') {
-                const resp = await fetch(`${dir}/test_wavs/test_keywords.txt`)
+                const url = `${webBase ?? dir}/test_wavs/test_keywords.txt`
+                const resp = await fetch(url)
                 if (resp.ok) {
                     setTestKeywords(parseKeywordsFile(await resp.text()))
                 }
@@ -465,6 +470,8 @@ export default function KwsScreen() {
                 keywordsFile: kwFile,
                 numThreads,
                 debug: debugMode,
+                modelBaseUrl: getWebModelBaseUrl('kws'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             })
 
             if (result.success) {

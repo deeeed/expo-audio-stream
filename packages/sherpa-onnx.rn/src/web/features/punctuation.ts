@@ -1,6 +1,6 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import type { OnlinePunctuationInstance } from '../wasmTypes';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -27,11 +27,16 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebPunctuationModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Punctuation uses the TurboModule.
         const modelDir = config?.modelDir || '/wasm/punctuation';
-        const loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
-          cnnBilstm: `${modelDir}/model.onnx`,
-          bpeVocab: `${modelDir}/bpe.vocab`,
-          debug,
-        });
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.Punctuation!.loadModel({
+            cnnBilstm: `${fetchBase}/model.onnx`,
+            bpeVocab: `${fetchBase}/bpe.vocab`,
+            modelDir,
+            debug,
+          })
+        );
 
         this.punctuation = window.SherpaOnnx.Punctuation.createPunctuation(
           loadedModel,

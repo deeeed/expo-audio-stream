@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { KwsSpotter, KwsStream } from '../wasmTypes';
 import type { KWSModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function KwsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -24,6 +24,7 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebKwsModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native KWS uses the TurboModule.
         const modelDir = config.modelDir;
+        const fetchBase = config.modelBaseUrl || modelDir;
 
         // Ensure WASM FS directories exist
         const dirParts = modelDir.split('/').filter((p: string) => p);
@@ -42,30 +43,39 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
           /* exists */
         }
 
-        // Load model files into WASM FS (fetch from public URL, write to same path)
+        // Load model files into WASM FS (fetch from URL, write to WASM FS path)
         const files = [
-          { url: `${modelDir}/encoder.onnx`, dest: `${modelDir}/encoder.onnx` },
-          { url: `${modelDir}/decoder.onnx`, dest: `${modelDir}/decoder.onnx` },
-          { url: `${modelDir}/joiner.onnx`, dest: `${modelDir}/joiner.onnx` },
-          { url: `${modelDir}/tokens.txt`, dest: `${modelDir}/tokens.txt` },
+          { url: `${fetchBase}/encoder.onnx`, dest: `${modelDir}/encoder.onnx` },
+          { url: `${fetchBase}/decoder.onnx`, dest: `${modelDir}/decoder.onnx` },
+          { url: `${fetchBase}/joiner.onnx`, dest: `${modelDir}/joiner.onnx` },
+          { url: `${fetchBase}/tokens.txt`, dest: `${modelDir}/tokens.txt` },
           {
-            url: `${modelDir}/${keywordsFile}`,
+            url: `${fetchBase}/${keywordsFile}`,
             dest: `${modelDir}/keywords.txt`,
           },
         ];
 
-        for (const f of files) {
-          try {
-            if (M.FS.analyzePath(f.dest).exists) continue;
-          } catch (_e) {
-            /* not found */
+        // Use fetchWithProgress when available (supports IndexedDB caching + progress)
+        const fetchData = async (url: string): Promise<Uint8Array> => {
+          if (window.SherpaOnnx?.fetchWithProgress) {
+            return window.SherpaOnnx.fetchWithProgress(url);
           }
-          const resp = await fetch(f.url);
-          if (!resp.ok)
-            throw new Error(`Failed to fetch ${f.url}: HTTP ${resp.status}`);
-          const data = await resp.arrayBuffer();
-          M.FS.writeFile(f.dest, new Uint8Array(data));
-        }
+          const r = await fetch(url);
+          if (!r.ok) throw new Error(`Failed to fetch ${url}: HTTP ${r.status}`);
+          return new Uint8Array(await r.arrayBuffer());
+        };
+
+        await withDownloadProgress(config.onProgress, async () => {
+          for (const f of files) {
+            try {
+              if (M.FS.analyzePath(f.dest).exists) continue;
+            } catch (_e) {
+              /* not found */
+            }
+            const data = await fetchData(f.url);
+            M.FS.writeFile(f.dest, data);
+          }
+        });
 
         // Build config — all string fields must be set (not undefined/null)
         // to avoid NULL pointer issues in the WASM C struct

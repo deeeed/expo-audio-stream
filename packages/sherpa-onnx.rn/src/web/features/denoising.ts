@@ -1,7 +1,7 @@
 import { loadCombinedWasm } from '../wasmLoader';
 import { samplesToWav, fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeechDenoiserInstance } from '../wasmTypes';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -36,11 +36,14 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config?.modelDir
           || (config?.modelFile ? config.modelFile.substring(0, config.modelFile.lastIndexOf('/')) : null)
           || '/wasm/enhancement';
-        const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel(
-          {
-            model: `${modelDir}/gtcrn.onnx`,
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.SpeechEnhancement!.loadModel({
+            model: `${fetchBase}/gtcrn.onnx`,
+            modelDir,
             debug,
-          }
+          })
         );
 
         this.denoiser = window.SherpaOnnx.SpeechEnhancement.createDenoiser(

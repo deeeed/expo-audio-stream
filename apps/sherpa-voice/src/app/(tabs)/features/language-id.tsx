@@ -27,6 +27,7 @@ import {
     useLanguageIdModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils'
 
 interface AudioItem {
     id: string
@@ -170,6 +171,8 @@ export default function LanguageIdScreen() {
             const config: LanguageIdModelConfig = {
                 modelDir: localPath,
                 ...languageIdConfig,
+                modelBaseUrl: getWebModelBaseUrl('languageId'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             }
             const result = await LanguageId.init(config)
             if (result.success) {

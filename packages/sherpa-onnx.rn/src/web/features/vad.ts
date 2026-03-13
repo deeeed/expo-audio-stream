@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { VoiceActivityDetector } from '../wasmTypes';
 import type { VadModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function VadMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -20,13 +20,17 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
         // Web-only: config.modelDir is set to '/wasm/vad' by ModelManagement
         // (createWebVadModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native VAD uses the TurboModule.
+        const fetchBase = config.modelBaseUrl || config.modelDir;
         console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
-        const loadedModel = await window.SherpaOnnx.VAD.loadModel({
-          model: `${config.modelDir}/${modelFile}`,
-          modelDir: 'vad-models',
-          fileName: modelFile,
-          debug,
-        });
+
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.VAD.loadModel({
+            model: `${fetchBase}/${modelFile}`,
+            modelDir: 'vad-models',
+            fileName: modelFile,
+            debug,
+          })
+        );
 
         this.vad = window.SherpaOnnx.VAD.createVoiceActivityDetector(
           loadedModel,

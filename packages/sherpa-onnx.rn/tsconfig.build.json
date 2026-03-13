@@ -1,3 +1,12 @@
 {
-  "extends": "./tsconfig"
-} 
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@siteed/sherpa-onnx.rn": ["./src/index"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "third_party", "lib", "src/__tests__"]
+}

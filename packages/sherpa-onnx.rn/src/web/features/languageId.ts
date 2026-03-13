@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { SpokenLanguageIdInstance } from '../wasmTypes';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -29,11 +29,16 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebLanguageIdModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native LanguageId uses the TurboModule.
         const modelDir = config?.modelDir || '/wasm/language-id';
-        const loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
-          encoder: `${modelDir}/tiny-encoder.onnx`,
-          decoder: `${modelDir}/tiny-decoder.onnx`,
-          debug,
-        });
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.LanguageId!.loadModel({
+            encoder: `${fetchBase}/tiny-encoder.onnx`,
+            decoder: `${fetchBase}/tiny-decoder.onnx`,
+            modelDir,
+            debug,
+          })
+        );
 
         this.languageId = window.SherpaOnnx.LanguageId.createLanguageId(
           loadedModel,

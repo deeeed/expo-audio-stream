@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils';
 import { usePunctuationModels, usePunctuationModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import { setAgenticPageState } from '../../../agentic-bridge';
@@ -83,6 +84,8 @@ export default function PunctuationScreen() {
       const config: PunctuationModelConfig = {
         modelDir: localPath,
         ...punctuationConfig,
+        modelBaseUrl: getWebModelBaseUrl('punctuation'),
+        onProgress: makeWebProgressHandler(setStatusMessage),
       };
       const result = await Punctuation.init(config);
       if (result.success) {

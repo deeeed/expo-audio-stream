@@ -25,5 +25,5 @@
     "target": "esnext"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist","thirdparty"]
+  "exclude": ["node_modules", "dist", "third_party", "lib"]
 }

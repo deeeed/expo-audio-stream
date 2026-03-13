@@ -7,7 +7,7 @@ import type {
   AsrRecognizeResult,
 } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function AsrMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -25,6 +25,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebAsrModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native ASR uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/asr';
+        const fetchBase = config.modelBaseUrl || modelDir;
 
         // Map model architecture names to ASR load types.
         // zipformer/zipformer2 models use the transducer architecture (encoder+decoder+joiner).
@@ -33,14 +34,17 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
           ? 'transducer'
           : rawType;
 
-        const loadedModel = await window.SherpaOnnx.ASR.loadModel({
-          type: asrType,
-          encoder: `${modelDir}/encoder.onnx`,
-          decoder: `${modelDir}/decoder.onnx`,
-          joiner: `${modelDir}/joiner.onnx`,
-          tokens: `${modelDir}/tokens.txt`,
-          debug,
-        });
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.ASR.loadModel({
+            type: asrType,
+            encoder: `${fetchBase}/encoder.onnx`,
+            decoder: `${fetchBase}/decoder.onnx`,
+            joiner: `${fetchBase}/joiner.onnx`,
+            tokens: `${fetchBase}/tokens.txt`,
+            modelDir,
+            debug,
+          })
+        );
 
         this.asrOnlineRecognizer = window.SherpaOnnx.ASR.createOnlineRecognizer(
           loadedModel,

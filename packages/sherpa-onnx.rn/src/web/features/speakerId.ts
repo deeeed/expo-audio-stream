@@ -22,7 +22,7 @@ import type {
   IdentifySpeakerInput,
   VerifySpeakerInput,
 } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -55,10 +55,15 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebSpeakerIdModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native SpeakerId uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/speaker-id';
-        const loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
-          model: `${modelDir}/model.onnx`,
-          debug,
-        });
+        const fetchBase = config.modelBaseUrl || modelDir;
+
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.SpeakerId!.loadModel({
+            model: `${fetchBase}/model.onnx`,
+            modelDir,
+            debug,
+          })
+        );
 
         this.speakerExtractor = window.SherpaOnnx.SpeakerId.createExtractor(
           loadedModel,

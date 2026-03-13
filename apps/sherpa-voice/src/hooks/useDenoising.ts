@@ -1,6 +1,7 @@
 import { Denoising } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { useEffect, useRef, useState } from 'react';
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils';
 import { useModelManagement } from '../contexts/ModelManagement';
 import { useModels } from './useModelWithConfig';
 
@@ -86,7 +87,11 @@ export function useDenoising() {
       const cleanPath = modelState.localPath.replace(/^file:\/\//, '');
       const modelFile = `${cleanPath}/gtcrn_simple.onnx`;
 
-      const result = await Denoising.init({ modelFile });
+      const result = await Denoising.init({
+        modelFile,
+        modelBaseUrl: getWebModelBaseUrl('denoising'),
+        onProgress: makeWebProgressHandler(setStatusMessage),
+      });
 
       if (result.success) {
         setInitialized(true);

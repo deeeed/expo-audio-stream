@@ -9,6 +9,7 @@ import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useEffect, useState } from 'react'
 import { Alert } from 'react-native'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import {
     useSpeakerIdModelWithConfig,
     useSpeakerIdModels,
@@ -150,6 +151,8 @@ export function useSpeakerId() {
                 numThreads,
                 debug: debugMode,
                 provider,
+                modelBaseUrl: getWebModelBaseUrl('speakerId'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             }
 
             const result = await SpeakerId.init(modelConfig)

@@ -5,6 +5,7 @@ import {
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
 import { resolveModelDir } from '../utils/fileUtils'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -170,6 +171,8 @@ export function useAsr() {
 
             const config: AsrModelConfig = {
                 modelDir,
+                modelBaseUrl: getWebModelBaseUrl('asr'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
                 modelType: asrConfig.modelType || 'transducer',
                 numThreads:
                     mode === 'live'

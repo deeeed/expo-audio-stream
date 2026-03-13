@@ -10,6 +10,7 @@ import { Asset } from 'expo-asset'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils'
 import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
 import {
@@ -179,6 +180,8 @@ export default function VadScreen() {
             const config: VadModelConfig = {
                 modelDir: localPath,
                 ...vadConfig,
+                modelBaseUrl: getWebModelBaseUrl('vad'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             }
             const result = await VAD.init(config)
             if (result.success) {
