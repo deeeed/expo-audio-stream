@@ -10,6 +10,22 @@ export interface WasmLoadOptions {
   debug?: boolean;
 }
 
+/** Detect the WASM base path from the Expo bundle script tag. */
+function detectWasmBasePath(): string {
+  if (typeof document === 'undefined') return '/wasm/';
+  const scriptEl = document.querySelector<HTMLScriptElement>(
+    'script[src*="_expo/static"]'
+  );
+  if (scriptEl?.src) {
+    try {
+      const url = new URL(scriptEl.src);
+      const idx = url.pathname.indexOf('_expo/static');
+      if (idx > 0) return url.pathname.substring(0, idx) + 'wasm/';
+    } catch { /* fall through */ }
+  }
+  return '/wasm/';
+}
+
 let _legacyLoaded = false;
 let _legacyLoading = false;
 let _legacyCallbacks: ((loaded: boolean) => void)[] = [];
@@ -62,7 +78,7 @@ export const loadWasmModule = async (
       };
 
       const script = document.createElement('script');
-      script.src = options?.mainScriptUrl || '/wasm/sherpa-onnx-combined.js';
+      script.src = options?.mainScriptUrl || (detectWasmBasePath() + 'sherpa-onnx-combined.js');
       script.async = true;
       script.onerror = () => {
         _legacyLoading = false;
@@ -165,7 +181,8 @@ export async function loadCombinedWasm(): Promise<void> {
   const promise = (async () => {
     // 1. Load the combined WASM binary + JS glue.
     //    This sets up window.Module (the Emscripten module object).
-    await loadScriptTag('/wasm/sherpa-onnx-wasm-combined.js');
+    const wasmBase = detectWasmBasePath();
+    await loadScriptTag(wasmBase + 'sherpa-onnx-wasm-combined.js');
 
     // 2. Hook Module.onRuntimeInitialized so we know when the WASM binary
     //    finishes compiling.  We do this AFTER loading the glue JS (which
@@ -223,7 +240,7 @@ export async function loadCombinedWasm(): Promise<void> {
     //    - Hooks into Module.onRuntimeInitialized
     //    - Loads feature JS modules (core, vad, asr, tts, kws, etc.)
     //    - Calls window.onSherpaOnnxReady when done
-    await loadScriptTag('/wasm/sherpa-onnx-combined.js');
+    await loadScriptTag(wasmBase + 'sherpa-onnx-combined.js');
 
     // 5. Wait for WASM runtime init + all feature modules ready
     await readyPromise;

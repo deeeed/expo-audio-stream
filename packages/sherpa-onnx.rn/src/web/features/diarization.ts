@@ -33,7 +33,7 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         // Web-only: config.modelDir is set to '/wasm/speakers' by ModelManagement
         // (createWebDiarizationModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Diarization uses the TurboModule.
-        const modelDir = config?.modelDir || '/wasm/speakers';
+        const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
         const loadedModel =
           await window.SherpaOnnx.SpeakerDiarization.loadModel({
             segmentation: `${modelDir}/segmentation.onnx`,

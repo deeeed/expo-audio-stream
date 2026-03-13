@@ -32,7 +32,10 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
         // Web-only: config.modelDir is set to '/wasm/enhancement' by ModelManagement
         // (createWebDenoiserModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Denoising uses the TurboModule.
-        const modelDir = config?.modelDir || '/wasm/enhancement';
+        // modelDir from ModelManagement, or extract dir from modelFile path
+        const modelDir = config?.modelDir
+          || (config?.modelFile ? config.modelFile.substring(0, config.modelFile.lastIndexOf('/')) : null)
+          || '/wasm/enhancement';
         const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel(
           {
             model: `${modelDir}/gtcrn.onnx`,
