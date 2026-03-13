@@ -4,7 +4,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    punctuation: OnlinePunctuationInstance | null = null;
+    private punctuation: OnlinePunctuationInstance | null = null;
 
     async initPunctuation(config: any): Promise<{
       success: boolean;

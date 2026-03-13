@@ -14,7 +14,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    audioTagger: AudioTaggingInstance | null = null;
+    private audioTagger: AudioTaggingInstance | null = null;
 
     async initAudioTagging(
       config: AudioTaggingModelConfig

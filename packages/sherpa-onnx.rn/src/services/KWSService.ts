@@ -52,7 +52,6 @@ export class KWSService {
         keywordsScore: config.keywordsScore ?? 1.5,
         keywordsThreshold: config.keywordsThreshold ?? 0.25,
         numTrailingBlanks: config.numTrailingBlanks ?? 2,
-        modelBaseUrl: config.modelBaseUrl,
       };
 
       // Flatten model files

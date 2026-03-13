@@ -6,7 +6,7 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    diarization: OfflineSpeakerDiarizationInstance | null = null;
+    private diarization: OfflineSpeakerDiarizationInstance | null = null;
 
     async initDiarization(config: any): Promise<{
       success: boolean;

@@ -36,7 +36,6 @@ export class PunctuationService {
         numThreads: config.numThreads ?? 1,
         debug: config.debug ?? false,
         provider: config.provider ?? 'cpu',
-        modelBaseUrl: config.modelBaseUrl,
       };
 
       const result = await this.api.initPunctuation(nativeConfig as any);
