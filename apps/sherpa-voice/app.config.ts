@@ -98,9 +98,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             },
             package: APP_IDENTIFIER,
         },
-        developmentClient: {
-            silentLaunch: true,
-        },
+        ...(IS_PRODUCTION ? {} : {
+            developmentClient: {
+                silentLaunch: true,
+            },
+        }),
         web: {
             favicon: "./assets/favicon.png",
             bundler: 'metro',

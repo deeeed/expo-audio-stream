@@ -241,6 +241,74 @@ check_changelog() {
   echo -e "${GREEN}✅ Version $VERSION found in CHANGELOG.md${NC}"
 }
 
+# Helper: find and submit the latest local build artifact
+# Usage: submit_local_build <platform>  (platform = ios or android)
+submit_local_build() {
+  local platform="$1"
+  local ext artifact version build_info
+
+  if [[ "$platform" == "ios" ]]; then
+    ext="ipa"
+  else
+    ext="aab"
+  fi
+
+  # Find the most recent artifact in the current directory
+  artifact="$(find . -maxdepth 1 -name "*.${ext}" -type f -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -n1)"
+
+  if [[ -z "$artifact" ]]; then
+    echo -e "${RED}No .${ext} file found in $(pwd)${NC}"
+    echo -e "${YELLOW}Build locally first (option 3) or check your working directory.${NC}"
+    return 1
+  fi
+
+  echo -e "\n${CYAN}Found artifact: ${GREEN}$(basename "$artifact")${NC}"
+  echo -e "${CYAN}Size: ${GREEN}$(du -h "$artifact" | cut -f1)${NC}"
+
+  # Extract version info from the artifact
+  if [[ "$platform" == "ios" ]]; then
+    build_info=$(unzip -p "$artifact" "Payload/*.app/Info.plist" 2>/dev/null | plutil -p - 2>/dev/null || true)
+    if [[ -n "$build_info" ]]; then
+      version=$(echo "$build_info" | grep '"CFBundleShortVersionString"' | sed 's/.*=> "\(.*\)"/\1/')
+      local build_num=$(echo "$build_info" | grep '"CFBundleVersion"' | sed 's/.*=> "\(.*\)"/\1/')
+      echo -e "${CYAN}Version: ${GREEN}${version}${NC}  Build: ${GREEN}${build_num}${NC}"
+    else
+      echo -e "${YELLOW}Could not extract version info from .ipa${NC}"
+    fi
+  else
+    if command -v aapt2 &>/dev/null; then
+      build_info=$(aapt2 dump badging "$artifact" 2>/dev/null | head -1 || true)
+    elif command -v aapt &>/dev/null; then
+      build_info=$(aapt dump badging "$artifact" 2>/dev/null | head -1 || true)
+    fi
+    if [[ -n "$build_info" ]]; then
+      version=$(echo "$build_info" | grep -o "versionName='[^']*'" | cut -d"'" -f2)
+      local version_code=$(echo "$build_info" | grep -o "versionCode='[^']*'" | cut -d"'" -f2)
+      echo -e "${CYAN}Version: ${GREEN}${version}${NC}  VersionCode: ${GREEN}${version_code}${NC}"
+    else
+      echo -e "${YELLOW}Could not extract version info from .aab (aapt/aapt2 not found)${NC}"
+    fi
+  fi
+
+  read -p "$(echo -e ${YELLOW}"Submit this artifact? (Y/n): "${NC})" CONFIRM_SUBMIT
+  CONFIRM_SUBMIT=${CONFIRM_SUBMIT:-y}
+
+  if [[ "$CONFIRM_SUBMIT" != "y" && "$CONFIRM_SUBMIT" != "Y" ]]; then
+    echo -e "${RED}Submission cancelled.${NC}"
+    return 1
+  fi
+
+  echo -e "${CYAN}Submitting to $([ "$platform" == "ios" ] && echo "App Store" || echo "Play Store")...${NC}"
+  if [[ "$platform" == "ios" ]]; then
+    (
+      source .env.production 2>/dev/null || true
+      yarn dlx eas-cli submit --platform ios --path "$artifact"
+    )
+  else
+    yarn dlx eas-cli submit --platform android --path "$artifact"
+  fi
+}
+
 # Deploy to web function
 deploy_web() {
   echo -e "\n${CYAN}Preparing web deployment...${NC}"
@@ -269,7 +337,8 @@ deploy_android() {
   echo -e "3. ${GREEN}Preview APK${NC} (local optimized APK for distribution)"
   echo -e "4. ${GREEN}Production${NC} (local optimized, signed AAB)"
   echo -e "5. ${GREEN}Production + Submit${NC} (remote build with auto-submit to Play Store)"
-  
+  echo -e "6. ${GREEN}Submit Local Build${NC} (submit most recent local .aab to Play Store)"
+
   read -p "$(echo -e ${YELLOW}"Choose Android build type [5]: "${NC})" ANDROID_CHOICE
   ANDROID_CHOICE=${ANDROID_CHOICE:-5}  # Default to production + submit
   
@@ -290,20 +359,24 @@ deploy_android() {
       yarn build:android:preview_apk
       ;;
     4)
+      echo -e "${CYAN}Ensuring production workspace...${NC}"
+      yarn setup:production
       echo -e "${CYAN}Building Android production version locally...${NC}"
       yarn build:android:production --local --no-wait
-      
+
       read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the Play Store? (Y/n): "${NC})" SUBMIT_ANDROID
       SUBMIT_ANDROID=${SUBMIT_ANDROID:-y}  # Default to yes
-      
+
       if [[ "$SUBMIT_ANDROID" == "y" || "$SUBMIT_ANDROID" == "Y" ]]; then
-        echo -e "${CYAN}Submitting to Play Store...${NC}"
-        yarn dlx eas-cli submit --platform android --path "$(find . -maxdepth 1 -name "*.aab" -type f -print0 | xargs -0 ls -t | head -n1)"
+        submit_local_build android
       fi
       ;;
     5)
       echo -e "${CYAN}Building and submitting Android production version to Play Store...${NC}"
       yarn build:android:production --auto-submit
+      ;;
+    6)
+      submit_local_build android
       ;;
     *)
       echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
@@ -321,7 +394,7 @@ deploy_ios() {
   echo -e "2. ${GREEN}Preview${NC} (local build for simulator/TestFlight)"
   echo -e "3. ${GREEN}Production${NC} (local production build)"
   echo -e "4. ${GREEN}Production + Submit${NC} (remote build with auto-submit to App Store)"
-  echo -e "5. ${GREEN}Submit Latest${NC} (submit latest build to App Store)"
+  echo -e "5. ${GREEN}Submit Local Build${NC} (submit most recent local .ipa to App Store)"
   
   read -p "$(echo -e ${YELLOW}"Choose iOS build type [4]: "${NC})" IOS_CHOICE
   IOS_CHOICE=${IOS_CHOICE:-4}  # Default to production + submit
@@ -345,18 +418,16 @@ deploy_ios() {
       yarn build:ios:preview
       ;;
     3)
+      echo -e "${CYAN}Ensuring production iOS workspace...${NC}"
+      yarn setup:production
       echo -e "${CYAN}Building iOS production version locally...${NC}"
       yarn build:ios:production --local
-      
+
       read -p "$(echo -e ${YELLOW}"Do you want to submit this build to the App Store? (Y/n): "${NC})" SUBMIT_IOS
       SUBMIT_IOS=${SUBMIT_IOS:-y}  # Default to yes
-      
+
       if [[ "$SUBMIT_IOS" == "y" || "$SUBMIT_IOS" == "Y" ]]; then
-        echo -e "${CYAN}Submitting to App Store...${NC}"
-        (
-          source .env.production && yarn dlx eas-cli submit --platform ios \
-            --path "$(find . -maxdepth 1 -name "*.ipa" -type f -print0 | xargs -0 ls -t | head -n1)"
-        )
+        submit_local_build ios
       fi
       ;;
     4)
@@ -364,8 +435,7 @@ deploy_ios() {
       yarn build:ios:production --auto-submit
       ;;
     5)
-      echo -e "${CYAN}Submitting latest iOS build to App Store...${NC}"
-      yarn dlx eas-cli submit --platform ios --latest
+      submit_local_build ios
       ;;
     *)
       echo -e "${RED}Invalid choice. Using Production + Submit.${NC}"
