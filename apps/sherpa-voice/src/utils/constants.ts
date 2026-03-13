@@ -1,6 +1,6 @@
 import type { ModelMetadata } from './models'
 import type { ModelState, ModelStatus } from '../contexts/ModelManagement/types'
-import { WEB_FEATURES, type WebFeatureKey } from '../config/webFeatures'
+import { WEB_FEATURES, getWasmBasePath, type WebFeatureKey } from '../config/webFeatures'
 
 // Inference defaults
 export const DEFAULT_NUM_THREADS = 2
@@ -56,11 +56,12 @@ function makeWebModelState(
 
 // Create a default model state for the web platform
 export function createWebTtsModelState(metadata: ModelMetadata): ModelState {
+    const base = getWasmBasePath();
     return {
         metadata,
         status: 'downloaded' as ModelStatus,
         progress: 1,
-        localPath: '/wasm/tts',
+        localPath: `${base}tts`,
         files: [
             { path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() },
         ],
@@ -74,49 +75,49 @@ export function createWebTtsModelState(metadata: ModelMetadata): ModelState {
 }
 
 export function createWebAsrModelState(metadata: ModelMetadata): ModelState {
-    return makeWebModelState(metadata, '/wasm/asr')
+    return makeWebModelState(metadata, `${getWasmBasePath()}asr`)
 }
 
 export function createWebVadModelState(metadata: ModelMetadata): ModelState {
-    return makeWebModelState(metadata, '/wasm/vad')
+    return makeWebModelState(metadata, `${getWasmBasePath()}vad`)
 }
 
 export function createWebKwsModelState(metadata: ModelMetadata): ModelState {
-    return makeWebModelState(metadata, '/wasm/kws')
+    return makeWebModelState(metadata, `${getWasmBasePath()}kws`)
 }
 
 export function createWebDenoiserModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/enhancement')
+    return makeWebModelState(metadata, `${getWasmBasePath()}enhancement`)
 }
 
 export function createWebDiarizationModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/speakers')
+    return makeWebModelState(metadata, `${getWasmBasePath()}speakers`)
 }
 
 export function createWebSpeakerIdModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/speakers')
+    return makeWebModelState(metadata, `${getWasmBasePath()}speaker-id`)
 }
 
 export function createWebAudioTaggingModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/audio-tagging')
+    return makeWebModelState(metadata, `${getWasmBasePath()}audio-tagging`)
 }
 
 export function createWebLanguageIdModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/language-id')
+    return makeWebModelState(metadata, `${getWasmBasePath()}language-id`)
 }
 
 export function createWebPunctuationModelState(
     metadata: ModelMetadata
 ): ModelState {
-    return makeWebModelState(metadata, '/wasm/punctuation')
+    return makeWebModelState(metadata, `${getWasmBasePath()}punctuation`)
 }

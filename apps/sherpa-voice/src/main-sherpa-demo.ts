@@ -5,13 +5,10 @@ import { loadWasmModule } from '@siteed/sherpa-onnx.rn'
 import { registerRootComponent } from 'expo'
 import { Platform } from 'react-native'
 
-import { getEnabledModulePaths } from './config/webFeatures'
+import { getEnabledModulePaths, getWasmBasePath } from './config/webFeatures'
 
 // Enable this for debugging WASM loading
 const DEBUG_WASM = true
-
-// Base URL for WASM files and models
-const BASE_WASM_URL = '/wasm/'
 
 /**
  * Initialize the app, handling web-specific setup for WASM
@@ -22,24 +19,27 @@ async function initializeApp() {
     console.log('Web environment detected, loading WASM module...')
 
     try {
+      const wasmBase = getWasmBasePath();
+      console.log('WASM base path:', wasmBase);
+
       // Configure path to espeak-ng-data for TTS
       if (window) {
         // @ts-ignore
         window.sherpaOnnxConfig = {
-          espeakNgDataZipUrl: `${BASE_WASM_URL}models/espeak-ng-data.zip`,
-          assetsBasePath: `${BASE_WASM_URL}models/`,
+          espeakNgDataZipUrl: `${wasmBase}models/espeak-ng-data.zip`,
+          assetsBasePath: `${wasmBase}models/`,
         };
       }
 
       // Build module list from web feature config — only enabled features are loaded
       const modulePaths = [
-        `${BASE_WASM_URL}sherpa-onnx-core.js`, // always required
+        `${wasmBase}sherpa-onnx-core.js`, // always required
         ...getEnabledModulePaths(),
       ]
 
       const loaded = await loadWasmModule({
         debug: DEBUG_WASM,
-        mainScriptUrl: `${BASE_WASM_URL}sherpa-onnx-combined.js`,
+        mainScriptUrl: `${wasmBase}sherpa-onnx-combined.js`,
         modulePaths,
       })
 

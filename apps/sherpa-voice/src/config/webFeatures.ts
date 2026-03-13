@@ -78,21 +78,50 @@ export const WEB_FEATURES = {
 export type WebFeatureKey = keyof typeof WEB_FEATURES;
 
 /**
- * Map from feature key to the WASM JS module path (relative to /wasm/).
- * Used by main-sherpa-demo.ts to build the modulePaths list.
+ * Detect the WASM base path at runtime.
+ * In production with a base URL (e.g. /expo-audio-stream/sherpa-voice/),
+ * Expo prefixes asset paths. We derive the wasm path from the main bundle
+ * script tag that Expo generates.
  */
-export const WEB_FEATURE_MODULES: Record<WebFeatureKey, string> = {
-  vad: '/wasm/sherpa-onnx-vad.js',
-  asr: '/wasm/sherpa-onnx-asr.js',
-  tts: '/wasm/sherpa-onnx-tts.js',
-  kws: '/wasm/sherpa-onnx-kws.js',
-  diarization: '/wasm/sherpa-onnx-speaker.js',
-  denoising: '/wasm/sherpa-onnx-enhancement.js',
-  audioTagging: '/wasm/sherpa-onnx-audio-tagging.js',
-  languageId: '/wasm/sherpa-onnx-language-id.js',
-  speakerId: '/wasm/sherpa-onnx-speaker-id.js',
-  punctuation: '/wasm/sherpa-onnx-punctuation.js',
+export function getWasmBasePath(): string {
+  if (typeof document === 'undefined') return '/wasm/';
+  const scriptEl = document.querySelector<HTMLScriptElement>(
+    'script[src*="_expo/static"]'
+  );
+  if (scriptEl?.src) {
+    try {
+      const url = new URL(scriptEl.src);
+      // e.g. /expo-audio-stream/sherpa-voice/_expo/static/js/...
+      const idx = url.pathname.indexOf('_expo/static');
+      if (idx > 0) {
+        return url.pathname.substring(0, idx) + 'wasm/';
+      }
+    } catch { /* fall through */ }
+  }
+  return '/wasm/';
+}
+
+/** WASM module filenames per feature (without base path prefix). */
+const WEB_FEATURE_MODULE_FILES: Record<WebFeatureKey, string> = {
+  vad: 'sherpa-onnx-vad.js',
+  asr: 'sherpa-onnx-asr.js',
+  tts: 'sherpa-onnx-tts.js',
+  kws: 'sherpa-onnx-kws.js',
+  diarization: 'sherpa-onnx-speaker.js',
+  denoising: 'sherpa-onnx-enhancement.js',
+  audioTagging: 'sherpa-onnx-audio-tagging.js',
+  languageId: 'sherpa-onnx-language-id.js',
+  speakerId: 'sherpa-onnx-speaker-id.js',
+  punctuation: 'sherpa-onnx-punctuation.js',
 };
+
+/**
+ * Map from feature key to the WASM JS module path.
+ * @deprecated Use getEnabledModulePaths() which applies the correct base path.
+ */
+export const WEB_FEATURE_MODULES: Record<WebFeatureKey, string> = Object.fromEntries(
+  Object.entries(WEB_FEATURE_MODULE_FILES).map(([k, v]) => [k, '/wasm/' + v])
+) as Record<WebFeatureKey, string>;
 
 /**
  * Map from feature key to the route path used in the features index.
@@ -111,12 +140,13 @@ export const WEB_FEATURE_ROUTES: Record<WebFeatureKey, string> = {
   punctuation: '/(tabs)/features/punctuation',
 };
 
-/** Returns the list of enabled WASM JS module paths. */
+/** Returns the list of enabled WASM JS module paths with correct base path. */
 export function getEnabledModulePaths(): string[] {
+  const base = getWasmBasePath();
   const paths: string[] = [];
   for (const [key, entry] of Object.entries(WEB_FEATURES)) {
     if (entry.enabled) {
-      paths.push(WEB_FEATURE_MODULES[key as WebFeatureKey]);
+      paths.push(base + WEB_FEATURE_MODULE_FILES[key as WebFeatureKey]);
     }
   }
   return paths;

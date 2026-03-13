@@ -564,16 +564,7 @@ export function ModelManagementProvider({
     // For web TTS models, simulate immediate download completion
     if (isTtsModelOnWeb(modelId, model)) {
       console.log(`Web TTS model ${modelId} - simulating download`);
-      updateModelState(modelId, {
-        metadata: model,
-        status: 'downloaded',
-        progress: 1,
-        localPath: '/wasm/tts',
-        files: [{ path: 'sherpa-onnx-tts.js', size: 1, lastModified: Date.now() }],
-        extractedFiles: ['sherpa-onnx-tts.js', 'sherpa-onnx-wasm-main-tts.js', 'sherpa-onnx-wasm-main-tts.wasm'],
-        lastDownloaded: Date.now(),
-        error: undefined
-      });
+      updateModelState(modelId, createWebTtsModelState(model));
       return;
     }
 
