@@ -138,21 +138,14 @@
         }
 
         if (!data) {
-          // Fetch the file
+          // Fetch the file with progress
           if (debug) console.log(`[Cache MISS] Fetching ${url}`);
-          const response = await fetch(url);
+          data = await SherpaOnnx.fetchWithProgress(url, debug);
 
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-          }
-
-          const buffer = await response.arrayBuffer();
-
-          if (!buffer || buffer.byteLength === 0) {
+          if (!data || data.byteLength === 0) {
             throw new Error(`Empty response from ${url}`);
           }
 
-          data = new Uint8Array(buffer);
           if (debug) console.log(`Downloaded ${url}, size: ${data.byteLength} bytes`);
 
           // Cache the fetched data (fire-and-forget)
@@ -325,21 +318,14 @@
         } catch (_cacheErr) {}
 
         if (!data) {
-          // Fetch the file
+          // Fetch the file with progress
           console.log(`[Cache MISS] Fetching ${url}`);
-          const response = await fetch(url);
+          data = await SherpaOnnx.fetchWithProgress(url, false);
 
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-          }
-
-          const buffer = await response.arrayBuffer();
-
-          if (!buffer || buffer.byteLength === 0) {
+          if (!data || data.byteLength === 0) {
             throw new Error(`Empty response from ${url}`);
           }
 
-          data = new Uint8Array(buffer);
           console.log(`Downloaded ${url}, size: ${data.byteLength} bytes`);
 
           // Cache fire-and-forget
@@ -671,20 +657,17 @@
 
               if (!fileData) {
                 if (debug) console.log(`[Cache MISS] Fetching file from ${file.url}`);
-                const response = await fetch(file.url);
-
-                if (!response.ok) {
-                  console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
+                try {
+                  fileData = await SherpaOnnx.fetchWithProgress(file.url, debug);
+                } catch (fetchErr) {
+                  console.error(`Failed to fetch ${file.url}: ${fetchErr.message}`);
                   fileResults.push({
                     success: false,
-                    error: `HTTP error: ${response.status}`,
+                    error: fetchErr.message,
                     original: file
                   });
                   continue;
                 }
-
-                const arrayBuffer = await response.arrayBuffer();
-                fileData = new Uint8Array(arrayBuffer);
                 // Cache fire-and-forget
                 SherpaOnnx.Cache.put(file.url, fileData).catch(function() {});
               }
@@ -738,21 +721,20 @@
 
             if (!archiveData) {
               if (debug) console.log(`[Cache MISS] Fetching archive from ${file.url}`);
-              const response = await fetch(file.url);
-
-              if (!response.ok) {
-                console.error(`Failed to fetch ${file.url}: ${response.status} ${response.statusText}`);
+              try {
+                var archiveBytes = await SherpaOnnx.fetchWithProgress(file.url, debug);
+                archiveData = archiveBytes.buffer;
+                // Cache archive fire-and-forget
+                SherpaOnnx.Cache.put(file.url, archiveBytes).catch(function() {});
+              } catch (fetchErr) {
+                console.error(`Failed to fetch ${file.url}: ${fetchErr.message}`);
                 fileResults.push({
                   success: false,
-                  error: `HTTP error: ${response.status}`,
+                  error: fetchErr.message,
                   original: file
                 });
                 continue;
               }
-
-              archiveData = await response.arrayBuffer();
-              // Cache archive fire-and-forget
-              SherpaOnnx.Cache.put(file.url, new Uint8Array(archiveData)).catch(function() {});
             }
 
             if (debug) console.log(`Processing archive ${file.url}`);
@@ -1047,6 +1029,66 @@
         // Silently fail
       }
     },
+  };
+
+  /**
+   * Global download-progress callback.
+   * Set this to a function(info) before calling loadModel/init to receive
+   * progress updates.  info = { url, filename, loaded, total, percent }
+   * Set to null to disable.
+   */
+  SherpaOnnx.onDownloadProgress = null;
+
+  /**
+   * Fetch a URL with progress reporting via SherpaOnnx.onDownloadProgress.
+   * Falls back to normal fetch if ReadableStream is unavailable or Content-Length
+   * is missing.
+   * @param {string} url - URL to fetch
+   * @param {boolean} debug - Whether to log progress
+   * @returns {Promise<Uint8Array>}
+   */
+  SherpaOnnx.fetchWithProgress = async function(url, debug) {
+    var response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch ' + url + ': ' + response.status + ' ' + response.statusText);
+    }
+    var contentLength = parseInt(response.headers.get('Content-Length') || '0', 10);
+    var callback = SherpaOnnx.onDownloadProgress;
+    // If no callback or no body stream or no content-length, fall back to simple arrayBuffer
+    if (!callback || !response.body || !contentLength) {
+      var buffer = await response.arrayBuffer();
+      if (callback && contentLength) {
+        var filename = url.split('/').pop() || url;
+        callback({ url: url, filename: filename, loaded: contentLength, total: contentLength, percent: 100 });
+      }
+      return new Uint8Array(buffer);
+    }
+    var filename = url.split('/').pop() || url;
+    var reader = response.body.getReader();
+    var chunks = [];
+    var loaded = 0;
+    var lastReport = 0;
+    while (true) {
+      var result = await reader.read();
+      if (result.done) break;
+      chunks.push(result.value);
+      loaded += result.value.byteLength;
+      // Report at most every 200ms to avoid flooding
+      var now = Date.now();
+      if (now - lastReport > 200 || loaded === contentLength) {
+        var percent = Math.round((loaded / contentLength) * 100);
+        callback({ url: url, filename: filename, loaded: loaded, total: contentLength, percent: percent });
+        lastReport = now;
+      }
+    }
+    // Combine chunks into a single Uint8Array
+    var combined = new Uint8Array(loaded);
+    var offset = 0;
+    for (var i = 0; i < chunks.length; i++) {
+      combined.set(chunks[i], offset);
+      offset += chunks[i].byteLength;
+    }
+    return combined;
   };
 
   // Expose SherpaOnnx to the global object
