@@ -29,11 +29,24 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebLanguageIdModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native LanguageId uses the TurboModule.
         const modelDir = config?.modelDir || '/wasm/language-id';
-        const loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
-          encoder: `${modelDir}/tiny-encoder.onnx`,
-          decoder: `${modelDir}/tiny-decoder.onnx`,
-          debug,
-        });
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config?.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
+            encoder: `${fetchBase}/tiny-encoder.onnx`,
+            decoder: `${fetchBase}/tiny-decoder.onnx`,
+            modelDir,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.languageId = window.SherpaOnnx.LanguageId.createLanguageId(
           loadedModel,

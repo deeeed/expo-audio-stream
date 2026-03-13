@@ -26,6 +26,9 @@ export interface WebFeatureEntry {
    * See src/hooks/useModelConfig.ts for all available IDs.
    */
   modelId: string;
+  /** External base URL for model files (for models too large for static hosting).
+   *  Any CORS-enabled URL works: HuggingFace, GitHub releases, custom CDN. */
+  modelBaseUrl?: string;
 }
 
 export type WebFeatureConfig = Record<string, WebFeatureEntry>;
@@ -37,42 +40,92 @@ export type WebFeatureConfig = Record<string, WebFeatureEntry>;
  */
 export const WEB_FEATURES = {
   /** Voice Activity Detection (~2 MB). */
-  vad: { enabled: true, modelId: 'silero-vad-v5' },
+  vad: {
+    enabled: true,
+    modelId: 'silero-vad-v5',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/vad',
+  },
 
   /** Speech Recognition / streaming ASR (~200 MB).
    *  Alternatives: 'streaming-zipformer-en-20m-mobile', 'streaming-zipformer-bilingual-zh-en',
    *  'streaming-zipformer-multilingual', 'whisper-tiny-en' */
-  asr: { enabled: true, modelId: 'streaming-zipformer-en-general' },
+  asr: {
+    enabled: true,
+    modelId: 'streaming-zipformer-en-general',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/asr',
+  },
 
   /** Text-to-Speech (~87 MB).
    *  Alternatives: 'vits-piper-en-medium', 'vits-piper-en-libritts_r-medium',
    *  'kokoro-en', 'kokoro-multi-lang-v1_1', 'matcha-icefall-en' */
-  tts: { enabled: true, modelId: 'vits-icefall-en-low' },
+  tts: {
+    enabled: true,
+    modelId: 'vits-icefall-en-low',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/tts',
+  },
 
   /** Keyword Spotting (~10 MB).
    *  Alternatives: 'kws-zipformer-wenetspeech' */
-  kws: { enabled: true, modelId: 'kws-zipformer-gigaspeech' },
+  kws: {
+    enabled: true,
+    modelId: 'kws-zipformer-gigaspeech',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/kws',
+  },
 
   /** Speaker Diarization (~15 MB). */
-  diarization: { enabled: true, modelId: 'pyannote-segmentation-3-0' },
+  diarization: {
+    enabled: true,
+    modelId: 'pyannote-segmentation-3-0',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/speakers',
+  },
 
   /** Speech Enhancement / Denoising (~5 MB). */
-  denoising: { enabled: true, modelId: 'gtcrn-speech-denoiser' },
+  denoising: {
+    enabled: true,
+    modelId: 'gtcrn-speech-denoiser',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/enhancement',
+  },
 
   /** Audio Tagging (~10 MB).
    *  Alternatives: 'ced-mini-audio-tagging', 'ced-base-audio-tagging' */
-  audioTagging: { enabled: true, modelId: 'ced-tiny-audio-tagging' },
+  audioTagging: {
+    enabled: true,
+    modelId: 'ced-tiny-audio-tagging',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/audio-tagging',
+  },
 
   /** Language Identification (~40 MB).
    *  Alternatives: 'whisper-small-multilingual-lang-id' */
-  languageId: { enabled: true, modelId: 'whisper-tiny-multilingual' },
+  languageId: {
+    enabled: true,
+    modelId: 'whisper-tiny-multilingual',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/language-id',
+  },
 
   /** Speaker Identification (~7 MB).
    *  Alternatives: 'speaker-id-zh-cn', 'speaker-id-zh-en-advanced' */
-  speakerId: { enabled: true, modelId: 'speaker-id-en-voxceleb' },
+  speakerId: {
+    enabled: true,
+    modelId: 'speaker-id-en-voxceleb',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/speaker-id',
+  },
 
   /** Punctuation Restoration (~5 MB). */
-  punctuation: { enabled: true, modelId: 'online-punct-en' },
+  punctuation: {
+    enabled: true,
+    modelId: 'online-punct-en',
+    modelBaseUrl:
+      'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/punctuation',
+  },
 } satisfies Record<string, WebFeatureEntry>;
 
 export type WebFeatureKey = keyof typeof WEB_FEATURES;

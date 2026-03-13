@@ -228,11 +228,16 @@ deploy_web() {
     echo -e "${CYAN}Deploying to web (production)...${NC}"
     NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web
     cp privacy_policy.html dist/
-    # Remove files exceeding GitHub Pages' 100MB limit (keeps 8 of 10 features;
-    # only asr and language-id have models >100MB)
-    echo -e "${CYAN}Removing files >95MB to stay under GitHub's 100MB limit...${NC}"
+    # All models load from external CDN (HuggingFace) via modelBaseUrl in
+    # webFeatures.ts — remove their static copies entirely.
+    echo -e "${CYAN}Removing all model directories (loaded from CDN at runtime)...${NC}"
+    for dir in dist/wasm/asr dist/wasm/language-id dist/wasm/tts dist/wasm/vad dist/wasm/kws \
+               dist/wasm/speakers dist/wasm/enhancement dist/wasm/audio-tagging \
+               dist/wasm/speaker-id dist/wasm/punctuation; do
+      rm -rf "$dir"
+    done
+    # Safety net: also remove any remaining files >95MB
     find dist -type f -size +95M -exec echo "  Removing: {}" \; -delete 2>/dev/null
-    # Clean up any directories left empty after large file removal
     find dist -type d -empty -delete 2>/dev/null
     gh-pages -t -d dist --dest sherpa-voice
   fi

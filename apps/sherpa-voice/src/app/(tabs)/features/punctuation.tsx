@@ -2,10 +2,12 @@ import { Punctuation } from '@siteed/sherpa-onnx.rn';
 import type { PunctuationModelConfig } from '@siteed/sherpa-onnx.rn';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Platform,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { WEB_FEATURES } from '../../../config/webFeatures';
 import { usePunctuationModels, usePunctuationModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import { setAgenticPageState } from '../../../agentic-bridge';
@@ -83,6 +85,20 @@ export default function PunctuationScreen() {
       const config: PunctuationModelConfig = {
         modelDir: localPath,
         ...punctuationConfig,
+        modelBaseUrl:
+          Platform.OS === 'web'
+            ? WEB_FEATURES.punctuation?.modelBaseUrl
+            : undefined,
+        onProgress:
+          Platform.OS === 'web'
+            ? (info) => {
+                const mb = (info.loaded / 1048576).toFixed(1);
+                const totalMb = (info.total / 1048576).toFixed(1);
+                setStatusMessage(
+                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                );
+              }
+            : undefined,
       };
       const result = await Punctuation.init(config);
       if (result.success) {

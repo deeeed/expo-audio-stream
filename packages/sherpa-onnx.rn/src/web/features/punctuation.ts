@@ -27,11 +27,24 @@ export function PunctuationMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebPunctuationModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Punctuation uses the TurboModule.
         const modelDir = config?.modelDir || '/wasm/punctuation';
-        const loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
-          cnnBilstm: `${modelDir}/model.onnx`,
-          bpeVocab: `${modelDir}/bpe.vocab`,
-          debug,
-        });
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config?.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.Punctuation.loadModel({
+            cnnBilstm: `${fetchBase}/model.onnx`,
+            bpeVocab: `${fetchBase}/bpe.vocab`,
+            modelDir,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.punctuation = window.SherpaOnnx.Punctuation.createPunctuation(
           loadedModel,

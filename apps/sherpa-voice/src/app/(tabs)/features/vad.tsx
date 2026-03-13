@@ -9,7 +9,8 @@ import { VAD } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
+import { WEB_FEATURES } from '../../../config/webFeatures'
 import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
 import {
@@ -179,6 +180,20 @@ export default function VadScreen() {
             const config: VadModelConfig = {
                 modelDir: localPath,
                 ...vadConfig,
+                modelBaseUrl:
+                    Platform.OS === 'web'
+                        ? WEB_FEATURES.vad?.modelBaseUrl
+                        : undefined,
+                onProgress:
+                    Platform.OS === 'web'
+                        ? (info) => {
+                              const mb = (info.loaded / 1048576).toFixed(1)
+                              const totalMb = (info.total / 1048576).toFixed(1)
+                              setStatusMessage(
+                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                              )
+                          }
+                        : undefined,
             }
             const result = await VAD.init(config)
             if (result.success) {

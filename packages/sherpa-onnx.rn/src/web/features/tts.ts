@@ -29,13 +29,26 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebTtsModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native TTS uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/tts';
-        const loadedModel = await window.SherpaOnnx.TTS.loadModel({
-          type: config.ttsModelType || 'vits',
-          model: `${modelDir}/model.onnx`,
-          tokens: `${modelDir}/tokens.txt`,
-          espeakDataZip: `${modelDir}/espeak-ng-data.zip`,
-          debug,
-        });
+        const fetchBase = config.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.TTS.loadModel({
+            type: config.ttsModelType || 'vits',
+            model: `${fetchBase}/model.onnx`,
+            tokens: `${fetchBase}/tokens.txt`,
+            espeakDataZip: `${fetchBase}/espeak-ng-data.zip`,
+            modelDir,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.tts = window.SherpaOnnx.TTS.createOfflineTts(loadedModel, {
           numThreads,

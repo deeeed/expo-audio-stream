@@ -55,10 +55,23 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebSpeakerIdModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native SpeakerId uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/speaker-id';
-        const loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
-          model: `${modelDir}/model.onnx`,
-          debug,
-        });
+        const fetchBase = config.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
+            model: `${fetchBase}/model.onnx`,
+            modelDir,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.speakerExtractor = window.SherpaOnnx.SpeakerId.createExtractor(
           loadedModel,

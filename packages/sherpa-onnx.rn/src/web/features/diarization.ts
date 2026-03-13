@@ -34,12 +34,25 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebDiarizationModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native Diarization uses the TurboModule.
         const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
-        const loadedModel =
-          await window.SherpaOnnx.SpeakerDiarization.loadModel({
-            segmentation: `${modelDir}/segmentation.onnx`,
-            embedding: `${modelDir}/embedding.onnx`,
-            debug,
-          });
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config?.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel =
+            await window.SherpaOnnx.SpeakerDiarization.loadModel({
+              segmentation: `${fetchBase}/segmentation.onnx`,
+              embedding: `${fetchBase}/embedding.onnx`,
+              modelDir,
+              debug,
+            });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.diarization =
           window.SherpaOnnx.SpeakerDiarization.createDiarization(loadedModel, {

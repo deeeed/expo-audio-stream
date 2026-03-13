@@ -2,6 +2,8 @@ import { Diarization, DiarizationSegment } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useEffect, useRef, useState } from 'react'
+import { Platform } from 'react-native'
+import { WEB_FEATURES } from '../config/webFeatures'
 import { useModelManagement } from '../contexts/ModelManagement'
 import {
     useModels,
@@ -182,6 +184,20 @@ export function useDiarization() {
                 numThreads,
                 numClusters,
                 threshold,
+                modelBaseUrl:
+                    Platform.OS === 'web'
+                        ? WEB_FEATURES.diarization?.modelBaseUrl
+                        : undefined,
+                onProgress:
+                    Platform.OS === 'web'
+                        ? (info) => {
+                              const mb = (info.loaded / 1048576).toFixed(1)
+                              const totalMb = (info.total / 1048576).toFixed(1)
+                              setStatusMessage(
+                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                              )
+                          }
+                        : undefined,
             })
 
             if (result.success) {

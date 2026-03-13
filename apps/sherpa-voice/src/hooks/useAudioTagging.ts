@@ -7,7 +7,8 @@ import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
+import { WEB_FEATURES } from '../config/webFeatures'
 import {
     useAudioTaggingModels,
     useAudioTaggingModelWithConfig,
@@ -215,6 +216,20 @@ export function useAudioTagging() {
                 topK,
                 debug: debugMode,
                 provider,
+                modelBaseUrl:
+                    Platform.OS === 'web'
+                        ? WEB_FEATURES.audioTagging?.modelBaseUrl
+                        : undefined,
+                onProgress:
+                    Platform.OS === 'web'
+                        ? (info) => {
+                              const mb = (info.loaded / 1048576).toFixed(1)
+                              const totalMb = (info.total / 1048576).toFixed(1)
+                              setStatusMessage(
+                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                              )
+                          }
+                        : undefined,
             }
 
             try {

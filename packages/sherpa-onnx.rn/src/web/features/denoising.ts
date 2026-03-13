@@ -36,12 +36,25 @@ export function DenoisingMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config?.modelDir
           || (config?.modelFile ? config.modelFile.substring(0, config.modelFile.lastIndexOf('/')) : null)
           || '/wasm/enhancement';
-        const loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel(
-          {
-            model: `${modelDir}/gtcrn.onnx`,
-            debug,
-          }
-        );
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config?.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.SpeechEnhancement.loadModel(
+            {
+              model: `${fetchBase}/gtcrn.onnx`,
+              modelDir,
+              debug,
+            }
+          );
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.denoiser = window.SherpaOnnx.SpeechEnhancement.createDenoiser(
           loadedModel,

@@ -20,13 +20,25 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
         // Web-only: config.modelDir is set to '/wasm/vad' by ModelManagement
         // (createWebVadModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native VAD uses the TurboModule.
+        const fetchBase = config.modelBaseUrl || config.modelDir;
         console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
-        const loadedModel = await window.SherpaOnnx.VAD.loadModel({
-          model: `${config.modelDir}/${modelFile}`,
-          modelDir: 'vad-models',
-          fileName: modelFile,
-          debug,
-        });
+
+        // Set progress callback if provided
+        if (config.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.VAD.loadModel({
+            model: `${fetchBase}/${modelFile}`,
+            modelDir: 'vad-models',
+            fileName: modelFile,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.vad = window.SherpaOnnx.VAD.createVoiceActivityDetector(
           loadedModel,

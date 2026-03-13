@@ -445,6 +445,9 @@ export interface SherpaOnnxNamespace {
   LanguageId?: SherpaOnnxLanguageIdModule;
   SpeakerId?: SherpaOnnxSpeakerIdModule;
   Punctuation?: SherpaOnnxPunctuationModule;
+  Cache?: { get: (key: string) => Promise<Uint8Array | null>; put: (key: string, data: Uint8Array) => Promise<void>; clear: () => Promise<void>; openDB: () => Promise<IDBDatabase> };
+  onDownloadProgress: ((info: { url: string; filename: string; loaded: number; total: number; percent: number }) => void) | null;
+  fetchWithProgress: (url: string, debug?: boolean) => Promise<Uint8Array>;
 }
 
 // ---------------------------------------------------------------------------

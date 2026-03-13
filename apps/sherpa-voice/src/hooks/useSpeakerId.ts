@@ -8,7 +8,8 @@ import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useEffect, useState } from 'react'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
+import { WEB_FEATURES } from '../config/webFeatures'
 import {
     useSpeakerIdModelWithConfig,
     useSpeakerIdModels,
@@ -150,6 +151,20 @@ export function useSpeakerId() {
                 numThreads,
                 debug: debugMode,
                 provider,
+                modelBaseUrl:
+                    Platform.OS === 'web'
+                        ? WEB_FEATURES.speakerId?.modelBaseUrl
+                        : undefined,
+                onProgress:
+                    Platform.OS === 'web'
+                        ? (info) => {
+                              const mb = (info.loaded / 1048576).toFixed(1)
+                              const totalMb = (info.total / 1048576).toFixed(1)
+                              setStatusMessage(
+                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                              )
+                          }
+                        : undefined,
             }
 
             const result = await SpeakerId.init(modelConfig)

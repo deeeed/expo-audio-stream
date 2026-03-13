@@ -8,7 +8,7 @@ import { LanguageId } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'
 import { useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
 import {
@@ -27,6 +27,7 @@ import {
     useLanguageIdModelWithConfig,
 } from '../../../hooks/useModelWithConfig'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
+import { WEB_FEATURES } from '../../../config/webFeatures'
 
 interface AudioItem {
     id: string
@@ -170,6 +171,20 @@ export default function LanguageIdScreen() {
             const config: LanguageIdModelConfig = {
                 modelDir: localPath,
                 ...languageIdConfig,
+                modelBaseUrl:
+                    Platform.OS === 'web'
+                        ? WEB_FEATURES.languageId?.modelBaseUrl
+                        : undefined,
+                onProgress:
+                    Platform.OS === 'web'
+                        ? (info) => {
+                              const mb = (info.loaded / 1048576).toFixed(1)
+                              const totalMb = (info.total / 1048576).toFixed(1)
+                              setStatusMessage(
+                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
+                              )
+                          }
+                        : undefined,
             }
             const result = await LanguageId.init(config)
             if (result.success) {

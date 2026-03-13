@@ -138,6 +138,13 @@ export interface TtsModelConfig {
    * Default: 0.2
    */
   silenceScale?: number;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 /**
@@ -313,6 +320,13 @@ export interface AudioTaggingModelConfig {
    * Default: "cpu"
    */
   provider?: ModelProvider;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 /**
@@ -508,6 +522,22 @@ export interface AsrModelConfig {
    * Default: "cpu"
    */
   provider?: ModelProvider;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
+}
+
+/** Progress info emitted during model file downloads (web only). */
+export interface ModelDownloadProgress {
+  url: string;
+  filename: string;
+  loaded: number;
+  total: number;
+  percent: number;
 }
 
 /**
@@ -610,6 +640,13 @@ export interface KWSModelConfig {
   keywordsThreshold?: number;
   /** Number of trailing blanks (default: 2) */
   numTrailingBlanks?: number;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 /**
@@ -672,6 +709,13 @@ export interface SpeakerIdModelConfig {
    * Default: false
    */
   debug?: boolean;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 /**
@@ -910,6 +954,13 @@ export interface DiarizationModelConfig {
   numClusters?: number;
   /** Clustering threshold when numClusters=-1 */
   threshold?: number;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 export interface DiarizationInitResult {
@@ -962,6 +1013,13 @@ export interface VadModelConfig {
   debug?: boolean;
   /** Provider: 'cpu' or 'gpu' */
   provider?: 'cpu' | 'gpu';
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 /**
@@ -1009,6 +1067,12 @@ export interface LanguageIdModelConfig {
   numThreads?: number;
   debug?: boolean;
   provider?: 'cpu' | 'gpu';
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 export interface LanguageIdInitResult {
@@ -1034,6 +1098,13 @@ export interface PunctuationModelConfig {
   numThreads?: number;
   debug?: boolean;
   provider?: 'cpu' | 'gpu';
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 export interface PunctuationInitResult {
@@ -1056,6 +1127,13 @@ export interface DenoiserModelConfig {
   numThreads?: number;
   provider?: string;
   debug?: boolean;
+
+  /** Base URL for fetching model files on web. When set, files are fetched
+   *  from this URL instead of modelDir. Supports any CORS-enabled URL. */
+  modelBaseUrl?: string;
+
+  /** Web-only: called during model download with progress info. */
+  onProgress?: (info: ModelDownloadProgress) => void;
 }
 
 export interface DenoiserInitResult {

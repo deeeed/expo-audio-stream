@@ -36,11 +36,24 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
         // (createWebAudioTaggingModelState in constants.ts), pointing to model files
         // pre-served by download-web-models.sh. Native AudioTagging uses the TurboModule.
         const modelDir = config.modelDir || '/wasm/audio-tagging';
-        const loadedModel = await window.SherpaOnnx.AudioTagging.loadModel({
-          ced: `${modelDir}/model.onnx`,
-          labels: `${modelDir}/labels.txt`,
-          debug,
-        });
+        const fetchBase = config.modelBaseUrl || modelDir;
+
+        // Set progress callback if provided
+        if (config.onProgress && window.SherpaOnnx) {
+          window.SherpaOnnx.onDownloadProgress = config.onProgress;
+        }
+
+        let loadedModel;
+        try {
+          loadedModel = await window.SherpaOnnx.AudioTagging.loadModel({
+            ced: `${fetchBase}/model.onnx`,
+            labels: `${fetchBase}/labels.txt`,
+            modelDir,
+            debug,
+          });
+        } finally {
+          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
+        }
 
         this.audioTagger = window.SherpaOnnx.AudioTagging.createAudioTagging(
           loadedModel,
