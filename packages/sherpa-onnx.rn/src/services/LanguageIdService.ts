@@ -32,7 +32,6 @@ export class LanguageIdService {
       const nativeConfig: Record<string, unknown> = {
         modelDir: cleanFilePath(config.modelDir),
         modelBaseUrl: config.modelBaseUrl,
-        onProgress: config.onProgress,
         encoderFile: config.encoderFile,
         decoderFile: config.decoderFile,
         numThreads: config.numThreads ?? 1,

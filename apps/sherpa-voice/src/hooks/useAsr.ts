@@ -4,9 +4,8 @@ import {
     ExpoAudioStreamModule,
     type AudioDataEvent,
 } from '@siteed/expo-audio-studio'
-import { Platform } from 'react-native'
 import { resolveModelDir } from '../utils/fileUtils'
-import { WEB_FEATURES } from '../config/webFeatures'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -172,20 +171,8 @@ export function useAsr() {
 
             const config: AsrModelConfig = {
                 modelDir,
-                modelBaseUrl:
-                    Platform.OS === 'web'
-                        ? WEB_FEATURES.asr?.modelBaseUrl
-                        : undefined,
-                onProgress:
-                    Platform.OS === 'web'
-                        ? (info) => {
-                              const mb = (info.loaded / 1048576).toFixed(1)
-                              const totalMb = (info.total / 1048576).toFixed(1)
-                              setStatusMessage(
-                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
-                              )
-                          }
-                        : undefined,
+                modelBaseUrl: getWebModelBaseUrl('asr'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
                 modelType: asrConfig.modelType || 'transducer',
                 numThreads:
                     mode === 'live'

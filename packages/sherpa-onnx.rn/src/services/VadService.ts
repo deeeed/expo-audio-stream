@@ -42,7 +42,6 @@ export class VadService {
         debug: config.debug ?? false,
         provider: config.provider ?? 'cpu',
         modelBaseUrl: config.modelBaseUrl,
-        onProgress: config.onProgress,
       };
 
       const result = await this.api.initVad(nativeConfig as any);

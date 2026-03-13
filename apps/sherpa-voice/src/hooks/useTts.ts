@@ -7,8 +7,7 @@ import type {
 import { TTS } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useEffect, useState } from 'react'
-import { Platform } from 'react-native'
-import { WEB_FEATURES } from '../config/webFeatures'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import { useTtsModels, useTtsModelWithConfig } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS } from '../utils/constants'
 import { setAgenticPageState } from '../agentic-bridge'
@@ -140,20 +139,8 @@ export function useTts() {
                 numThreads,
                 debug: debugMode,
                 provider,
-                modelBaseUrl:
-                    Platform.OS === 'web'
-                        ? WEB_FEATURES.tts?.modelBaseUrl
-                        : undefined,
-                onProgress:
-                    Platform.OS === 'web'
-                        ? (info) => {
-                              const mb = (info.loaded / 1048576).toFixed(1)
-                              const totalMb = (info.total / 1048576).toFixed(1)
-                              setStatusMessage(
-                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
-                              )
-                          }
-                        : undefined,
+                modelBaseUrl: getWebModelBaseUrl('tts'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             }
 
             const result = await TTS.initialize(modelConfig)

@@ -22,7 +22,7 @@ import type {
   IdentifySpeakerInput,
   VerifySpeakerInput,
 } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -57,21 +57,13 @@ export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config.modelDir || '/wasm/speaker-id';
         const fetchBase = config.modelBaseUrl || modelDir;
 
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.SpeakerId.loadModel({
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.SpeakerId!.loadModel({
             model: `${fetchBase}/model.onnx`,
             modelDir,
             debug,
-          });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.speakerExtractor = window.SherpaOnnx.SpeakerId.createExtractor(
           loadedModel,

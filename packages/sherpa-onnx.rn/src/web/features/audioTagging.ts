@@ -10,7 +10,7 @@ import type {
   AudioTaggingFileInput,
   AudioTaggingSamplesInput,
 } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -38,22 +38,14 @@ export function AudioTaggingMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config.modelDir || '/wasm/audio-tagging';
         const fetchBase = config.modelBaseUrl || modelDir;
 
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.AudioTagging.loadModel({
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.AudioTagging!.loadModel({
             ced: `${fetchBase}/model.onnx`,
             labels: `${fetchBase}/labels.txt`,
             modelDir,
             debug,
-          });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.audioTagger = window.SherpaOnnx.AudioTagging.createAudioTagging(
           loadedModel,

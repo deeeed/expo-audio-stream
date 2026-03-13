@@ -7,7 +7,7 @@ import type {
   AsrRecognizeResult,
 } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function AsrMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -34,14 +34,8 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
           ? 'transducer'
           : rawType;
 
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.ASR.loadModel({
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.ASR.loadModel({
             type: asrType,
             encoder: `${fetchBase}/encoder.onnx`,
             decoder: `${fetchBase}/decoder.onnx`,
@@ -49,11 +43,8 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
             tokens: `${fetchBase}/tokens.txt`,
             modelDir,
             debug,
-          });
-        } finally {
-          // Clear progress callback after download phase
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.asrOnlineRecognizer = window.SherpaOnnx.ASR.createOnlineRecognizer(
           loadedModel,

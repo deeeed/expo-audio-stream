@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { KwsSpotter, KwsStream } from '../wasmTypes';
 import type { KWSModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function KwsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -25,11 +25,6 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
         // pre-served by download-web-models.sh. Native KWS uses the TurboModule.
         const modelDir = config.modelDir;
         const fetchBase = config.modelBaseUrl || modelDir;
-
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
 
         // Ensure WASM FS directories exist
         const dirParts = modelDir.split('/').filter((p: string) => p);
@@ -70,7 +65,7 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
           return new Uint8Array(await r.arrayBuffer());
         };
 
-        try {
+        await withDownloadProgress(config.onProgress, async () => {
           for (const f of files) {
             try {
               if (M.FS.analyzePath(f.dest).exists) continue;
@@ -80,9 +75,7 @@ export function KwsMixin<TBase extends Constructor>(Base: TBase) {
             const data = await fetchData(f.url);
             M.FS.writeFile(f.dest, data);
           }
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+        });
 
         // Build config — all string fields must be set (not undefined/null)
         // to avoid NULL pointer issues in the WASM C struct

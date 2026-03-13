@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeakerDiarizationInstance } from '../wasmTypes';
 import type { DiarizationFileInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -36,23 +36,14 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
         const fetchBase = config?.modelBaseUrl || modelDir;
 
-        // Set progress callback if provided
-        if (config?.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel =
-            await window.SherpaOnnx.SpeakerDiarization.loadModel({
-              segmentation: `${fetchBase}/segmentation.onnx`,
-              embedding: `${fetchBase}/embedding.onnx`,
-              modelDir,
-              debug,
-            });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.SpeakerDiarization!.loadModel({
+            segmentation: `${fetchBase}/segmentation.onnx`,
+            embedding: `${fetchBase}/embedding.onnx`,
+            modelDir,
+            debug,
+          })
+        );
 
         this.diarization =
           window.SherpaOnnx.SpeakerDiarization.createDiarization(loadedModel, {

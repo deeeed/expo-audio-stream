@@ -7,7 +7,7 @@ import type {
   TtsInitResult,
   TtsModelConfig,
 } from '../../types/interfaces';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function TtsMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -31,24 +31,16 @@ export function TtsMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config.modelDir || '/wasm/tts';
         const fetchBase = config.modelBaseUrl || modelDir;
 
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.TTS.loadModel({
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.TTS.loadModel({
             type: config.ttsModelType || 'vits',
             model: `${fetchBase}/model.onnx`,
             tokens: `${fetchBase}/tokens.txt`,
             espeakDataZip: `${fetchBase}/espeak-ng-data.zip`,
             modelDir,
             debug,
-          });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.tts = window.SherpaOnnx.TTS.createOfflineTts(loadedModel, {
           numThreads,

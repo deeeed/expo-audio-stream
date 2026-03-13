@@ -1,8 +1,7 @@
 import { Denoising } from '@siteed/sherpa-onnx.rn';
 import { Asset } from 'expo-asset';
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import { WEB_FEATURES } from '../config/webFeatures';
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils';
 import { useModelManagement } from '../contexts/ModelManagement';
 import { useModels } from './useModelWithConfig';
 
@@ -90,20 +89,8 @@ export function useDenoising() {
 
       const result = await Denoising.init({
         modelFile,
-        modelBaseUrl:
-          Platform.OS === 'web'
-            ? WEB_FEATURES.denoising?.modelBaseUrl
-            : undefined,
-        onProgress:
-          Platform.OS === 'web'
-            ? (info) => {
-                const mb = (info.loaded / 1048576).toFixed(1);
-                const totalMb = (info.total / 1048576).toFixed(1);
-                setStatusMessage(
-                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
-                );
-              }
-            : undefined,
+        modelBaseUrl: getWebModelBaseUrl('denoising'),
+        onProgress: makeWebProgressHandler(setStatusMessage),
       });
 
       if (result.success) {

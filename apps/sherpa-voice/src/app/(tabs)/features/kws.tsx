@@ -18,7 +18,7 @@ import {
 } from 'react-native'
 import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
-import { WEB_FEATURES } from '../../../config/webFeatures'
+import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils'
 import {
     LoadingOverlay,
     ModelSelector,
@@ -170,25 +170,14 @@ export default function KwsScreen() {
         }
         ; (async () => {
             try {
-                // On web with CDN, check the CDN URL instead of local path
-                const webBase =
-                    Platform.OS === 'web'
-                        ? WEB_FEATURES.kws?.modelBaseUrl
-                        : undefined
-                if (webBase) {
-                    const exists = await fileExists(
-                        `${webBase}/test_wavs/test_keywords.txt`
-                    )
-                    setHasTestKeywordsFile(exists)
-                    if (exists) setUseTestKeywords(true)
-                } else {
-                    const dir = await resolveModelDir(localPath)
-                    const exists = await fileExists(
-                        `${dir}/test_wavs/test_keywords.txt`
-                    )
-                    setHasTestKeywordsFile(exists)
-                    if (exists) setUseTestKeywords(true)
-                }
+                const base =
+                    getWebModelBaseUrl('kws') ??
+                    (await resolveModelDir(localPath))
+                const exists = await fileExists(
+                    `${base}/test_wavs/test_keywords.txt`
+                )
+                setHasTestKeywordsFile(exists)
+                if (exists) setUseTestKeywords(true)
             } catch {
                 setHasTestKeywordsFile(false)
             }
@@ -231,19 +220,13 @@ export default function KwsScreen() {
 
     // Load keywords and test wavs after init
     const loadModelAssets = async (dir: string) => {
-        // On web with CDN, fetch keyword files from CDN base URL
-        const webBase =
-            Platform.OS === 'web'
-                ? WEB_FEATURES.kws?.modelBaseUrl
-                : undefined
+        const webBase = getWebModelBaseUrl('kws')
 
         // Read keywords.txt
         try {
             let kwContent: string
             if (Platform.OS === 'web') {
-                const url = webBase
-                    ? `${webBase}/keywords.txt`
-                    : `${dir}/keywords.txt`
+                const url = `${webBase ?? dir}/keywords.txt`
                 const resp = await fetch(url)
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
                 kwContent = await resp.text()
@@ -258,9 +241,7 @@ export default function KwsScreen() {
         // Read test_keywords.txt (subset keywords that match the test wavs)
         try {
             if (Platform.OS === 'web') {
-                const url = webBase
-                    ? `${webBase}/test_wavs/test_keywords.txt`
-                    : `${dir}/test_wavs/test_keywords.txt`
+                const url = `${webBase ?? dir}/test_wavs/test_keywords.txt`
                 const resp = await fetch(url)
                 if (resp.ok) {
                     setTestKeywords(parseKeywordsFile(await resp.text()))
@@ -489,20 +470,8 @@ export default function KwsScreen() {
                 keywordsFile: kwFile,
                 numThreads,
                 debug: debugMode,
-                modelBaseUrl:
-                    Platform.OS === 'web'
-                        ? WEB_FEATURES.kws?.modelBaseUrl
-                        : undefined,
-                onProgress:
-                    Platform.OS === 'web'
-                        ? (info) => {
-                              const mb = (info.loaded / 1048576).toFixed(1)
-                              const totalMb = (info.total / 1048576).toFixed(1)
-                              setStatusMessage(
-                                  `Downloading ${info.filename}: ${mb}/${totalMb} MB (${info.percent}%)`
-                              )
-                          }
-                        : undefined,
+                modelBaseUrl: getWebModelBaseUrl('kws'),
+                onProgress: makeWebProgressHandler(setStatusMessage),
             })
 
             if (result.success) {

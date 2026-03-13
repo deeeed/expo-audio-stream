@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import type { VoiceActivityDetector } from '../wasmTypes';
 import type { VadModelConfig } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function VadMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -23,22 +23,14 @@ export function VadMixin<TBase extends Constructor>(Base: TBase) {
         const fetchBase = config.modelBaseUrl || config.modelDir;
         console.log(`[VAD] Loading silero_vad model (debug=${debug})...`);
 
-        // Set progress callback if provided
-        if (config.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.VAD.loadModel({
+        const loadedModel = await withDownloadProgress(config.onProgress, () =>
+          window.SherpaOnnx.VAD.loadModel({
             model: `${fetchBase}/${modelFile}`,
             modelDir: 'vad-models',
             fileName: modelFile,
             debug,
-          });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.vad = window.SherpaOnnx.VAD.createVoiceActivityDetector(
           loadedModel,

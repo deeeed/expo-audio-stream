@@ -2,7 +2,7 @@ import { loadCombinedWasm } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { SpokenLanguageIdInstance } from '../wasmTypes';
 import type { WaveformInput } from '../../types/api';
-import type { Constructor } from './mixinUtils';
+import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
@@ -31,22 +31,14 @@ export function LanguageIdMixin<TBase extends Constructor>(Base: TBase) {
         const modelDir = config?.modelDir || '/wasm/language-id';
         const fetchBase = config?.modelBaseUrl || modelDir;
 
-        // Set progress callback if provided
-        if (config?.onProgress && window.SherpaOnnx) {
-          window.SherpaOnnx.onDownloadProgress = config.onProgress;
-        }
-
-        let loadedModel;
-        try {
-          loadedModel = await window.SherpaOnnx.LanguageId.loadModel({
+        const loadedModel = await withDownloadProgress(config?.onProgress, () =>
+          window.SherpaOnnx.LanguageId!.loadModel({
             encoder: `${fetchBase}/tiny-encoder.onnx`,
             decoder: `${fetchBase}/tiny-decoder.onnx`,
             modelDir,
             debug,
-          });
-        } finally {
-          if (window.SherpaOnnx) window.SherpaOnnx.onDownloadProgress = null;
-        }
+          })
+        );
 
         this.languageId = window.SherpaOnnx.LanguageId.createLanguageId(
           loadedModel,

@@ -53,7 +53,6 @@ export class KWSService {
         keywordsThreshold: config.keywordsThreshold ?? 0.25,
         numTrailingBlanks: config.numTrailingBlanks ?? 2,
         modelBaseUrl: config.modelBaseUrl,
-        onProgress: config.onProgress,
       };
 
       // Flatten model files
