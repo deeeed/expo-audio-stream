@@ -14,7 +14,7 @@ module.exports = {
     }
   },
   session: {
-    debugSynchronization: 10000,
+    debugSynchronization: 60000,
     debug: true,
     autoStart: true,
   },
@@ -61,6 +61,12 @@ module.exports = {
         type: 'iPad Pro 13-inch (M4)'
       }
     },
+    appStorePhone: {
+      type: 'ios.simulator',
+      device: {
+        name: 'SherpaVoice-AppStore'
+      }
+    },
     attached: {
       type: 'android.attached',
       device: {
@@ -71,6 +77,18 @@ module.exports = {
       type: 'android.emulator',
       device: {
         avdName: ANDROID_AVD
+      }
+    },
+    'tablet-7inch': {
+      type: 'android.emulator',
+      device: {
+        avdName: 'tablet-7inch'
+      }
+    },
+    'tablet-10inch': {
+      type: 'android.emulator',
+      device: {
+        avdName: 'tablet-10inch'
       }
     }
   },
@@ -91,6 +109,10 @@ module.exports = {
       device: 'ipadPro',
       app: 'ios.release'
     },
+    'ios.appstore.debug': {
+      device: 'appStorePhone',
+      app: 'ios.debug'
+    },
     'android.att.debug': {
       device: 'attached',
       app: 'android.debug'
@@ -105,6 +127,14 @@ module.exports = {
     },
     'android.emu.release': {
       device: 'emulator',
+      app: 'android.release'
+    },
+    'android.tablet7.release': {
+      device: 'tablet-7inch',
+      app: 'android.release'
+    },
+    'android.tablet10.release': {
+      device: 'tablet-10inch',
       app: 'android.release'
     }
   }
