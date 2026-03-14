@@ -31,7 +31,7 @@
     },
     "plugins": [
       "expo-router",
-      "../../packages/expo-audio-studio/app.plugin.cjs",
+      "../../packages/audio-studio/app.plugin.cjs",
       "expo-audio",
       "expo-font",
       "expo-web-browser"

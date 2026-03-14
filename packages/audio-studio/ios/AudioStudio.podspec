@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.homepage       = package['homepage']
   s.platforms      = { :ios => '15.1', :tvos => '15.1' }
   s.swift_version  = '5.4'
-  s.source         = { git: 'https://github.com/deeeed/expo-audio-stream' }
+  s.source         = { git: 'https://github.com/deeeed/audiolab' }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
@@ -34,6 +34,6 @@ Pod::Spec.new do |s|
     "*_test.swift",
     "standalone_test.swift",
     "tests/**/*",
-    "ExpoAudioStudioTests/**/*"
+    "AudioStudioTests/**/*"
   ]
 end

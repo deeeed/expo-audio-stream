@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 📚 Documentation
-    url: https://deeeed.github.io/expo-audio-stream/docs/
+    url: https://deeeed.github.io/audiolab/docs/
     about: Check our documentation before creating an issue
   - name: 🎮 Playground Demo
-    url: https://deeeed.github.io/expo-audio-stream/playground
+    url: https://deeeed.github.io/audiolab/playground
     about: Try reproducing your issue in our playground
   - name: 💬 Discussions
-    url: https://github.com/deeeed/expo-audio-stream/discussions
+    url: https://github.com/deeeed/audiolab/discussions
     about: Please ask and answer questions here 

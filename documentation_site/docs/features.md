@@ -48,7 +48,7 @@ sidebar_label: Features
 
 ## User Interface
 
-- Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package
+- Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package
 - Audio device selection components
 - Visualizations, waveforms, and interactive audio controls
 - Full-featured AudioPlayground application showcasing API usage

@@ -29,7 +29,7 @@ import type {
     RecordingInterruptionEvent,
 } from '@siteed/audio-studio'
 import {
-    ExpoAudioStreamModule,
+    AudioStudioModule,
     useSharedAudioRecorder,
     useAudioDevices,
 } from '@siteed/audio-studio'
@@ -276,7 +276,7 @@ export default function RecordScreen() {
     const requestPermissions = useCallback(async () => {
         try {
             const recordingPermission =
-                await ExpoAudioStreamModule.requestPermissionsAsync()
+                await AudioStudioModule.requestPermissionsAsync()
             if (recordingPermission.status !== 'granted') {
                 showPermissionError('Microphone')
                 return false
@@ -284,7 +284,7 @@ export default function RecordScreen() {
 
             if (Platform.OS === 'android' && Platform.Version >= 33) {
                 const notificationPermission =
-                    await ExpoAudioStreamModule.requestNotificationPermissionsAsync()
+                    await AudioStudioModule.requestNotificationPermissionsAsync()
                 if (notificationPermission.status !== 'granted') {
                     showPermissionError('Notification')
                     return false

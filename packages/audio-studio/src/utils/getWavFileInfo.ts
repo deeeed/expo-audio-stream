@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/utils/getWavFileInfo.ts
+// packages/audio-studio/src/utils/getWavFileInfo.ts
 
 import { BitDepth, SampleRate } from '../AudioStudio.types'
 import {

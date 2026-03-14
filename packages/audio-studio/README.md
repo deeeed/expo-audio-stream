@@ -33,7 +33,7 @@
     </div>
   </div>
 
-  <a href="https://deeeed.github.io/expo-audio-stream/playground" style="text-decoration:none;">
+  <a href="https://deeeed.github.io/audiolab/playground" style="text-decoration:none;">
     <div style="display:inline-block; padding:10px 20px; background-color:#007bff; color:white; border-radius:5px; font-size:16px;">
       Try it in the Playground
     </div>
@@ -41,7 +41,7 @@
 </div>
 
 **Give it a GitHub star 🌟, if you found this repo useful.**
-[![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
+[![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/audiolab)
 
 > **Note:** This package was formerly known as `@siteed/expo-audio-stream`. The name has been changed to better reflect the expanded capabilities beyond just audio streaming.
 
@@ -87,7 +87,7 @@
   - Ability to keep or remove specific time ranges
 - Complete ecosystem:
   - Full-featured AudioPlayground application showcasing advanced API usage
-  - Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package
+  - Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package
   - Visualizations, waveforms, and audio controls that can be directly incorporated into your app
 
 ## Audio Analysis Features
@@ -290,7 +290,7 @@ const permissions = await ExpoAudioStreamModule.getPermissionsAsync();
 
 ## Documentation
 
-For detailed documentation, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
+For detailed documentation, please refer to the [Getting Started Guide](https://deeeed.github.io/audiolab/docs/).
 
 For developers interested in contributing or debugging the library, please see the [Contribution Guide](./CONTRIBUTE.md).
 
@@ -304,11 +304,11 @@ The repository includes a complete AudioPlayground application that demonstrates
 - Real-time audio visualization and analysis
 - Code samples you can directly reference for your own implementation
 
-Try it online at [https://deeeed.github.io/expo-audio-stream/playground](https://deeeed.github.io/expo-audio-stream/playground) or run it locally from the repository.
+Try it online at [https://deeeed.github.io/audiolab/playground](https://deeeed.github.io/audiolab/playground) or run it locally from the repository.
 
 ### UI Components Package
 
-The [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications:
+The [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications:
 
 ```bash
 # Install the UI components package

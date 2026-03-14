@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/WebRecorder.web.ts
+// packages/audio-studio/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
 import { ConsoleLike, RecordingConfig } from './AudioStudio.types'

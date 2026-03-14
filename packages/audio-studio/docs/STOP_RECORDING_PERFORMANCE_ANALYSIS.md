@@ -272,7 +272,7 @@ private fun recordingProcess() {
 ### Performance Test Implementation
 
 A complete performance test suite has been created at:
-`android/src/androidTest/java/net/siteed/audiostream/AudioRecorderPerformanceTest.kt`
+`android/src/androidTest/java/net/siteed/audiostudio/AudioRecorderPerformanceTest.kt`
 
 This test file includes:
 - Tests for various recording durations (5s to 10 minutes)
@@ -476,7 +476,7 @@ class DetailedPerformanceMetricsTest {
 First, establish current performance metrics to measure improvement:
 
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 ./scripts/establish-baseline.sh
 ```
 
@@ -491,7 +491,7 @@ This script:
 For quick testing during development:
 ```bash
 # Run all performance tests
-cd packages/expo-audio-studio/android
+cd packages/audio-studio/android
 ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=net.siteed.audiostream.AudioRecorderPerformanceTest
 
 # Run specific test
@@ -505,7 +505,7 @@ cd packages/expo-audio-studio/android
 Use the provided script for comprehensive testing:
 
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 ./scripts/run-performance-tests.sh
 ```
 
@@ -766,7 +766,7 @@ The analysis has been extended to evaluate whether compressed formats (AAC/Opus)
 ## Testing Resources Created
 
 ### Test Files
-1. **Performance Test Suite**: `android/src/androidTest/java/net/siteed/audiostream/AudioRecorderPerformanceInstrumentedTest.kt`
+1. **Performance Test Suite**: `android/src/androidTest/java/net/siteed/audiostudio/AudioRecorderPerformanceInstrumentedTest.kt`
    - Tests for various recording durations (5s to 2m)
    - Direct performance measurements
    - Integration with existing test infrastructure

@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/AudioAnalysis/extractAudioAnalysis.ts
+// packages/audio-studio/src/AudioAnalysis/extractAudioAnalysis.ts
 /**
  * This module provides functions for extracting and analyzing audio data.
  * - `extractAudioAnalysis`: For detailed analysis with customizable ranges and decoding options.

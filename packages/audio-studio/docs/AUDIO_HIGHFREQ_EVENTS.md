@@ -1,7 +1,7 @@
 # Audio High-Frequency Events Investigation
 
 ## Overview
-Investigation results for [Issue #251](https://github.com/deeeed/expo-audio-stream/issues/251): Validating sub-100ms audio event timing capabilities.
+Investigation results for [Issue #251](https://github.com/deeeed/audiolab/issues/251): Validating sub-100ms audio event timing capabilities.
 
 ## Problem Statement
 Users report inability to achieve audio analysis intervals below 100ms when configuring `intervalAnalysis` to lower values. The `onAudioAnalysis` callback appears capped at ~100ms intervals, affecting real-time audio feedback applications.

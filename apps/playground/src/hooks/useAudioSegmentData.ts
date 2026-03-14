@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { BitDepth, DataPoint, ExtractedAudioData } from '@siteed/audio-studio'
-import { ExpoAudioStreamModule } from '@siteed/audio-studio'
+import { AudioStudioModule } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 
@@ -56,7 +56,7 @@ export function useAudioSegmentData({
                 includeNormalizedData,
             })
 
-            const result = await ExpoAudioStreamModule.extractAudioData({
+            const result = await AudioStudioModule.extractAudioData({
                 fileUri,
                 ...extractionOptions,
                 includeNormalizedData,

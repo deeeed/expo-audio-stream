@@ -194,8 +194,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 $NEW_SECTION
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/$PACKAGE_NAME@$VERSION...HEAD
-[$VERSION]: https://github.com/deeeed/expo-audio-stream/releases/tag/$PACKAGE_NAME@$VERSION
+[unreleased]: https://github.com/deeeed/audiolab/compare/$PACKAGE_NAME@$VERSION...HEAD
+[$VERSION]: https://github.com/deeeed/audiolab/releases/tag/$PACKAGE_NAME@$VERSION
 EOF
   else
     # Check if the file has an unreleased section
@@ -259,8 +259,8 @@ EOF
       # Add links at the bottom if they don't exist
       if ! grep -q "\[unreleased\]:" "$CHANGELOG_FILE"; then
         echo "" >> "$TMP_FILE"
-        echo "[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/$PACKAGE_NAME@$VERSION...HEAD" >> "$TMP_FILE"
-        echo "[$VERSION]: https://github.com/deeeed/expo-audio-stream/releases/tag/$PACKAGE_NAME@$VERSION" >> "$TMP_FILE"
+        echo "[unreleased]: https://github.com/deeeed/audiolab/compare/$PACKAGE_NAME@$VERSION...HEAD" >> "$TMP_FILE"
+        echo "[$VERSION]: https://github.com/deeeed/audiolab/releases/tag/$PACKAGE_NAME@$VERSION" >> "$TMP_FILE"
       fi
     fi
   fi

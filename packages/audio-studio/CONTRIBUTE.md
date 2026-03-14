@@ -181,13 +181,13 @@ class AudioFeatureExtractor {
 
 **Validation**: Run iOS tests
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 ./scripts/run_tests.sh ios
 ```
 
 #### 3. Android Implementation
 ```kotlin
-// android/src/main/java/net/siteed/audiostream/AudioFeatureExtractor.kt
+// android/src/main/java/net/siteed/audiostudio/AudioFeatureExtractor.kt
 class AudioFeatureExtractor {
     fun extract(audioData: FloatArray, config: AudioFeatureConfig?): List<AudioFeatureResult> {
         // Implementation
@@ -197,7 +197,7 @@ class AudioFeatureExtractor {
 
 **Validation**: Run Android tests
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 ./scripts/run_tests.sh android
 ```
 
@@ -214,7 +214,7 @@ export class AudioFeatureExtractor {
 #### 5. Integration Testing
 Run cross-platform tests to ensure consistency:
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 yarn test:integration
 ```
 
@@ -343,7 +343,7 @@ yarn test:all
    - Location: `src/__tests__/`
 
 2. **Platform Tests**
-   - iOS: `ios/ExpoAudioStudioTests/`
+   - iOS: `ios/AudioStudioTests/`
    - Android: `android/src/test/` (unit) and `android/src/androidTest/` (instrumented)
    - Test native implementations
 

@@ -20,7 +20,7 @@ assignees: ''
 <!-- RECOMMENDED: It helps tremendously if you can try to reproduce the issue on the official AudioPlayground app -->
 
 ### AudioPlayground Apps
-- Web: https://deeeed.github.io/expo-audio-stream/playground
+- Web: https://deeeed.github.io/audiolab/playground
 - iOS: https://apps.apple.com/app/audio-playground/id6739774966
 - Android: https://play.google.com/store/apps/details?id=net.siteed.audioplayground
 

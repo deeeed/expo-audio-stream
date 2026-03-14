@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # native-logs.sh — Retrieve native Kotlin/Swift logs from Android/iOS devices.
 #
-# Filters by ExpoAudioStudio tags (LogUtils.kt on Android, Logger.swift on iOS)
-# plus legacy tags (ExpoAudioStream, AudioTrimmer, AudioDeviceManager).
+# Filters by AudioStudio tags (LogUtils.kt on Android, Logger.swift on iOS)
+# plus legacy tags (AudioTrimmer, AudioDeviceManager).
 #
 # Usage:
 #   scripts/agentic/native-logs.sh android          # Dump recent Android logs
@@ -31,12 +31,12 @@ if [[ -n "$DEVICE_NAME" ]]; then
   IOS_SIMULATOR="${IOS_SIMULATOR:-$DEVICE_NAME}"
 fi
 
-# Android log filter: ExpoAudioStudio (LogUtils), ExpoAudioStream (Constants.TAG),
+# Android log filter: AudioStudio (LogUtils/Constants.TAG),
 # AudioTrimmer, AudioDeviceManager, RecordingActionReceiver
-ANDROID_FILTER='ExpoAudioStudio|ExpoAudioStream|AudioTrimmer|AudioDeviceManager|RecordingActionReceiver'
+ANDROID_FILTER='AudioStudio|AudioTrimmer|AudioDeviceManager|RecordingActionReceiver'
 
-# iOS log filter: Logger.swift uses [ExpoAudioStudio:ClassName] format
-IOS_PREDICATE='eventMessage CONTAINS "ExpoAudioStudio" OR eventMessage CONTAINS "ExpoAudioStream"'
+# iOS log filter: Logger.swift uses [AudioStudio:ClassName] format
+IOS_PREDICATE='eventMessage CONTAINS "AudioStudio"'
 
 usage() {
   cat <<'EOF'
@@ -55,8 +55,8 @@ Examples with --device:
   native-logs.sh --device "iPhone 16 Pro Max" ios
 
 Filter tags:
-  Android: ExpoAudioStudio, ExpoAudioStream, AudioTrimmer, AudioDeviceManager
-  iOS:     [ExpoAudioStudio:*] (Logger.swift format)
+  Android: AudioStudio, AudioTrimmer, AudioDeviceManager
+  iOS:     [AudioStudio:*] (Logger.swift format)
 
 Options:
   --device <name>  Target device name (sets ANDROID_DEVICE / IOS_SIMULATOR)

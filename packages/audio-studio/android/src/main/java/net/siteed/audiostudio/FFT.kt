@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/android/src/main/java/net/siteed/audiostream/FFT.kt
+// packages/audio-studio/android/src/main/java/net/siteed/audiostudio/FFT.kt
 package net.siteed.audiostudio
 
 import kotlin.math.PI

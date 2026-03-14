@@ -196,12 +196,12 @@ To request microphone permissions in your Expo project, you can use the followin
 
 ```tsx
 import {
-    ExpoAudioStreamModule,
+    AudioStudioModule,
 } from '@siteed/expo-audio-studio'
 
 const requestPermissions = async () => {
     const { granted } =
-        await ExpoAudioStreamModule.requestPermissionsAsync()
+        await AudioStudioModule.requestPermissionsAsync()
     if (granted) {
         console.log('Microphone permissions granted')
     } else {

@@ -15,7 +15,7 @@ This monorepo contains the following packages:
 - `@siteed/sherpa-onnx.rn` (in development)
 
 **Give it a GitHub star 🌟, if you found this repo useful.**
-[![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/expo-audio-stream)
+[![GitHub stars](https://img.shields.io/github/stars/deeeed/expo-audio-stream.svg?style=social&label=Star&maxAge=2592000)](https://github.com/deeeed/audiolab)
 
 ## ❤️ Support This Project
 
@@ -25,7 +25,7 @@ Love this repo? Support my journey in audio, AI, & blockchain, and help fund new
 
 <div align="center">
   <h2>Try them out</h2>
-  <p><a href="https://deeeed.github.io/expo-audio-stream">https://deeeed.github.io/expo-audio-stream</a></p>
+  <p><a href="https://deeeed.github.io/audiolab">https://deeeed.github.io/audiolab</a></p>
 </div>
 
 ## Example Applications
@@ -52,14 +52,14 @@ Key features:
       <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="40" />
     </a>
   </div>
-  <p>Or try the web version at <a href="https://deeeed.github.io/expo-audio-stream/playground/">https://deeeed.github.io/expo-audio-stream/playground/</a></p>
+  <p>Or try the web version at <a href="https://deeeed.github.io/audiolab/playground/">https://deeeed.github.io/audiolab/playground/</a></p>
 </div>
 
 ### Sherpa Voice
 
 On-device speech recognition, text-to-speech, and audio intelligence powered by Sherpa-ONNX.
 
-Try it at [https://deeeed.github.io/expo-audio-stream/sherpa-voice/](https://deeeed.github.io/expo-audio-stream/sherpa-voice/)
+Try it at [https://deeeed.github.io/audiolab/sherpa-voice/](https://deeeed.github.io/audiolab/sherpa-voice/)
 
 ### Essentia Demo
 
@@ -75,7 +75,7 @@ A stripped-down implementation showing the bare minimum required to integrate th
 
 `@siteed/expo-audio-studio` (formerly `@siteed/expo-audio-stream`) is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
 
-For more details, please refer to the [README](packages/expo-audio-studio/README.md) of the package.
+For more details, please refer to the [README](packages/audio-studio/README.md) of the package.
 
 ### 2. `@siteed/expo-audio-ui`
 
@@ -104,7 +104,7 @@ Key features:
 - Cross-platform support for iOS, Android, and Web
 - Optimized native implementation with web compatibility
 
-For more details, check out the [Sherpa Voice demo](https://deeeed.github.io/expo-audio-stream/sherpa-voice/) or refer to the package source.
+For more details, check out the [Sherpa Voice demo](https://deeeed.github.io/audiolab/sherpa-voice/) or refer to the package source.
 
 ## Roadmap
 

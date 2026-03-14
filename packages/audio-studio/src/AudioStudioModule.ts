@@ -9,8 +9,8 @@ import {
     TrimAudioResult,
 } from './AudioStudio.types'
 import {
-    ExpoAudioStreamWeb,
-    ExpoAudioStreamWebProps,
+    AudioStudioWeb,
+    AudioStudioWebProps,
 } from './AudioStudio.web'
 import { processAudioBuffer } from './utils/audioProcessing'
 import crc32 from './utils/crc32'
@@ -20,11 +20,11 @@ import { writeWavHeader } from './utils/writeWavHeader'
 let AudioStudioModule: any
 
 if (Platform.OS === 'web') {
-    let instance: ExpoAudioStreamWeb | null = null
+    let instance: AudioStudioWeb | null = null
 
-    AudioStudioModule = (webProps: ExpoAudioStreamWebProps) => {
+    AudioStudioModule = (webProps: AudioStudioWebProps) => {
         if (!instance) {
-            instance = new ExpoAudioStreamWeb(webProps)
+            instance = new AudioStudioWeb(webProps)
         }
         return instance
     }

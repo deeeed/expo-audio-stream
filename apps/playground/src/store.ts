@@ -5,7 +5,7 @@ import { combineReducers } from 'redux'
 import { persistReducer, persistStore } from 'redux-persist'
 
 import type { SavedUserPreferences } from '@siteed/design-system/dist/src/hooks/_useAppThemeSetup'
-import type { RecordingConfig } from '@siteed/audio-studio/src/ExpoAudioStream.types'
+import type { RecordingConfig } from '@siteed/audio-studio/src/AudioStudio.types'
 
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { TypedUseSelectorHook } from 'react-redux'

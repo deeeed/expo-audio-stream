@@ -3,12 +3,12 @@ package net.siteed.audiostudio
 import android.util.Log
 
 /**
- * Utility class for standardized logging across the ExpoAudioStudio library.
+ * Utility class for standardized logging across the AudioStudio library.
  * Provides consistent logging format and tags for easier filtering in logcat.
  */
 object LogUtils {
-    // Format: [ExpoAudioStudio:ClassName]
-    private const val TAG_PREFIX = "ExpoAudioStudio"
+    // Format: [AudioStudio:ClassName]
+    private const val TAG_PREFIX = "AudioStudio"
     
     // Check if we're running in a test environment
     private val isInTest: Boolean by lazy {

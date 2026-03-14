@@ -1,4 +1,4 @@
-// packages/expo-audio-studio/src/workers/InlineFeaturesExtractor.web.tsx
+// packages/audio-studio/src/workers/InlineFeaturesExtractor.web.tsx
 export const InlineFeaturesExtractor = `
 // Constants
 const N_FFT = 1024;  // Default FFT size

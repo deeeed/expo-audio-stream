@@ -15,7 +15,7 @@ The web implementation of expo-audio-studio provides a complete audio recording 
 
 The web implementation consists of several key components:
 
-1. **ExpoAudioStreamWeb**: Main entry point that provides the public API
+1. **AudioStudioWeb**: Main entry point that provides the public API
 2. **WebRecorder**: Core recording implementation for web platform
 3. **AudioWorklet**: Low-level audio processing in a dedicated thread
 4. **FeatureExtractor**: Audio analysis for visualization and features
@@ -25,7 +25,7 @@ The web implementation consists of several key components:
 ```
 ┌────────────────┐       ┌─────────────────┐       ┌────────────────────┐
 │                │       │                 │       │                    │
-│  Browser       │       │   WebRecorder   │       │  ExpoAudioStream   │
+│  Browser       │       │   WebRecorder   │       │  AudioStudio       │
 │  Audio API     ├──────►│   (processing)  ├──────►│  (events/API)      │
 │                │       │                 │       │                    │
 └────────────────┘       └─────────────────┘       └────────────────────┘
@@ -42,7 +42,7 @@ The web implementation consists of several key components:
 
 ## File Structure
 
-- **src/ExpoAudioStream.web.ts**: Main module implementation
+- **src/AudioStudio.web.ts**: Main module implementation
 - **src/WebRecorder.web.ts**: Core recording implementation
 - **src/workers/inlineAudioWebWorker.web.tsx**: AudioWorklet processor
 - **src/workers/InlineFeaturesExtractor.web.ts**: Audio analysis worker
@@ -50,7 +50,7 @@ The web implementation consists of several key components:
 
 ## Detailed Component Description
 
-### 1. ExpoAudioStreamWeb (src/ExpoAudioStream.web.ts)
+### 1. AudioStudioWeb (src/AudioStudio.web.ts)
 
 This is the main class that implements the Expo module interface for web. It:
 
@@ -107,7 +107,7 @@ This worker extracts audio features for visualization:
 2. **Processing**: AudioWorklet processes raw PCM data in real-time
 3. **Compression** (optional): MediaRecorder API compresses audio chunks
 4. **Analysis**: FeatureExtractor analyzes audio for visualization
-5. **Event Emission**: ExpoAudioStreamWeb emits events with audio data
+5. **Event Emission**: AudioStudioWeb emits events with audio data
 6. **Storage**: Audio data is stored in memory and/or as files
 
 ## Audio Formats

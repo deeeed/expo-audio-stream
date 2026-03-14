@@ -28,7 +28,7 @@ sidebar_label: Playground Application
     <a href="https://play.google.com/store/apps/details?id=net.siteed.audioplayground">
       <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="40" />
     </a>
-    <a href="https://deeeed.github.io/expo-audio-stream/playground" style={{textDecoration: "none"}}>
+    <a href="https://deeeed.github.io/audiolab/playground" style={{textDecoration: "none"}}>
       <div style={{display: "inline-block", padding: "10px 20px", backgroundColor: "#007bff", color: "white", borderRadius: "5px", fontSize: "16px"}}>
         Try it on the Web
       </div>
@@ -57,13 +57,13 @@ The playground app includes the following features:
 
 To access the playground app, visit the following URL:
 
-[Playground Application](https://deeeed.github.io/expo-audio-stream/playground/)
+[Playground Application](https://deeeed.github.io/audiolab/playground/)
 
 To try it locally, follow the steps below:
 
 ```bash
-git clone https://github.com/deeeed/expo-audio-stream.git
-cd expo-audio-stream
+git clone https://github.com/deeeed/audiolab.git
+cd audiolab
 yarn
 yarn apps/playground ios
 yarn apps/playground android
@@ -83,7 +83,7 @@ The playground app can be used for the following purposes:
 
 ## UI Components
 
-The playground also showcases the ready-to-use UI components available in the [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package, including:
+The playground also showcases the ready-to-use UI components available in the [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package, including:
 
 - Waveform visualizers
 - Recording controls

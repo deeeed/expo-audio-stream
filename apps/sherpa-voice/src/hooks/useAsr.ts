@@ -1,7 +1,7 @@
 import { ASR, AsrModelConfig } from '@siteed/sherpa-onnx.rn'
 import {
     useAudioRecorder,
-    ExpoAudioStreamModule,
+    AudioStudioModule,
     type AudioDataEvent,
 } from '@siteed/audio-studio'
 import { resolveModelDir } from '../utils/fileUtils'
@@ -295,7 +295,7 @@ export function useAsr() {
         liveAsr.clear()
         try {
             const permResult =
-                await ExpoAudioStreamModule.requestPermissionsAsync()
+                await AudioStudioModule.requestPermissionsAsync()
             if (permResult.status !== 'granted') {
                 setError('Microphone permission denied')
                 return

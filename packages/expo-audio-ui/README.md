@@ -7,9 +7,9 @@
   </p>
   <div align="center">
     <b>Storybook</b>
-    <p><a href="https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook">https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook</a></p>
+    <p><a href="https://deeeed.github.io/audiolab/expo-audio-ui-storybook">https://deeeed.github.io/audiolab/expo-audio-ui-storybook</a></p>
   </div>
-  <a href="https://deeeed.github.io/expo-audio-stream/playground/">
+  <a href="https://deeeed.github.io/audiolab/playground/">
     <img src="../../docs/demo.gif" alt="Screenshot Playground">
   </a>
 </div>
@@ -77,7 +77,7 @@ yarn storybook
 
 ## Documentation
 
-For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/expo-audio-stream/docs/).
+For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/audiolab/docs/).
 
 ## License
 

@@ -323,4 +323,4 @@ cat logs/storybook-validation/validation-*.log
 
 - [Migration Guide](./STORYBOOK_MIGRATION_GUIDE.md) - Step-by-step component migration
 - [Agentic Feedback Loops](../apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md) - Complete agentic framework documentation
-- [Testing Strategy](../packages/expo-audio-studio/docs/TESTING_STRATEGY.md) - Overall testing approach
+- [Testing Strategy](../packages/audio-studio/docs/TESTING_STRATEGY.md) - Overall testing approach

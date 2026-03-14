@@ -76,7 +76,7 @@ export type AudioDataEvent = AudioDataEventRaw | AudioDataEventFloat32
  * - `pcm_16bit`: All platforms
  * - `pcm_32bit`: All platforms
  *
- * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+ * @see {@link https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
  */
 export type EncodingType = 'pcm_32bit' | 'pcm_16bit' | 'pcm_8bit'
 
@@ -94,7 +94,7 @@ export type SampleRate = 16000 | 44100 | 48000
  * - `16`: All platforms (recommended for compatibility)
  * - `32`: All platforms
  *
- * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+ * @see {@link https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
  */
 export type BitDepth = 8 | 16 | 32
 
@@ -407,7 +407,7 @@ export interface RecordingConfig {
      *
      * @default 'pcm_16bit'
      * @see {@link EncodingType}
-     * @see {@link https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
+     * @see {@link https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/docs/PLATFORM_LIMITATIONS.md | Platform Limitations}
      */
     encoding?: EncodingType
 

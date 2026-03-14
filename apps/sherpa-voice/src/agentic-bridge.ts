@@ -21,7 +21,7 @@ import SherpaOnnx, {
 } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { router, type Href } from 'expo-router'
-import { ExpoAudioStreamModule } from '@siteed/audio-studio'
+import { AudioStudioModule } from '@siteed/audio-studio'
 import { LegacyEventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
 import {
@@ -1751,13 +1751,13 @@ if (__DEV__) {
                     const result = await new Promise<Record<string, unknown>>(
                         (resolve, reject) => {
                             const emitter = new LegacyEventEmitter(
-                                ExpoAudioStreamModule
+                                AudioStudioModule
                             )
                             const sub = emitter.addListener(
                                 'AudioData',
                                 async (eventData: Record<string, unknown>) => {
                                     sub.remove()
-                                    await ExpoAudioStreamModule.stopRecording()
+                                    await AudioStudioModule.stopRecording()
                                     resolve({
                                         hasFloat32:
                                             eventData.pcmFloat32 != null,
@@ -1781,7 +1781,7 @@ if (__DEV__) {
                                     })
                                 }
                             )
-                            ExpoAudioStreamModule.startRecording({
+                            AudioStudioModule.startRecording({
                                 sampleRate: 16000,
                                 channels: 1,
                                 encoding: 'pcm_16bit',

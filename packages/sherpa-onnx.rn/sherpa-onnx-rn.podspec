@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => "13.4" }
-  s.source       = { :git => "https://github.com/deeeed/expo-audio-stream.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/deeeed/audiolab.git", :tag => "#{s.version}" }
 
   # Source files (new architecture only)
   # NOTE: codegen files are NOT included here -- React-Codegen pod auto-generates them.

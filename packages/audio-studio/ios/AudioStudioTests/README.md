@@ -1,6 +1,6 @@
-# ExpoAudioStudio iOS Unit Tests
+# AudioStudio iOS Unit Tests
 
-This directory contains unit tests for the ExpoAudioStudio iOS module.
+This directory contains unit tests for the AudioStudio iOS module.
 
 ## Test Files
 
@@ -14,17 +14,17 @@ This directory contains unit tests for the ExpoAudioStudio iOS module.
 ## Running Tests
 
 ### In Xcode
-1. Open the workspace/project containing ExpoAudioStudio
+1. Open the workspace/project containing AudioStudio
 2. Select the test target
 3. Press `Cmd+U` to run all tests or click on individual test methods
 
 ### From Command Line
 ```bash
 # Run all tests
-xcodebuild test -scheme ExpoAudioStudioTests -destination 'platform=iOS Simulator,name=iPhone 15'
+xcodebuild test -scheme AudioStudioTests -destination 'platform=iOS Simulator,name=iPhone 15'
 
 # Run specific test class
-xcodebuild test -scheme ExpoAudioStudioTests -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:ExpoAudioStudioTests/CompressedOnlyOutputTests
+xcodebuild test -scheme AudioStudioTests -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:AudioStudioTests/CompressedOnlyOutputTests
 ```
 
 ## Compressed-Only Output Tests

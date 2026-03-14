@@ -16,7 +16,7 @@ The `useAudioRecorder` hook provides a complete API for recording audio in a sin
 import {
   AudioRecording,
   useAudioRecorder,
-  ExpoAudioStreamModule,
+  AudioStudioModule,
   RecordingConfig
 } from '@siteed/expo-audio-studio'
 import { useAudioPlayer } from 'expo-audio'
@@ -53,7 +53,7 @@ export default function App() {
   const player = useAudioPlayer(audioResult?.fileUri ?? "")
 
   const handleStart = async () => {
-    const { status } = await ExpoAudioStreamModule.requestPermissionsAsync()
+    const { status } = await AudioStudioModule.requestPermissionsAsync()
     if (status !== 'granted') {
       return
     }

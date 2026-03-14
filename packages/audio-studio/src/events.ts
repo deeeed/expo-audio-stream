@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/events.ts
+// packages/audio-studio/src/events.ts
 
 import { LegacyEventEmitter, type EventSubscription } from 'expo-modules-core'
 

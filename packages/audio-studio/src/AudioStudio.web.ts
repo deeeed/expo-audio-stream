@@ -27,7 +27,7 @@ export interface AudioStreamEvent {
     timestamp: Date
 }
 
-export interface ExpoAudioStreamOptions {
+export interface AudioStudioOptions {
     logger?: ConsoleLike
     eventCallback?: (event: AudioStreamEvent) => void
 }
@@ -47,14 +47,14 @@ export interface EmitAudioEventProps {
 export type EmitAudioEventFunction = (_: EmitAudioEventProps) => void
 export type EmitAudioAnalysisFunction = (_: AudioAnalysis) => void
 
-export interface ExpoAudioStreamWebProps {
+export interface AudioStudioWebProps {
     logger?: ConsoleLike
     audioWorkletUrl: string
     featuresExtratorUrl: string
     maxBufferSize?: number // Maximum number of chunks to keep in memory
 }
 
-export class ExpoAudioStreamWeb extends LegacyEventEmitter {
+export class AudioStudioWeb extends LegacyEventEmitter {
     customRecorder: WebRecorder | null
     audioChunks: Float32Array[]
     isRecording: boolean
@@ -86,7 +86,7 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         featuresExtratorUrl,
         logger,
         maxBufferSize = DEFAULT_MAX_BUFFER_SIZE,
-    }: ExpoAudioStreamWebProps) {
+    }: AudioStudioWebProps) {
         const mockNativeModule = {
             addListener: () => {},
             removeListeners: () => {},
@@ -898,13 +898,13 @@ export class ExpoAudioStreamWeb extends LegacyEventEmitter {
         }
     }
 
-    init(options?: ExpoAudioStreamOptions): Promise<void> {
+    init(options?: AudioStudioOptions): Promise<void> {
         try {
             this.logger = options?.logger
             this.eventCallback = options?.eventCallback
             return Promise.resolve()
         } catch (error) {
-            this.logger?.error('Error initializing ExpoAudioStream', error)
+            this.logger?.error('Error initializing AudioStudio', error)
             return Promise.reject(error)
         }
     }

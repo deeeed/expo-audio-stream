@@ -32,8 +32,8 @@ Tests the skip file writing feature:
 
 ### Run All Integration Tests
 ```bash
-cd packages/expo-audio-studio
-./android/src/androidTest/java/net/siteed/audiostream/integration/run_integration_tests.sh
+cd packages/audio-studio
+./android/src/androidTest/java/net/siteed/audiostudio/integration/run_integration_tests.sh
 ```
 
 ### Run Individual Tests

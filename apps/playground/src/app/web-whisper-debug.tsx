@@ -171,7 +171,7 @@ export default function WebWhisperDebugPage() {
         const segmentBuffer = ctx.createBuffer(1, audio.length, audioBuffer.sampleRate)
         console.log(`Segment buffer: samples=${segmentBuffer.length}`)
         
-        // For stereo to mono conversion, use the same scaling factor as ExpoAudioStreamModule
+        // For stereo to mono conversion, use the same scaling factor as AudioStudioModule
         const SCALING_FACTOR = Math.sqrt(2)
         const channelData = segmentBuffer.getChannelData(0)
         

@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/AudioRecorder.provider.tsx
+// packages/audio-studio/src/AudioRecorder.provider.tsx
 import React, { createContext, useContext } from 'react'
 
 import { UseAudioRecorderState } from './AudioStudio.types'

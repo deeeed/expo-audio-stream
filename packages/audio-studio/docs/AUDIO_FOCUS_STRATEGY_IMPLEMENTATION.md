@@ -33,15 +33,15 @@ Added a new `audioFocusStrategy` property to `RecordingConfig` with four strateg
 ## Implementation Details
 
 ### 1. TypeScript Interface Updates ✅
-**File**: `packages/expo-audio-studio/src/ExpoAudioStream.types.ts`
+**File**: `packages/audio-studio/src/AudioStudio.types.ts`
 - Added `audioFocusStrategy` property to `RecordingConfig` interface
 - Added comprehensive JSDoc documentation with examples
 - Defined four strategy types with clear descriptions
 
 ### 2. Android Implementation ✅
 **Files**: 
-- `packages/expo-audio-studio/android/src/main/java/net/siteed/audiostream/RecordingConfig.kt`
-- `packages/expo-audio-studio/android/src/main/java/net/siteed/audiostream/AudioRecorderManager.kt`
+- `packages/audio-studio/android/src/main/java/net/siteed/audiostudio/RecordingConfig.kt`
+- `packages/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt`
 
 **Key Changes**:
 - Added `audioFocusStrategy` parameter support in RecordingConfig
@@ -59,8 +59,8 @@ Added a new `audioFocusStrategy` property to `RecordingConfig` with four strateg
 
 ### 3. iOS Implementation ✅
 **Files**:
-- `packages/expo-audio-studio/ios/RecordingSettings.swift`
-- `packages/expo-audio-studio/ios/AudioStreamManager.swift`
+- `packages/audio-studio/ios/RecordingSettings.swift`
+- `packages/audio-studio/ios/AudioStreamManager.swift`
 
 **Key Changes**:
 - Added `audioFocusStrategy` parameter support in RecordingSettings
@@ -80,41 +80,41 @@ Added a new `audioFocusStrategy` property to `RecordingConfig` with four strateg
 ### 4. Comprehensive Testing ✅
 
 #### Android Unit Tests
-**File**: `packages/expo-audio-studio/android/src/test/java/net/siteed/audiostream/AudioFocusStrategyTest.kt`
+**File**: `packages/audio-studio/android/src/test/java/net/siteed/audiostudio/AudioFocusStrategyTest.kt`
 - 12 test cases covering all strategies and edge cases
 - Configuration validation and parsing tests
 - Smart default behavior verification
 - **Status**: ✅ All tests passed
 
 #### Android Integration Tests  
-**File**: `packages/expo-audio-studio/android/src/androidTest/java/net/siteed/audiostream/integration/AudioFocusStrategyIntegrationTest.kt`
+**File**: `packages/audio-studio/android/src/androidTest/java/net/siteed/audiostudio/integration/AudioFocusStrategyIntegrationTest.kt`
 - 10 real-device tests validating actual behavior
 - Cross-feature integration (compression, notifications)
 - Complete configuration scenarios
 - **Status**: ✅ Code compiles and builds successfully
 
 #### iOS Unit Tests
-**File**: `packages/expo-audio-studio/ios/ExpoAudioStudioTests/AudioFocusStrategyTests.swift`
+**File**: `packages/audio-studio/ios/AudioStudioTests/AudioFocusStrategyTests.swift`
 - 15 test cases covering configuration and audio session logic
 - RecordingSettings parsing validation
 - Strategy selection and override testing
 - **Status**: ✅ Ready for Xcode testing
 
 #### iOS Integration Test
-**File**: `packages/expo-audio-studio/ios/tests/integration/audio_focus_strategy_test.swift`
+**File**: `packages/audio-studio/ios/tests/integration/audio_focus_strategy_test.swift`
 - Executable simulation test for CLI environments
 - Comprehensive strategy behavior validation
 - **Status**: ✅ All 6 simulation tests passed
 
 ### 5. Documentation Updates ✅
-The existing documentation in `packages/expo-audio-studio/documentation_site/docs/api-reference/recording-config.md` already included comprehensive coverage:
+The existing documentation in `packages/audio-studio/documentation_site/docs/api-reference/recording-config.md` already included comprehensive coverage:
 - Complete strategy explanations with use cases
 - Configuration examples for different app types
 - Platform compatibility information
 - Integration with existing interruption handling
 
 ### 6. Integration Test Updates ✅
-**File**: `packages/expo-audio-studio/android/src/androidTest/java/net/siteed/audiostream/integration/run_integration_tests.sh`
+**File**: `packages/audio-studio/android/src/androidTest/java/net/siteed/audiostudio/integration/run_integration_tests.sh`
 - Added AudioFocusStrategyIntegrationTest to the test suite
 - Follows established integration testing patterns
 
@@ -214,18 +214,18 @@ startRecording({
 ## Key Files Modified
 
 ### Core Implementation
-- `packages/expo-audio-studio/src/ExpoAudioStream.types.ts`
-- `packages/expo-audio-studio/android/src/main/java/net/siteed/audiostream/RecordingConfig.kt`
-- `packages/expo-audio-studio/android/src/main/java/net/siteed/audiostream/AudioRecorderManager.kt`
-- `packages/expo-audio-studio/ios/RecordingSettings.swift`
-- `packages/expo-audio-studio/ios/AudioStreamManager.swift`
+- `packages/audio-studio/src/AudioStudio.types.ts`
+- `packages/audio-studio/android/src/main/java/net/siteed/audiostudio/RecordingConfig.kt`
+- `packages/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt`
+- `packages/audio-studio/ios/RecordingSettings.swift`
+- `packages/audio-studio/ios/AudioStreamManager.swift`
 
 ### Testing
-- `packages/expo-audio-studio/android/src/test/java/net/siteed/audiostream/AudioFocusStrategyTest.kt`
-- `packages/expo-audio-studio/android/src/androidTest/java/net/siteed/audiostream/integration/AudioFocusStrategyIntegrationTest.kt`
-- `packages/expo-audio-studio/ios/ExpoAudioStudioTests/AudioFocusStrategyTests.swift`
-- `packages/expo-audio-studio/ios/tests/integration/audio_focus_strategy_test.swift`
-- `packages/expo-audio-studio/android/src/androidTest/java/net/siteed/audiostream/integration/run_integration_tests.sh`
+- `packages/audio-studio/android/src/test/java/net/siteed/audiostudio/AudioFocusStrategyTest.kt`
+- `packages/audio-studio/android/src/androidTest/java/net/siteed/audiostudio/integration/AudioFocusStrategyIntegrationTest.kt`
+- `packages/audio-studio/ios/AudioStudioTests/AudioFocusStrategyTests.swift`
+- `packages/audio-studio/ios/tests/integration/audio_focus_strategy_test.swift`
+- `packages/audio-studio/android/src/androidTest/java/net/siteed/audiostudio/integration/run_integration_tests.sh`
 
 ## Conclusion
 

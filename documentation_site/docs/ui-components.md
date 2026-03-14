@@ -6,7 +6,7 @@ sidebar_label: UI Components
 
 # UI Components
 
-The [@siteed/expo-audio-ui](https://github.com/deeeed/expo-audio-stream/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
+The [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
 
 ## Installation
 
@@ -201,8 +201,8 @@ cd packages/expo-audio-ui
 yarn storybook
 ```
 
-Or view it online at [https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook](https://deeeed.github.io/expo-audio-stream/expo-audio-ui-storybook).
+Or view it online at [https://deeeed.github.io/audiolab/expo-audio-ui-storybook](https://deeeed.github.io/audiolab/expo-audio-ui-storybook).
 
 ## Contributing
 
-Contributions to the UI components package are welcome! Please see the [contributing guidelines](https://github.com/deeeed/expo-audio-stream/blob/main/CONTRIBUTING.md) for more information. 
+Contributions to the UI components package are welcome! Please see the [contributing guidelines](https://github.com/deeeed/audiolab/blob/main/CONTRIBUTING.md) for more information. 

@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
+// packages/audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts
 
 import { BitDepth, ConsoleLike } from '../AudioStudio.types'
 

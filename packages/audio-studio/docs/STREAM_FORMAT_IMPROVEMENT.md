@@ -93,7 +93,7 @@ this.port.postMessage({ command: 'newData', recordedData: streamData, ... })
 
 The `streamFormat` value is passed via the existing `init` message from `WebRecorder`.
 
-### 2. Android — `AudioRecorderManager.kt` + `ExpoAudioStreamModule.kt`
+### 2. Android — `AudioRecorderManager.kt` + `AudioStudioModule.kt`
 
 **Current**: `emitAudioData()` calls `audioDataEncoder.encodeToBase64(audioData)` and puts the result in the `encoded` field of the Bundle sent via `sendExpoEvent`.
 
@@ -126,14 +126,14 @@ if (eventData.pcmFloat32 instanceof Float32Array) {
 }
 ```
 
-### 3. iOS — `ExpoAudioStreamModule.swift` + `AudioStreamManager.swift`
+### 3. iOS — `AudioStudioModule.swift` + `AudioStreamManager.swift`
 
 **Current**: `data.base64EncodedString()` in the `didReceiveAudioData` delegate method.
 
 **Fix**: same pattern as Android. When `streamFormat == "float32"`, convert `Data` (Int16 LE bytes) → `[Float32]` in Swift and include in the event dict as an array. Expo's JSI layer will deliver it as a `Float32Array` to JS.
 
 ```swift
-// ExpoAudioStreamModule.swift — didReceiveAudioData delegate
+// AudioStudioModule.swift — didReceiveAudioData delegate
 if recordingSettings?.streamFormat == "float32" {
     let sampleCount = data.count / 2
     var floatArray = [Float](repeating: 0, count: sampleCount)
@@ -149,7 +149,7 @@ if recordingSettings?.streamFormat == "float32" {
 }
 ```
 
-### 4. `AudioDataEvent` type (`ExpoAudioStream.types.ts`)
+### 4. `AudioDataEvent` type (`AudioStudio.types.ts`)
 
 ```typescript
 // Current
@@ -216,7 +216,7 @@ No conversion utility needed. The `audioDataUtils.ts` file can be deleted.
 
 | File | Change |
 |---|---|
-| `src/ExpoAudioStream.types.ts` | Add `streamFormat` to `RecordingConfig`; refine `AudioDataEvent.data` type |
+| `src/AudioStudio.types.ts` | Add `streamFormat` to `RecordingConfig`; refine `AudioDataEvent.data` type |
 | `src/workers/inlineAudioWebWorker.web.tsx` | Skip `convertBitDepth` for stream payload when `streamFormat === 'float32'` |
 | `src/WebRecorder.web.ts` | Pass `streamFormat` in `init` message to worklet |
 | `src/useAudioRecorder.tsx` | Prefer `pcmFloat32` typed array over `encoded` string when present |

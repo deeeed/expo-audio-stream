@@ -39,4 +39,4 @@ scripts/agentic/screenshot.sh my-label                 # Screenshot
 
 ## Documentation
 - **Complete Guide**: `apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md`
-- **Package Details**: `packages/expo-audio-studio/CONTRIBUTE.md`
+- **Package Details**: `packages/audio-studio/CONTRIBUTE.md`
