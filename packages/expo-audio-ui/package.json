@@ -1,5 +1,5 @@
 {
-  "name": "@siteed/expo-audio-ui",
+  "name": "@siteed/audio-ui",
   "version": "0.7.2",
   "description": "UI experiments for @siteed/expo-audio-studio",
   "license": "MIT",
@@ -7,14 +7,14 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
-  "homepage": "https://github.com/deeeed/expo-audio-stream#readme",
+  "homepage": "https://github.com/deeeed/audio-suite#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deeeed/expo-audio-stream.git",
+    "url": "git+https://github.com/deeeed/audio-suite.git",
     "directory": "packages/expo-audio-ui"
   },
   "bugs": {
-    "url": "https://github.com/deeeed/expo-audio-stream/issues"
+    "url": "https://github.com/deeeed/audio-suite/issues"
   },
   "keywords": [
     "react-native",
