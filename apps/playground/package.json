@@ -98,7 +98,8 @@
         "build-storybook": "storybook build",
         "test:stories": "jest --config jest.config.stories.js",
         "test:stories:watch": "jest --config jest.config.stories.js --watch",
-        "test:stories:coverage": "jest --config jest.config.stories.js --coverage"
+        "test:stories:coverage": "jest --config jest.config.stories.js --coverage",
+        "deploy": ""
     },
     "dependencies": {
         "@expo/metro-runtime": "~55.0.6",
