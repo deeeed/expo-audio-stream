@@ -175,8 +175,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             ],
             [
                 // We need to force use the cjs version on local monorepo plugin development since expo 53
-                '../../packages/expo-audio-studio/app.plugin.cjs',
-                // '@siteed/expo-audio-studio',
+                '../../packages/audio-studio/app.plugin.cjs',
+                // '@siteed/audio-studio',
                 {
                     enablePhoneStateHandling: true,
                     enableNotifications: true,
