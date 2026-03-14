@@ -7,14 +7,14 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
-  "homepage": "https://github.com/deeeed/audio-suite#readme",
+  "homepage": "https://github.com/deeeed/audiolab#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deeeed/audio-suite.git",
+    "url": "git+https://github.com/deeeed/audiolab.git",
     "directory": "packages/expo-audio-ui"
   },
   "bugs": {
-    "url": "https://github.com/deeeed/audio-suite/issues"
+    "url": "https://github.com/deeeed/audiolab/issues"
   },
   "keywords": [
     "react-native",

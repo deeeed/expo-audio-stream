@@ -11,14 +11,14 @@
         "plugin": "./app.plugin.js"
     },
     "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
-    "homepage": "https://github.com/deeeed/audio-suite/blob/main/packages/audio-studio/README.md",
+    "homepage": "https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/README.md",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/deeeed/audio-suite.git",
+        "url": "git+https://github.com/deeeed/audiolab.git",
         "directory": "packages/audio-studio"
     },
     "bugs": {
-        "url": "https://github.com/deeeed/audio-suite/issues"
+        "url": "https://github.com/deeeed/audiolab/issues"
     },
     "keywords": [
         "react-native",

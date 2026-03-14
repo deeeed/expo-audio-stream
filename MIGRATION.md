@@ -1,8 +1,8 @@
 # Migration Guide
 
-## Repo Rename: `expo-audio-stream` → `audio-suite`
+## Repo Rename: `expo-audio-stream` → `audiolab`
 
-This monorepo has been renamed from `expo-audio-stream` to `audio-suite` to better reflect its scope.
+This monorepo has been renamed from `expo-audio-stream` to `audiolab` to better reflect its scope.
 GitHub automatically redirects all old URLs, so existing links and git remotes will continue to work.
 
 ---
@@ -61,7 +61,7 @@ yarn add @siteed/audio-ui
 ## No Breaking API Changes
 
 All package renames are cosmetic — the APIs, types, and native module behavior are unchanged.
-If you encounter any issues after migrating, please [open an issue](https://github.com/deeeed/audio-suite/issues).
+If you encounter any issues after migrating, please [open an issue](https://github.com/deeeed/audiolab/issues).
 
 ---
 
@@ -75,4 +75,4 @@ What started as a simple audio streaming library for Expo has grown into a full 
 - **`react-native-essentia`** — audio feature extraction (MFCC, mel-spectrogram, etc.)
 - **`sherpa-onnx.rn`** — on-device speech recognition & TTS via Sherpa-ONNX
 
-The name `audio-suite` captures this better. The "expo" prefix is also being phased out as the packages work with bare React Native projects.
+The name `audiolab` captures this better. The "expo" prefix is also being phased out as the packages work with bare React Native projects.

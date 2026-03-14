@@ -1,5 +1,5 @@
 > **🔔 This repo was previously known as `expo-audio-stream`.**
-> The monorepo has been renamed to `audio-suite` to reflect its expanded scope.
+> The monorepo has been renamed to `audiolab` to reflect its expanded scope.
 > GitHub redirects all old URLs automatically — your remotes and links still work.
 >
 > **Package renamed:** `@siteed/expo-audio-studio` → `@siteed/audio-studio`
