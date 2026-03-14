@@ -96,7 +96,7 @@ export default function DownloadPage() {
   };
 
   const openGitHub = () => {
-    Linking.openURL("https://github.com/deeeed/expo-audio-stream");
+    Linking.openURL("https://github.com/deeeed/audiolab");
   };
 
   return (
@@ -104,11 +104,11 @@ export default function DownloadPage() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>AudioPlayground</Text>
         <Text style={styles.subtitle}>
-          Cross-Platform Demo for @siteed/expo-audio-studio
+          Cross-Platform Demo for @siteed/audio-studio
         </Text>
 
         <Text style={styles.paragraph}>
-          AudioPlayground demonstrates the capabilities of the expo-audio-studio library across all platforms. 
+          AudioPlayground demonstrates the capabilities of the @siteed/audio-studio library across all platforms. 
           Try it on multiple devices to experience the consistent audio processing capabilities.
         </Text>
 

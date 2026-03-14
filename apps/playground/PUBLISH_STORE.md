@@ -10,7 +10,7 @@ AudioPlayground is publicly available on the following platforms:
 |----------|-----|
 | App Store (iOS) | [https://apps.apple.com/app/audio-playground/id6739774966](https://apps.apple.com/app/audio-playground/id6739774966) |
 | Google Play (Android) | [https://play.google.com/store/apps/details?id=net.siteed.audioplayground](https://play.google.com/store/apps/details?id=net.siteed.audioplayground) |
-| Web | [https://deeeed.github.io/expo-audio-stream/playground/](https://deeeed.github.io/expo-audio-stream/playground/) |
+| Web | [https://deeeed.github.io/audiolab/playground/](https://deeeed.github.io/audiolab/playground/) |
 
 When publishing updates, these are the destinations where the app will be updated.
 

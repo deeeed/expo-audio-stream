@@ -12,7 +12,7 @@ A demo application showcasing real-time audio processing and visualization capab
     </a>
   </div>
   
-  [![Web Demo](https://img.shields.io/badge/Demo-Web-blue)](https://deeeed.github.io/expo-audio-stream/)
+  [![Web Demo](https://img.shields.io/badge/Demo-Web-blue)](https://deeeed.github.io/audiolab/)
 </div>
 
 ## Features

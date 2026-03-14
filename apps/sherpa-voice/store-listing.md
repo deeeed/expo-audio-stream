@@ -33,7 +33,7 @@ FOR DEVELOPERS
 Sherpa Voice is built with React Native and Expo using two open-source libraries:
 
 - sherpa-onnx: C++ inference engine for speech models, with mobile-optimized ONNX Runtime
-- expo-audio-stream: Real-time audio recording, analysis, and visualization for React Native
+- @siteed/audio-studio: Real-time audio recording, analysis, and visualization for React Native
 
 Everything you see in this app can be integrated into your own project. The full source code is available on GitHub — use it as a reference, fork it, or contribute.
 
@@ -49,7 +49,7 @@ No accounts. No tracking. No data collection. Audio never leaves your device.
 
 SOURCE CODE AND DOCUMENTATION
 
-GitHub: https://github.com/deeeed/expo-audio-stream
+GitHub: https://github.com/deeeed/audiolab
 Built by Arthur Breton — https://siteed.net
 
 
@@ -89,7 +89,7 @@ FOR DEVELOPERS
 Sherpa Voice is built with React Native and Expo using two open-source libraries:
 
 - sherpa-onnx: C++ inference engine for speech models, with mobile-optimized ONNX Runtime
-- expo-audio-stream: Real-time audio recording, analysis, and visualization for React Native
+- @siteed/audio-studio: Real-time audio recording, analysis, and visualization for React Native
 
 Everything you see in this app can be integrated into your own project. The full source code is available on GitHub — use it as a reference, fork it, or contribute.
 
@@ -111,7 +111,7 @@ speech recognition,tts,offline,ai,voice,onnx,sherpa,audio,speaker,react native
 
 ### Support URL
 
-https://github.com/deeeed/expo-audio-stream/issues
+https://github.com/deeeed/audiolab/issues
 
 ### Marketing URL
 

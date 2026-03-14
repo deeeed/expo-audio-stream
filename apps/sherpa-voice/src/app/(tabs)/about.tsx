@@ -97,7 +97,7 @@ export default function AboutScreen() {
       <View style={styles.aboutContainer}>
         <Text style={styles.aboutText}>
           On-device speech recognition, TTS, speaker ID and more — no cloud, no internet required.
-          Powered by sherpa-onnx and expo-audio-stream.
+          Powered by sherpa-onnx and @siteed/audio-studio.
         </Text>
       </View>
 
@@ -107,7 +107,7 @@ export default function AboutScreen() {
           contentContainerStyle={styles.listItemContainer}
           label="GitHub Repository"
           subLabel="Star or fork the project"
-          onPress={() => Linking.openURL('https://github.com/deeeed/expo-audio-stream')}
+          onPress={() => Linking.openURL('https://github.com/deeeed/audiolab')}
         />
         <ListItem
           contentContainerStyle={styles.listItemContainer}

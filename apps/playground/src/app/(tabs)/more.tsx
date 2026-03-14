@@ -239,7 +239,7 @@ export const MoreScreen = () => {
                     contentContainerStyle={styles.listItemContainer}
                     label="GitHub Repository"
                     subLabel="Star or fork the project"
-                    onPress={() => Linking.openURL('https://github.com/deeeed/expo-audio-stream')}
+                    onPress={() => Linking.openURL('https://github.com/deeeed/audiolab')}
                 />
                 <ListItem
                     contentContainerStyle={styles.listItemContainer}

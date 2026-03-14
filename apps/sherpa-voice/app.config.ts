@@ -110,7 +110,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         experiments: {
             baseUrl:
                 IS_PRODUCTION
-                    ? '/expo-audio-stream/sherpa-voice/'
+                    ? '/audiolab/sherpa-voice/'
                     : '',
         },
         runtimeVersion: '1.0.1',

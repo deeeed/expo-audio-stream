@@ -141,7 +141,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         experiments: {
             baseUrl:
                 validatedEnv.APP_VARIANT === 'production'
-                    ? '/expo-audio-stream/playground/'
+                    ? '/audiolab/playground/'
                     : '',
         },
         updates: {
