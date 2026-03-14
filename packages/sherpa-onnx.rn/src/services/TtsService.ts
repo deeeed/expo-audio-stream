@@ -56,6 +56,8 @@ export class TtsService {
         numThreads: config.numThreads || 1,
         debug: config.debug || false,
         provider: config.provider || 'cpu',
+        ...(config.modelBaseUrl && { modelBaseUrl: config.modelBaseUrl }),
+        ...(config.onProgress && { onProgress: config.onProgress }),
       };
 
       // Only add dataDir if it's defined
