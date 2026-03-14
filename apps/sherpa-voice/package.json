@@ -23,7 +23,7 @@
         "web": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --web --port 7500",
         "clean": "rimraf dist",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
-        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && find dist/wasm -name '*.onnx' -delete -o -name '*.wasm' -delete -o -name '*.data' -delete -o -name '*.zip' -delete && npx gh-pages -t -d dist --dest sherpa-voice --repo https://github.com/deeeed/audiolab.git",
+        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && find dist/wasm -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} + && rm -f dist/wasm/test-en.wav dist/wasm/.DS_Store && npx gh-pages -t -d dist --dest sherpa-voice --repo https://github.com/deeeed/audiolab.git",
         "test": "jest --watchAll",
         "detox:build:ios": "detox build -c ios.sim.release",
         "detox:build:ios:debug": "detox build -c ios.sim.debug",
