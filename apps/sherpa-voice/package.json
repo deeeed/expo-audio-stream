@@ -23,7 +23,7 @@
         "web": "EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development expo start --web --port 7500",
         "clean": "rimraf dist",
         "predeploy": "APP_VARIANT=production EXPO_WEB=true expo export -p web",
-        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && gh-pages -t -d dist --dest sherpa-voice --repo https://github.com/deeeed/audiolab.git",
+        "deploy": "yarn clean && NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp apps/sherpa-voice/.deploy-gitattributes apps/sherpa-voice/dist/.gitattributes && gh-pages -t -d dist --dest sherpa-voice --repo https://github.com/deeeed/audiolab.git --dotfiles",
         "test": "jest --watchAll",
         "detox:build:ios": "detox build -c ios.sim.release",
         "detox:build:ios:debug": "detox build -c ios.sim.debug",
