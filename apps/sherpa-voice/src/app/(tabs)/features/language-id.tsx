@@ -2,7 +2,7 @@ import {
     ExpoAudioStreamModule,
     useAudioRecorder,
     type AudioDataEvent,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import type { LanguageIdModelConfig } from '@siteed/sherpa-onnx.rn'
 import { LanguageId } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'

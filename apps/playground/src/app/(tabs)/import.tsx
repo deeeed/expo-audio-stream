@@ -18,8 +18,8 @@ import {
     extractAudioAnalysis,
     getWavFileInfo,
     SampleRate
-} from '@siteed/expo-audio-studio'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+} from '@siteed/audio-studio'
+import { AudioVisualizer } from '@siteed/audio-ui'
 import { createAudioPlayer, AudioPlayer } from 'expo-audio'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system/legacy'

@@ -1,5 +1,5 @@
 import { ScreenWrapper } from '@siteed/design-system';
-import { useAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder } from '@siteed/audio-studio';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card } from 'react-native-paper';

@@ -9,7 +9,7 @@ import React, {
 
 import * as FileSystem from 'expo-file-system/legacy'
 
-import type { AudioRecording } from '@siteed/expo-audio-studio'
+import type { AudioRecording } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 import {

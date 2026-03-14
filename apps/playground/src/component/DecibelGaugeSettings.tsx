@@ -10,7 +10,7 @@ import Animated, {
 
 import type { AppTheme } from '@siteed/design-system'
 import { Text, useTheme, LabelSwitch } from '@siteed/design-system'
-import type { DecibelFormat } from '@siteed/expo-audio-ui'
+import type { DecibelFormat } from '@siteed/audio-ui'
 
 import type { LayoutChangeEvent } from 'react-native'
 

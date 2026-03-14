@@ -10,7 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { SystemBars } from 'react-native-edge-to-edge'
 
 import { useTheme } from '@siteed/design-system'
-import { AudioRecorderProvider } from '@siteed/expo-audio-studio'
+import { AudioRecorderProvider } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 import { ApplicationContextProvider } from '../context/ApplicationProvider'

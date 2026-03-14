@@ -15,7 +15,7 @@ import {
     initWhisper,
 } from 'whisper.rn'
 
-import type { TranscriberData } from '@siteed/expo-audio-studio'
+import type { TranscriberData } from '@siteed/audio-studio'
 
 import { baseLogger, config } from '../config'
 import {

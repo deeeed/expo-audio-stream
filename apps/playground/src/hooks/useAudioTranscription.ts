@@ -3,8 +3,8 @@ import { useState, useCallback, useRef } from 'react'
 import { createAudioPlayer } from 'expo-audio'
 import * as DocumentPicker from 'expo-document-picker'
 
-import type { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData } from '@siteed/expo-audio-studio'
-import { extractAudioData } from '@siteed/expo-audio-studio'
+import type { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData } from '@siteed/audio-studio'
+import { extractAudioData } from '@siteed/audio-studio'
 
 import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
 import { baseLogger } from '../config'

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
 
 import { useTheme } from '@siteed/design-system'
-import { convertPCMToFloat32 } from '@siteed/expo-audio-studio/src'
+import { convertPCMToFloat32 } from '@siteed/audio-studio/src'
 import { getLogger } from '@siteed/react-native-logger'
 
 

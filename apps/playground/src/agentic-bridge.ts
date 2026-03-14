@@ -13,14 +13,14 @@ import { router } from 'expo-router'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system/legacy'
 
-import type { UseAudioRecorderState } from '@siteed/expo-audio-studio'
+import type { UseAudioRecorderState } from '@siteed/audio-studio'
 import {
     extractPreview,
     extractAudioData,
     extractMelSpectrogram,
     trimAudio,
     AudioDeviceManager,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 // State holders updated by AgenticBridgeSync component
 let _audioState: Record<string, unknown> = {}

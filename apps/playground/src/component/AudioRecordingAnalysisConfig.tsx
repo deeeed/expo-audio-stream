@@ -6,7 +6,7 @@ import type { AppTheme } from '@siteed/design-system'
 import { LabelSwitch, useTheme } from '@siteed/design-system'
 import type {
     AudioFeaturesOptions,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 const getStyles = ({ theme }: {theme: AppTheme}) => {
     return StyleSheet.create({

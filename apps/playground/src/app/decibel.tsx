@@ -7,8 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { AppTheme } from '@siteed/design-system'
 import { Button, ScreenWrapper, useTheme } from '@siteed/design-system'
-import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
-import { DecibelGauge } from '@siteed/expo-audio-ui'
+import { useSharedAudioRecorder } from '@siteed/audio-studio'
+import { DecibelGauge } from '@siteed/audio-ui'
 
 import { DecibelGaugeSettings } from '../component/DecibelGaugeSettings'
 import { baseLogger } from '../config'

@@ -27,13 +27,13 @@ import type {
     TranscriberData,
     AudioDevice,
     RecordingInterruptionEvent,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import {
     ExpoAudioStreamModule,
     useSharedAudioRecorder,
     useAudioDevices,
-} from '@siteed/expo-audio-studio'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+} from '@siteed/audio-studio'
+import { AudioVisualizer } from '@siteed/audio-ui'
 
 import { AudioDeviceSelector } from '../../component/AudioDeviceSelector'
 import { AudioRecordingView } from '../../component/AudioRecordingView'

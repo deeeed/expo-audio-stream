@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 
-import type { TranscriberData } from '@siteed/expo-audio-studio'
+import type { TranscriberData } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'

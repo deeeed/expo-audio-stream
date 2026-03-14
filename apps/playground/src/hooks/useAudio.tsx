@@ -6,10 +6,10 @@ import { createAudioPlayer, AudioPlayer, AudioStatus } from 'expo-audio'
 import { useToast } from '@siteed/design-system'
 import type {
     AudioAnalysis,
-    AudioRecording } from '@siteed/expo-audio-studio'
+    AudioRecording } from '@siteed/audio-studio'
 import {
     extractAudioAnalysis,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { fetchArrayBuffer, isWeb } from '../utils/utils'

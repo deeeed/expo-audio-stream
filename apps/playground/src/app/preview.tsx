@@ -8,9 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { AppTheme } from '@siteed/design-system'
 import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import type { AudioAnalysis } from '@siteed/expo-audio-studio'
-import { extractPreview } from '@siteed/expo-audio-studio'
-import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/expo-audio-ui'
+import type { AudioAnalysis } from '@siteed/audio-studio'
+import { extractPreview } from '@siteed/audio-studio'
+import { AudioTimeRangeSelector, AudioVisualizer } from '@siteed/audio-ui'
 
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'

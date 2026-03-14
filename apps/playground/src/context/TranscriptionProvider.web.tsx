@@ -10,7 +10,7 @@ import React, {
 } from 'react'
 
 
-import type { TranscriberData } from '@siteed/expo-audio-studio'
+import type { TranscriberData } from '@siteed/audio-studio'
 
 import { baseLogger, config } from '../config'
 import {

@@ -8,7 +8,7 @@ import { Button as PaperButton, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme, useToast } from '@siteed/design-system'
-import { writeWavHeader } from '@siteed/expo-audio-studio'
+import { writeWavHeader } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 

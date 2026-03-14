@@ -7,7 +7,7 @@
 import { usePathname, useSegments } from 'expo-router'
 import { useEffect } from 'react'
 
-import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
+import { useSharedAudioRecorder } from '@siteed/audio-studio'
 
 import {
     setAgenticAudioState,

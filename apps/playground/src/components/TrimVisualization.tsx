@@ -3,7 +3,7 @@ import React from 'react'
 import { View } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
 
-import type { TimeRange } from '@siteed/expo-audio-studio'
+import type { TimeRange } from '@siteed/audio-studio'
 
 interface TrimVisualizationProps {
     durationMs: number

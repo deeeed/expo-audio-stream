@@ -11,7 +11,7 @@ import {
     useModal,
     useTheme,
 } from '@siteed/design-system'
-import type { NotificationConfig } from '@siteed/expo-audio-studio'
+import type { NotificationConfig } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 import { NotificationConfigForm } from './NotificationConfigForm'

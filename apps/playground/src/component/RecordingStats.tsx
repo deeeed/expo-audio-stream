@@ -11,7 +11,7 @@ import Animated, {
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
-import type { AudioDevice, CompressionInfo } from '@siteed/expo-audio-studio'
+import type { AudioDevice, CompressionInfo } from '@siteed/audio-studio'
 
 import type { LayoutChangeEvent } from 'react-native'
 

@@ -21,7 +21,7 @@ import SherpaOnnx, {
 } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { router, type Href } from 'expo-router'
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
+import { ExpoAudioStreamModule } from '@siteed/audio-studio'
 import { LegacyEventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
 import {

@@ -1,7 +1,7 @@
 import { NativeModules } from 'react-native'
 
-// Import all types from @siteed/expo-audio-studio in a single import statement
-import type { ConsoleLike, DecodingConfig, MelSpectrogram } from '@siteed/expo-audio-studio'
+// Import all types from @siteed/audio-studio in a single import statement
+import type { ConsoleLike, DecodingConfig, MelSpectrogram } from '@siteed/audio-studio'
 import Essentia from '@siteed/react-native-essentia'
 
 import { baseLogger } from '../config'

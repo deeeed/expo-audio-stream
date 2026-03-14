@@ -22,8 +22,8 @@ import type {
     AudioRecording,
     Chunk,
     DataPoint,
-} from '@siteed/expo-audio-studio'
-import { AudioVisualizer } from '@siteed/expo-audio-ui'
+} from '@siteed/audio-studio'
+import { AudioVisualizer } from '@siteed/audio-ui'
 
 import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'

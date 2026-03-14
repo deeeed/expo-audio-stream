@@ -2,7 +2,7 @@ import {
     ExpoAudioStreamModule,
     useAudioRecorder,
     type AudioDataEvent,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import type { KWSInitResult } from '@siteed/sherpa-onnx.rn'
 import { KWS } from '@siteed/sherpa-onnx.rn'
 import { Asset } from 'expo-asset'

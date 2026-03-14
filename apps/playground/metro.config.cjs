@@ -6,7 +6,7 @@ const { default: exclusionList } = require('metro-config/private/defaults/exclus
 const path = require('node:path')
 const withStorybook = require('@storybook/react-native/metro/withStorybook')
 
-const pakLib = require('../../packages/expo-audio-stream/package.json')
+const pakLib = require('../../packages/audio-studio/package.json')
 const pakUI = require('../../packages/expo-audio-ui/package.json')
 
 // Find the project and workspace directories
@@ -14,7 +14,7 @@ const projectRoot = __dirname
 // This can be replaced with `find-yarn-workspace-root`
 const monorepoRoot = path.resolve(projectRoot, '../..')
 const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
-const libRoot = path.resolve(monorepoRoot, 'packages/expo-audio-studio')
+const libRoot = path.resolve(monorepoRoot, 'packages/audio-studio')
 const playgroundApiRoot = path.resolve(monorepoRoot, 'packages/playgroundapi')
 const essentiaRoot = path.resolve(monorepoRoot, 'packages/react-native-essentia')
 const sherpaRoot = path.resolve(monorepoRoot, 'packages/sherpa-onnx.rn')
@@ -23,8 +23,8 @@ const modules = [
     'react-native-paper',
     'react-native-safe-area-context',
     'react-native-reanimated',
-    '@siteed/expo-audio-ui',
-    '@siteed/expo-audio-studio',
+    '@siteed/audio-ui',
+    '@siteed/audio-studio',
     'react-dom',
     'react',
     'react-native',
@@ -149,15 +149,15 @@ config.resolver = {
         if (nodeBuiltins.includes(moduleName)) {
             return { type: 'empty' }
         }
-        if (moduleName === '@siteed/expo-audio-ui') {
+        if (moduleName === '@siteed/audio-ui') {
             return {
                 filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',
                 type: 'sourceFile',
             }
-        } else if (moduleName === '@siteed/expo-audio-studio') {
+        } else if (moduleName === '@siteed/audio-studio') {
             return {
                 filePath:
-                    monorepoRoot + '/packages/expo-audio-studio/src/index.ts',
+                    monorepoRoot + '/packages/audio-studio/src/index.ts',
                 type: 'sourceFile',
             }
             // } else if (moduleName === "react" || moduleName === "react-dom") {

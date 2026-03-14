@@ -10,8 +10,8 @@ import Animated, {
 
 import type { AppTheme } from '@siteed/design-system'
 import { Text, useTheme } from '@siteed/design-system'
-import type { AudioDevice } from '@siteed/expo-audio-studio'
-import { useAudioDevices } from '@siteed/expo-audio-studio'
+import type { AudioDevice } from '@siteed/audio-studio'
+import { useAudioDevices } from '@siteed/audio-studio'
 
 import type { LayoutChangeEvent } from 'react-native'
 

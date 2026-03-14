@@ -3,7 +3,7 @@ import {
     useAudioRecorder,
     ExpoAudioStreamModule,
     type AudioDataEvent,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import { resolveModelDir } from '../utils/fileUtils'
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import { Asset } from 'expo-asset'

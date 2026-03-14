@@ -7,10 +7,10 @@ import type { AppTheme } from '@siteed/design-system'
 import { Text, useTheme } from '@siteed/design-system'
 import type { 
   AudioDevice, 
-  DeviceDisconnectionBehaviorType } from '@siteed/expo-audio-studio'
+  DeviceDisconnectionBehaviorType } from '@siteed/audio-studio'
 import { 
   useAudioDevices, 
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 

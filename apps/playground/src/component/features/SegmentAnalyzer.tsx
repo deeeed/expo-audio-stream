@@ -6,8 +6,8 @@ import { Button, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
-import type { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint } from '@siteed/expo-audio-studio'
-import { extractAudioAnalysis } from '@siteed/expo-audio-studio'
+import type { AudioAnalysis, AudioFeaturesOptions, BitDepth, DataPoint } from '@siteed/audio-studio'
+import { extractAudioAnalysis } from '@siteed/audio-studio'
 
 import { baseLogger } from '../../config'
 import { useAudioSegmentData } from '../../hooks/useAudioSegmentData'

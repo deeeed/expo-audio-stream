@@ -5,7 +5,7 @@ import { SegmentedButtons } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme, Text } from '@siteed/design-system'
-import type { RecordingConfig } from '@siteed/expo-audio-studio'
+import type { RecordingConfig } from '@siteed/audio-studio'
 
 interface AndroidSettingsConfigFormProps {
     config: NonNullable<RecordingConfig['android']>

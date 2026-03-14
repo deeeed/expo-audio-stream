@@ -12,7 +12,7 @@ import {
     TextInput,
     useTheme,
 } from '@siteed/design-system'
-import type { NotificationConfig, WaveformConfig } from '@siteed/expo-audio-studio'
+import type { NotificationConfig, WaveformConfig } from '@siteed/audio-studio'
 
 const getStyles = ({ theme }: { theme: AppTheme }) => {
     return StyleSheet.create({

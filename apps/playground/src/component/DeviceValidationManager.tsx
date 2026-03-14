@@ -10,7 +10,7 @@ import type {
   RecordingConfig, 
   SampleRate,
   DeviceDisconnectionBehaviorType,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 const getStyles = (theme: AppTheme) => StyleSheet.create({
   container: {

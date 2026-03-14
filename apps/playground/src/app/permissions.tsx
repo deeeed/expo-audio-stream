@@ -6,7 +6,7 @@ import { Button, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { ScreenWrapper, useTheme } from '@siteed/design-system'
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
+import { ExpoAudioStreamModule } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { useScreenHeader } from '../hooks/useScreenHeader'

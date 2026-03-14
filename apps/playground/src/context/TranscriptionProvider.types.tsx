@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 
 
-import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
+import type { Chunk, TranscriberData } from '@siteed/audio-studio'
 
 import type { 
   TranscribeFileOptions, 

@@ -7,7 +7,7 @@ import { Tabs, useSegments } from 'expo-router'
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
 import { useTheme } from '@siteed/design-system'
-import { useSharedAudioRecorder } from '@siteed/expo-audio-studio'
+import { useSharedAudioRecorder } from '@siteed/audio-studio'
 
 import { CustomHeader } from '../../components/CustomHeader'
 

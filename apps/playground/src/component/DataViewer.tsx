@@ -4,7 +4,7 @@ import { FontAwesome } from '@expo/vector-icons'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
-import type { DataPoint } from '@siteed/expo-audio-studio'
+import type { DataPoint } from '@siteed/audio-studio'
 
 const getStyles = () => {
     return StyleSheet.create({

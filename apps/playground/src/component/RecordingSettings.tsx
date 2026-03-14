@@ -11,7 +11,7 @@ import type {
   AudioDevice,
   NotificationConfig,
   DeviceDisconnectionBehaviorType,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 import { AndroidSettingsConfig } from './AndroidSettingsConfig'
 import { DeviceValidationManager } from './DeviceValidationManager'

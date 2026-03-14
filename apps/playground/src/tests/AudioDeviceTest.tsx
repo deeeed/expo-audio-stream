@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { AppTheme } from '@siteed/design-system'
 import { Text, useTheme } from '@siteed/design-system'
-import type { AudioDevice } from '@siteed/expo-audio-studio'
-import { useAudioDevices } from '@siteed/expo-audio-studio'
+import type { AudioDevice } from '@siteed/audio-studio'
+import { useAudioDevices } from '@siteed/audio-studio'
 
 import { AudioDeviceSelector } from '../component/AudioDeviceSelector'
 

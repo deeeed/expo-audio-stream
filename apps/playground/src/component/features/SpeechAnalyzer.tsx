@@ -7,8 +7,8 @@ import { Button, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
-import type { AudioAnalysis, ExtractedAudioData, MelSpectrogram, TranscriberData } from '@siteed/expo-audio-studio'
-import { extractMelSpectrogram } from '@siteed/expo-audio-studio'
+import type { AudioAnalysis, ExtractedAudioData, MelSpectrogram, TranscriberData } from '@siteed/audio-studio'
+import { extractMelSpectrogram } from '@siteed/audio-studio'
 
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { baseLogger } from '../../config'

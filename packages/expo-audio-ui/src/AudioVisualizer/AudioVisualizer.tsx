@@ -4,7 +4,7 @@ import {
     AudioAnalysis,
     ConsoleLike,
     DataPoint,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import React, {
     useCallback,
     useEffect,

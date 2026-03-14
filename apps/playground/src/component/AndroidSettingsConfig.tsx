@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View, Text } from 'react-native'
 
 import type { AppTheme } from '@siteed/design-system'
 import { EditableInfoCard, useModal, useTheme } from '@siteed/design-system'
-import type { RecordingConfig } from '@siteed/expo-audio-studio'
+import type { RecordingConfig } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 import { AndroidSettingsConfigForm } from './AndroidSettingsConfigForm'

@@ -10,7 +10,7 @@ import {
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
-import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
+import type { Chunk, TranscriberData } from '@siteed/audio-studio'
 
 import { formatDuration } from '../utils/utils'
 

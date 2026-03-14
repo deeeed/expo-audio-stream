@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 import { View } from 'react-native'
 
-import type { Chunk, TranscriberData } from '@siteed/expo-audio-studio'
+import type { Chunk, TranscriberData } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { ProgressItems } from './ProgressItems'

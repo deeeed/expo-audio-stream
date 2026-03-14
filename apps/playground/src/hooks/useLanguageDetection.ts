@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect } from 'react'
 
-import type { MelSpectrogram } from '@siteed/expo-audio-studio'
-import { extractMelSpectrogram } from '@siteed/expo-audio-studio'
+import type { MelSpectrogram } from '@siteed/audio-studio'
+import { extractMelSpectrogram } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { useOnnxModel } from './useOnnxModel'

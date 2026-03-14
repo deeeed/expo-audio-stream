@@ -16,7 +16,7 @@ import {
     useTheme,
     useToast,
 } from '@siteed/design-system'
-import type { AudioRecording } from '@siteed/expo-audio-studio'
+import type { AudioRecording } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
 
 

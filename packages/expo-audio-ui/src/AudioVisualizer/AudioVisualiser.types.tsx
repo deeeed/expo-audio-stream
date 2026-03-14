@@ -1,5 +1,5 @@
 // playground/src/component/audio-visualizer/autio-visualizer.types.ts
-import { ConsoleLike, DataPoint } from '@siteed/expo-audio-studio'
+import { ConsoleLike, DataPoint } from '@siteed/audio-studio'
 import { TextStyle, ViewStyle } from 'react-native'
 import { SharedValue } from 'react-native-reanimated'
 

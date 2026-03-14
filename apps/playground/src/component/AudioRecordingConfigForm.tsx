@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { LabelSwitch, NumberAdjuster } from '@siteed/design-system'
-import type { AudioVisualizerProps } from '@siteed/expo-audio-ui'
+import type { AudioVisualizerProps } from '@siteed/audio-ui'
 
 const getStyles = () => {
     return StyleSheet.create({

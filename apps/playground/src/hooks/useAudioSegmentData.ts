@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import type { BitDepth, DataPoint, ExtractedAudioData } from '@siteed/expo-audio-studio'
-import { ExpoAudioStreamModule } from '@siteed/expo-audio-studio'
+import type { BitDepth, DataPoint, ExtractedAudioData } from '@siteed/audio-studio'
+import { ExpoAudioStreamModule } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 

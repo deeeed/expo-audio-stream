@@ -8,9 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import type { AppTheme } from '@siteed/design-system'
 import { Notice, NumberAdjuster, EditableInfoCard, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
-import type { SampleRate, TrimAudioOptions, TrimAudioResult } from '@siteed/expo-audio-studio'
-import { trimAudio } from '@siteed/expo-audio-studio'
-import { AudioTimeRangeSelector } from '@siteed/expo-audio-ui'
+import type { SampleRate, TrimAudioOptions, TrimAudioResult } from '@siteed/audio-studio'
+import { trimAudio } from '@siteed/audio-studio'
+import { AudioTimeRangeSelector } from '@siteed/audio-ui'
 
 import TrimVisualization from '../components/TrimVisualization'
 import { baseLogger } from '../config'
