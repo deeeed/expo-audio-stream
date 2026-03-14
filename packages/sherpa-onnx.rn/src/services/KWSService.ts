@@ -47,6 +47,8 @@ export class KWSService {
         numThreads: config.numThreads ?? 2,
         debug: config.debug ?? false,
         provider: config.provider ?? 'cpu',
+        ...(config.modelBaseUrl && { modelBaseUrl: config.modelBaseUrl }),
+        ...(config.onProgress && { onProgress: config.onProgress }),
         maxActivePaths: config.maxActivePaths ?? 4,
         keywordsFile: config.keywordsFile ?? 'keywords.txt',
         keywordsScore: config.keywordsScore ?? 1.5,
