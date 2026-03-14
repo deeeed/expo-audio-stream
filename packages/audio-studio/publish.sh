@@ -40,6 +40,18 @@ fi
 version=$(node -p "require('./package.json').version")
 echo -e "${GREEN}New version: $version${NC}"
 
+# Ask about publishing the compatibility shim
+read -p "$(echo -e ${YELLOW}Do you want to publish the @siteed/expo-audio-studio shim? [Y/n]: ${NC})" publish_shim
+if [[ ! $publish_shim =~ ^[Nn]$ ]]; then
+    echo -e "${YELLOW}Publishing compatibility shim @siteed/expo-audio-studio...${NC}"
+    cd "$SCRIPT_DIR/../../packages/expo-audio-studio"
+    # Sync shim version to match audio-studio
+    node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json')); p.version='$version'; fs.writeFileSync('package.json', JSON.stringify(p, null, 4));"
+    npm publish --access public
+    cd "$SCRIPT_DIR"
+    echo -e "${GREEN}Shim published successfully!${NC}"
+fi
+
 # Ask about generating documentation (default Yes)
 read -p "$(echo -e ${YELLOW}Do you want to generate updated documentation? [Y/n]: ${NC})" generate_docs
 if [[ $generate_docs =~ ^[Nn]$ ]]; then

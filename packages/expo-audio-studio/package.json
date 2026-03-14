@@ -3,7 +3,8 @@
     "version": "2.19.0",
     "description": "DEPRECATED - Use @siteed/audio-studio instead. This package re-exports @siteed/audio-studio for backwards compatibility.",
     "license": "MIT",
-    "main": "index.ts",
+    "main": "index.js",
+    "types": "index.d.ts",
     "dependencies": {
         "@siteed/audio-studio": "*"
     },
