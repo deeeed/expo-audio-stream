@@ -2,6 +2,11 @@
 #include "MelSpectrogram.h"
 #include <cstdlib>
 #include <cstring>
+#include <memory>
+
+// Cache the processor so repeated calls with the same config skip
+// FFT plan creation, window computation, and filterbank generation.
+static std::unique_ptr<MelSpectrogramProcessor> cachedProcessor;
 
 extern "C" {
 
@@ -23,21 +28,24 @@ CMelSpectrogramResult* mel_spectrogram_compute(
     config.logScale = (logScale != 0);
     config.normalize = (normalize != 0);
 
-    MelSpectrogramProcessor processor(config);
-    MelSpectrogramResult result = processor.compute(samples, numSamples);
+    // Reuse processor if config matches
+    if (!cachedProcessor || !(cachedProcessor->config() == config)) {
+        cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
+    }
+
+    MelSpectrogramResult result = cachedProcessor->compute(samples, numSamples);
 
     if (result.timeSteps <= 0) {
         return nullptr;
     }
 
+    // Allocate C result — data is already flat, just transfer ownership
     CMelSpectrogramResult* cResult = (CMelSpectrogramResult*)malloc(sizeof(CMelSpectrogramResult));
     cResult->timeSteps = result.timeSteps;
     cResult->nMels = result.nMels;
-    cResult->data = (float*)malloc(result.timeSteps * result.nMels * sizeof(float));
-
-    for (int i = 0; i < result.timeSteps; ++i) {
-        memcpy(cResult->data + i * result.nMels, result.spectrogram[i].data(), result.nMels * sizeof(float));
-    }
+    const size_t dataSize = result.timeSteps * result.nMels * sizeof(float);
+    cResult->data = (float*)malloc(dataSize);
+    std::memcpy(cResult->data, result.data.data(), dataSize);
 
     return cResult;
 }

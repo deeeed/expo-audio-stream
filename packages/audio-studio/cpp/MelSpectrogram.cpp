@@ -1,5 +1,4 @@
 #include "MelSpectrogram.h"
-#include "kiss_fft/kiss_fftr.h"
 
 #include <algorithm>
 #include <cstring>
@@ -13,12 +12,20 @@ MelSpectrogramProcessor::MelSpectrogramProcessor(const MelSpectrogramConfig& con
     fftCfg_ = kiss_fftr_alloc(config_.fftLength, 0, nullptr, nullptr);
     buildWindow();
     buildMelFilterbank();
+    allocateBuffers();
 }
 
 MelSpectrogramProcessor::~MelSpectrogramProcessor() {
     if (fftCfg_) {
         free(fftCfg_);
     }
+}
+
+void MelSpectrogramProcessor::allocateBuffers() {
+    const int numBins = config_.fftLength / 2 + 1;
+    fftInput_.resize(config_.fftLength, 0.0f);
+    fftOutput_.resize(numBins);
+    powerSpectrum_.resize(numBins);
 }
 
 float MelSpectrogramProcessor::hzToMel(float hz) {
@@ -55,28 +62,32 @@ void MelSpectrogramProcessor::buildMelFilterbank() {
         melPoints[i] = melToHz(mel);
     }
 
-    // Build frequency array for each FFT bin
-    std::vector<float> freqs(numBins);
-    for (int i = 0; i < numBins; ++i) {
-        freqs[i] = static_cast<float>(i) * config_.sampleRate / config_.fftLength;
-    }
+    const float binWidth = static_cast<float>(config_.sampleRate) / config_.fftLength;
 
-    // Build triangular filterbank (Hz-domain linear interpolation)
-    melFilterbank_.resize(config_.nMels, std::vector<float>(numBins, 0.0f));
+    // Build sparse filterbank — only store non-zero weights per mel band
+    melFilters_.resize(config_.nMels);
     for (int melIdx = 0; melIdx < config_.nMels; ++melIdx) {
-        float fLow = melPoints[melIdx];
-        float fCenter = melPoints[melIdx + 1];
-        float fHigh = melPoints[melIdx + 2];
+        const float fLow = melPoints[melIdx];
+        const float fCenter = melPoints[melIdx + 1];
+        const float fHigh = melPoints[melIdx + 2];
 
-        for (int bin = 0; bin < numBins; ++bin) {
-            float freq = freqs[bin];
-            if (freq < fLow || freq > fHigh) {
-                melFilterbank_[melIdx][bin] = 0.0f;
-            } else if (freq <= fCenter) {
-                melFilterbank_[melIdx][bin] = (freq - fLow) / (fCenter - fLow);
+        // Find bin range that overlaps this filter
+        int binStart = std::max(0, static_cast<int>(std::ceil(fLow / binWidth)));
+        int binEnd = std::min(numBins - 1, static_cast<int>(std::floor(fHigh / binWidth)));
+
+        melFilters_[melIdx].startBin = binStart;
+        const int count = binEnd - binStart + 1;
+        melFilters_[melIdx].weights.resize(count > 0 ? count : 0);
+
+        for (int bin = binStart; bin <= binEnd; ++bin) {
+            float freq = static_cast<float>(bin) * binWidth;
+            float weight;
+            if (freq <= fCenter) {
+                weight = (freq - fLow) / (fCenter - fLow);
             } else {
-                melFilterbank_[melIdx][bin] = (fHigh - freq) / (fHigh - fCenter);
+                weight = (fHigh - freq) / (fHigh - fCenter);
             }
+            melFilters_[melIdx].weights[bin - binStart] = std::max(0.0f, weight);
         }
     }
 }
@@ -89,96 +100,116 @@ MelSpectrogramResult MelSpectrogramProcessor::compute(const float* samples, int 
         return MelSpectrogramResult{{}, 0, config_.nMels};
     }
 
-    // Allocate FFT buffers
-    std::vector<float> fftInput(config_.fftLength, 0.0f);
-    std::vector<kiss_fft_cpx> fftOutput(numBins);
-    std::vector<float> powerSpectrum(numBins);
+    // Use pre-allocated work buffers
+    float* fftIn = fftInput_.data();
+    kiss_fft_cpx* fftOut = fftOutput_.data();
+    float* power = powerSpectrum_.data();
 
-    // Result
-    std::vector<std::vector<float>> spectrogram(numFrames, std::vector<float>(config_.nMels, 0.0f));
+    // Zero the tail of fftInput once (only matters when windowSize < fftLength)
+    if (config_.windowSizeSamples < config_.fftLength) {
+        std::memset(fftIn + config_.windowSizeSamples, 0,
+                    (config_.fftLength - config_.windowSizeSamples) * sizeof(float));
+    }
+
+    // Flat contiguous result buffer
+    MelSpectrogramResult result;
+    result.timeSteps = numFrames;
+    result.nMels = config_.nMels;
+    result.data.resize(numFrames * config_.nMels);
 
     for (int frameIdx = 0; frameIdx < numFrames; ++frameIdx) {
         const int start = frameIdx * config_.hopLengthSamples;
 
-        // Zero the FFT input buffer
-        std::memset(fftInput.data(), 0, config_.fftLength * sizeof(float));
-
         // Apply window to frame
-        const int end = std::min(start + config_.windowSizeSamples, numSamples);
-        for (int i = start; i < end; ++i) {
-            fftInput[i - start] = samples[i] * window_[i - start];
+        const int frameLen = std::min(config_.windowSizeSamples, numSamples - start);
+        for (int i = 0; i < frameLen; ++i) {
+            fftIn[i] = samples[start + i] * window_[i];
         }
 
         // Compute real FFT
-        kiss_fftr(fftCfg_, fftInput.data(), fftOutput.data());
+        kiss_fftr(fftCfg_, fftIn, fftOut);
 
         // Compute power spectrum (real^2 + imag^2)
         for (int i = 0; i < numBins; ++i) {
-            powerSpectrum[i] = fftOutput[i].r * fftOutput[i].r + fftOutput[i].i * fftOutput[i].i;
+            power[i] = fftOut[i].r * fftOut[i].r + fftOut[i].i * fftOut[i].i;
         }
 
-        // Apply mel filterbank
+        // Apply sparse mel filterbank
+        float* melRow = result.data.data() + frameIdx * config_.nMels;
         for (int melIdx = 0; melIdx < config_.nMels; ++melIdx) {
+            const MelFilter& filter = melFilters_[melIdx];
+            const int count = static_cast<int>(filter.weights.size());
             float sum = 0.0f;
-            for (int bin = 0; bin < numBins; ++bin) {
-                sum += powerSpectrum[bin] * melFilterbank_[melIdx][bin];
+            const float* w = filter.weights.data();
+            const float* p = power + filter.startBin;
+            for (int k = 0; k < count; ++k) {
+                sum += p[k] * w[k];
             }
-            spectrogram[frameIdx][melIdx] = sum;
+            melRow[melIdx] = sum;
         }
     }
 
     // Post-processing: log scaling
     if (config_.logScale) {
-        for (int i = 0; i < numFrames; ++i) {
-            for (int j = 0; j < config_.nMels; ++j) {
-                spectrogram[i][j] = std::log(std::max(1e-10f, spectrogram[i][j]));
-            }
+        const int total = numFrames * config_.nMels;
+        float* d = result.data.data();
+        for (int i = 0; i < total; ++i) {
+            d[i] = std::log(std::max(1e-10f, d[i]));
         }
     }
 
     // Post-processing: normalize
     if (config_.normalize) {
+        const int total = numFrames * config_.nMels;
+        float* d = result.data.data();
         float minVal = std::numeric_limits<float>::max();
         float maxVal = std::numeric_limits<float>::lowest();
-        for (int i = 0; i < numFrames; ++i) {
-            for (int j = 0; j < config_.nMels; ++j) {
-                minVal = std::min(minVal, spectrogram[i][j]);
-                maxVal = std::max(maxVal, spectrogram[i][j]);
-            }
+        for (int i = 0; i < total; ++i) {
+            minVal = std::min(minVal, d[i]);
+            maxVal = std::max(maxVal, d[i]);
         }
         float range = maxVal - minVal;
         if (range > 0.0f) {
-            for (int i = 0; i < numFrames; ++i) {
-                for (int j = 0; j < config_.nMels; ++j) {
-                    spectrogram[i][j] = (spectrogram[i][j] - minVal) / range;
-                }
+            float invRange = 1.0f / range;
+            for (int i = 0; i < total; ++i) {
+                d[i] = (d[i] - minVal) * invRange;
             }
         }
     }
 
-    return MelSpectrogramResult{std::move(spectrogram), numFrames, config_.nMels};
+    return result;
 }
 
 void MelSpectrogramProcessor::computeFrame(const float* frame, int frameSize, float* melOutput) {
     const int numBins = config_.fftLength / 2 + 1;
 
-    std::vector<float> fftInput(config_.fftLength, 0.0f);
-    std::vector<kiss_fft_cpx> fftOutput(numBins);
+    // Use pre-allocated buffers
+    float* fftIn = fftInput_.data();
+    kiss_fft_cpx* fftOut = fftOutput_.data();
+    float* power = powerSpectrum_.data();
 
-    // Apply window
+    // Zero and apply window
+    std::memset(fftIn, 0, config_.fftLength * sizeof(float));
     int len = std::min(frameSize, config_.windowSizeSamples);
     for (int i = 0; i < len; ++i) {
-        fftInput[i] = frame[i] * window_[i];
+        fftIn[i] = frame[i] * window_[i];
     }
 
-    kiss_fftr(fftCfg_, fftInput.data(), fftOutput.data());
+    kiss_fftr(fftCfg_, fftIn, fftOut);
 
-    // Power spectrum -> mel
+    // Power spectrum -> sparse mel filterbank
+    for (int i = 0; i < numBins; ++i) {
+        power[i] = fftOut[i].r * fftOut[i].r + fftOut[i].i * fftOut[i].i;
+    }
+
     for (int melIdx = 0; melIdx < config_.nMels; ++melIdx) {
+        const MelFilter& filter = melFilters_[melIdx];
+        const int count = static_cast<int>(filter.weights.size());
         float sum = 0.0f;
-        for (int bin = 0; bin < numBins; ++bin) {
-            float power = fftOutput[bin].r * fftOutput[bin].r + fftOutput[bin].i * fftOutput[bin].i;
-            sum += power * melFilterbank_[melIdx][bin];
+        const float* w = filter.weights.data();
+        const float* p = power + filter.startBin;
+        for (int k = 0; k < count; ++k) {
+            sum += p[k] * w[k];
         }
         melOutput[melIdx] = sum;
     }
