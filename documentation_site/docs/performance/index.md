@@ -23,7 +23,7 @@ A comprehensive performance analysis and optimization was completed, resulting i
 - **iOS**: 99.3% improvement (2554ms → 18ms for 10-minute recordings)
 - **Cross-Platform Parity**: Both platforms now perform identically well
 
-[Learn more about the optimization →](https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/STOP_RECORDING_PERFORMANCE_ANALYSIS.md)
+[Learn more about the optimization →](https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/docs/STOP_RECORDING_PERFORMANCE_ANALYSIS.md)
 
 ## Performance Resources
 

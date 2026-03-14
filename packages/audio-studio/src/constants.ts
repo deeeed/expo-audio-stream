@@ -1,10 +1,10 @@
-// packages/expo-audio-stream/src/constants.ts
+// packages/audio-studio/src/constants.ts
 import { Platform } from 'react-native'
 
-import { BitDepth, SampleRate } from './ExpoAudioStream.types'
+import { BitDepth, SampleRate } from './AudioStudio.types'
 
 export const isWeb = Platform.OS === 'web'
-export const DEBUG_NAMESPACE = 'expo-audio-stream'
+export const DEBUG_NAMESPACE = 'audio-studio'
 
 // Constants for identifying chunks in a WAV file
 export const RIFF_HEADER = 0x52494646 // "RIFF"

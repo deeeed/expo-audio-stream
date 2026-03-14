@@ -6,7 +6,7 @@ import { Button, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { ScreenWrapper, useTheme } from '@siteed/design-system'
-import { ExpoAudioStreamModule } from '@siteed/audio-studio'
+import { AudioStudioModule } from '@siteed/audio-studio'
 
 import { baseLogger } from '../config'
 import { useScreenHeader } from '../hooks/useScreenHeader'
@@ -127,7 +127,7 @@ export const PermissionsPage = () => {
 
     const checkPermissions = useCallback(async () => {
         try {
-            const status = await ExpoAudioStreamModule.getPermissionsAsync()
+            const status = await AudioStudioModule.getPermissionsAsync()
             logger.info('[checkPermissions] Permissions status', { status })
             setPermissions(status)
         } catch (error) {
@@ -137,7 +137,7 @@ export const PermissionsPage = () => {
 
     const requestPermissions = useCallback(async () => {
         try {
-            const status = await ExpoAudioStreamModule.requestPermissionsAsync()
+            const status = await AudioStudioModule.requestPermissionsAsync()
             logger.info('[requestPermissions] Permissions status', { status })
             setPermissions(status)
 

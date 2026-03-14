@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'maven-publish'
 
-group = 'net.siteed.audiostream'
+group = 'net.siteed.audiostudio'
 version = '0.1.0'
 
 // These properties prevent plugin conflicts in all Expo versions
@@ -72,13 +72,27 @@ android {
     }
   }
 
-  namespace "net.siteed.audiostream"
+  ndkVersion safeExtGet("ndkVersion", "27.1.12297006")
+
+  namespace "net.siteed.audiostudio"
   defaultConfig {
     minSdkVersion safeExtGet("minSdkVersion", 21)
     targetSdkVersion safeExtGet("targetSdkVersion", 34)
     versionCode 1
     versionName "0.1.0"
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    externalNativeBuild {
+      cmake {
+        cppFlags "-frtti -fexceptions -Wall"
+        arguments "-DANDROID_STL=c++_shared"
+        abiFilters "x86", "x86_64", "arm64-v8a"
+      }
+    }
+  }
+  externalNativeBuild {
+    cmake {
+      path "src/main/CMakeLists.txt"
+    }
   }
   lintOptions {
     abortOnError false

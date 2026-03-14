@@ -12,8 +12,8 @@ import {
     ConsoleLike,
     RecordingConfig,
     StartRecordingResult,
-} from './ExpoAudioStream.types'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+} from './AudioStudio.types'
+import AudioStudioModule from './AudioStudioModule'
 import { validateRecordingConfig } from './constants/platformLimitations'
 import {
     addAudioAnalysisListener,
@@ -185,14 +185,14 @@ export function useAudioRecorder({
     })
 
     // Instantiate the module for web with URLs
-    const ExpoAudioStream =
+    const audioStudio =
         Platform.OS === 'web'
-            ? ExpoAudioStreamModule({
+            ? AudioStudioModule({
                   audioWorkletUrl,
                   featuresExtratorUrl,
                   logger,
               })
-            : ExpoAudioStreamModule
+            : AudioStudioModule
 
     const onAudioStreamRef = useRef<
         ((_: AudioDataEvent) => Promise<void>) | null
@@ -431,7 +431,7 @@ export function useAudioRecorder({
 
     const checkStatus = useCallback(async () => {
         try {
-            const status: AudioStreamStatus = ExpoAudioStream.status()
+            const status: AudioStreamStatus = audioStudio.status()
             logger?.debug(
                 `Status: paused: ${status.isPaused} isRecording: ${status.isRecording} durationMs: ${status.durationMs} size: ${status.size}`,
                 status.compression
@@ -472,7 +472,7 @@ export function useAudioRecorder({
         } catch (error) {
             logger?.error(`Error getting status:`, error)
         }
-    }, [ExpoAudioStream, logger]) // Only depend on ExpoAudioStream and logger
+    }, [audioStudio, logger]) // Only depend on audioStudio and logger
 
     // Update ref when state changes
     useEffect(() => {
@@ -537,7 +537,7 @@ export function useAudioRecorder({
             // Strip undefined values and functions that can't cross the native bridge
             const cleanOptions = cleanNativeOptions(options)
             const startResult: StartRecordingResult =
-                await ExpoAudioStream.startRecording(cleanOptions)
+                await audioStudio.startRecording(cleanOptions)
             dispatch({ type: 'START' })
 
             startResultRef.current = startResult
@@ -593,7 +593,7 @@ export function useAudioRecorder({
             // Strip undefined values and functions that can't cross the native bridge
             const cleanOptions = cleanNativeOptions(options)
             // Call the native prepareRecording method
-            await ExpoAudioStream.prepareRecording(cleanOptions)
+            await audioStudio.prepareRecording(cleanOptions)
             logger?.debug(`recording prepared successfully`)
         },
         []
@@ -602,7 +602,7 @@ export function useAudioRecorder({
     const stopRecording = useCallback(async () => {
         logger?.debug(`stoping recording`)
 
-        const stopResult: AudioRecording = await ExpoAudioStream.stopRecording()
+        const stopResult: AudioRecording = await audioStudio.stopRecording()
         stopResult.analysisData = fullAnalysisRef.current
 
         if (analysisListenerRef.current) {
@@ -619,14 +619,14 @@ export function useAudioRecorder({
 
     const pauseRecording = useCallback(async () => {
         logger?.debug(`pause recording`)
-        const pauseResult = await ExpoAudioStream.pauseRecording()
+        const pauseResult = await audioStudio.pauseRecording()
         dispatch({ type: 'PAUSE' })
         return pauseResult
     }, [dispatch])
 
     const resumeRecording = useCallback(async () => {
         logger?.debug(`resume recording`)
-        const resumeResult = await ExpoAudioStream.resumeRecording()
+        const resumeResult = await audioStudio.resumeRecording()
         dispatch({ type: 'RESUME' })
         return resumeResult
     }, [dispatch])

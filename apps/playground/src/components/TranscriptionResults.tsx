@@ -5,7 +5,7 @@ import { Text, ActivityIndicator } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
 import { useTheme } from '@siteed/design-system'
-import type { TranscriberData } from '@siteed/audio-studio/src/ExpoAudioStream.types'
+import type { TranscriberData } from '@siteed/audio-studio/src/AudioStudio.types'
 
 import Transcript from '../component/Transcript'
 

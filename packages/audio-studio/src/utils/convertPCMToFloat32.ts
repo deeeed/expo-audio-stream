@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 
-import { ConsoleLike } from '../ExpoAudioStream.types'
+import { ConsoleLike } from '../AudioStudio.types'
 import { getWavFileInfo, WavFileInfo } from './getWavFileInfo'
 
 export const WAV_HEADER_SIZE = 44

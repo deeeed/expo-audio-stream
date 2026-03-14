@@ -67,14 +67,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deeeed/expo-audio-stream/.git"
+    "url": "git+https://github.com/deeeed/audiolab/.git"
   },
   "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/deeeed/expo-audio-stream//issues"
+    "url": "https://github.com/deeeed/audiolab//issues"
   },
-  "homepage": "https://github.com/deeeed/expo-audio-stream/#readme",
+  "homepage": "https://github.com/deeeed/audiolab/#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"

@@ -1,6 +1,6 @@
-// packages/expo-audio-stream/src/AudioAnalysis/AudioAnalysis.types.ts
+// packages/audio-studio/src/AudioAnalysis/AudioAnalysis.types.ts
 
-import { BitDepth, ConsoleLike } from '../ExpoAudioStream.types'
+import { BitDepth, ConsoleLike } from '../AudioStudio.types'
 
 /**
  * Represents the configuration for decoding audio data.

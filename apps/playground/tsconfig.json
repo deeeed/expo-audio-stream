@@ -8,10 +8,10 @@
         "skipLibCheck": true,
         "paths": {
             "@siteed/expo-audio-studio": [
-                "../../packages/expo-audio-studio/src/index"
+                "../../packages/audio-studio/src/index"
             ],
             "@siteed/expo-audio-studio/*": [
-                "../../packages/expo-audio-studio/src/*"
+                "../../packages/audio-studio/src/*"
             ],
             "@siteed/react-native-essentia": [
                 "../../packages/react-native-essentia/src/index"

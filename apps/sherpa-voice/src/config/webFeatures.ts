@@ -132,7 +132,7 @@ export type WebFeatureKey = keyof typeof WEB_FEATURES;
 
 /**
  * Detect the WASM base path at runtime.
- * In production with a base URL (e.g. /expo-audio-stream/sherpa-voice/),
+ * In production with a base URL (e.g. /audiolab/sherpa-voice/),
  * Expo prefixes asset paths. We derive the wasm path from the main bundle
  * script tag that Expo generates.
  */
@@ -144,7 +144,7 @@ export function getWasmBasePath(): string {
   if (scriptEl?.src) {
     try {
       const url = new URL(scriptEl.src);
-      // e.g. /expo-audio-stream/sherpa-voice/_expo/static/js/...
+      // e.g. /audiolab/sherpa-voice/_expo/static/js/...
       const idx = url.pathname.indexOf('_expo/static');
       if (idx > 0) {
         return url.pathname.substring(0, idx) + 'wasm/';

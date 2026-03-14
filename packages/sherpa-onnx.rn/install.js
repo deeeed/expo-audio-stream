@@ -20,7 +20,7 @@ const PACKAGE_VERSION = require('./package.json').version;
 const BINARY_VERSION = '0.1.0'; // This should match the version of Sherpa-onnx libraries
 
 // URLs for precompiled binaries
-const REPO_URL = 'https://github.com/deeeed/expo-audio-stream';
+const REPO_URL = 'https://github.com/deeeed/audiolab';
 const RELEASE_URL = `${REPO_URL}/releases/download/v${PACKAGE_VERSION}/sherpa-onnx-binaries-${BINARY_VERSION}.zip`;
 
 // Directories

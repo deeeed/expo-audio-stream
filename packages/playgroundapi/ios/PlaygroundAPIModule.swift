@@ -1,15 +1,15 @@
 import ExpoModulesCore
-import ExpoAudioStream
+import AudioStudio
 
 public class PlaygroundAPIModule: Module {
   // Get the audio module using the correct method from ModuleRegistry
-  private var audioModule: ExpoAudioStreamModule? {
+  private var audioModule: AudioStudioModule? {
     // Safely unwrap appContext before accessing moduleRegistry
     guard let context = appContext else {
       return nil
     }
     // Use the moduleWithName method and cast to the correct type
-    return context.moduleRegistry.get(moduleWithName: "ExpoAudioStream") as? ExpoAudioStreamModule
+    return context.moduleRegistry.get(moduleWithName: "AudioStudio") as? AudioStudioModule
   }
 
   private var audioProcessor: AudioProcessor?
@@ -444,7 +444,7 @@ public class PlaygroundAPIModule: Module {
       
       // Check specific modules
       let modules = [
-          ["name": "ExpoAudioStream", "class": "ExpoAudioStream"],
+          ["name": "AudioStudio", "class": "AudioStudio"],
           ["name": "PlaygroundAPI", "class": "PlaygroundAPI"]
       ]
       

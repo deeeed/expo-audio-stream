@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
 
   s.platforms    = { :ios => "15.1" }
-  s.source       = { :git => "https://github.com/deeeed/expo-audio-stream/.git", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/deeeed/audiolab/.git", :tag => "#{s.version}" }
 
   # Source files
   s.source_files = [

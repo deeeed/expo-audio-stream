@@ -1,6 +1,6 @@
 import {
     AudioRecording,
-    ExpoAudioStreamModule,
+    AudioStudioModule,
     useAudioRecorder,
 } from '@siteed/audio-studio'
 import { getLogger } from '@siteed/react-native-logger'
@@ -64,7 +64,7 @@ export default function App() {
     const handleStart = async () => {
         try {
             const { status } =
-                await ExpoAudioStreamModule.requestPermissionsAsync()
+                await AudioStudioModule.requestPermissionsAsync()
             if (status !== 'granted') {
                 return
             }

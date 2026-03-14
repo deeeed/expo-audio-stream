@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/src/utils/writeWavHeader.ts
+// packages/audio-studio/src/utils/writeWavHeader.ts
 
 /**
  * Options for creating a WAV header.

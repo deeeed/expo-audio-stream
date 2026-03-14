@@ -4,12 +4,12 @@ import {
     TrimAudioOptions,
     TrimAudioResult,
     TrimProgressEvent,
-} from './ExpoAudioStream.types'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+} from './AudioStudio.types'
+import AudioStudioModule from './AudioStudioModule'
 import { cleanNativeOptions } from './utils/cleanNativeOptions'
 
 // Create a single emitter instance
-const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
+const emitter = new LegacyEventEmitter(AudioStudioModule)
 
 /**
  * Trims an audio file based on the provided options.
@@ -65,7 +65,7 @@ export async function trimAudio(
 
     try {
         // Clean non-serializable/undefined values to avoid Android Kotlin bridge crash
-        const result = await ExpoAudioStreamModule.trimAudio(
+        const result = await AudioStudioModule.trimAudio(
             cleanNativeOptions(options)
         )
         return result

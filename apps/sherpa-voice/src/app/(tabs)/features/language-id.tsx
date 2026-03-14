@@ -1,5 +1,5 @@
 import {
-    ExpoAudioStreamModule,
+    AudioStudioModule,
     useAudioRecorder,
     type AudioDataEvent,
 } from '@siteed/audio-studio'
@@ -232,7 +232,7 @@ export default function LanguageIdScreen() {
 
         try {
             const permResult =
-                await ExpoAudioStreamModule.requestPermissionsAsync()
+                await AudioStudioModule.requestPermissionsAsync()
             if (permResult.status !== 'granted') {
                 setError('Microphone permission denied')
                 return

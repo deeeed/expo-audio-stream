@@ -25,7 +25,7 @@ const config: StorybookConfig = {
     staticDirs: ['../assets/'],
     managerHead: (head) => `
         ${head}
-        ${production ? '<base href="/expo-audio-stream/expo-audio-ui-storybook/" />' : ''}
+        ${production ? '<base href="/audiolab/expo-audio-ui-storybook/" />' : ''}
     `,
     addons: [
         getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),

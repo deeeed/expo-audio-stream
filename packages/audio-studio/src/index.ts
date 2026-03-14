@@ -11,7 +11,7 @@ import {
     AudioRecorderProvider,
     useSharedAudioRecorder,
 } from './AudioRecorder.provider'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+import AudioStudioModule from './AudioStudioModule'
 import { trimAudio } from './trimAudio'
 import { useAudioRecorder } from './useAudioRecorder'
 
@@ -38,7 +38,7 @@ export { useAudioDevices } from './hooks/useAudioDevices'
 
 export {
     AudioRecorderProvider,
-    ExpoAudioStreamModule,
+    AudioStudioModule,
     extractRawWavAnalysis,
     extractAudioAnalysis,
     extractPreview,
@@ -51,4 +51,7 @@ export {
 
 // Export all types
 export type * from './AudioAnalysis/AudioAnalysis.types'
-export type * from './ExpoAudioStream.types'
+export type * from './AudioStudio.types'
+
+/** @deprecated Use AudioStudioModule instead */
+export const ExpoAudioStreamModule = AudioStudioModule

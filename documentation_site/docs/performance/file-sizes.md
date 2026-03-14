@@ -126,4 +126,4 @@ These measurements were collected using:
    - Primary output must be disabled for compressed-only recording
    - Fixed iOS issue where compression info wasn't returned when primary disabled
 
-The complete test suite is available in the [expo-audio-stream repository](https://github.com/deeeed/expo-audio-stream/blob/main/apps/playground/e2e/file-size-collection.test.ts).
+The complete test suite is available in the [expo-audio-stream repository](https://github.com/deeeed/audiolab/blob/main/apps/playground/e2e/file-size-collection.test.ts).

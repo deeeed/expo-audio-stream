@@ -6,8 +6,8 @@ import {
     AudioDeviceCapabilities,
     DeviceDisconnectionBehavior,
     ConsoleLike,
-} from './ExpoAudioStream.types'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+} from './AudioStudio.types'
+import AudioStudioModule from './AudioStudioModule'
 
 // Default device fallback for web and unsupported platforms
 const DEFAULT_DEVICE: AudioDevice = {
@@ -94,7 +94,7 @@ export class AudioDeviceManager {
     private readonly DISCONNECTION_TIMEOUT_MS = 5000 // 5 seconds
 
     constructor(options?: { logger?: ConsoleLike }) {
-        this.eventEmitter = new EventEmitter(ExpoAudioStreamModule)
+        this.eventEmitter = new EventEmitter(AudioStudioModule)
         this.logger = options?.logger
 
         // Set up device event listeners for all platforms immediately
@@ -211,10 +211,10 @@ export class AudioDeviceManager {
         try {
             if (Platform.OS === 'web') {
                 this.availableDevices = await this.getWebAudioDevices()
-            } else if (ExpoAudioStreamModule.getAvailableInputDevices) {
+            } else if (AudioStudioModule.getAvailableInputDevices) {
                 // Expecting an array of raw device objects from native
                 const rawDevices: any[] =
-                    await ExpoAudioStreamModule.getAvailableInputDevices(
+                    await AudioStudioModule.getAvailableInputDevices(
                         options
                     )
                 // Map raw objects to the AudioDevice interface
@@ -250,10 +250,10 @@ export class AudioDeviceManager {
                     webDevices.find((d) => d.id === this.currentDeviceId) ||
                     DEFAULT_DEVICE // Fallback to default if current ID not found
                 )
-            } else if (ExpoAudioStreamModule.getCurrentInputDevice) {
+            } else if (AudioStudioModule.getCurrentInputDevice) {
                 // Expecting a single raw device object or null from native
                 const rawDevice: any | null =
-                    await ExpoAudioStreamModule.getCurrentInputDevice()
+                    await AudioStudioModule.getCurrentInputDevice()
                 // Map to AudioDevice interface if not null
                 return rawDevice ? mapRawDeviceToAudioDevice(rawDevice) : null
             } else {
@@ -286,9 +286,9 @@ export class AudioDeviceManager {
                     )
                     success = false
                 }
-            } else if (ExpoAudioStreamModule.selectInputDevice) {
+            } else if (AudioStudioModule.selectInputDevice) {
                 success =
-                    await ExpoAudioStreamModule.selectInputDevice(deviceId)
+                    await AudioStudioModule.selectInputDevice(deviceId)
                 if (success) {
                     this.currentDeviceId = deviceId
                 }
@@ -313,8 +313,8 @@ export class AudioDeviceManager {
             if (Platform.OS === 'web') {
                 this.currentDeviceId = 'default'
                 success = true
-            } else if (ExpoAudioStreamModule.resetToDefaultDevice) {
-                success = await ExpoAudioStreamModule.resetToDefaultDevice()
+            } else if (AudioStudioModule.resetToDefaultDevice) {
+                success = await AudioStudioModule.resetToDefaultDevice()
                 if (success) {
                     this.currentDeviceId = null
                 }

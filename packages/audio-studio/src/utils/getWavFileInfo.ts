@@ -1,6 +1,6 @@
-// packages/expo-audio-stream/src/utils/getWavFileInfo.ts
+// packages/audio-studio/src/utils/getWavFileInfo.ts
 
-import { BitDepth, SampleRate } from '../ExpoAudioStream.types'
+import { BitDepth, SampleRate } from '../AudioStudio.types'
 import {
     DATA_CHUNK_ID,
     DEFAULT_BIT_DEPTH,

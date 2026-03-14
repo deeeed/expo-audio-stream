@@ -1,4 +1,4 @@
-// packages/expo-audio-stream/ios/AudioProcessor.swift
+// packages/audio-studio/ios/AudioProcessor.swift
 
 import Foundation
 import Accelerate

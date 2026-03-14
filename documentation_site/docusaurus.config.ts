@@ -11,12 +11,12 @@ const config: Config = {
   url: 'https://deeeed.github.io/',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/expo-audio-stream/docs',
+  baseUrl: '/audiolab/docs',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'siteed', // Usually your GitHub org/user name.
-  projectName: 'expo-audio-stream', // Usually your repo name.
+  projectName: 'audiolab', // Usually your repo name.
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
@@ -63,7 +63,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/deeeed/expo-audio-stream',
+          href: 'https://github.com/deeeed/audiolab',
           label: 'GitHub',
           position: 'right',
         },

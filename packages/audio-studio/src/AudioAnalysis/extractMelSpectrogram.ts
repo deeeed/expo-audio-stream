@@ -3,7 +3,7 @@
  * The API may change in future versions. The web implementation is a placeholder.
  */
 
-import { ExpoAudioStreamModule } from '..'
+import { AudioStudioModule } from '..'
 import { isWeb } from '../constants'
 import {
     ExtractMelSpectrogramOptions,
@@ -108,7 +108,7 @@ export async function extractMelSpectrogram(
         arrayBuffer: _arrayBuffer,
         ...nativeOptions
     } = options
-    return ExpoAudioStreamModule.extractMelSpectrogram(
+    return AudioStudioModule.extractMelSpectrogram(
         cleanNativeOptions(nativeOptions)
     )
 }

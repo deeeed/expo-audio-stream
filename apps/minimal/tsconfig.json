@@ -5,10 +5,10 @@
         "paths": {
             "@/*": ["./*"],
             "@siteed/expo-audio-studio": [
-                "../../packages/expo-audio-studio/src/index"
+                "../../packages/audio-studio/src/index"
             ],
             "@siteed/expo-audio-studio/*": [
-                "../../packages/expo-audio-studio/src/*"
+                "../../packages/audio-studio/src/*"
             ]
         }
     },

@@ -132,7 +132,7 @@ Run platform-specific integration tests to validate actual behavior:
 
 ```bash
 # iOS
-cd packages/expo-audio-studio/ios/tests/integration
+cd packages/audio-studio/ios/tests/integration
 ./run_integration_tests.sh
 
 # Android  
@@ -158,7 +158,7 @@ yarn web    # Web
 Ensure the package and plugin build correctly:
 
 ```bash
-cd packages/expo-audio-studio
+cd packages/audio-studio
 yarn build && yarn build:plugin
 ```
 

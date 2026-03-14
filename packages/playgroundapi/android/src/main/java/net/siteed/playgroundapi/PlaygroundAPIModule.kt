@@ -4,8 +4,8 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.net.URL
 import android.util.Log
-import net.siteed.audiostream.AudioProcessor
-import net.siteed.audiostream.DecodingConfig
+import net.siteed.audiostudio.AudioProcessor
+import net.siteed.audiostudio.DecodingConfig
 
 class PlaygroundAPIModule : Module() {
   // Create a lazy-initialized instance of AudioProcessor for demo purposes
@@ -162,7 +162,7 @@ class PlaygroundAPIModule : Module() {
         
         // Check AudioProcessor import
         try {
-          val audioProcessorClass = Class.forName("net.siteed.audiostream.AudioProcessor")
+          val audioProcessorClass = Class.forName("net.siteed.audiostudio.AudioProcessor")
           result["audioProcessorImported"] = true
           result["audioProcessorClass"] = audioProcessorClass.name
         } catch (e: Exception) {
@@ -247,7 +247,7 @@ class PlaygroundAPIModule : Module() {
       val reactContext = appContext.reactContext
       if (reactContext != null) {
         when (modulePath) {
-          ":siteed-expo-audio-studio" -> Class.forName("net.siteed.audiostream.AudioProcessor") != null
+          ":siteed-expo-audio-studio" -> Class.forName("net.siteed.audiostudio.AudioProcessor") != null
           ":siteed_react-native-essentia" -> Class.forName("net.siteed.essentia.EssentiaModule") != null
           else -> false
         }

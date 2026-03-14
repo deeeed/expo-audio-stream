@@ -1,6 +1,6 @@
 //
 //  AudioAnalysisData.swift
-//  ExpoAudioStream
+//  AudioStudio
 //
 //  Created by Arthur Breton on 23/6/2024.
 //

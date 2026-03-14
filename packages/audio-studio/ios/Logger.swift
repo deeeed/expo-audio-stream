@@ -1,6 +1,6 @@
 class Logger {
     // Similar to Android's TAG_PREFIX for consistent cross-platform logging
-    private static let TAG_PREFIX = "ExpoAudioStudio"
+    private static let TAG_PREFIX = "AudioStudio"
     
     static func debug(_ className: String, _ message: @autoclosure () -> String) {
         #if DEBUG

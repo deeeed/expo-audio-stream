@@ -110,12 +110,12 @@ function updateRuntimeVersionAndChangelog() {
         
         changelog = changelog.replace(
           linkPattern,
-          `[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@${version}...HEAD`
+          `[unreleased]: https://github.com/deeeed/audiolab/compare/audio-playground@${version}...HEAD`
         );
         
         // Add new version comparison link if needed
         if (!changelog.includes(`[${version}]:`)) {
-          const newLink = `\n[${version}]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@${oldVersion}...audio-playground@${version}`;
+          const newLink = `\n[${version}]: https://github.com/deeeed/audiolab/compare/audio-playground@${oldVersion}...audio-playground@${version}`;
           
           // Insert after the unreleased link
           changelog = changelog.replace(
