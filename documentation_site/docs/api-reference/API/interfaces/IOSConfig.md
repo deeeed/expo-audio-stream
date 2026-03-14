@@ -1,12 +1,12 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / IOSConfig
+[@siteed/audio-studio](../README.md) / IOSConfig
 
 # Interface: IOSConfig
 
-Defined in: [src/ExpoAudioStream.types.ts:236](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L236)
+Defined in: [src/AudioStudio.types.ts:248](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L248)
 
 ## Properties
 
@@ -14,6 +14,6 @@ Defined in: [src/ExpoAudioStream.types.ts:236](https://github.com/deeeed/expo-au
 
 > `optional` **audioSession**: [`AudioSessionConfig`](AudioSessionConfig.md)
 
-Defined in: [src/ExpoAudioStream.types.ts:238](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L238)
+Defined in: [src/AudioStudio.types.ts:250](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L250)
 
 Configuration for the iOS audio session

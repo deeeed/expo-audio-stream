@@ -1,14 +1,14 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / getWavFileInfo
+[@siteed/audio-studio](../README.md) / getWavFileInfo
 
 # Function: getWavFileInfo()
 
 > **getWavFileInfo**(`arrayBuffer`): `Promise`\<[`WavFileInfo`](../interfaces/WavFileInfo.md)\>
 
-Defined in: [src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/utils/getWavFileInfo.ts#L47)
+Defined in: [src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/utils/getWavFileInfo.ts#L47)
 
 Extracts metadata from a WAV buffer.
 

@@ -1,14 +1,14 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / BitDepth
+[@siteed/audio-studio](../README.md) / BitDepth
 
 # Type Alias: BitDepth
 
 > **BitDepth**: `8` \| `16` \| `32`
 
-Defined in: [src/ExpoAudioStream.types.ts:87](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L87)
+Defined in: [src/AudioStudio.types.ts:99](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L99)
 
 Audio bit depth (bits per sample).
 
@@ -19,4 +19,4 @@ Platform support:
 
 ## See
 
-[Platform Limitations](https://github.com/deeeed/expo-audio-stream/blob/main/packages/expo-audio-studio/docs/PLATFORM_LIMITATIONS.md)
+[Platform Limitations](https://github.com/deeeed/audiolab/blob/main/packages/audio-studio/docs/PLATFORM_LIMITATIONS.md)

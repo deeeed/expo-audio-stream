@@ -1,14 +1,14 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / writeWavHeader
+[@siteed/audio-studio](../README.md) / writeWavHeader
 
 # Function: writeWavHeader()
 
 > **writeWavHeader**(`options`): `ArrayBuffer`
 
-Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/utils/writeWavHeader.ts#L36)
+Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/utils/writeWavHeader.ts#L36)
 
 Writes or updates a WAV (RIFF) header based on the provided options.
 

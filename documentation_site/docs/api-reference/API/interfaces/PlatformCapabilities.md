@@ -1,12 +1,12 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / PlatformCapabilities
+[@siteed/audio-studio](../README.md) / PlatformCapabilities
 
 # Interface: PlatformCapabilities
 
-Defined in: [src/constants/platformLimitations.ts:9](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/constants/platformLimitations.ts#L9)
+Defined in: [src/constants/platformLimitations.ts:9](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/constants/platformLimitations.ts#L9)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/constants/platformLimitations.ts:9](https://github.com/deeeed/e
 
 > **notes**: `string`[]
 
-Defined in: [src/constants/platformLimitations.ts:12](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/constants/platformLimitations.ts#L12)
+Defined in: [src/constants/platformLimitations.ts:12](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/constants/platformLimitations.ts#L12)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [src/constants/platformLimitations.ts:12](https://github.com/deeeed/
 
 > **supportedBitDepths**: [`BitDepth`](../type-aliases/BitDepth.md)[]
 
-Defined in: [src/constants/platformLimitations.ts:11](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/constants/platformLimitations.ts#L11)
+Defined in: [src/constants/platformLimitations.ts:11](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/constants/platformLimitations.ts#L11)
 
 ***
 
@@ -30,4 +30,4 @@ Defined in: [src/constants/platformLimitations.ts:11](https://github.com/deeeed/
 
 > **supportedEncodings**: [`EncodingType`](../type-aliases/EncodingType.md)[]
 
-Defined in: [src/constants/platformLimitations.ts:10](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/constants/platformLimitations.ts#L10)
+Defined in: [src/constants/platformLimitations.ts:10](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/constants/platformLimitations.ts#L10)

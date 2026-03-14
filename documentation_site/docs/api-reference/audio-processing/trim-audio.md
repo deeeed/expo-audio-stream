@@ -11,7 +11,7 @@ The `trimAudio` function allows you to trim audio files with precision, supporti
 ## Syntax
 
 ```typescript
-async function trimAudio(options: TrimAudioOptions): Promise<string>
+async function trimAudio(options: TrimAudioOptions): Promise&lt;string&gt;
 ```
 
 ## Parameters

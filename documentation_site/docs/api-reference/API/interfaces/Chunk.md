@@ -1,12 +1,12 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / Chunk
+[@siteed/audio-studio](../README.md) / Chunk
 
 # Interface: Chunk
 
-Defined in: [src/ExpoAudioStream.types.ts:108](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L108)
+Defined in: [src/AudioStudio.types.ts:120](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L120)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/ExpoAudioStream.types.ts:108](https://github.com/deeeed/expo-au
 
 > **text**: `string`
 
-Defined in: [src/ExpoAudioStream.types.ts:110](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L110)
+Defined in: [src/AudioStudio.types.ts:122](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L122)
 
 Transcribed text content
 
@@ -24,6 +24,6 @@ Transcribed text content
 
 > **timestamp**: \[`number`, `null` \| `number`\]
 
-Defined in: [src/ExpoAudioStream.types.ts:112](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/ExpoAudioStream.types.ts#L112)
+Defined in: [src/AudioStudio.types.ts:124](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L124)
 
 Start and end timestamp in seconds [start, end] where end can be null if ongoing

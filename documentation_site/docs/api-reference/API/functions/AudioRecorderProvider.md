@@ -1,14 +1,14 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / AudioRecorderProvider
+[@siteed/audio-studio](../README.md) / AudioRecorderProvider
 
 # Function: AudioRecorderProvider()
 
 > **AudioRecorderProvider**(`props`): `ReactNode` \| `Promise`\<`ReactNode`\>
 
-Defined in: [src/AudioRecorder.provider.tsx:37](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/AudioRecorder.provider.tsx#L37)
+Defined in: [src/AudioRecorder.provider.tsx:37](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioRecorder.provider.tsx#L37)
 
 ## Parameters
 

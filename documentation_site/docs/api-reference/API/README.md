@@ -1,8 +1,8 @@
-**@siteed/expo-audio-studio**
+**@siteed/audio-studio**
 
 ***
 
-# @siteed/expo-audio-studio
+# @siteed/audio-studio
 
 ## Classes
 
@@ -12,7 +12,8 @@
 
 - [AndroidConfig](interfaces/AndroidConfig.md)
 - [AudioAnalysis](interfaces/AudioAnalysis.md)
-- [AudioDataEvent](interfaces/AudioDataEvent.md)
+- [AudioDataEventFloat32](interfaces/AudioDataEventFloat32.md)
+- [AudioDataEventRaw](interfaces/AudioDataEventRaw.md)
 - [AudioDevice](interfaces/AudioDevice.md)
 - [AudioDeviceCapabilities](interfaces/AudioDeviceCapabilities.md)
 - [AudioFeatures](interfaces/AudioFeatures.md)
@@ -52,6 +53,7 @@
 
 ## Type Aliases
 
+- [AudioDataEvent](type-aliases/AudioDataEvent.md)
 - [BitDepth](type-aliases/BitDepth.md)
 - [ConsoleLike](type-aliases/ConsoleLike.md)
 - [DeviceDisconnectionBehaviorType](type-aliases/DeviceDisconnectionBehaviorType.md)
@@ -63,8 +65,9 @@
 ## Variables
 
 - [audioDeviceManager](variables/audioDeviceManager.md)
+- [AudioStudioModule](variables/AudioStudioModule.md)
 - [DeviceDisconnectionBehavior](variables/DeviceDisconnectionBehavior.md)
-- [ExpoAudioStreamModule](variables/ExpoAudioStreamModule.md)
+- [~~ExpoAudioStreamModule~~](variables/ExpoAudioStreamModule.md)
 - [WAV\_HEADER\_SIZE](variables/WAV_HEADER_SIZE.md)
 
 ## Functions

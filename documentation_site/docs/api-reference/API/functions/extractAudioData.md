@@ -1,14 +1,14 @@
-[**@siteed/expo-audio-studio**](../README.md)
+[**@siteed/audio-studio**](../README.md)
 
 ***
 
-[@siteed/expo-audio-studio](../README.md) / extractAudioData
+[@siteed/audio-studio](../README.md) / extractAudioData
 
 # Function: extractAudioData()
 
 > **extractAudioData**(`props`): `Promise`\<`any`\>
 
-Defined in: [src/AudioAnalysis/extractAudioData.ts:6](https://github.com/deeeed/expo-audio-stream/blob/02ffb8ddbf4c4c6d08b7c13479558a436c0e02e4/packages/expo-audio-studio/src/AudioAnalysis/extractAudioData.ts#L6)
+Defined in: [src/AudioAnalysis/extractAudioData.ts:6](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioAnalysis/extractAudioData.ts#L6)
 
 ## Parameters
 

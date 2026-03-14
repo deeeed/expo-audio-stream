@@ -901,8 +901,8 @@ Example iOS Info.plist configuration:
 ```xml
 <key>UIBackgroundModes</key>
 <array>
-  <string>audio</string>
-  <string>processing</string> <!-- recommended but optional -->
+  &lt;string&gt;audio</string>
+  &lt;string&gt;processing</string> <!-- recommended but optional -->
   <!-- other background modes -->
 </array>
 ```
