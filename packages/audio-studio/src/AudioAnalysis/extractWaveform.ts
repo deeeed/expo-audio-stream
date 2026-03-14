@@ -1,4 +1,4 @@
-import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
+import AudioStudioModule from '../AudioStudioModule'
 
 export interface ExtractWaveformProps {
     fileUri: string
@@ -12,7 +12,7 @@ export const extractWaveform = async ({
     offset = 0,
     length,
 }: ExtractWaveformProps): Promise<unknown> => {
-    const res = await ExpoAudioStreamModule.extractAudioAnalysis({
+    const res = await AudioStudioModule.extractAudioAnalysis({
         fileUri,
         numberOfSamples,
         offset,

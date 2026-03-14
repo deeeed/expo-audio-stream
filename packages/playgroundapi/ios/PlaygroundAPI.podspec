@@ -13,7 +13,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.dependency 'ExpoAudioStream'
+  s.dependency 'AudioStudio'
   s.dependency 'Essentia'
 
   # Swift/Objective-C compatibility

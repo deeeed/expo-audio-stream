@@ -1,11 +1,11 @@
 // packages/expo-audio-stream/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { ConsoleLike, RecordingConfig } from './ExpoAudioStream.types'
+import { ConsoleLike, RecordingConfig } from './AudioStudio.types'
 import {
     EmitAudioAnalysisFunction,
     EmitAudioEventFunction,
-} from './ExpoAudioStream.web'
+} from './AudioStudio.web'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'

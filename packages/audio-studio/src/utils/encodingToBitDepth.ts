@@ -1,4 +1,4 @@
-import { BitDepth, EncodingType } from '../ExpoAudioStream.types'
+import { BitDepth, EncodingType } from '../AudioStudio.types'
 
 export const encodingToBitDepth = ({
     encoding,

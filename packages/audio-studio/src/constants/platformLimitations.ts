@@ -4,7 +4,7 @@
 
 import { Platform } from 'react-native'
 
-import { EncodingType, BitDepth } from '../ExpoAudioStream.types'
+import { EncodingType, BitDepth } from '../AudioStudio.types'
 
 export interface PlatformCapabilities {
     supportedEncodings: EncodingType[]

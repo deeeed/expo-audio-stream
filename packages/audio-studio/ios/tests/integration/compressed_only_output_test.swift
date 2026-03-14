@@ -18,8 +18,8 @@ let srcPath = URL(fileURLWithPath: #file)
     .path
 
 // Import the module
-#if canImport(ExpoAudioStream)
-import ExpoAudioStream
+#if canImport(AudioStudio)
+import AudioStudio
 #endif
 
 // Helper to load Swift files

@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/constants.ts
 import { Platform } from 'react-native'
 
-import { BitDepth, SampleRate } from './ExpoAudioStream.types'
+import { BitDepth, SampleRate } from './AudioStudio.types'
 
 export const isWeb = Platform.OS === 'web'
 export const DEBUG_NAMESPACE = 'expo-audio-stream'

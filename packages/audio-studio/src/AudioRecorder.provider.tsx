@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/AudioRecorder.provider.tsx
 import React, { createContext, useContext } from 'react'
 
-import { UseAudioRecorderState } from './ExpoAudioStream.types'
+import { UseAudioRecorderState } from './AudioStudio.types'
 import { UseAudioRecorderProps, useAudioRecorder } from './useAudioRecorder'
 
 const initContext: UseAudioRecorderState = {

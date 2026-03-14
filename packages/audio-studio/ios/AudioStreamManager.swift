@@ -1,6 +1,6 @@
 //
 //  AudioStreamManager.swift
-//  ExpoAudioStream
+//  AudioStudio
 //
 //  Created by Arthur Breton on 21/4/2024.
 //
@@ -30,7 +30,7 @@ extension UInt16 {
     }
 }
 
-// Define DeviceDisconnectionBehavior enum mirroring ExpoAudioStream.types.ts
+// Define DeviceDisconnectionBehavior enum mirroring AudioStudio.types.ts
 enum DeviceDisconnectionBehavior: String {
     case PAUSE = "pause"
     case FALLBACK = "fallback"
@@ -1998,7 +1998,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
 
     // MARK: - Device Disconnection Handling
 
-    // Define interruption reasons matching ExpoAudioStream.types.ts
+    // Define interruption reasons matching AudioStudio.types.ts
     enum RecordingInterruptionReason: String {
         case deviceDisconnected = "deviceDisconnected"
         case deviceFallback = "deviceFallback"

@@ -1,10 +1,10 @@
 {
     "platforms": ["ios", "android", "web"],
     "ios": {
-        "modules": ["ExpoAudioStreamModule"]
+        "modules": ["AudioStudioModule"]
     },
     "android": {
-        "modules": ["net.siteed.audiostream.ExpoAudioStreamModule"],
-        "packageImportPath": "net.siteed.audiostream"
+        "modules": ["net.siteed.audiostudio.AudioStudioModule"],
+        "packageImportPath": "net.siteed.audiostudio"
     }
 }

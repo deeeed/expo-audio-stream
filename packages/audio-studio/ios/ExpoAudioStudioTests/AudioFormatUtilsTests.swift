@@ -1,7 +1,7 @@
 import XCTest
 import AVFoundation
 import Accelerate
-@testable import ExpoAudioStream
+@testable import AudioStudio
 
 class AudioFormatUtilsTests: XCTestCase {
     

@@ -1,7 +1,7 @@
 // packages/expo-audio-stream/src/utils/audioProcessing.ts
 import { Platform } from 'react-native'
 
-import { ConsoleLike } from '../ExpoAudioStream.types'
+import { ConsoleLike } from '../AudioStudio.types'
 
 export interface ProcessAudioBufferOptions {
     arrayBuffer?: ArrayBuffer

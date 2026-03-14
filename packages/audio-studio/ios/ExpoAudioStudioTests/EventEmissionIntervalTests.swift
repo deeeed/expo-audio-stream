@@ -1,5 +1,5 @@
 import XCTest
-@testable import ExpoAudioStudio
+@testable import AudioStudio
 
 class EventEmissionIntervalTests: XCTestCase {
     

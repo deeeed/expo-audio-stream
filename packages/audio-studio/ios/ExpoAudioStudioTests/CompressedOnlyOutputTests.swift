@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import ExpoAudioStream
+@testable import AudioStudio
 
 class CompressedOnlyOutputTests: XCTestCase {
     

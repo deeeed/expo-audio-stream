@@ -5,8 +5,8 @@
  * - `extractWavAudioAnalysis`: For analyzing WAV files without decoding, preserving original PCM values.
  * - `extractPreview`: For generating quick previews of audio waveforms, optimized for UI rendering.
  */
-import { ConsoleLike } from '../ExpoAudioStream.types'
-import ExpoAudioStreamModule from '../ExpoAudioStreamModule'
+import { ConsoleLike } from '../AudioStudio.types'
+import AudioStudioModule from '../AudioStudioModule'
 import { isWeb } from '../constants'
 import {
     AudioAnalysis,
@@ -218,7 +218,7 @@ export async function extractAudioAnalysis(
             ...nativeOptions
         } = props
         // Clean undefined values to avoid Android Kotlin bridge crash
-        return await ExpoAudioStreamModule.extractAudioAnalysis(
+        return await AudioStudioModule.extractAudioAnalysis(
             cleanNativeOptions(nativeOptions)
         )
     }
@@ -331,7 +331,7 @@ export const extractRawWavAnalysis = async ({
             fileUri,
             segmentDurationMs,
         })
-        const res = await ExpoAudioStreamModule.extractAudioAnalysis({
+        const res = await AudioStudioModule.extractAudioAnalysis({
             fileUri,
             segmentDurationMs,
             features,

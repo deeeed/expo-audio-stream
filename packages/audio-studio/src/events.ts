@@ -3,10 +3,10 @@
 import { LegacyEventEmitter, type EventSubscription } from 'expo-modules-core'
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
-import { RecordingInterruptionEvent } from './ExpoAudioStream.types'
-import ExpoAudioStreamModule from './ExpoAudioStreamModule'
+import { RecordingInterruptionEvent } from './AudioStudio.types'
+import AudioStudioModule from './AudioStudioModule'
 
-const emitter = new LegacyEventEmitter(ExpoAudioStreamModule)
+const emitter = new LegacyEventEmitter(AudioStudioModule)
 
 // Internal event payload from native module
 export interface AudioEventPayload {

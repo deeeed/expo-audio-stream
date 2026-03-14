@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useId } from 'react'
 
 import { audioDeviceManager } from '../AudioDeviceManager'
-import { AudioDevice } from '../ExpoAudioStream.types'
+import { AudioDevice } from '../AudioStudio.types'
 
 /**
  * React hook for managing audio input devices
