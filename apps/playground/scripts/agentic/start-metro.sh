@@ -28,7 +28,7 @@ print_launch_hint() {
   if [ -n "$LAN_IP" ]; then
     echo ""
     echo "To open the app on Android:"
-    echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+audioplayground://expo-development-client/?url=http://${LAN_IP}:${PORT}\" com.audioplayground/.MainActivity"
+    echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+audioplayground://expo-development-client/?url=http://${LAN_IP}:${PORT}\" net.siteed.audioplayground.development/.MainActivity"
     echo ""
   fi
 }
