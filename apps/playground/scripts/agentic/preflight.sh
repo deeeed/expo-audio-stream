@@ -58,8 +58,6 @@ elif [ "$PLATFORM" = "android" ]; then
   EMU_PORT="${EMULATOR_PORT:-5580}"
   WINDOW_FLAG=""
   [ "${HEADLESS:-1}" = "1" ] && WINDOW_FLAG="-no-window"
-  AUDIO_FLAG="-no-audio"
-  [ "${HEADLESS:-1}" = "0" ] && AUDIO_FLAG=""
 
   if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
     # If running headless but we want windowed (or vice versa), restart
