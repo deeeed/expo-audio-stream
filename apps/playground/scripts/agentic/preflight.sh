@@ -54,8 +54,9 @@ elif [ "$PLATFORM" = "android" ]; then
     info "Emulator ${SERIAL} not found — booting ${ANDROID_DEVICE:-audiolab}..."
     AVD="${ANDROID_DEVICE:-audiolab}"
     PORT="${EMULATOR_PORT:-5580}"
-    WINDOW_FLAG="-no-window"
-    [ "${SHOW_WINDOW:-0}" = "1" ] && WINDOW_FLAG=""
+    # HEADLESS: read from env — 1=headless (default), 0=show window
+    WINDOW_FLAG=""
+    [ "${HEADLESS:-1}" = "1" ] && WINDOW_FLAG="-no-window"
     emulator -avd "$AVD" -port "$PORT" $WINDOW_FLAG -no-audio -no-snapshot-load &>/dev/null &
     sleep 5
     adb -s "emulator-${PORT}" wait-for-device
