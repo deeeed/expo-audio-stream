@@ -134,7 +134,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                     "enableBackgroundPlayback": false
                 }
             ],
-            ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ? ["10.0.2.2", "localhost"] : "*" }] as const,
+            ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ?  [
+                '10.0.2.2',
+                'localhost',
+                '192.168.50.10',
+                '192.168.50.11',
+                '192.168.11.1',
+                '192.168.1.39',
+            ] : "*" }],
             [
                 "expo-build-properties",
                 {
