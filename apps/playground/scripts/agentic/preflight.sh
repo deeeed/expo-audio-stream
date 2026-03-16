@@ -14,10 +14,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-# Load slot config from .js.env (vars not already set take values from file)
-if [ -f .js.env ]; then
+# Load slot device config from repo-root .agent/session.env
+if [ -f ../../.agent/session.env ]; then
   set -o allexport
-  source .js.env
+  source ../../.agent/session.env
   set +o allexport
 fi
 
