@@ -14,11 +14,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-# Load device config from .env.development (gitignored, machine-specific)
+# Load device config from .env.development — only sets vars not already in env
+# Priority: explicit env > .env.development > script defaults
 if [ -f .env.development ]; then
-  set -o allexport
-  source .env.development
-  set +o allexport
+  while IFS= read -r _line || [ -n "$_line" ]; do
+    [[ "$_line" =~ ^[[:space:]]*(#|$) ]] && continue
+    _line="${_line#export }"
+    _key="${_line%%=*}"
+    _key="${_key//[[:space:]]/}"
+    [[ -n "$_key" && -z "${!_key+x}" ]] && export "$_line" 2>/dev/null || true
+  done < .env.development
+  unset _line _key
 fi
 
 PORT="${WATCHER_PORT:-7500}"
