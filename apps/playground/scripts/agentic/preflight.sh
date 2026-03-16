@@ -55,19 +55,18 @@ if [ "$PLATFORM" = "ios" ]; then
 elif [ "$PLATFORM" = "android" ]; then
   SERIAL="${ADB_SERIAL:-emulator-5580}"
   AVD="${ANDROID_DEVICE:-audiolab}"
-  PORT="${EMULATOR_PORT:-5580}"
+  EMU_PORT="${EMULATOR_PORT:-5580}"
   WINDOW_FLAG=""
   [ "${HEADLESS:-1}" = "1" ] && WINDOW_FLAG="-no-window"
 
   if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
     # If running headless but we want windowed (or vice versa), restart
-    IS_HEADLESS=$(adb -s "${SERIAL}" shell getprop qemu.sf.lcd_density 2>/dev/null | wc -c)
-    EMULATOR_HAS_WINDOW=$(ps aux | grep "avd ${AVD}" | grep -v grep | grep -v "no-window" | wc -l | tr -d ' ')
+    EMULATOR_HAS_WINDOW=
     if [ "${HEADLESS:-1}" = "0" ] && [ "$EMULATOR_HAS_WINDOW" = "0" ]; then
       info "Emulator ${SERIAL} is headless — restarting with window..."
       adb -s "${SERIAL}" emu kill 2>/dev/null || true
       sleep 2
-      emulator -avd "$AVD" -port "$PORT" -no-audio -no-snapshot-load &>/dev/null &
+      emulator -avd "$AVD" -port "$EMU_PORT" -no-audio -no-snapshot-load &>/dev/null &
       adb -s "${SERIAL}" wait-for-device
       pass "Emulator ${AVD} restarted with window"
     else
@@ -76,14 +75,14 @@ elif [ "$PLATFORM" = "android" ]; then
   else
     info "Emulator ${SERIAL} not found — booting ${ANDROID_DEVICE:-audiolab}..."
     AVD="${ANDROID_DEVICE:-audiolab}"
-    PORT="${EMULATOR_PORT:-5580}"
+    EMU_PORT="${EMULATOR_PORT:-5580}"
     # HEADLESS: read from env — 1=headless (default), 0=show window
     WINDOW_FLAG=""
     [ "${HEADLESS:-1}" = "1" ] && WINDOW_FLAG="-no-window"
-    emulator -avd "$AVD" -port "$PORT" $WINDOW_FLAG -no-audio -no-snapshot-load &>/dev/null &
+    emulator -avd "$AVD" -port "$EMU_PORT" $WINDOW_FLAG -no-audio -no-snapshot-load &>/dev/null &
     sleep 5
-    adb -s "emulator-${PORT}" wait-for-device
-    SERIAL="emulator-${PORT}"
+    adb -s "${SERIAL}" wait-for-device
+    SERIAL="emulator-${EMU_PORT}"
     pass "Emulator ${AVD} booted on emulator-${PORT}"
   fi
   adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
