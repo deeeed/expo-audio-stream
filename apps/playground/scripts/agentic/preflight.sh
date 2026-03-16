@@ -98,6 +98,8 @@ WATCHER_PORT="${PORT}" bash scripts/agentic/start-metro.sh
 
 # ── 3. Build + install app if needed ───────────────────────────
 info "Step 3: Check if app is installed"
+# REBUILD=1 skips the installed check and forces reinstall
+
 APP_INSTALLED=false
 
 if [ "$PLATFORM" = "ios" ]; then
@@ -110,6 +112,8 @@ elif [ "$PLATFORM" = "android" ]; then
     APP_INSTALLED=true
     pass "App ${BUNDLE_ID_ANDROID} already installed on ${SERIAL}"
   fi
+# Override: REBUILD=1 forces reinstall regardless of install state
+if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 fi
 
 if [ "$APP_INSTALLED" = false ]; then
