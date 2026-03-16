@@ -60,7 +60,7 @@ elif [ "$PLATFORM" = "android" ]; then
     sleep 5
     adb -s "emulator-${PORT}" wait-for-device
     SERIAL="emulator-${PORT}"
-    ok "Emulator ${AVD} booted on emulator-${PORT}"
+    pass "Emulator ${AVD} booted on emulator-${PORT}"
   fi
   adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
   adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
