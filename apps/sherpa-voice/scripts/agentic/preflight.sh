@@ -14,6 +14,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+# Load slot config from .js.env (vars not already set take values from file)
+if [ -f .js.env ]; then
+  set -o allexport
+  source .js.env
+  set +o allexport
+fi
+
 PORT="${WATCHER_PORT:-7500}"
 PLATFORM="${PLATFORM:-ios}"
 SCHEME="sherpa-voice"
