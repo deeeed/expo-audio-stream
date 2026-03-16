@@ -68,6 +68,7 @@ elif [ "$PLATFORM" = "android" ]; then
       sleep 2
       emulator -avd "$AVD" -port "$EMU_PORT"  -no-snapshot-load &>/dev/null &
       adb -s "${SERIAL}" wait-for-device
+      until adb -s "${SERIAL}" shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do sleep 2; done
       pass "Emulator ${AVD} restarted with window"
     else
       pass "Emulator ${SERIAL} already running"
@@ -83,6 +84,7 @@ elif [ "$PLATFORM" = "android" ]; then
     sleep 5
     adb -s "${SERIAL}" wait-for-device
     SERIAL="emulator-${EMU_PORT}"
+    until adb -s "${SERIAL}" shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do sleep 2; done
     pass "Emulator ${AVD} booted on ${SERIAL}"
   fi
   adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
