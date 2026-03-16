@@ -8,8 +8,8 @@
         "build:deps": "cd ../../packages/audio-studio && yarn build && yarn build:plugin && cd ../playgroundapi && yarn build && cd ../react-native-essentia && yarn prepare",
         "start": "NODE_ENV=development bash scripts/agentic/start-metro.sh && node scripts/agentic/start-interactive.mjs",
         "stop": "bash scripts/agentic/stop-metro.sh",
-        "android": "RCT_METRO_PORT=7365 NODE_ENV=development expo run:android --port 7365",
-        "ios": "APP_VARIANT=development RCT_METRO_PORT=7365 NODE_ENV=development expo run:ios --device \"${IOS_SIMULATOR:-AudioPlayground-Dev}\" --port 7365",
+        "android": "PLATFORM=android bash scripts/agentic/preflight.sh",
+        "ios": "PLATFORM=ios bash scripts/agentic/preflight.sh",
         "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-AudioPlayground-Dev}\" --boot-only",
         "ios:launch": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-AudioPlayground-Dev}\" --scheme audioplayground --port 7365",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme audioplayground --port 7365",
@@ -99,7 +99,8 @@
         "test:stories": "jest --config jest.config.stories.js",
         "test:stories:watch": "jest --config jest.config.stories.js --watch",
         "test:stories:coverage": "jest --config jest.config.stories.js --coverage",
-        "deploy": ""
+        "deploy": "",
+        "android:window": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh"
     },
     "dependencies": {
         "@expo/metro-runtime": "~55.0.6",

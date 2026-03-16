@@ -6,8 +6,8 @@
         "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
         "start": "NODE_ENV=development bash scripts/agentic/start-metro.sh && node scripts/agentic/start-interactive.mjs",
         "stop": "bash scripts/agentic/stop-metro.sh",
-        "android": "RCT_METRO_PORT=7500 NODE_ENV=development expo run:android --port 7500",
-        "ios": "APP_VARIANT=development RCT_METRO_PORT=7500 NODE_ENV=development expo run:ios --device \"${IOS_SIMULATOR:-SherpaVoice-Dev}\" --port 7500",
+        "android": "PLATFORM=android bash scripts/agentic/preflight.sh",
+        "ios": "PLATFORM=ios bash scripts/agentic/preflight.sh",
         "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-SherpaVoice-Dev}\" --boot-only",
         "ios:launch": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-SherpaVoice-Dev}\" --scheme sherpa-voice --port 7500",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme sherpa-voice --port 7500",
@@ -58,7 +58,8 @@
         "build:android:production:local": "NODE_ENV=production APP_VARIANT=production npx eas build --platform android --profile production --local --no-wait",
         "ota-update:production": "APP_VARIANT=production npx eas update --channel production",
         "ota-update:development": "APP_VARIANT=development npx eas update --channel development",
-        "publish:store": "bash scripts/deploy-sherpa-voice.sh"
+        "publish:store": "bash scripts/deploy-sherpa-voice.sh",
+        "android:window": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh"
     },
     "jest": {
         "preset": "jest-expo"
