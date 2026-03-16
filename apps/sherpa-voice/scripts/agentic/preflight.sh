@@ -31,14 +31,15 @@ PORT="${WATCHER_PORT:-7500}"
 PLATFORM="${PLATFORM:-ios}"
 SCHEME="sherpa-voice"
 # Bundle IDs are dynamic based on APP_VARIANT (from .env.development)
-_VARIANT="development"
+_VARIANT="${APP_VARIANT:-development}"
 _BASE="net.siteed.sherpavoice"
-if [ "" = "production" ]; then
-  BUNDLE_ID_IOS=""
-  BUNDLE_ID_ANDROID=""
+if [ "$_VARIANT" = "production" ]; then
+  BUNDLE_ID_IOS="$_BASE"
+  BUNDLE_ID_ANDROID="$_BASE"
 else
-  BUNDLE_ID_IOS="."
-  BUNDLE_ID_ANDROID="."
+  BUNDLE_ID_IOS="${_BASE}.${_VARIANT}"
+  BUNDLE_ID_ANDROID="${_BASE}.${_VARIANT}"
+fi
 fi
 
 info()  { echo "[preflight] $1"; }
@@ -98,7 +99,8 @@ if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 
 if [ "$APP_INSTALLED" = false ]; then
   info "Building workspace packages (sherpa-onnx.rn)..."
-  yarn build:deps 2>/dev/null || true
+  # sherpa-onnx.rn uses native prebuilt libs, no JS build step needed
+  # packages are resolved live via Metro workspace resolution
   info "App not installed — building..."
 
   if [ "$PLATFORM" = "ios" ]; then
