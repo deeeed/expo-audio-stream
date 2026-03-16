@@ -49,7 +49,7 @@ fi
 > "$LOGFILE"
 
 echo "Starting Metro on port $PORT..."
-EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development npx expo start --dev-client --port "$PORT" 2>&1 | tee -a "$LOGFILE" &
+PATH=/opt/homebrew/bin:/Users/deeeed/.asdf/shims:$PATH NODE_ENV=development yarn expo start --dev-client --port "$PORT" >> "$LOGFILE" 2>&1 &
 METRO_PID=$!
 echo "$METRO_PID" > "$PIDFILE"
 echo "Metro PID: $METRO_PID, logging to $LOGFILE"

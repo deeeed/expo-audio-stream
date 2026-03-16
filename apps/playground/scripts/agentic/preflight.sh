@@ -14,10 +14,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-# Load slot device config from repo-root .agent/session.env
-if [ -f ../../.agent/session.env ]; then
+# Load device config from .env.development (gitignored, machine-specific)
+if [ -f .env.development ]; then
   set -o allexport
-  source ../../.agent/session.env
+  source .env.development
   set +o allexport
 fi
 
