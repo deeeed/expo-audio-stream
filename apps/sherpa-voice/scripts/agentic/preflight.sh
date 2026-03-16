@@ -85,8 +85,12 @@ elif [ "$PLATFORM" = "android" ]; then
     pass "App ${BUNDLE_ID_ANDROID} already installed on ${SERIAL}"
   fi
 fi
+# REBUILD=1 forces reinstall even if app is already installed
+if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 
 if [ "$APP_INSTALLED" = false ]; then
+  info "Building workspace packages (sherpa-onnx.rn)..."
+  yarn build:deps 2>/dev/null || true
   info "App not installed — building..."
 
   if [ "$PLATFORM" = "ios" ]; then
