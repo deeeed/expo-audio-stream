@@ -72,39 +72,43 @@ class AudioDeviceManager {
         }
     }
     
-    /// Prepares the audio session to detect all available devices, including Bluetooth
+    /// Prepares the audio session to detect available devices.
+    /// When the session is already in .playAndRecord (during active recording), it
+    /// preserves that configuration. Otherwise it just activates the session without
+    /// changing the category — this avoids switching AirPods from A2DP (high quality
+    /// stereo) to HFP (low quality, mic-enabled). Device detection via availableInputs
+    /// and currentRoute works with any active audio session category.
     private func prepareAudioSession(force: Bool = false) -> Bool {
         // Skip preparation if already prepared and not forcing
         let now = Date().timeIntervalSince1970
         let timeSinceLastPreparation = now - AudioDeviceManager.lastPreparationTime
-        
+
         if AudioDeviceManager.isAudioSessionPrepared && !force && timeSinceLastPreparation < 5.0 {
             Logger.debug("AudioDeviceManager", "Audio session already prepared, skipping")
             return true
         }
-        
+
         Logger.debug("AudioDeviceManager", "Preparing audio session for device detection")
         do {
             let session = AVAudioSession.sharedInstance()
-            
-            // Preserve existing session configuration if already set up for recording
+
             if session.category == .playAndRecord {
+                // Already in recording mode — just ensure the session is active
                 Logger.debug("AudioDeviceManager", "Session already .playAndRecord, preserving categoryOptions")
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
             } else {
-                // Configure with options needed for Bluetooth detection
-                try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
-                try session.setActive(true, options: .notifyOthersOnDeactivation)
+                // Not recording — activate without changing category to avoid forcing
+                // AirPods into HFP mode. availableInputs is accessible with any category.
+                Logger.debug("AudioDeviceManager", "Activating session for device detection without changing category")
             }
-            
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+
             // Give the system a moment to detect Bluetooth devices if needed
-            // Minimal delay that still allows devices to be detected
             Thread.sleep(forTimeInterval: 0.1)
-            
+
             // Mark as prepared
             AudioDeviceManager.isAudioSessionPrepared = true
             AudioDeviceManager.lastPreparationTime = now
-            
+
             Logger.debug("AudioDeviceManager", "Audio session prepared for device detection")
             return true
         } catch {
@@ -148,22 +152,16 @@ class AudioDeviceManager {
         ]
     }
     
-    /// Gets a list of available audio input devices
+    /// Gets a list of available audio input devices.
+    /// Reads availableInputs and currentRoute passively without activating the
+    /// audio session. iOS exposes these properties even when the session is
+    /// inactive, so we don't need to call setActive(true) which would interrupt
+    /// other apps' audio playback (e.g. YouTube pausing after recording stops).
     func getAvailableInputDevices(promise: Promise) {
         Logger.debug("AudioDeviceManager", "Getting available input devices")
-        
-        // Prepare audio session if needed
-        let prepared = prepareAudioSession()
-        if !prepared {
-            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device list may be incomplete")
-        }
-        
+
         do {
             let session = AVAudioSession.sharedInstance()
-            
-            // We should have already activated the session in prepareAudioSession
-            // But ensure it's active just in case
-            try session.setActive(true)
             
             let currentPreferredInput = session.preferredInput
             
@@ -226,23 +224,19 @@ class AudioDeviceManager {
         }
     }
     
-    /// Gets the currently selected audio input device
+    /// Gets the currently selected audio input device.
+    /// Reads the current route passively without activating the audio session,
+    /// so it won't disrupt audio playback in other apps.
     func getCurrentInputDevice(promise: Promise) {
         Logger.debug("AudioDeviceManager", "Getting current input device")
-        
-        // Prepare audio session if needed
-        let prepared = prepareAudioSession()
-        if !prepared {
-            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, current device may not be correctly detected")
-        }
-        
+
         do {
             let session = AVAudioSession.sharedInstance()
-            
-            // We should have already activated the session in prepareAudioSession
-            // But ensure it's active just in case
-            try session.setActive(true)
-            
+
+            // Read currentRoute without activating the session. iOS makes
+            // currentRoute available even when the session is inactive — it
+            // reflects the system's default audio routing at that moment.
+
             // Check current route first
             if let currentPort = session.currentRoute.inputs.first {
                 let deviceType = mapDeviceType(currentPort.portType)
@@ -522,41 +516,38 @@ class AudioDeviceManager {
         }
     }
     
-    /// Resets the selected device to system default (usually built-in mic)
+    /// Resets the selected device to system default (usually built-in mic).
+    /// Only clears the preferred input without activating the audio session,
+    /// so it won't hijack audio routing from other apps (e.g. Bluetooth → speaker).
     /// - Parameter completion: Callback with success (Bool) and optional error
     func resetToDefaultDevice(completion: @escaping (Bool, Error?) -> Void) {
         Logger.debug("AudioDeviceManager", "Attempting to reset to default input device")
-        
-        // Prepare audio session if needed
-        let prepared = prepareAudioSession()
-        if !prepared {
-            Logger.debug("AudioDeviceManager", "Warning: Audio session preparation failed, device reset may not work correctly")
-        }
-        
+
         do {
             let session = AVAudioSession.sharedInstance()
-            
+
             // Log current device before reset
             if let currentDevice = session.currentRoute.inputs.first {
                 Logger.debug("AudioDeviceManager", "Current device before reset: \(currentDevice.portName) (ID: \(currentDevice.uid))")
             } else {
                 Logger.debug("AudioDeviceManager", "No current device before reset")
             }
-            
-            // Setting preferred input to nil lets the system choose the default
+
+            // Clear preferred input so the system chooses the default on next activation.
+            // This does NOT require the session to be active — setPreferredInput is a
+            // configuration hint that iOS applies when the session next activates.
             try session.setPreferredInput(nil)
-            
+
             // Log the device after reset
             if let newDevice = session.currentRoute.inputs.first {
                 Logger.debug("AudioDeviceManager", "Reset to default device: \(newDevice.portName) (ID: \(newDevice.uid))")
-                
-                // Check if it's actually the built-in mic (which is the typical default)
+
                 let isBuiltIn = newDevice.portType == .builtInMic
                 Logger.debug("AudioDeviceManager", "Reset device is built-in mic: \(isBuiltIn)")
             } else {
                 Logger.debug("AudioDeviceManager", "No device found after reset")
             }
-            
+
             completion(true, nil)
         } catch {
             Logger.debug("AudioDeviceManager", "Failed to reset to default device: \(error.localizedDescription)")

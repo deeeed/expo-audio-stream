@@ -134,6 +134,23 @@ class ExpoAudioStreamModule : Module(), EventSender {
             }
         }
         
+        // Checks if the current audio output route is Bluetooth.
+        // Used by the "bluetooth-only" read-aloud autoplay feature.
+        Function("isBluetoothOutputActive") {
+            val audioManager = appContext.reactContext?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+            if (audioManager == null) return@Function false
+            val devices = audioManager.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS)
+            val bluetoothTypes = setOf(
+                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                android.media.AudioDeviceInfo.TYPE_BLE_HEADSET,
+                android.media.AudioDeviceInfo.TYPE_BLE_SPEAKER
+            )
+            val isActive = devices.any { it.type in bluetoothTypes }
+            LogUtils.d(CLASS_NAME, "isBluetoothOutputActive: $isActive")
+            return@Function isActive
+        }
+
         // Selects a specific audio input device for recording
         AsyncFunction("selectInputDevice") { deviceId: String, promise: Promise ->
             try {

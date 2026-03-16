@@ -267,6 +267,19 @@ export class AudioDeviceManager {
     }
 
     /**
+     * Check if the current audio OUTPUT route is Bluetooth (A2DP, HFP, or LE).
+     * Reads the output route passively without activating the audio session.
+     * Useful for detecting Bluetooth headsets for playback features (e.g. autoplay)
+     * even when the recording session is inactive.
+     */
+    isBluetoothOutputActive(): boolean {
+        if (ExpoAudioStreamModule.isBluetoothOutputActive) {
+            return ExpoAudioStreamModule.isBluetoothOutputActive()
+        }
+        return false
+    }
+
+    /**
      * Select a specific audio input device for recording
      * @param deviceId The ID of the device to select
      * @returns Promise resolving to a boolean indicating success
@@ -305,9 +318,16 @@ export class AudioDeviceManager {
 
     /**
      * Reset to the default audio input device
+     * @param options.skipRefresh - Skip the device list refresh after reset.
+     *        Useful when called during recording teardown where the caller is
+     *        about to navigate away and doesn't need an updated device list.
+     *        Skipping the refresh avoids an unnecessary native bridge call that
+     *        can briefly interrupt other apps' audio on iOS.
      * @returns Promise resolving to a boolean indicating success
      */
-    async resetToDefaultDevice(): Promise<boolean> {
+    async resetToDefaultDevice(
+        options?: { skipRefresh?: boolean }
+    ): Promise<boolean> {
         try {
             let success = false
             if (Platform.OS === 'web') {
@@ -319,12 +339,15 @@ export class AudioDeviceManager {
                     this.currentDeviceId = null
                 }
             }
-            // Refresh devices after reset attempt
-            await this.refreshDevices()
+            if (!options?.skipRefresh) {
+                await this.refreshDevices()
+            }
             return success
         } catch (error) {
             this.logger?.error('Failed to reset to default device:', error)
-            await this.refreshDevices() // Refresh even on error
+            if (!options?.skipRefresh) {
+                await this.refreshDevices()
+            }
             return false
         }
     }

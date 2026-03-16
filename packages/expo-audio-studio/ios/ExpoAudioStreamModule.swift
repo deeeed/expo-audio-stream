@@ -751,6 +751,19 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
             self.deviceManager.getCurrentInputDevice(promise: promise)
         }
         
+        /// Checks if the current audio output route is Bluetooth (A2DP, HFP, or LE).
+        /// Reads currentRoute.outputs passively without activating the audio session,
+        /// so it's safe to call after recording stops without interrupting other apps.
+        /// Used by the "bluetooth-only" read-aloud autoplay feature.
+        Function("isBluetoothOutputActive") { () -> Bool in
+            let session = AVAudioSession.sharedInstance()
+            let outputs = session.currentRoute.outputs
+            let bluetoothPorts: Set<AVAudioSession.Port> = [.bluetoothA2DP, .bluetoothHFP, .bluetoothLE]
+            let isActive = outputs.contains { bluetoothPorts.contains($0.portType) }
+            Logger.debug("ExpoAudioStreamModule", "isBluetoothOutputActive: \(isActive) (outputs: \(outputs.map { $0.portType.rawValue }))")
+            return isActive
+        }
+
         /// Selects a specific audio input device for recording
         ///
         /// - Parameters:
@@ -758,15 +771,21 @@ public class ExpoAudioStreamModule: Module, AudioStreamManagerDelegate, AudioDev
         ///   - promise: A promise to resolve with boolean indicating success
         AsyncFunction("selectInputDevice") { (deviceId: String, promise: Promise) in
             Logger.debug("ExpoAudioStreamModule", "selectInputDevice called with ID: \(deviceId)")
-            self.deviceManager.selectInputDevice(deviceId, promise: promise)
-            // Sync deviceId into recordingSettings so updateAudioSessionWithCurrentSettings can find the port
+            // Sync deviceId into recordingSettings so performDeviceSwitch can find the port
             self.streamManager.recordingSettings?.deviceId = deviceId
-            // Update the audio recorder if recording is in progress or prepared
+
             if self.streamManager.isRecording || self.streamManager.isPrepared {
-                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Calling updateAudioSessionWithCurrentSettings because recording/prepared.")
+                // When the engine is active, let performDeviceSwitch handle the full
+                // stop → setPreferredInput → reset → reinstall tap → start cycle.
+                // Calling setPreferredInput before stopping the engine corrupts the
+                // running tap and causes the audio analysis pipeline to stall.
+                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: engine active — delegating to performDeviceSwitch")
                 self.streamManager.updateAudioSessionWithCurrentSettings()
+                promise.resolve(true)
             } else {
-                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: Not calling updateAudioSessionWithCurrentSettings because not recording/prepared.")
+                // Engine is idle — safe to change the preferred input directly.
+                Logger.debug("ExpoAudioStreamModule", "selectInputDevice: engine idle — setting preferred input directly")
+                self.deviceManager.selectInputDevice(deviceId, promise: promise)
             }
         }
         

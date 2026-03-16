@@ -113,6 +113,9 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     // Add the stopping flag to the class properties
     private var stopping: Bool = false
     
+    // Diagnostic: counts buffers received after the most recent device switch
+    private var postSwitchBufferCount: Int = 0
+    
     // Tracks the last time performDeviceSwitch completed, used to debounce
     // route-change notifications that fire as a side effect of setPreferredInput.
     private var lastDeviceSwitchTime: Date = .distantPast
@@ -265,6 +268,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// When the active input port changes, the existing engine tap format becomes invalid
     /// and must be reinstalled with the new hardware format to keep audio flowing.
     @objc private func handleRouteChange(_ notification: Notification) {
+        let currentInput = AVAudioSession.sharedInstance().currentRoute.inputs.first
+        NSLog("[ROUTE-CHANGE] isRecording=%d stopping=%d currentInput=%@ engineRunning=%d", isRecording, stopping, currentInput?.portName ?? "none", audioEngine.isRunning)
         guard isRecording, !stopping else { return }
 
         guard let userInfo = notification.userInfo,
@@ -273,10 +278,16 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
             return
         }
 
-        // .oldDeviceUnavailable is already handled by the AudioDeviceManagerDelegate
-        // disconnection flow (handleDeviceDisconnection → pause or fallback).
-        guard reason == .newDeviceAvailable || reason == .override || reason == .routeConfigurationChange else {
-            Logger.debug("AudioStreamManager", "Route change reason \(reason.rawValue) during recording — not restarting engine")
+        let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription
+        NSLog("[ROUTE-CHANGE] reason=%lu prev=%@ curr=%@", reason.rawValue, previousRoute?.inputs.first?.portName ?? "none", currentInput?.portName ?? "none")
+
+        // Only handle .newDeviceAvailable (automatic device connection, e.g. AirPods).
+        // .oldDeviceUnavailable → handled by AudioDeviceManagerDelegate disconnection flow.
+        // .override → fired by setPreferredInput, already handled by performDeviceSwitch
+        //   from the selectInputDevice → updateAudioSessionWithCurrentSettings path.
+        // .routeConfigurationChange → typically from our own configureAudioSession calls.
+        guard reason == .newDeviceAvailable else {
+            Logger.debug("AudioStreamManager", "[ROUTE-CHANGE] Skipping reason \(reason.rawValue)")
             return
         }
 
@@ -294,7 +305,6 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
 
         // Only restart if the actual input port changed
-        let previousRoute = userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription
         let previousInput = previousRoute?.inputs.first
 
         if currentInput.uid == previousInput?.uid {
@@ -809,8 +819,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                   self.isRecording else {
                 return
             }
-            // Process audio buffer for streaming, analysis, and optional file writing
-            // Note: Audio streaming works regardless of primary output settings (consistent with Web/Android)
+            self.postSwitchBufferCount += 1
+            if self.postSwitchBufferCount <= 5 || self.postSwitchBufferCount % 200 == 0 {
+                NSLog("[TAP] buffer#%d frames=%d rate=%.0f ch=%d isPaused=%d", self.postSwitchBufferCount, buffer.frameLength, buffer.format.sampleRate, buffer.format.channelCount, self.isPaused)
+            }
             self.processAudioBuffer(buffer)
             self.lastBufferTime = time
         }
@@ -1647,26 +1659,39 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         }
 
         // Dispatch analysis task
-        if let lastEmissionAnalysis = self.lastEmissionTimeAnalysis,
-           currentTime.timeIntervalSince(lastEmissionAnalysis) >= emissionIntervalAnalysis,
+        let hasLastAnalysis = self.lastEmissionTimeAnalysis != nil
+        let timeSinceLastAnalysis = hasLastAnalysis ? currentTime.timeIntervalSince(self.lastEmissionTimeAnalysis!) : -1
+        let analysisReady = hasLastAnalysis && timeSinceLastAnalysis >= emissionIntervalAnalysis
+        let hasProcessor = self.audioProcessor != nil
+        let hasAnalysisData = !accumulatedAnalysisData.isEmpty
+
+        if postSwitchBufferCount <= 5 || postSwitchBufferCount % 200 == 0 {
+            NSLog("[ANALYSIS-CHECK] buf#%d lastAnalysisSet=%d timeSince=%.3fs threshold=%.3fs ready=%d processor=%d enableProcessing=%d dataBytes=%d", postSwitchBufferCount, hasLastAnalysis, timeSinceLastAnalysis, emissionIntervalAnalysis, analysisReady, hasProcessor, settings.enableProcessing, accumulatedAnalysisData.count)
+        }
+
+        if hasLastAnalysis,
+           analysisReady,
            settings.enableProcessing,
-           let _ = self.audioProcessor,
-           !accumulatedAnalysisData.isEmpty {
+           hasProcessor,
+           hasAnalysisData {
             let dataToAnalyze = accumulatedAnalysisData
             self.lastEmissionTimeAnalysis = currentTime
             accumulatedAnalysisData.removeAll()
 
+            if postSwitchBufferCount <= 10 {
+                NSLog("[ANALYSIS-DISPATCH] buf#%d bytes=%d", postSwitchBufferCount, dataToAnalyze.count)
+            }
+
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self = self, let processor = self.audioProcessor, let settings = self.recordingSettings else {
-                    // Logger.debug("Analysis Dispatch SKIP: self, processor, or settings nil")
+                    Logger.debug("AudioStreamManager", "[ANALYSIS-BG] SKIP: self/processor/settings nil")
                     return
                 }
                 guard !dataToAnalyze.isEmpty else {
-                    // Logger.debug("Analysis Dispatch SKIP: dataToAnalyze is empty")
+                    Logger.debug("AudioStreamManager", "[ANALYSIS-BG] SKIP: dataToAnalyze empty")
                     return
                 }
 
-                // Logger.debug("Analysis Dispatch: Processing \(dataToAnalyze.count) bytes...")
                 let processingResult = processor.processAudioBuffer(
                     data: dataToAnalyze,
                     sampleRate: Float(settings.sampleRate),
@@ -1676,17 +1701,17 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
                     numberOfChannels: settings.numberOfChannels
                 )
 
-                // Dispatch result back to main thread
                 DispatchQueue.main.async {
                     if let result = processingResult {
-                         // Logger.debug("Analysis Dispatch: Success, calling delegate.")
+                        if self.postSwitchBufferCount <= 10 {
+                            NSLog("[ANALYSIS-EMIT] buf#%d dataPoints=%d", self.postSwitchBufferCount, result.dataPoints.count)
+                        }
                         self.delegate?.audioStreamManager(self, didReceiveProcessingResult: result)
                     } else {
-                         Logger.debug("Analysis Dispatch FAIL: processor.processAudioBuffer returned nil")
+                        NSLog("[ANALYSIS-EMIT] processor returned nil")
                     }
                 }
             }
-            // Logger.debug("Dispatched analysis task.") // Optional: Re-enable if needed
         }
     }
 
@@ -1742,32 +1767,63 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     /// This is the single source of truth for all device-switch paths (Bug 1 + Bug 2 fixes).
     public func performDeviceSwitch(port: AVAudioSessionPortDescription?) {
         let wasRunning = audioEngine.isRunning
+        NSLog("[DEV-SWITCH] BEGIN port=%@ wasRunning=%d isRecording=%d isPaused=%d", port?.portName ?? "nil", wasRunning, isRecording, isPaused)
         do {
             if wasRunning { audioEngine.stop() }
             audioEngine.inputNode.removeTap(onBus: 0)
             try AVAudioSession.sharedInstance().setPreferredInput(port)
-            Thread.sleep(forTimeInterval: 0.15)
+
+            // Poll until iOS confirms the route actually switched to the target device.
+            // Bluetooth HFP negotiation can take much longer than 150ms on a cold session.
+            if let targetPort = port {
+                var confirmed = false
+                for attempt in 1...10 {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    if let currentInput = AVAudioSession.sharedInstance().currentRoute.inputs.first,
+                       currentInput.uid == targetPort.uid {
+                        Logger.debug("AudioStreamManager", "[DEV-SWITCH] Route confirmed after \(attempt * 100)ms: \(currentInput.portName)")
+                        confirmed = true
+                        break
+                    }
+                }
+                if !confirmed {
+                    Logger.debug("AudioStreamManager", "[DEV-SWITCH] Route NOT confirmed after 1s, proceeding anyway")
+                }
+            } else {
+                Thread.sleep(forTimeInterval: 0.15)
+            }
+
             audioEngine.reset()
-            _ = installTapWithHardwareFormat()
-            if wasRunning {
-                audioEngine.prepare()
+            // Force the engine to reconnect to the (now-changed) audio session
+            // so that inputNode.inputFormat reflects the new device's rate.
+            // Without this, the node's internal output format stays at the
+            // previous device's sample rate, silently stalling the tap.
+            audioEngine.prepare()
+            let tapFormat = installTapWithHardwareFormat(prepareEngine: false)
+            NSLog("[DEV-SWITCH] Tap reinstalled, hwInput=%@ nodeOutput=%@", describeAudioFormat(tapFormat), describeAudioFormat(audioEngine.inputNode.outputFormat(forBus: 0)))
+            postSwitchBufferCount = 0
+            // Restart the engine when it was running OR when we're in an active
+            // recording session. iOS route changes can silently stop the engine
+            // (wasRunning=false) even though isRecording is still true.
+            if wasRunning || isRecording {
                 try audioEngine.start()
                 lastEmissionTime = Date()
                 lastEmissionTimeAnalysis = Date()
-                Logger.debug("AudioStreamManager", "Device switch complete; engine restarted (port: \(port?.portName ?? "default"))")
+                NSLog("[DEV-SWITCH] Engine restarted OK. engineRunning=%d audioProcessor=%d enableProcessing=%d analysisInterval=%.3f", audioEngine.isRunning, audioProcessor != nil, recordingSettings?.enableProcessing ?? false, emissionIntervalAnalysis)
             }
             lastDeviceSwitchTime = Date()
+            NSLog("[DEV-SWITCH] END success")
         } catch {
-            Logger.debug("AudioStreamManager", "Device switch failed: \(error.localizedDescription)")
+            Logger.debug("AudioStreamManager", "[DEV-SWITCH] FAILED: \(error.localizedDescription)")
             lastDeviceSwitchTime = Date()
-            if wasRunning {
+            if wasRunning || isRecording {
                 do {
                     _ = installTapWithHardwareFormat()
                     audioEngine.prepare()
                     try audioEngine.start()
-                    Logger.debug("AudioStreamManager", "Engine recovery after device switch succeeded")
+                    Logger.debug("AudioStreamManager", "[DEV-SWITCH] Recovery succeeded")
                 } catch {
-                    Logger.debug("AudioStreamManager", "Engine recovery failed: \(error.localizedDescription)")
+                    Logger.debug("AudioStreamManager", "[DEV-SWITCH] Recovery FAILED: \(error.localizedDescription)")
                 }
             }
         }
@@ -1878,35 +1934,45 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
         // PERFORMANCE OPTIMIZATION: Move all slow operations to background
         let capturedShowNotification = recordingSettings?.showNotification == true
         
-        // Queue notification and audio session cleanup for background
+        // Restore audio session to a non-recording state synchronously BEFORE returning.
+        //
+        // During recording the session uses .playAndRecord category with .measurement mode
+        // and AllowBluetooth, which forces AirPods into HFP (low-quality, mic-enabled) mode.
+        // To switch AirPods back to A2DP (high-quality stereo):
+        //   1. Reset category to .playback with mode .default — the session is still active
+        //      (stopping the audio engine doesn't deactivate it), so the category change
+        //      applies immediately and triggers the Bluetooth profile renegotiation.
+        //   2. Deactivate with .notifyOthersOnDeactivation so other apps can resume.
+        //
+        // Do NOT call setActive(true) between steps — the session is already active, and
+        // an extra activation causes other apps to briefly resume then immediately stop.
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            Logger.debug("Error restoring audio session after recording: \(error)")
+        }
+
+        // Queue notification cleanup for background (non-critical, can be async)
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
-            
+
             if capturedShowNotification {
-                // Clean up notifications on main queue but don't wait
                 DispatchQueue.main.async {
                     self.mediaInfoUpdateTimer?.invalidate()
                     self.mediaInfoUpdateTimer = nil
-                    
-                    // Clean up notification manager
+
                     self.notificationManager?.stopUpdates()
                     self.notificationManager = nil
-                    
-                    // Clean up media controls
+
                     UIApplication.shared.endReceivingRemoteControlEvents()
                     self.remoteCommandCenter?.pauseCommand.isEnabled = false
                     self.remoteCommandCenter?.playCommand.isEnabled = false
                     self.notificationView?.nowPlayingInfo = nil
                 }
             }
-            
-            // Reset audio session in background
-            do {
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            } catch {
-                Logger.debug("Background: Error deactivating audio session: \(error)")
-            }
-            
+
             // Reset audio engine in background
             DispatchQueue.main.async {
                 self.audioEngine.reset()
@@ -2075,7 +2141,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
     }
 
     private func handleDeviceDisconnection(disconnectedDeviceId: String) {
-        Logger.debug("handleDeviceDisconnection entered. isRecording: \(isRecording), settingsExist: \(recordingSettings != nil), deviceIdExists: \(recordingSettings?.deviceId != nil), currentDeviceId: \(recordingSettings?.deviceId ?? "nil")")
+        NSLog("[DISCONNECT] entered. disconnectedId=%@ isRecording=%d isPaused=%d engineRunning=%d settingsExist=%d currentDeviceId=%@", disconnectedDeviceId, isRecording, isPaused, audioEngine.isRunning, recordingSettings != nil, recordingSettings?.deviceId ?? "nil")
 
         // --- Modify Guard: Only require settings object, handle nil deviceId later ---
         guard let settings = recordingSettings else {
