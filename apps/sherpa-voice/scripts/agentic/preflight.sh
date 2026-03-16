@@ -61,7 +61,7 @@ if [ "$PLATFORM" = "ios" ]; then
     pass "Simulator ${SIM} booted"
   fi
 elif [ "$PLATFORM" = "android" ]; then
-  SERIAL="${ADB_SERIAL:-emulator-5562}"
+  SERIAL="${ADB_SERIAL:-emulator-5580}"
   if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
     pass "Emulator ${SERIAL} already running"
   else
@@ -125,11 +125,11 @@ fi
 # -- 4. Launch via Expo dev client deep link --------------------------------
 info "Step 4: Launch app on correct port (${PORT})"
 
-# Use 10.0.2.2 for emulators, LAN IP for physical devices
+# Use 10.0.2.2 for emulators, localhost for physical devices (adb reverse handles routing)
 if [[ "${SERIAL:-}" == emulator-* ]]; then
   METRO_HOST="10.0.2.2"
 else
-  METRO_HOST=$(ipconfig getifaddr en0 2>/dev/null || echo localhost)
+  METRO_HOST="localhost"
 fi
 ENCODED_URL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('http://${METRO_HOST}:${PORT}', safe=''))")
 DEV_CLIENT_URL="exp+${SCHEME}://expo-development-client/?url=${ENCODED_URL}"
