@@ -59,8 +59,8 @@
         "ota-update:production": "APP_VARIANT=production npx eas update --channel production",
         "ota-update:development": "APP_VARIANT=development npx eas update --channel development",
         "publish:store": "bash scripts/deploy-sherpa-voice.sh",
-        "android:window": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh",
-        "ios:window": "PLATFORM=ios HEADLESS=0 bash scripts/agentic/preflight.sh"
+        "android:headless": "PLATFORM=android HEADLESS=1 bash scripts/agentic/preflight.sh",
+        "ios:headless": "PLATFORM=ios HEADLESS=1 bash scripts/agentic/preflight.sh"
     },
     "jest": {
         "preset": "jest-expo"

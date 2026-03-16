@@ -100,8 +100,8 @@
         "test:stories:watch": "jest --config jest.config.stories.js --watch",
         "test:stories:coverage": "jest --config jest.config.stories.js --coverage",
         "deploy": "",
-        "android:window": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh",
-        "ios:window": "PLATFORM=ios HEADLESS=0 bash scripts/agentic/preflight.sh"
+        "android:headless": "PLATFORM=android HEADLESS=1 bash scripts/agentic/preflight.sh",
+        "ios:headless": "PLATFORM=ios HEADLESS=1 bash scripts/agentic/preflight.sh"
     },
     "dependencies": {
         "@expo/metro-runtime": "~55.0.6",
