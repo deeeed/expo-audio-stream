@@ -51,9 +51,16 @@ elif [ "$PLATFORM" = "android" ]; then
   if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
     pass "Emulator ${SERIAL} already running"
   else
-    info "Emulator ${SERIAL} not found — start it manually or via setup script"
-    fail "Emulator ${SERIAL} not running"
-    exit 1
+    info "Emulator ${SERIAL} not found — booting ${ANDROID_DEVICE:-audiolab}..."
+    AVD="${ANDROID_DEVICE:-audiolab}"
+    PORT="${EMULATOR_PORT:-5580}"
+    WINDOW_FLAG="-no-window"
+    [ "${SHOW_WINDOW:-0}" = "1" ] && WINDOW_FLAG=""
+    emulator -avd "$AVD" -port "$PORT" $WINDOW_FLAG -no-audio -no-snapshot-load &>/dev/null &
+    sleep 5
+    adb -s "emulator-${PORT}" wait-for-device
+    SERIAL="emulator-${PORT}"
+    ok "Emulator ${AVD} booted on emulator-${PORT}"
   fi
   adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
   adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
