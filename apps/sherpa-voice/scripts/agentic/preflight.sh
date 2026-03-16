@@ -125,11 +125,11 @@ fi
 # -- 4. Launch via Expo dev client deep link --------------------------------
 info "Step 4: Launch app on correct port (${PORT})"
 
-# Use 10.0.2.2 for emulators, localhost for physical devices (adb reverse handles routing)
+# Use 10.0.2.2 for emulators, LAN IP for physical devices
 if [[ "${SERIAL:-}" == emulator-* ]]; then
   METRO_HOST="10.0.2.2"
 else
-  METRO_HOST="localhost"
+  METRO_HOST=$(ipconfig getifaddr en0 2>/dev/null || echo localhost)
 fi
 ENCODED_URL=$(python3 -c "import urllib.parse; print(urllib.parse.quote('http://${METRO_HOST}:${PORT}', safe=''))")
 DEV_CLIENT_URL="exp+${SCHEME}://expo-development-client/?url=${ENCODED_URL}"
