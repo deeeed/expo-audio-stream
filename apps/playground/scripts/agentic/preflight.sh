@@ -30,8 +30,17 @@ fi
 PORT="${WATCHER_PORT:-7365}"
 PLATFORM="${PLATFORM:-ios}"
 SCHEME="audioplayground"
-BUNDLE_ID_IOS="net.siteed.audioplayground.development"
-BUNDLE_ID_ANDROID="net.siteed.audioplayground.development"
+# Bundle IDs are dynamic based on APP_VARIANT (from .env.development)
+_VARIANT="development"
+_BASE_IOS="net.siteed.audioplayground"
+_BASE_ANDROID="net.siteed.audioplayground"
+if [ "" = "production" ]; then
+  BUNDLE_ID_IOS=""
+  BUNDLE_ID_ANDROID=""
+else
+  BUNDLE_ID_IOS="."
+  BUNDLE_ID_ANDROID="."
+fi
 
 info()  { echo "[preflight] $1"; }
 pass()  { echo "[preflight] PASS $1"; }

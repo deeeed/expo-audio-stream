@@ -30,8 +30,16 @@ fi
 PORT="${WATCHER_PORT:-7500}"
 PLATFORM="${PLATFORM:-ios}"
 SCHEME="sherpa-voice"
-BUNDLE_ID_IOS="net.siteed.sherpavoice.development"
-BUNDLE_ID_ANDROID="net.siteed.sherpavoice.development"
+# Bundle IDs are dynamic based on APP_VARIANT (from .env.development)
+_VARIANT="development"
+_BASE="net.siteed.sherpavoice"
+if [ "" = "production" ]; then
+  BUNDLE_ID_IOS=""
+  BUNDLE_ID_ANDROID=""
+else
+  BUNDLE_ID_IOS="."
+  BUNDLE_ID_ANDROID="."
+fi
 
 info()  { echo "[preflight] $1"; }
 pass()  { echo "[preflight] PASS $1"; }
