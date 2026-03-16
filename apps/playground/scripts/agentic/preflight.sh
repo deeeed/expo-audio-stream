@@ -107,22 +107,20 @@ WATCHER_PORT="${PORT}" bash scripts/agentic/start-metro.sh
 
 # ── 3. Build + install app if needed ───────────────────────────
 info "Step 3: Check if app is installed"
-# REBUILD=1 skips the installed check and forces reinstall
-
+# Default: always build. SKIP_BUILD=1 to skip (fast relaunch only).
 APP_INSTALLED=false
-
-if [ "$PLATFORM" = "ios" ]; then
-  if xcrun simctl listapps "${SIM}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
-    APP_INSTALLED=true
-    pass "App ${BUNDLE_ID_IOS} already installed on ${SIM}"
+if [ "${SKIP_BUILD:-0}" = "1" ]; then
+  if [ "$PLATFORM" = "ios" ]; then
+    if xcrun simctl listapps "${SIM}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
+      APP_INSTALLED=true
+      pass "App ${BUNDLE_ID_IOS} already installed on ${SIM}"
+    fi
+  elif [ "$PLATFORM" = "android" ]; then
+    if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
+      APP_INSTALLED=true
+      pass "App ${BUNDLE_ID_ANDROID} already installed on ${SERIAL}"
+    fi
   fi
-elif [ "$PLATFORM" = "android" ]; then
-  if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
-    APP_INSTALLED=true
-    pass "App ${BUNDLE_ID_ANDROID} already installed on ${SERIAL}"
-  fi
-# Override: REBUILD=1 forces reinstall regardless of install state
-if [ "${REBUILD:-0}" = "1" ]; then APP_INSTALLED=false; fi
 fi
 
 if [ "$APP_INSTALLED" = false ]; then

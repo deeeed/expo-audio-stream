@@ -9,9 +9,9 @@
         "android": "PLATFORM=android HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios": "PLATFORM=ios HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-SherpaVoice-Dev}\" --boot-only",
-        "ios:launch": "PLATFORM=ios HEADLESS=0 bash scripts/agentic/preflight.sh",
+        "ios:launch": "PLATFORM=ios HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme sherpa-voice --port 7500",
-        "android:launch": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh",
+        "android:launch": "PLATFORM=android HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "android:select": "../../scripts/android-launch.sh --select --scheme sherpa-voice --port 7500",
         "launch": "../../scripts/device-launch.sh --scheme sherpa-voice --port 7500",
         "open:android": "open -a \"Android Studio\" ./android",
@@ -62,7 +62,7 @@
         "android:headless": "PLATFORM=android HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:headless": "PLATFORM=ios HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
         "android:device": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= REBUILD=1 bash scripts/agentic/preflight.sh",
-        "android:device:launch": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= bash scripts/agentic/preflight.sh"
+        "android:device:launch": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= SKIP_BUILD=1 bash scripts/agentic/preflight.sh"
     },
     "jest": {
         "preset": "jest-expo"

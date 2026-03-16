@@ -11,9 +11,9 @@
         "android": "PLATFORM=android HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios": "PLATFORM=ios HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-AudioPlayground-Dev}\" --boot-only",
-        "ios:launch": "PLATFORM=ios HEADLESS=0 bash scripts/agentic/preflight.sh",
+        "ios:launch": "PLATFORM=ios HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme audioplayground --port 7365",
-        "android:launch": "PLATFORM=android HEADLESS=0 bash scripts/agentic/preflight.sh",
+        "android:launch": "PLATFORM=android HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "android:select": "../../scripts/android-launch.sh --select --scheme audioplayground --port 7365",
         "launch": "../../scripts/device-launch.sh --scheme audioplayground --port 7365",
         "web": "NODE_ENV=development bash scripts/agentic/start-metro.sh && node scripts/agentic/web-browser.mjs launch",
@@ -103,7 +103,7 @@
         "android:headless": "PLATFORM=android HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:headless": "PLATFORM=ios HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
         "android:device": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= REBUILD=1 bash scripts/agentic/preflight.sh",
-        "android:device:launch": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= bash scripts/agentic/preflight.sh"
+        "android:device:launch": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= SKIP_BUILD=1 bash scripts/agentic/preflight.sh"
     },
     "dependencies": {
         "@expo/metro-runtime": "~55.0.6",
