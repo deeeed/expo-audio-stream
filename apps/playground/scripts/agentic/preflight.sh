@@ -61,7 +61,7 @@ elif [ "$PLATFORM" = "android" ]; then
 
   if adb devices 2>/dev/null | grep -q "${SERIAL}"; then
     # If running headless but we want windowed (or vice versa), restart
-    EMULATOR_HAS_WINDOW=
+    EMULATOR_HAS_WINDOW=0
     if [ "${HEADLESS:-1}" = "0" ] && [ "$EMULATOR_HAS_WINDOW" = "0" ]; then
       info "Emulator ${SERIAL} is headless — restarting with window..."
       adb -s "${SERIAL}" emu kill 2>/dev/null || true
@@ -83,7 +83,7 @@ elif [ "$PLATFORM" = "android" ]; then
     sleep 5
     adb -s "${SERIAL}" wait-for-device
     SERIAL="emulator-${EMU_PORT}"
-    pass "Emulator ${AVD} booted on emulator-${PORT}"
+    pass "Emulator ${AVD} booted on ${SERIAL}"
   fi
   adb -s "${SERIAL}" reverse --remove-all 2>/dev/null || true
   adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
