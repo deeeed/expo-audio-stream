@@ -115,10 +115,8 @@ fi
 if [ "$APP_INSTALLED" = false ]; then
   info "App not installed — building..."
 
-  if [ ! -d "../../packages/audio-studio/build" ]; then
-    info "Building workspace packages..."
-    yarn build:deps
-  fi
+  info "Building workspace packages (audio-studio, playgroundapi, essentia)..."
+  yarn build:deps
 
   if [ "$PLATFORM" = "ios" ]; then
     info "Building iOS app for simulator ${SIM}..."
