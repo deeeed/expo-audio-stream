@@ -40,7 +40,6 @@ else
   BUNDLE_ID_IOS="${_BASE}.${_VARIANT}"
   BUNDLE_ID_ANDROID="${_BASE}.${_VARIANT}"
 fi
-fi
 
 info()  { echo "[preflight] $1"; }
 pass()  { echo "[preflight] PASS $1"; }
