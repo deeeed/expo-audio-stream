@@ -102,8 +102,8 @@
         "deploy": "",
         "android:headless": "PLATFORM=android HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:headless": "PLATFORM=ios HEADLESS=1 REBUILD=1 bash scripts/agentic/preflight.sh",
-        "android:device": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= REBUILD=1 bash scripts/agentic/preflight.sh",
-        "android:device:launch": "PLATFORM=android ADB_SERIAL=29071JEGR20638 ANDROID_DEVICE= EMULATOR_PORT= SKIP_BUILD=1 bash scripts/agentic/preflight.sh"
+        "android:device": "PLATFORM=android ANDROID_DEVICE= EMULATOR_PORT= REBUILD=1 bash scripts/agentic/preflight.sh",
+        "android:device:launch": "PLATFORM=android ANDROID_DEVICE= EMULATOR_PORT= SKIP_BUILD=1 bash scripts/agentic/preflight.sh"
     },
     "dependencies": {
         "@expo/metro-runtime": "~55.0.6",
