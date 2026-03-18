@@ -28,7 +28,7 @@ print_launch_hint() {
   if [ -n "$LAN_IP" ]; then
     echo ""
     echo "To open the app on Android:"
-    echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+audioplayground://expo-development-client/?url=http://${LAN_IP}:${PORT}\" com.audioplayground/.MainActivity"
+    echo "  adb shell am start -a android.intent.action.VIEW -d \"exp+audioplayground://expo-development-client/?url=http://${LAN_IP}:${PORT}\" net.siteed.audioplayground.development/.MainActivity"
     echo ""
   fi
 }
@@ -49,7 +49,7 @@ fi
 > "$LOGFILE"
 
 echo "Starting Metro on port $PORT..."
-EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development npx expo start --dev-client --port "$PORT" 2>&1 | tee -a "$LOGFILE" &
+EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development yarn expo start --dev-client --port "$PORT" >> "$LOGFILE" 2>&1 &
 METRO_PID=$!
 echo "$METRO_PID" > "$PIDFILE"
 echo "Metro PID: $METRO_PID, logging to $LOGFILE"

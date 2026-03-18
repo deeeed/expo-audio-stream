@@ -87,7 +87,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             bundleIdentifier: APP_IDENTIFIER,
             appleTeamId: validatedEnv.APPLE_TEAM_ID,
             infoPlist: {
-                "UIBackgroundModes": ["audio"],
                 "ITSAppUsesNonExemptEncryption": false,
             },
         },
@@ -125,16 +124,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         owner: 'deeeed',
         plugins: [
             ["./plugins/withMetroPort.cjs", { port: 7500 }],
+            ["../../plugins/withMetroPortIOS.cjs", { port: 7500 }],
             "./plugins/withCustomGradleConfig.cjs",
             "expo-router",
             [
                 "expo-audio",
                 {
-                    "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+                    "microphonePermission": "$(PRODUCT_NAME) uses the microphone to capture your voice for on-device speech recognition, speaker identification, and audio analysis. For example, you can speak into the mic to get a real-time transcription of your speech.",
                     "enableBackgroundPlayback": false
                 }
             ],
-            ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ? ["10.0.2.2", "localhost"] : "*" }] as const,
+            ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ?  [
+                '10.0.2.2',
+                'localhost',
+                '192.168.50.10',
+                '192.168.50.11',
+                '192.168.11.1',
+                '192.168.1.39',
+            ] : "*" }],
             [
                 "expo-build-properties",
                 {

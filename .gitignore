@@ -58,6 +58,9 @@ playground/vendor/
 **/yarn-debug.log
 **/yarn-error.log
 
+# Agent session state (machine-specific)
+.agent/
+
 # Expo
 .expo/*
 

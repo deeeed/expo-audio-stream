@@ -335,7 +335,7 @@ deploy_android() {
       ;;
     2)
       echo -e "${CYAN}Building Android preview version...${NC}"
-      NODE_ENV=production APP_VARIANT=preview npx eas build --platform android --profile preview --local
+      NODE_ENV=production APP_VARIANT=preview yarn dlx eas-cli build --platform android --profile preview --local
       ;;
     3)
       echo -e "${CYAN}Ensuring production workspace...${NC}"
@@ -394,7 +394,7 @@ deploy_ios() {
       ;;
     2)
       echo -e "${CYAN}Building iOS preview version...${NC}"
-      NODE_ENV=production APP_VARIANT=preview npx eas build --platform ios --profile preview --local
+      NODE_ENV=production APP_VARIANT=preview yarn dlx eas-cli build --platform ios --profile preview --local
       ;;
     3)
       echo -e "${CYAN}Ensuring production iOS workspace...${NC}"

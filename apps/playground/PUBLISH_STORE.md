@@ -145,7 +145,7 @@ eas device:create
 yarn build:ios:production --auto-submit
 
 # Submit latest build to App Store
-npx eas submit --platform ios --latest
+yarn dlx eas-cli submit --platform ios --latest
 ```
 
 ## Over-the-Air Updates with Expo
