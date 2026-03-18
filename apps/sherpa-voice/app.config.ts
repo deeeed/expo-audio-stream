@@ -87,7 +87,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             bundleIdentifier: APP_IDENTIFIER,
             appleTeamId: validatedEnv.APPLE_TEAM_ID,
             infoPlist: {
-                "UIBackgroundModes": ["audio"],
                 "ITSAppUsesNonExemptEncryption": false,
             },
         },
@@ -130,7 +129,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             [
                 "expo-audio",
                 {
-                    "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+                    "microphonePermission": "$(PRODUCT_NAME) uses the microphone to capture your voice for on-device speech recognition, speaker identification, and audio analysis. For example, you can speak into the mic to get a real-time transcription of your speech.",
                     "enableBackgroundPlayback": false
                 }
             ],
