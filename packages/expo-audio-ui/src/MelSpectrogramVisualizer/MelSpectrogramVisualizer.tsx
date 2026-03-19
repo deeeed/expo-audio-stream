@@ -1,14 +1,14 @@
-import { Canvas, Rect, Group } from '@shopify/react-native-skia'
-import React, { useMemo } from 'react'
+import {
+    Canvas,
+    Image as SkiaImage,
+    Skia,
+    ColorType,
+    AlphaType,
+} from '@shopify/react-native-skia'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { View, ViewStyle } from 'react-native'
 
-interface CellData {
-    x: number
-    y: number
-    width: number
-    height: number
-    color: string
-}
+import type { SkImage } from '@shopify/react-native-skia'
 
 export interface MelSpectrogramVisualizerProps {
     data: { spectrogram: number[][]; nMels: number; timeSteps: number } | null
@@ -75,29 +75,30 @@ function getLUT(colorMap: 'magma' | 'viridis' | 'grayscale'): Uint8Array {
     return LUT_CACHE[colorMap]!
 }
 
-function lutColor(lut: Uint8Array, idx: number): string {
-    const o = idx * 3
-    return `rgb(${lut[o]}, ${lut[o + 1]}, ${lut[o + 2]})`
-}
+// Max pixel dimensions for the image buffer (same purpose as old MAX_RECTS)
+const MAX_PIXELS = 8000
 
 export const MelSpectrogramVisualizer: React.FC<MelSpectrogramVisualizerProps> = ({
     data,
     width,
     height,
     colorMap = 'magma',
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     normalization = 'global',
     style,
 }) => {
-    const cells = useMemo(() => {
-        if (!data || data.timeSteps === 0 || width <= 0 || height <= 0) {
-            return []
+    const pixelBufRef = useRef<Uint8Array | null>(null)
+    const prevImageRef = useRef<SkImage | null>(null)
+
+    const skImage = useMemo((): SkImage | null => {
+        if (!data || data.timeSteps === 0) {
+            return null
         }
 
         const { spectrogram, nMels, timeSteps } = data
         const lut = getLUT(colorMap)
 
-        // Min/max for normalization (same logic for global and sliding -
-        // sliding just means the input data is already a sliding window)
+        // Min/max for normalization
         let gMin = Infinity
         let gMax = -Infinity
         for (let t = 0; t < timeSteps; t++) {
@@ -114,37 +115,70 @@ export const MelSpectrogramVisualizer: React.FC<MelSpectrogramVisualizerProps> =
         if (!isFinite(gMax)) gMax = 1
         const range = gMax - gMin || 1
 
-        // Downsample time axis if too many rects (keep under ~8000 for Skia perf)
-        const MAX_RECTS = 8000
-        const maxTimeBins = Math.floor(MAX_RECTS / nMels)
+        // Downsample time axis if too many pixels
+        const maxTimeBins = Math.floor(MAX_PIXELS / nMels)
         const timeStep = timeSteps <= maxTimeBins ? 1 : Math.ceil(timeSteps / maxTimeBins)
         const displayTimeBins = Math.ceil(timeSteps / timeStep)
 
-        const cellW = width / displayTimeBins
-        const cellH = height / nMels
+        // Reuse pixel buffer to reduce GC pressure
+        const bufSize = displayTimeBins * nMels * 4
+        if (!pixelBufRef.current || pixelBufRef.current.length !== bufSize) {
+            pixelBufRef.current = new Uint8Array(bufSize)
+        }
+        const pixels = pixelBufRef.current
 
-        const computed: CellData[] = new Array(displayTimeBins * nMels)
-        let idx = 0
+        // Fill RGBA pixel buffer
+        // Mel bins go low→high (m=0 is lowest freq), but pixels go top→bottom
+        // So row 0 in the image = highest mel bin (nMels-1)
         for (let dt = 0; dt < displayTimeBins; dt++) {
             const t = dt * timeStep
             const frame = spectrogram[t]
-            if (!frame) continue
             for (let m = 0; m < nMels; m++) {
-                const raw = frame[m]
+                const raw = frame ? frame[m] : undefined
                 const val = (raw == null || isNaN(raw)) ? gMin : raw
                 const norm = (val - gMin) / range
                 const lutIdx = Math.min(255, Math.max(0, Math.round(norm * 255)))
-                computed[idx++] = {
-                    x: dt * cellW,
-                    y: (nMels - 1 - m) * cellH,
-                    width: cellW,
-                    height: cellH,
-                    color: lutColor(lut, lutIdx),
-                }
+                // Flip Y: mel bin m → pixel row (nMels - 1 - m)
+                const pixelRow = nMels - 1 - m
+                const offset = (pixelRow * displayTimeBins + dt) * 4
+                const lutOffset = lutIdx * 3
+                pixels[offset] = lut[lutOffset]!
+                pixels[offset + 1] = lut[lutOffset + 1]!
+                pixels[offset + 2] = lut[lutOffset + 2]!
+                pixels[offset + 3] = 255 // alpha
             }
         }
-        return computed.slice(0, idx)
-    }, [data, width, height, colorMap])
+
+        // ColorType.RGBA_8888 = 4, AlphaType.Opaque = 1
+        const imageInfo = {
+            width: displayTimeBins,
+            height: nMels,
+            colorType: ColorType?.RGBA_8888 ?? 4,
+            alphaType: AlphaType?.Opaque ?? 1,
+        }
+        const skData = Skia.Data.fromBytes(new Uint8Array(pixels))
+        const img = Skia.Image.MakeImage(imageInfo, skData, displayTimeBins * 4)
+
+        // Dispose previous image after a frame delay so CanvasKit's
+        // async render loop is done with it (avoids "deleted object" on web)
+        const prev = prevImageRef.current
+        if (prev && 'dispose' in prev) {
+            setTimeout(() => {
+                try { (prev as any).dispose() } catch { /* noop */ }
+            }, 100)
+        }
+        prevImageRef.current = img
+        return img
+    }, [data, colorMap])
+
+    // Dispose CanvasKit image on unmount (web WASM cleanup)
+    useEffect(() => {
+        return () => {
+            if (prevImageRef.current && 'dispose' in prevImageRef.current) {
+                try { (prevImageRef.current as any).dispose() } catch { /* noop */ }
+            }
+        }
+    }, [])
 
     if (!data || data.timeSteps === 0) {
         return <View style={{ width, height, ...(style || {}) }} />
@@ -152,18 +186,16 @@ export const MelSpectrogramVisualizer: React.FC<MelSpectrogramVisualizerProps> =
 
     return (
         <Canvas style={{ width, height, ...(style || {}) }}>
-            <Group>
-                {cells.map((cell, index) => (
-                    <Rect
-                        key={index}
-                        x={cell.x}
-                        y={cell.y}
-                        width={cell.width}
-                        height={cell.height}
-                        color={cell.color}
-                    />
-                ))}
-            </Group>
+            {skImage && (
+                <SkiaImage
+                    image={skImage}
+                    x={0}
+                    y={0}
+                    width={width}
+                    height={height}
+                    fit="fill"
+                />
+            )}
         </Canvas>
     )
 }

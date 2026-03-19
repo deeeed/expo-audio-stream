@@ -69,7 +69,7 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     segmentDurationMs: 100,
     enableProcessing: true,
-    features: undefined,
+    features: { melSpectrogram: true },
     output: {
         primary: { enabled: true },
         compressed: {
@@ -1175,6 +1175,24 @@ style={{
                     }}
                 />
                 
+                {/* Mel Spectrogram Switch */}
+                <View style={{ marginTop: 16 }}>
+                    <LabelSwitch
+                        label="Enable Mel Spectrogram"
+                        value={startRecordingConfig.features?.melSpectrogram === true}
+                        onValueChange={(enabled: boolean) => {
+                            setStartRecordingConfig((prev) => ({
+                                ...prev,
+                                features: {
+                                    ...prev.features,
+                                    melSpectrogram: enabled,
+                                },
+                            }))
+                            if (!enabled) setVizMode('waveform')
+                        }}
+                    />
+                </View>
+
                 {/* Live Transcription Switch - Always visible */}
                 <View style={{ marginTop: 16 }}>
                     <LabelSwitch
