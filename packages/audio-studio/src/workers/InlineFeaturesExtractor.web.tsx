@@ -624,7 +624,8 @@ self.onmessage = function (event) {
         if (features.pitch) {
             result.pitch = estimatePitch(channelData.slice(startIdx, endIdx), sampleRate);
         }
-        
+        // melSpectrogram is computed on the main thread via WASM C++
+
         return result;
     }
 
