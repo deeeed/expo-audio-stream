@@ -465,7 +465,7 @@ public class AudioProcessor {
         // Determine which C++ features are needed
         let needSpectral = featureOptions["spectralCentroid"] == true ||
                           featureOptions["spectralFlatness"] == true ||
-                          featureOptions["spectralRollOff"] == true ||
+                          featureOptions["spectralRolloff"] == true ||
                           featureOptions["spectralBandwidth"] == true
         let needMfcc = featureOptions["mfcc"] == true
         let needChroma = featureOptions["chromagram"] == true
@@ -473,7 +473,7 @@ public class AudioProcessor {
         // Single C++ call for all FFT-based features
         var spectralCentroid: Float = 0
         var spectralFlatness: Float = 0
-        var spectralRollOff: Float = 0
+        var spectralRolloff: Float = 0
         var spectralBandwidth: Float = 0
         var mfcc: [Float] = []
         var chromagram: [Float] = []
@@ -495,7 +495,7 @@ public class AudioProcessor {
                 if needSpectral {
                     spectralCentroid = (result["spectralCentroid"] as? NSNumber)?.floatValue ?? 0
                     spectralFlatness = (result["spectralFlatness"] as? NSNumber)?.floatValue ?? 0
-                    spectralRollOff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
+                    spectralRolloff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
                     spectralBandwidth = (result["spectralBandwidth"] as? NSNumber)?.floatValue ?? 0
                 }
                 if needMfcc {
@@ -530,7 +530,7 @@ public class AudioProcessor {
             zcr: zcr,
             spectralCentroid: spectralCentroid,
             spectralFlatness: spectralFlatness,
-            spectralRollOff: spectralRollOff,
+            spectralRolloff: spectralRolloff,
             spectralBandwidth: spectralBandwidth,
             chromagram: chromagram,
             tempo: tempo,

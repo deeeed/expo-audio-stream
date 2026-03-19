@@ -508,7 +508,7 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
     // Determine which C++ features are needed
     let needSpectral = featureOptions["spectralCentroid"] == true ||
                       featureOptions["spectralFlatness"] == true ||
-                      featureOptions["spectralRollOff"] == true ||
+                      featureOptions["spectralRolloff"] == true ||
                       featureOptions["spectralBandwidth"] == true
     let needMfcc = featureOptions["mfcc"] == true
     let needChroma = featureOptions["chromagram"] == true
@@ -516,7 +516,7 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
     // Single C++ call for all FFT-based features (spectral + MFCC + chroma)
     var spectralCentroid: Float = 0
     var spectralFlatness: Float = 0
-    var spectralRollOff: Float = 0
+    var spectralRolloff: Float = 0
     var spectralBandwidth: Float = 0
     var mfcc: [Float] = []
     var chromagram: [Float] = []
@@ -538,7 +538,7 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
             if needSpectral {
                 spectralCentroid = (result["spectralCentroid"] as? NSNumber)?.floatValue ?? 0
                 spectralFlatness = (result["spectralFlatness"] as? NSNumber)?.floatValue ?? 0
-                spectralRollOff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
+                spectralRolloff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
                 spectralBandwidth = (result["spectralBandwidth"] as? NSNumber)?.floatValue ?? 0
             }
             if needMfcc {
@@ -563,7 +563,7 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
         zcr: zcr,
         spectralCentroid: spectralCentroid,
         spectralFlatness: spectralFlatness,
-        spectralRollOff: spectralRollOff,
+        spectralRolloff: spectralRolloff,
         spectralBandwidth: spectralBandwidth,
         chromagram: chromagram,
         tempo: extractTempo(from: segmentData, sampleRate: sampleRate),

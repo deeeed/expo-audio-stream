@@ -9,6 +9,10 @@
 
 AudioFeaturesProcessor::AudioFeaturesProcessor(const AudioFeaturesConfig& config)
     : config_(config), fftCfg_(nullptr) {
+    if (config_.sampleRate <= 0) config_.sampleRate = 16000;
+    if (config_.fftLength <= 0) config_.fftLength = 1024;
+    if (config_.nMfcc <= 0) config_.nMfcc = 13;
+    if (config_.nMelFilters <= 0) config_.nMelFilters = 26;
     numBins_ = config_.fftLength / 2 + 1;
     fftCfg_ = kiss_fftr_alloc(config_.fftLength, 0, nullptr, nullptr);
     buildWindow();
@@ -185,7 +189,7 @@ float AudioFeaturesProcessor::computeSpectralRolloff() const {
 float AudioFeaturesProcessor::computeSpectralBandwidth(float centroid) const {
     float sum = 0.0f;
     float weightedSum = 0.0f;
-    const float binToFreq = static_cast<float>(config_.sampleRate) / static_cast<float>(2 * numBins_);
+    const float binToFreq = static_cast<float>(config_.sampleRate) / config_.fftLength;
 
     for (int i = 0; i < numBins_; ++i) {
         float freq = i * binToFreq;

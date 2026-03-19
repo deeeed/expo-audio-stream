@@ -16,7 +16,7 @@ public struct Features {
     var zcr: Float
     var spectralCentroid: Float
     var spectralFlatness: Float
-    var spectralRollOff: Float?
+    var spectralRolloff: Float?
     var spectralBandwidth: Float?
     var chromagram: [Float]?
     var tempo: Float?
@@ -36,7 +36,7 @@ public struct Features {
         zcr: Float = 0,
         spectralCentroid: Float = 0,
         spectralFlatness: Float = 0,
-        spectralRollOff: Float? = nil,
+        spectralRolloff: Float? = nil,
         spectralBandwidth: Float? = nil,
         chromagram: [Float]? = nil,
         tempo: Float? = nil,
@@ -55,7 +55,7 @@ public struct Features {
         self.zcr = zcr
         self.spectralCentroid = spectralCentroid
         self.spectralFlatness = spectralFlatness
-        self.spectralRollOff = spectralRollOff
+        self.spectralRolloff = spectralRolloff
         self.spectralBandwidth = spectralBandwidth
         self.chromagram = chromagram
         self.tempo = tempo
@@ -79,7 +79,7 @@ extension Features {
             "zcr": zcr,
             "spectralCentroid": spectralCentroid,
             "spectralFlatness": spectralFlatness,
-            "spectralRollOff": spectralRollOff ?? 0,
+            "spectralRolloff": spectralRolloff ?? 0,
             "spectralBandwidth": spectralBandwidth ?? 0,
             "chromagram": chromagram ?? [],
             "tempo": tempo ?? 0,
