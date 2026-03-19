@@ -1791,21 +1791,25 @@ class AudioProcessor(private val filesDir: File) {
     }
 
     private fun computeMelSpectrogram(samples: FloatArray, sampleRate: Float): List<Float> {
-        val (powerSpectrum, _) = prepareFFT(samples, sampleRate)
-        val melFilters = computeMelFilterbank(
-            numFilters = 128,
-            powerSpectrumSize = powerSpectrum.size,
-            sampleRate = sampleRate
+        val nMels = 128
+        val fftLength = 2048
+        val windowSize = minOf(samples.size, fftLength)
+        val hopLength = windowSize  // single frame
+
+        MelSpectrogramNative.init(
+            sampleRate = sampleRate.toInt(),
+            fftLength = fftLength,
+            windowSizeSamples = windowSize,
+            hopLengthSamples = hopLength,
+            nMels = nMels,
+            fMin = 0f,
+            fMax = sampleRate / 2f,
+            windowType = 0  // Hann
         )
-        
-        // Apply Mel filters to power spectrum
-        return melFilters.map { filter ->
-            var energy = 0f
-            for (j in powerSpectrum.indices) {
-                energy += powerSpectrum[j] * filter[j]
-            }
-            kotlin.math.ln(maxOf(energy, 1e-10f))
-        }
+
+        val melOutput = FloatArray(nMels)
+        val success = MelSpectrogramNative.computeFrame(samples, melOutput)
+        return if (success) melOutput.toList() else emptyList()
     }
 
     private fun computeChroma(samples: FloatArray, sampleRate: Float): List<Float> {

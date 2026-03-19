@@ -2,6 +2,7 @@
 #include <android/log.h>
 #include "MelSpectrogram.h"
 #include <memory>
+#include <cmath>
 
 #define LOG_TAG "MelSpectrogramJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -82,4 +83,77 @@ Java_net_siteed_audiostudio_MelSpectrogramNative_compute(
     }
 
     return jResult;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_net_siteed_audiostudio_MelSpectrogramNative_init(
+    JNIEnv* env, jobject /* thiz */,
+    jint sampleRate, jint fftLength, jint windowSizeSamples,
+    jint hopLengthSamples, jint nMels, jfloat fMin, jfloat fMax,
+    jint windowType)
+{
+    MelSpectrogramConfig config;
+    config.sampleRate = sampleRate;
+    config.fftLength = fftLength;
+    config.windowSizeSamples = windowSizeSamples;
+    config.hopLengthSamples = hopLengthSamples;
+    config.nMels = nMels;
+    config.fMin = fMin;
+    config.fMax = fMax;
+    config.windowType = windowType;
+    config.logScale = false;
+    config.normalize = false;
+
+    if (!cachedProcessor || !(cachedProcessor->config() == config)) {
+        cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
+    }
+    LOGI("init: sampleRate=%d, fftLength=%d, nMels=%d", sampleRate, fftLength, nMels);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_net_siteed_audiostudio_MelSpectrogramNative_computeFrame(
+    JNIEnv* env, jobject /* thiz */,
+    jfloatArray jFrame, jfloatArray jMelOutput)
+{
+    if (!cachedProcessor) {
+        LOGE("computeFrame: processor not initialized, call init() first");
+        return JNI_FALSE;
+    }
+
+    jfloat* frame = env->GetFloatArrayElements(jFrame, nullptr);
+    if (!frame) {
+        LOGE("computeFrame: failed to get frame array");
+        return JNI_FALSE;
+    }
+    jint frameSize = env->GetArrayLength(jFrame);
+
+    jfloat* melOutput = env->GetFloatArrayElements(jMelOutput, nullptr);
+    if (!melOutput) {
+        env->ReleaseFloatArrayElements(jFrame, frame, JNI_ABORT);
+        LOGE("computeFrame: failed to get melOutput array");
+        return JNI_FALSE;
+    }
+
+    cachedProcessor->computeFrame(frame, frameSize, melOutput);
+
+    // Apply log scaling (matches compute() logScale behavior)
+    const int nMels = cachedProcessor->config().nMels;
+    for (int i = 0; i < nMels; ++i) {
+        melOutput[i] = std::log(std::max(1e-10f, melOutput[i]));
+    }
+
+    env->ReleaseFloatArrayElements(jFrame, frame, JNI_ABORT);
+    env->ReleaseFloatArrayElements(jMelOutput, melOutput, 0); // 0 = copy back
+
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_net_siteed_audiostudio_MelSpectrogramNative_getNMels(
+    JNIEnv* env, jobject /* thiz */)
+{
+    if (!cachedProcessor) {
+        return 0;
+    }
+    return cachedProcessor->config().nMels;
 }

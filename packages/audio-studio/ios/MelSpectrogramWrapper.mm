@@ -53,4 +53,45 @@
     return dict;
 }
 
++ (void)initWithSampleRate:(int)sampleRate
+                 fftLength:(int)fftLength
+         windowSizeSamples:(int)windowSizeSamples
+          hopLengthSamples:(int)hopLengthSamples
+                     nMels:(int)nMels
+                      fMin:(float)fMin
+                      fMax:(float)fMax
+                windowType:(int)windowType
+{
+    mel_spectrogram_init(sampleRate, fftLength, windowSizeSamples,
+        hopLengthSamples, nMels, fMin, fMax, windowType);
+}
+
++ (nullable NSArray<NSNumber *> *)computeFrameWithSamples:(const float *)samples
+                                                frameSize:(int)frameSize
+{
+    int nMels = mel_spectrogram_get_n_mels();
+    if (nMels <= 0) {
+        return nil;
+    }
+
+    float* melOutput = (float*)malloc(nMels * sizeof(float));
+    if (!melOutput) {
+        return nil;
+    }
+
+    int success = mel_spectrogram_compute_frame(samples, frameSize, melOutput);
+    if (!success) {
+        free(melOutput);
+        return nil;
+    }
+
+    NSMutableArray<NSNumber *> *result = [NSMutableArray arrayWithCapacity:nMels];
+    for (int i = 0; i < nMels; i++) {
+        [result addObject:@(melOutput[i])];
+    }
+
+    free(melOutput);
+    return result;
+}
+
 @end
