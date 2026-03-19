@@ -369,11 +369,48 @@ class AudioProcessor(private val filesDir: File) {
         val energy = if (featureOptions["energy"] == true) sumSquares else 0f
         val zcr = if (featureOptions["zcr"] == true) zeroCrossings / segmentLength.toFloat() else 0f
 
-        val mfcc = try {
-            if (featureOptions["mfcc"] == true) computeMFCC(segmentData, sampleRate) else emptyList()
-        } catch (e: Exception) {
-            LogUtils.e(CLASS_NAME, "Failed to extract MFCC: ${e.message}", e)
-            emptyList()
+        // Determine if we need the C++ audio features (single JNI call for spectral + MFCC + chroma)
+        val needSpectral = featureOptions["spectralCentroid"] == true ||
+                          featureOptions["spectralFlatness"] == true ||
+                          featureOptions["spectralRollOff"] == true ||
+                          featureOptions["spectralBandwidth"] == true
+        val needMfcc = featureOptions["mfcc"] == true
+        val needChroma = featureOptions["chromagram"] == true
+
+        // Single C++ call for all FFT-based features
+        var spectralCentroid = 0f
+        var spectralFlatness = 0f
+        var spectralRollOff = 0f
+        var spectralBandwidth = 0f
+        var mfcc: List<Float> = emptyList()
+        var chroma: List<Float> = emptyList()
+
+        if (needSpectral || needMfcc || needChroma) {
+            try {
+                val cppResult = AudioFeaturesNative.computeFrame(
+                    segmentData,
+                    sampleRate.toInt(),
+                    N_FFT,
+                    13,   // nMfcc
+                    26,   // nMelFilters
+                    needMfcc,
+                    needChroma
+                )
+                if (needSpectral) {
+                    spectralCentroid = (cppResult["spectralCentroid"] as? Float) ?: 0f
+                    spectralFlatness = (cppResult["spectralFlatness"] as? Float) ?: 0f
+                    spectralRollOff = (cppResult["spectralRolloff"] as? Float) ?: 0f
+                    spectralBandwidth = (cppResult["spectralBandwidth"] as? Float) ?: 0f
+                }
+                if (needMfcc) {
+                    mfcc = (cppResult["mfcc"] as? FloatArray)?.toList() ?: emptyList()
+                }
+                if (needChroma) {
+                    chroma = (cppResult["chromagram"] as? FloatArray)?.toList() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                LogUtils.e(CLASS_NAME, "Failed to compute C++ audio features: ${e.message}", e)
+            }
         }
 
         val melSpectrogram = try {
@@ -381,22 +418,6 @@ class AudioProcessor(private val filesDir: File) {
         } catch (e: Exception) {
             LogUtils.e(CLASS_NAME, "Failed to compute mel spectrogram: ${e.message}", e)
             emptyList()
-        }
-
-        val chroma = try {
-            if (featureOptions["chromagram"] == true) computeChroma(segmentData, sampleRate) else emptyList()
-        } catch (e: Exception) {
-            LogUtils.e(CLASS_NAME, "Failed to compute chroma: ${e.message}", e)
-            emptyList()
-        }
-
-        val spectralFeatures = if (featureOptions["spectralCentroid"] == true || 
-                                 featureOptions["spectralFlatness"] == true ||
-                                 featureOptions["spectralRollOff"] == true ||
-                                 featureOptions["spectralBandwidth"] == true) {
-            extractSpectralFeatures(segmentData, sampleRate)
-        } else {
-            SpectralFeatures()
         }
 
         val tempo = try {
@@ -435,12 +456,12 @@ class AudioProcessor(private val filesDir: File) {
             segmentData.forEach { value ->
                 byteBuffer.putFloat(value)
             }
-            
+
             val crc32 = CRC32()
             crc32.update(byteBuffer.array())
             crc32.value
         } else null
-        
+
         return Features(
             energy = energy,
             mfcc = mfcc,
@@ -448,10 +469,10 @@ class AudioProcessor(private val filesDir: File) {
             minAmplitude = minAmplitude,
             maxAmplitude = maxAmplitude,
             zcr = zcr,
-            spectralCentroid = spectralFeatures.centroid,
-            spectralFlatness = spectralFeatures.flatness,
-            spectralRollOff = spectralFeatures.rollOff,
-            spectralBandwidth = spectralFeatures.bandwidth,
+            spectralCentroid = spectralCentroid,
+            spectralFlatness = spectralFlatness,
+            spectralRollOff = spectralRollOff,
+            spectralBandwidth = spectralBandwidth,
             tempo = tempo,
             hnr = hnr,
             melSpectrogram = melSpectrogram,
