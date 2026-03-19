@@ -10,7 +10,10 @@ function getModule(): Promise<MelSpectrogramWasmModule> {
             const mod = await import('../../prebuilt/wasm/mel-spectrogram.js')
             const factory = mod.default ?? mod
             return factory() as Promise<MelSpectrogramWasmModule>
-        })()
+        })().catch((err) => {
+            modulePromise = null
+            throw err
+        })
     }
     return modulePromise
 }
@@ -140,6 +143,11 @@ export async function computeMelSpectrogramWasm(
     const dataPtr = Module.getValue(resultPtr, 'i32')
     const timeSteps = Module.getValue(resultPtr + 4, 'i32')
     const resultNMels = Module.getValue(resultPtr + 8, 'i32')
+
+    if (!dataPtr || timeSteps <= 0 || resultNMels <= 0) {
+        Module._mel_spectrogram_free(resultPtr)
+        throw new Error('mel_spectrogram_compute returned invalid result struct')
+    }
 
     // Copy spectrogram data to JS arrays
     const spectrogram: number[][] = []
