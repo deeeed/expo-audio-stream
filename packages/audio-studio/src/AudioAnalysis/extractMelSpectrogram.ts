@@ -1,6 +1,6 @@
 /**
  * @experimental This feature is experimental and currently only available on Android.
- * The API may change in future versions. The web implementation is a placeholder.
+ * The API may change in future versions.
  */
 
 import { AudioStudioModule } from '..'
@@ -14,18 +14,26 @@ import {
     ProcessedAudioData,
 } from '../utils/audioProcessing'
 import { cleanNativeOptions } from '../utils/cleanNativeOptions'
+import { computeMelSpectrogramWasm } from './melSpectrogramWasm'
+
+/**
+ * Maximum duration in milliseconds that extractMelSpectrogram will process in a single call.
+ * The C++ core requires the entire trimmed range as a contiguous float array in memory,
+ * so this bound prevents OOM on all platforms. Callers needing longer ranges can iterate
+ * in windows of this size using startTimeMs/endTimeMs.
+ */
+export const MAX_DURATION_MS = 30_000
 
 /**
  * Extracts a mel spectrogram from audio data
  *
- * @experimental This feature is experimental and currently only available on Android.
- * The iOS implementation will throw an "UNSUPPORTED_PLATFORM" error.
- * The web implementation is a placeholder that returns dummy data.
+ * @experimental This feature is experimental.
+ * Uses shared C++ implementation on all platforms (native on iOS/Android, WASM on web).
  */
 export async function extractMelSpectrogram(
     options: ExtractMelSpectrogramOptions
 ): Promise<MelSpectrogram> {
-    const {
+    let {
         fileUri,
         arrayBuffer,
         windowSizeMs,
@@ -41,6 +49,24 @@ export async function extractMelSpectrogram(
         endTimeMs,
         logger,
     } = options
+
+    // Apply max duration guard
+    if (startTimeMs == null && endTimeMs == null) {
+        startTimeMs = 0
+        endTimeMs = MAX_DURATION_MS
+        logger?.warn?.(
+            `extractMelSpectrogram: no time range specified, defaulting to 0–${MAX_DURATION_MS}ms`
+        )
+    } else {
+        const start = startTimeMs ?? 0
+        const end = endTimeMs ?? start + MAX_DURATION_MS
+        if (end - start > MAX_DURATION_MS) {
+            endTimeMs = start + MAX_DURATION_MS
+            logger?.warn?.(
+                `extractMelSpectrogram: requested range ${end - start}ms exceeds max ${MAX_DURATION_MS}ms, clamping endTimeMs to ${endTimeMs}`
+            )
+        }
+    }
 
     if (isWeb) {
         // Create audio context
@@ -70,8 +96,8 @@ export async function extractMelSpectrogram(
             const hopLength = Math.floor((hopLengthMs * sampleRate) / 1000)
             const maxFreq = fMax || sampleRate / 2
 
-            // Extract the mel spectrogram from the processed audio
-            const spectrogram = computeMelSpectrogram(
+            // Extract the mel spectrogram via WASM (same C++ as native)
+            const spectrogram = await computeMelSpectrogramWasm(
                 processedAudio.channelData,
                 sampleRate,
                 nMels,
@@ -111,44 +137,4 @@ export async function extractMelSpectrogram(
     return AudioStudioModule.extractMelSpectrogram(
         cleanNativeOptions(nativeOptions)
     )
-}
-
-/**
- * Computes a mel spectrogram from audio data
- *
- * @experimental This is a placeholder implementation that returns dummy data.
- * The actual implementation will be added in a future version.
- */
-function computeMelSpectrogram(
-    audioData: Float32Array,
-    sampleRate: number,
-    nMels: number,
-    windowSize: number,
-    hopLength: number,
-    fMin: number,
-    fMax: number,
-    windowType: 'hann' | 'hamming',
-    normalize: boolean,
-    logScale: boolean
-): number[][] {
-    // Placeholder for the actual implementation
-    // This would include:
-    // 1. Windowing the audio data using the specified window type
-    // 2. Computing the STFT (Short-Time Fourier Transform)
-    // 3. Converting to power spectrogram
-    // 4. Applying mel filterbanks
-    // 5. Taking the logarithm if logScale is true
-    // 6. Normalizing if normalize is true
-
-    // For now, return a dummy implementation
-    const numFrames =
-        Math.floor((audioData.length - windowSize) / hopLength) + 1
-    const spectrogram: number[][] = []
-
-    // Create dummy mel spectrogram data
-    for (let i = 0; i < numFrames; i++) {
-        spectrogram.push(Array(nMels).fill(0))
-    }
-
-    return spectrogram
 }
