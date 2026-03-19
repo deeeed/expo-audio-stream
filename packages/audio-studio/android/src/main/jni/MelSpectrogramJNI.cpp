@@ -3,6 +3,7 @@
 #include "MelSpectrogram.h"
 #include <memory>
 #include <cmath>
+#include <mutex>
 
 #define LOG_TAG "MelSpectrogramJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -11,6 +12,7 @@
 // Cache processor across JNI calls — avoids rebuilding FFT plan,
 // window, and filterbank when config is unchanged.
 static std::unique_ptr<MelSpectrogramProcessor> cachedProcessor;
+static std::mutex cachedMutex;
 
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_net_siteed_audiostudio_MelSpectrogramNative_compute(
@@ -43,6 +45,7 @@ Java_net_siteed_audiostudio_MelSpectrogramNative_compute(
     config.normalize = normalize;
 
     // Reuse processor if config matches
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor || !(cachedProcessor->config() == config)) {
         cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
     }
@@ -104,6 +107,7 @@ Java_net_siteed_audiostudio_MelSpectrogramNative_init(
     config.logScale = false;
     config.normalize = false;
 
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor || !(cachedProcessor->config() == config)) {
         cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
     }
@@ -115,6 +119,7 @@ Java_net_siteed_audiostudio_MelSpectrogramNative_computeFrame(
     JNIEnv* env, jobject /* thiz */,
     jfloatArray jFrame, jfloatArray jMelOutput)
 {
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor) {
         LOGE("computeFrame: processor not initialized, call init() first");
         return JNI_FALSE;
@@ -136,7 +141,7 @@ Java_net_siteed_audiostudio_MelSpectrogramNative_computeFrame(
 
     cachedProcessor->computeFrame(frame, frameSize, melOutput);
 
-    // Apply log scaling (matches compute() logScale behavior)
+    // Always apply log scaling (log(max(1e-10, val))) regardless of config.logScale
     const int nMels = cachedProcessor->config().nMels;
     for (int i = 0; i < nMels; ++i) {
         melOutput[i] = std::log(std::max(1e-10f, melOutput[i]));
@@ -152,6 +157,7 @@ extern "C" JNIEXPORT jint JNICALL
 Java_net_siteed_audiostudio_MelSpectrogramNative_getNMels(
     JNIEnv* env, jobject /* thiz */)
 {
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor) {
         return 0;
     }

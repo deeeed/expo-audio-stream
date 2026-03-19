@@ -144,7 +144,7 @@ export const MelSpectrogramVisualizer: React.FC<MelSpectrogramVisualizerProps> =
             }
         }
         return computed.slice(0, idx)
-    }, [data, width, height, colorMap, normalization])
+    }, [data, width, height, colorMap])
 
     if (!data || data.timeSteps === 0) {
         return <View style={{ width, height, ...(style || {}) }} />
