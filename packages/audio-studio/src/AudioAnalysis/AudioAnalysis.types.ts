@@ -204,8 +204,10 @@ export interface ExtractMelSpectrogramOptions {
     normalize?: boolean // Mean normalization (default: false)
     logScale?: boolean // Log scaling of mel energies (default: true)
     decodingOptions?: DecodingConfig // Audio decoding settings
-    startTimeMs?: number // Optional start time
-    endTimeMs?: number // Optional end time
+    /** Optional start time in ms. If neither startTimeMs nor endTimeMs is set, defaults to 0. */
+    startTimeMs?: number
+    /** Optional end time in ms. Clamped so that the range does not exceed MAX_DURATION_MS (30 s). */
+    endTimeMs?: number
     logger?: ConsoleLike
 }
 

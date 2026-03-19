@@ -8,6 +8,7 @@ import {
 } from './AudioStudio.web'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
+import { initMelStreamingWasm, computeMelFrameWasm } from './AudioAnalysis/melSpectrogramWasm'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
@@ -64,6 +65,8 @@ export class WebRecorder {
     private _isDeviceDisconnected: boolean = false
     private pcmData: Float32Array | null = null // Store original PCM data
     private totalSampleCount: number = 0
+    private melWasmReady: boolean = false
+    private pendingMelFrames: (number[] | null)[] = [] // Queued mel frames to attach to datapoints
 
     /**
      * Flag to indicate whether this is the first audio chunk after a device switch
@@ -152,6 +155,19 @@ export class WebRecorder {
 
         if (recordingConfig.enableProcessing) {
             this.initFeatureExtractorWorker()
+            if (recordingConfig.features?.melSpectrogram) {
+                const sr = this.config.sampleRate || this.audioContext.sampleRate
+                const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
+                const windowSamples = Math.floor(sr * segMs / 1000)
+                initMelStreamingWasm(sr, 128, 2048, windowSamples, windowSamples)
+                    .then(() => {
+                        this.melWasmReady = true
+                        this.logger?.log('Mel WASM streaming processor ready')
+                    })
+                    .catch((err) => {
+                        console.error(`[${TAG}] Failed to init mel WASM:`, err)
+                    })
+            }
         }
 
         // Initialize compressed recording if enabled
@@ -245,6 +261,8 @@ export class WebRecorder {
                         this.appendPcmData(chunk)
                         this.totalSampleCount += chunk.length
                     }
+
+                    this.computeMelFrames(chunk, sampleRate)
 
                     // Process features if enabled
                     if (
@@ -424,6 +442,19 @@ export class WebRecorder {
         if (event.data.command !== 'features') return
 
         const segmentResult = event.data.result
+
+        // Attach WASM-computed mel frames to datapoints
+        if (this.pendingMelFrames.length > 0) {
+            for (const dp of segmentResult.dataPoints) {
+                if (this.pendingMelFrames.length === 0) break
+                const melFrame = this.pendingMelFrames.shift()
+                if (melFrame) {
+                    if (!dp.features) dp.features = {}
+                    dp.features.melSpectrogram = melFrame
+                }
+            }
+        }
+
         const uniqueNewDataPoints = this.filterUniqueDataPoints(
             segmentResult.dataPoints
         )
@@ -441,6 +472,26 @@ export class WebRecorder {
         }
 
         this.emitAudioAnalysisCallback(filteredSegmentResult)
+    }
+
+    /**
+     * Compute mel spectrogram frames via WASM C++ for each segment in the chunk.
+     * Frames are queued in pendingMelFrames and attached to datapoints in handleFeatureExtractorMessage.
+     */
+    private computeMelFrames(chunk: Float32Array, sampleRate: number): void {
+        if (!this.melWasmReady || !this.config.features?.melSpectrogram) return
+        const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
+        const samplesPerSeg = Math.floor(sampleRate * segMs / 1000)
+        const numSegs = Math.floor(chunk.length / samplesPerSeg)
+        for (let s = 0; s < numSegs; s++) {
+            const seg = chunk.slice(s * samplesPerSeg, (s + 1) * samplesPerSeg)
+            this.pendingMelFrames.push(computeMelFrameWasm(seg))
+        }
+        const rem = chunk.length % samplesPerSeg
+        if (rem > samplesPerSeg / 4) {
+            const seg = chunk.slice(numSegs * samplesPerSeg)
+            this.pendingMelFrames.push(computeMelFrameWasm(seg))
+        }
     }
 
     /**
@@ -883,6 +934,8 @@ export class WebRecorder {
         endPosition: number,
         samples: number
     ) {
+        this.computeMelFrames(chunk, sampleRate)
+
         if (this.config.enableProcessing && this.featureExtractorWorker) {
             this.featureExtractorWorker.postMessage({
                 command: 'process',
