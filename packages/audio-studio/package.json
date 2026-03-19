@@ -57,6 +57,7 @@
         "README.md",
         "package.json",
         "*.podspec",
+        "prebuilt",
         "build",
         "!ios/build",
         "!android/build",
@@ -70,6 +71,7 @@
         "!**/.*"
     ],
     "scripts": {
+        "build:wasm": "bash scripts/build-wasm.sh",
         "build": "rimraf build && yarn build:types && yarn build:cjs && yarn build:esm && yarn build:plugin",
         "build:cjs": "tsc -p tsconfig.cjs.json",
         "build:esm": "tsc -p tsconfig.esm.json",
