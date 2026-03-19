@@ -169,7 +169,6 @@ export default function RecordScreen() {
     
     // Add state for visualization display
     const [showVisualization, setShowVisualization] = useState(true)
-    
     // Add state for advanced mode
     const [advancedMode, setAdvancedMode] = useState(false)
     
@@ -178,11 +177,12 @@ export default function RecordScreen() {
     const [streamConfig, setStreamConfig] =
         useState<StartRecordingResult | null>(null)
     const [enableLiveTranscription, setEnableLiveTranscription] = useState(false)
-    const [startRecordingConfig, setStartRecordingConfig] = 
+    const [startRecordingConfig, setStartRecordingConfig] =
         useState<RecordingConfig>(() => ({
             ...baseRecordingConfig,
             deviceDisconnectionBehavior: 'fallback',
         }))
+
     const { ready, isModelLoading, progressItems } =
         useTranscription()
     const [result, setResult] = useState<AudioRecording | null>(null)

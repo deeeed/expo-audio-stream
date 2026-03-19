@@ -5,10 +5,12 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <mutex>
 
 // Cache the processor so repeated calls with the same config skip
 // FFT plan creation, window computation, and filterbank generation.
 static std::unique_ptr<MelSpectrogramProcessor> cachedProcessor;
+static std::mutex cachedMutex;
 
 extern "C" {
 
@@ -31,6 +33,7 @@ CMelSpectrogramResult* mel_spectrogram_compute(
     config.normalize = (normalize != 0);
 
     // Reuse processor if config matches
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor || !(cachedProcessor->config() == config)) {
         cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
     }
@@ -78,12 +81,14 @@ void mel_spectrogram_init(int sampleRate, int fftLength, int windowSizeSamples,
     config.logScale = false;  // log applied manually per-frame below
     config.normalize = false;
 
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor || !(cachedProcessor->config() == config)) {
         cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
     }
 }
 
 int mel_spectrogram_compute_frame(const float* frame, int frameSize, float* melOutput) {
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor || !frame || !melOutput) {
         return 0;
     }
@@ -97,6 +102,7 @@ int mel_spectrogram_compute_frame(const float* frame, int frameSize, float* melO
 }
 
 int mel_spectrogram_get_n_mels(void) {
+    std::lock_guard<std::mutex> lock(cachedMutex);
     if (!cachedProcessor) {
         return 0;
     }
