@@ -4379,6 +4379,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/config-plugins@npm:^9.0.0":
+  version: 9.1.7
+  resolution: "@expo/config-plugins@npm:9.1.7"
+  dependencies:
+    "@expo/config-types": "npm:^53.0.0"
+    "@expo/json-file": "npm:~9.1.3"
+    "@expo/plist": "npm:^0.3.3"
+    "@expo/sdk-runtime-versions": "npm:^1.0.0"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.5"
+    getenv: "npm:^1.0.0"
+    glob: "npm:^10.4.2"
+    resolve-from: "npm:^5.0.0"
+    semver: "npm:^7.5.4"
+    slash: "npm:^3.0.0"
+    slugify: "npm:^1.6.6"
+    xcode: "npm:^3.0.1"
+    xml2js: "npm:0.6.0"
+  checksum: 10/2ca6021045b6620eb258f8bc7933e99cff9a4fab60e5ff5ccf95ed757df12395ddf2ccb5fa5ad92c606defd999e59bc675fc2b778e373cc04b5abc139e9ecaeb
+  languageName: node
+  linkType: hard
+
 "@expo/config-plugins@npm:~10.0.2":
   version: 10.0.2
   resolution: "@expo/config-plugins@npm:10.0.2"
@@ -4427,6 +4449,13 @@ __metadata:
   version: 50.0.1
   resolution: "@expo/config-types@npm:50.0.1"
   checksum: 10/cfee0c3c66b77a557193461c6a0c81305576ae7ff6eb6bfddda838364b4157c107ee4a306570652ff692e4fe78628377471b1717267bb36e53d34a7d137d4b20
+  languageName: node
+  linkType: hard
+
+"@expo/config-types@npm:^53.0.0":
+  version: 53.0.5
+  resolution: "@expo/config-types@npm:53.0.5"
+  checksum: 10/71971858185b6163459271734903258c9cdd26a0ffc9775d038f37ebb71ab07153494b0157b96eed03600789592862458e81dfbcc8ef440d28fdcf965f0ba012
   languageName: node
   linkType: hard
 
@@ -4696,6 +4725,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/json-file@npm:~9.1.3":
+  version: 9.1.5
+  resolution: "@expo/json-file@npm:9.1.5"
+  dependencies:
+    "@babel/code-frame": "npm:~7.10.4"
+    json5: "npm:^2.2.3"
+  checksum: 10/b4a8019ac68ffb04606b03ff2fbec81ed031a9bbb2e9f21ba5e7a74f36d68ad1aa68111342ac26d2082f1322b5eb343ad0976b51793599501f33160cd92c25be
+  languageName: node
+  linkType: hard
+
 "@expo/local-build-cache-provider@npm:55.0.6":
   version: 55.0.6
   resolution: "@expo/local-build-cache-provider@npm:55.0.6"
@@ -4873,6 +4912,17 @@ __metadata:
     base64-js: "npm:^1.2.3"
     xmlbuilder: "npm:^14.0.0"
   checksum: 10/7026e45744784539a0a3534dc393f4d7ccc04cc5a4c71a194f61aa9c5577599e27066c43e60c6611a4d34ebc30bec9380190be1685040bc72b037704fe2d2aec
+  languageName: node
+  linkType: hard
+
+"@expo/plist@npm:^0.3.3":
+  version: 0.3.5
+  resolution: "@expo/plist@npm:0.3.5"
+  dependencies:
+    "@xmldom/xmldom": "npm:^0.8.8"
+    base64-js: "npm:^1.2.3"
+    xmlbuilder: "npm:^15.1.1"
+  checksum: 10/a79f11e21c0072baf32444a0ca38883f966470df44d7bd30b244e4dba2aa1c66e186129d22c1ed7fd4139fd053ec9ae3d9d41a4f6fc36f51306a5b9a455d7676
   languageName: node
   linkType: hard
 
@@ -8761,6 +8811,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@siteed/expo-audio-studio-monorepo@workspace:."
   dependencies:
+    "@expo/config-plugins": "npm:^9.0.0"
     "@storybook/react-native-web-vite": "npm:^10.2.10"
     eslint-import-resolver-typescript: "npm:^3.7.0"
     eslint-plugin-import: "npm:^2.31.0"
