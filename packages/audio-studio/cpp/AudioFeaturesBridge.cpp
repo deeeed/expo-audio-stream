@@ -10,6 +10,7 @@ static std::mutex cachedMutex;
 
 static CAudioFeaturesResult* resultFromCpp(const AudioFeaturesResult& src) {
     CAudioFeaturesResult* r = (CAudioFeaturesResult*)malloc(sizeof(CAudioFeaturesResult));
+    if (!r) return nullptr;
     r->spectralCentroid = src.spectralCentroid;
     r->spectralFlatness = src.spectralFlatness;
     r->spectralRolloff = src.spectralRolloff;
@@ -18,7 +19,8 @@ static CAudioFeaturesResult* resultFromCpp(const AudioFeaturesResult& src) {
     r->mfccCount = static_cast<int>(src.mfcc.size());
     if (r->mfccCount > 0) {
         r->mfcc = (float*)malloc(r->mfccCount * sizeof(float));
-        std::memcpy(r->mfcc, src.mfcc.data(), r->mfccCount * sizeof(float));
+        if (!r->mfcc) { r->mfccCount = 0; }
+        else { std::memcpy(r->mfcc, src.mfcc.data(), r->mfccCount * sizeof(float)); }
     } else {
         r->mfcc = nullptr;
     }
@@ -26,7 +28,8 @@ static CAudioFeaturesResult* resultFromCpp(const AudioFeaturesResult& src) {
     r->chromagramCount = static_cast<int>(src.chromagram.size());
     if (r->chromagramCount > 0) {
         r->chromagram = (float*)malloc(r->chromagramCount * sizeof(float));
-        std::memcpy(r->chromagram, src.chromagram.data(), r->chromagramCount * sizeof(float));
+        if (!r->chromagram) { r->chromagramCount = 0; }
+        else { std::memcpy(r->chromagram, src.chromagram.data(), r->chromagramCount * sizeof(float)); }
     } else {
         r->chromagram = nullptr;
     }
@@ -43,7 +46,8 @@ static void fillResultFromCpp(const AudioFeaturesResult& src, CAudioFeaturesResu
     r->mfccCount = static_cast<int>(src.mfcc.size());
     if (r->mfccCount > 0) {
         r->mfcc = (float*)malloc(r->mfccCount * sizeof(float));
-        std::memcpy(r->mfcc, src.mfcc.data(), r->mfccCount * sizeof(float));
+        if (!r->mfcc) { r->mfccCount = 0; }
+        else { std::memcpy(r->mfcc, src.mfcc.data(), r->mfccCount * sizeof(float)); }
     } else {
         r->mfcc = nullptr;
     }
@@ -51,7 +55,8 @@ static void fillResultFromCpp(const AudioFeaturesResult& src, CAudioFeaturesResu
     r->chromagramCount = static_cast<int>(src.chromagram.size());
     if (r->chromagramCount > 0) {
         r->chromagram = (float*)malloc(r->chromagramCount * sizeof(float));
-        std::memcpy(r->chromagram, src.chromagram.data(), r->chromagramCount * sizeof(float));
+        if (!r->chromagram) { r->chromagramCount = 0; }
+        else { std::memcpy(r->chromagram, src.chromagram.data(), r->chromagramCount * sizeof(float)); }
     } else {
         r->chromagram = nullptr;
     }

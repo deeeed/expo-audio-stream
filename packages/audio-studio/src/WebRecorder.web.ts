@@ -41,6 +41,7 @@ export class WebRecorder {
     public audioContext: AudioContext
     private audioWorkletNode!: AudioWorkletNode
     private featureExtractorWorker?: Worker
+    private featureExtractorWorkerUrl?: string
     private source: MediaStreamAudioSourceNode
     private emitAudioEventCallback: EmitAudioEventFunction
     private emitAudioAnalysisCallback: EmitAudioAnalysisFunction
@@ -406,6 +407,7 @@ export class WebRecorder {
                 { type: 'application/javascript' }
             )
             const url = URL.createObjectURL(blob)
+            this.featureExtractorWorkerUrl = url
             this.featureExtractorWorker = new Worker(url)
             this.featureExtractorWorker.onmessage =
                 this.handleFeatureExtractorMessage.bind(this)
@@ -791,6 +793,16 @@ export class WebRecorder {
                 // Log disconnection errors but continue cleanup
                 this.logger?.warn('Error disconnecting source:', e)
             }
+        }
+
+        // Terminate feature extractor worker and revoke blob URL
+        if (this.featureExtractorWorker) {
+            this.featureExtractorWorker.terminate()
+            this.featureExtractorWorker = undefined
+        }
+        if (this.featureExtractorWorkerUrl) {
+            URL.revokeObjectURL(this.featureExtractorWorkerUrl)
+            this.featureExtractorWorkerUrl = undefined
         }
 
         // Always stop media stream tracks to release hardware resources

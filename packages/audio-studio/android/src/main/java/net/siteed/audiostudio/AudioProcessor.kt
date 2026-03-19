@@ -372,7 +372,7 @@ class AudioProcessor(private val filesDir: File) {
         // Determine if we need the C++ audio features (single JNI call for spectral + MFCC + chroma)
         val needSpectral = featureOptions["spectralCentroid"] == true ||
                           featureOptions["spectralFlatness"] == true ||
-                          featureOptions["spectralRollOff"] == true ||
+                          featureOptions["spectralRolloff"] == true ||
                           featureOptions["spectralBandwidth"] == true
         val needMfcc = featureOptions["mfcc"] == true
         val needChroma = featureOptions["chromagram"] == true
@@ -380,7 +380,7 @@ class AudioProcessor(private val filesDir: File) {
         // Single C++ call for all FFT-based features
         var spectralCentroid = 0f
         var spectralFlatness = 0f
-        var spectralRollOff = 0f
+        var spectralRolloff = 0f
         var spectralBandwidth = 0f
         var mfcc: List<Float> = emptyList()
         var chroma: List<Float> = emptyList()
@@ -399,7 +399,7 @@ class AudioProcessor(private val filesDir: File) {
                 if (needSpectral) {
                     spectralCentroid = (cppResult["spectralCentroid"] as? Float) ?: 0f
                     spectralFlatness = (cppResult["spectralFlatness"] as? Float) ?: 0f
-                    spectralRollOff = (cppResult["spectralRolloff"] as? Float) ?: 0f
+                    spectralRolloff = (cppResult["spectralRolloff"] as? Float) ?: 0f
                     spectralBandwidth = (cppResult["spectralBandwidth"] as? Float) ?: 0f
                 }
                 if (needMfcc) {
@@ -471,7 +471,7 @@ class AudioProcessor(private val filesDir: File) {
             zcr = zcr,
             spectralCentroid = spectralCentroid,
             spectralFlatness = spectralFlatness,
-            spectralRollOff = spectralRollOff,
+            spectralRolloff = spectralRolloff,
             spectralBandwidth = spectralBandwidth,
             tempo = tempo,
             hnr = hnr,

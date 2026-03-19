@@ -4,6 +4,10 @@
 #include <cstring>
 #include <limits>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 MelSpectrogramProcessor::MelSpectrogramProcessor(const MelSpectrogramConfig& config)
     : config_(config), fftCfg_(nullptr) {
     if (config_.fMax <= 0.0f) {
