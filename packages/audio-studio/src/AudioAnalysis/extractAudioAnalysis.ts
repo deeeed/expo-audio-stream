@@ -308,10 +308,14 @@ export const extractRawWavAnalysis = async ({
             const worker = new Worker(url)
 
             worker.onmessage = (event) => {
+                URL.revokeObjectURL(url)
+                worker.terminate()
                 resolve(event.data.result)
             }
 
             worker.onerror = (error) => {
+                URL.revokeObjectURL(url)
+                worker.terminate()
                 reject(error)
             }
 

@@ -70,23 +70,38 @@ Java_net_siteed_audiostudio_AudioFeaturesNative_computeFrame(
 
     // Build HashMap<String, Object>
     jclass hashMapClass = env->FindClass("java/util/HashMap");
-    if (!hashMapClass) {
+    if (!hashMapClass || env->ExceptionCheck()) {
         LOGE("computeFrame: failed to find HashMap class");
+        env->ExceptionClear();
         return nullptr;
     }
     jmethodID hashMapInit = env->GetMethodID(hashMapClass, "<init>", "()V");
     jmethodID hashMapPut = env->GetMethodID(hashMapClass, "put",
         "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    if (!hashMapInit || !hashMapPut || env->ExceptionCheck()) {
+        LOGE("computeFrame: failed to get HashMap methods");
+        env->ExceptionClear();
+        env->DeleteLocalRef(hashMapClass);
+        return nullptr;
+    }
 
     jobject map = env->NewObject(hashMapClass, hashMapInit);
     if (!map) {
         LOGE("computeFrame: failed to create HashMap");
+        env->DeleteLocalRef(hashMapClass);
         return nullptr;
     }
 
     // Helper: box a float as java.lang.Float
     jclass floatClass = env->FindClass("java/lang/Float");
     jmethodID floatValueOf = env->GetStaticMethodID(floatClass, "valueOf", "(F)Ljava/lang/Float;");
+    if (!floatClass || !floatValueOf || env->ExceptionCheck()) {
+        LOGE("computeFrame: failed to get Float class/method");
+        env->ExceptionClear();
+        if (floatClass) env->DeleteLocalRef(floatClass);
+        env->DeleteLocalRef(hashMapClass);
+        return map; // return partial map with no values
+    }
 
     // Put scalar values
     auto putFloat = [&](const char* key, float value) {
@@ -105,22 +120,28 @@ Java_net_siteed_audiostudio_AudioFeaturesNative_computeFrame(
     // Put MFCC array
     if (!result.mfcc.empty()) {
         jfloatArray jMfcc = env->NewFloatArray(static_cast<jsize>(result.mfcc.size()));
-        env->SetFloatArrayRegion(jMfcc, 0, static_cast<jsize>(result.mfcc.size()), result.mfcc.data());
-        jstring key = env->NewStringUTF("mfcc");
-        env->CallObjectMethod(map, hashMapPut, key, jMfcc);
-        env->DeleteLocalRef(key);
-        env->DeleteLocalRef(jMfcc);
+        if (jMfcc) {
+            env->SetFloatArrayRegion(jMfcc, 0, static_cast<jsize>(result.mfcc.size()), result.mfcc.data());
+            jstring key = env->NewStringUTF("mfcc");
+            env->CallObjectMethod(map, hashMapPut, key, jMfcc);
+            env->DeleteLocalRef(key);
+            env->DeleteLocalRef(jMfcc);
+        }
     }
 
     // Put chromagram array
     if (!result.chromagram.empty()) {
         jfloatArray jChroma = env->NewFloatArray(static_cast<jsize>(result.chromagram.size()));
-        env->SetFloatArrayRegion(jChroma, 0, static_cast<jsize>(result.chromagram.size()), result.chromagram.data());
-        jstring key = env->NewStringUTF("chromagram");
-        env->CallObjectMethod(map, hashMapPut, key, jChroma);
-        env->DeleteLocalRef(key);
-        env->DeleteLocalRef(jChroma);
+        if (jChroma) {
+            env->SetFloatArrayRegion(jChroma, 0, static_cast<jsize>(result.chromagram.size()), result.chromagram.data());
+            jstring key = env->NewStringUTF("chromagram");
+            env->CallObjectMethod(map, hashMapPut, key, jChroma);
+            env->DeleteLocalRef(key);
+            env->DeleteLocalRef(jChroma);
+        }
     }
 
+    env->DeleteLocalRef(floatClass);
+    env->DeleteLocalRef(hashMapClass);
     return map;
 }

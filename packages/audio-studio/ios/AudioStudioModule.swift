@@ -1059,7 +1059,7 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
             "dB": options["dB"] as? Bool ?? false,
             "spectralCentroid": options["spectralCentroid"] as? Bool ?? false,
             "spectralFlatness": options["spectralFlatness"] as? Bool ?? false,
-            "spectralRollOff": options["spectralRollOff"] as? Bool ?? false,
+            "spectralRolloff": options["spectralRolloff"] as? Bool ?? false,
             "spectralBandwidth": options["spectralBandwidth"] as? Bool ?? false,
             "chromagram": options["chromagram"] as? Bool ?? false,
             "tempo": options["tempo"] as? Bool ?? false,
