@@ -10,6 +10,11 @@
 
 MelSpectrogramProcessor::MelSpectrogramProcessor(const MelSpectrogramConfig& config)
     : config_(config), fftCfg_(nullptr) {
+    // Clamp invalid values to safe defaults to prevent division by zero
+    if (config_.fftLength <= 0) config_.fftLength = 2048;
+    if (config_.hopLengthSamples <= 0) config_.hopLengthSamples = 160;
+    if (config_.windowSizeSamples <= 1) config_.windowSizeSamples = 400;
+    if (config_.nMels <= 0) config_.nMels = 128;
     if (config_.fMax <= 0.0f) {
         config_.fMax = static_cast<float>(config_.sampleRate) / 2.0f;
     }
@@ -87,9 +92,11 @@ void MelSpectrogramProcessor::buildMelFilterbank() {
             float freq = static_cast<float>(bin) * binWidth;
             float weight;
             if (freq <= fCenter) {
-                weight = (freq - fLow) / (fCenter - fLow);
+                float denom = fCenter - fLow;
+                weight = (denom > 0.0f) ? (freq - fLow) / denom : 0.0f;
             } else {
-                weight = (fHigh - freq) / (fHigh - fCenter);
+                float denom = fHigh - fCenter;
+                weight = (denom > 0.0f) ? (fHigh - freq) / denom : 0.0f;
             }
             melFilters_[melIdx].weights[bin - binStart] = std::max(0.0f, weight);
         }

@@ -43,10 +43,12 @@ CMelSpectrogramResult* mel_spectrogram_compute(
 
     // Allocate C result — data is already flat, just transfer ownership
     CMelSpectrogramResult* cResult = (CMelSpectrogramResult*)malloc(sizeof(CMelSpectrogramResult));
+    if (!cResult) return nullptr;
     cResult->timeSteps = result.timeSteps;
     cResult->nMels = result.nMels;
     const size_t dataSize = result.timeSteps * result.nMels * sizeof(float);
     cResult->data = (float*)malloc(dataSize);
+    if (!cResult->data) { free(cResult); return nullptr; }
     std::memcpy(cResult->data, result.data.data(), dataSize);
 
     return cResult;
