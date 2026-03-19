@@ -10,6 +10,7 @@ import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
 import { initMelStreamingWasm, computeMelFrameWasm } from './AudioAnalysis/melSpectrogramWasm'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
+import { wasmGlueJs } from './workers/wasmGlueString.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
 
 interface AudioWorkletEvent {
@@ -400,9 +401,10 @@ export class WebRecorder {
      */
     initFeatureExtractorWorker() {
         try {
-            const blob = new Blob([InlineFeaturesExtractor], {
-                type: 'application/javascript',
-            })
+            const blob = new Blob(
+                [wasmGlueJs, '\n', InlineFeaturesExtractor],
+                { type: 'application/javascript' }
+            )
             const url = URL.createObjectURL(blob)
             this.featureExtractorWorker = new Worker(url)
             this.featureExtractorWorker.onmessage =
