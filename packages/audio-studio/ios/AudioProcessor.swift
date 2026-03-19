@@ -451,7 +451,7 @@ public class AudioProcessor {
     }
     
     private func computeFeatures(
-        segmentData: [Float], 
+        segmentData: [Float],
         sampleRate: Float,
         sumSquares: Float,
         zeroCrossings: Int,
@@ -461,26 +461,66 @@ public class AudioProcessor {
         let rms = sqrt(sumSquares / Float(segmentLength))
         let energy = featureOptions["energy"] == true ? sumSquares : 0
         let zcr = featureOptions["zcr"] == true ? Float(zeroCrossings) / Float(segmentLength) : 0
-        let mfcc = featureOptions["mfcc"] == true ? extractMFCC(from: segmentData, sampleRate: sampleRate) : []
-        let spectralCentroid = featureOptions["spectralCentroid"] == true ? extractSpectralCentroid(from: segmentData, sampleRate: sampleRate) : 0
-        let spectralFlatness = featureOptions["spectralFlatness"] == true ? extractSpectralFlatness(from: segmentData) : 0
-        let spectralRollOff = featureOptions["spectralRollOff"] == true ? extractSpectralRollOff(from: segmentData, sampleRate: sampleRate) : 0
-        let spectralBandwidth = featureOptions["spectralBandwidth"] == true ? extractSpectralBandwidth(from: segmentData, sampleRate: sampleRate) : 0
-        let chromagram = featureOptions["chromagram"] == true ? extractChromagram(from: segmentData, sampleRate: sampleRate) : []
+
+        // Determine which C++ features are needed
+        let needSpectral = featureOptions["spectralCentroid"] == true ||
+                          featureOptions["spectralFlatness"] == true ||
+                          featureOptions["spectralRollOff"] == true ||
+                          featureOptions["spectralBandwidth"] == true
+        let needMfcc = featureOptions["mfcc"] == true
+        let needChroma = featureOptions["chromagram"] == true
+
+        // Single C++ call for all FFT-based features
+        var spectralCentroid: Float = 0
+        var spectralFlatness: Float = 0
+        var spectralRollOff: Float = 0
+        var spectralBandwidth: Float = 0
+        var mfcc: [Float] = []
+        var chromagram: [Float] = []
+
+        if needSpectral || needMfcc || needChroma {
+            let cppResult: NSDictionary? = segmentData.withUnsafeBufferPointer { bufPtr in
+                AudioFeaturesWrapper.computeFrame(
+                    withSamples: bufPtr.baseAddress,
+                    numSamples: Int32(segmentData.count),
+                    sampleRate: Int32(sampleRate),
+                    fftLength: 1024,
+                    nMfcc: 13,
+                    nMelFilters: 26,
+                    computeMfcc: needMfcc,
+                    computeChroma: needChroma
+                )
+            }
+            if let result = cppResult {
+                if needSpectral {
+                    spectralCentroid = (result["spectralCentroid"] as? NSNumber)?.floatValue ?? 0
+                    spectralFlatness = (result["spectralFlatness"] as? NSNumber)?.floatValue ?? 0
+                    spectralRollOff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
+                    spectralBandwidth = (result["spectralBandwidth"] as? NSNumber)?.floatValue ?? 0
+                }
+                if needMfcc {
+                    mfcc = (result["mfcc"] as? [NSNumber])?.map { $0.floatValue } ?? []
+                }
+                if needChroma {
+                    chromagram = (result["chromagram"] as? [NSNumber])?.map { $0.floatValue } ?? []
+                }
+            }
+        }
+
         let tempo = featureOptions["tempo"] == true ? extractTempo(from: segmentData, sampleRate: sampleRate) : 0
         let hnr = featureOptions["hnr"] == true ? extractHNR(from: segmentData) : 0
         let melSpectrogram = featureOptions["melSpectrogram"] == true ? computeMelSpectrogram(from: segmentData, sampleRate: sampleRate) : []
         let spectralContrast = featureOptions["spectralContrast"] == true ? computeSpectralContrast(from: segmentData, sampleRate: sampleRate) : []
         let tonnetz = featureOptions["tonnetz"] == true ? computeTonnetz(from: segmentData, sampleRate: sampleRate) : []
         let pitch = featureOptions["pitch"] == true ? estimatePitch(from: segmentData, sampleRate: sampleRate) : 0
-        
+
         // Calculate min and max amplitudes from the segment data
         let minAmplitude = segmentData.map(abs).min() ?? 0
         let maxAmplitude = segmentData.map(abs).max() ?? 0
-        
-        let crc32Value = featureOptions["crc32"] == true ? 
+
+        let crc32Value = featureOptions["crc32"] == true ?
             calculateCRC32(from: segmentData, count: segmentData.count) : nil
-        
+
         return Features(
             energy: energy,
             mfcc: mfcc,
