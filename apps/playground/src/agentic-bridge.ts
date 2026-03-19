@@ -226,7 +226,7 @@ if (__DEV__) {
                 try {
                     const fileUri = await loadSampleFileUri()
                     const result = await extractMelSpectrogram({ fileUri, windowSizeMs: 25, hopLengthMs: 10, nMels: 40, startTimeMs: 0, endTimeMs: 5000 })
-                    _lastAsyncResult = { op, status: 'success', result: { timeSteps: result.timeSteps, nMels: result.nMels, durationMs: result.durationMs } }
+                    _lastAsyncResult = { op, status: 'success', result: { timeSteps: result.timeSteps, nMels: result.nMels, durationMs: result.durationMs, sampleValues: result.spectrogram.slice(0, 3).map(row => row.slice(0, 5)) } }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
                 }
