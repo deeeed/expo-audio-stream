@@ -24,7 +24,13 @@ export function useLiveMelSpectrogram(
         const dataPoints = analysisData.dataPoints
         const lastDpId = (dataPoints[dataPoints.length - 1] as any)?.id ?? -1
 
-        if (lastDpId <= lastProcessedIdRef.current) {
+        // Detect reset (new recording): ids jumped backwards
+        if (lastDpId < lastProcessedIdRef.current) {
+            framesRef.current = []
+            lastProcessedIdRef.current = -1
+        }
+
+        if (lastDpId === lastProcessedIdRef.current) {
             // No new data
             if (framesRef.current.length === 0) return null
             return {
@@ -32,12 +38,6 @@ export function useLiveMelSpectrogram(
                 nMels: framesRef.current[0]!.length,
                 timeSteps: framesRef.current.length,
             }
-        }
-
-        // Detect reset (new recording): ids jumped backwards
-        if (lastDpId < lastProcessedIdRef.current) {
-            framesRef.current = []
-            lastProcessedIdRef.current = -1
         }
 
         // Extract mel frames from datapoints newer than our last checkpoint
