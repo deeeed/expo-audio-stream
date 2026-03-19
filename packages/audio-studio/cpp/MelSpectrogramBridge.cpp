@@ -2,6 +2,8 @@
 #include "MelSpectrogram.h"
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 #include <memory>
 
 // Cache the processor so repeated calls with the same config skip
@@ -57,6 +59,46 @@ void mel_spectrogram_free(CMelSpectrogramResult* result) {
         }
         free(result);
     }
+}
+
+void mel_spectrogram_init(int sampleRate, int fftLength, int windowSizeSamples,
+    int hopLengthSamples, int nMels, float fMin, float fMax, int windowType)
+{
+    MelSpectrogramConfig config;
+    config.sampleRate = sampleRate;
+    config.fftLength = fftLength;
+    config.windowSizeSamples = windowSizeSamples;
+    config.hopLengthSamples = hopLengthSamples;
+    config.nMels = nMels;
+    config.fMin = fMin;
+    config.fMax = fMax;
+    config.windowType = windowType;
+    config.logScale = false;  // log applied manually per-frame below
+    config.normalize = false;
+
+    if (!cachedProcessor || !(cachedProcessor->config() == config)) {
+        cachedProcessor = std::make_unique<MelSpectrogramProcessor>(config);
+    }
+}
+
+int mel_spectrogram_compute_frame(const float* frame, int frameSize, float* melOutput) {
+    if (!cachedProcessor || !frame || !melOutput) {
+        return 0;
+    }
+    cachedProcessor->computeFrame(frame, frameSize, melOutput);
+    // Apply log scaling (matches compute() logScale behavior)
+    const int nMels = cachedProcessor->config().nMels;
+    for (int i = 0; i < nMels; ++i) {
+        melOutput[i] = std::log(std::max(1e-10f, melOutput[i]));
+    }
+    return 1;
+}
+
+int mel_spectrogram_get_n_mels(void) {
+    if (!cachedProcessor) {
+        return 0;
+    }
+    return cachedProcessor->config().nMels;
 }
 
 } // extern "C"
