@@ -69,7 +69,7 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     segmentDurationMs: 100,
     enableProcessing: true,
-    features: undefined,
+    features: { melSpectrogram: true },
     output: {
         primary: { enabled: true },
         compressed: {
@@ -933,24 +933,26 @@ export default function RecordScreen() {
             {/* Conditionally render visualizer based on showVisualization state */}
             {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
                 <View>
-                    <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
-                        <Button
-                            testID="viz-mode-waveform"
-                            mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
-                            onPress={() => setVizMode('waveform')}
-                            compact
-                        >
-                            Waveform
-                        </Button>
-                        <Button
-                            testID="viz-mode-mel"
-                            mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
-                            onPress={() => setVizMode('melSpectrogram')}
-                            compact
-                        >
-                            Mel Spectrogram
-                        </Button>
-                    </View>
+                    {startRecordingConfig.features?.melSpectrogram && (
+                        <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
+                            <Button
+                                testID="viz-mode-waveform"
+                                mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
+                                onPress={() => setVizMode('waveform')}
+                                compact
+                            >
+                                Waveform
+                            </Button>
+                            <Button
+                                testID="viz-mode-mel"
+                                mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
+                                onPress={() => setVizMode('melSpectrogram')}
+                                compact
+                            >
+                                Mel Spectrogram
+                            </Button>
+                        </View>
+                    )}
                     {vizMode === 'waveform' ? (
                         <AudioVisualizer
                             candleSpace={2}
@@ -1076,24 +1078,26 @@ style={{
             {/* Conditionally render visualizer based on showVisualization state */}
             {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
                 <View>
-                    <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
-                        <Button
-                            testID="viz-mode-waveform-paused"
-                            mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
-                            onPress={() => setVizMode('waveform')}
-                            compact
-                        >
-                            Waveform
-                        </Button>
-                        <Button
-                            testID="viz-mode-mel-paused"
-                            mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
-                            onPress={() => setVizMode('melSpectrogram')}
-                            compact
-                        >
-                            Mel Spectrogram
-                        </Button>
-                    </View>
+                    {startRecordingConfig.features?.melSpectrogram && (
+                        <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
+                            <Button
+                                testID="viz-mode-waveform-paused"
+                                mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
+                                onPress={() => setVizMode('waveform')}
+                                compact
+                            >
+                                Waveform
+                            </Button>
+                            <Button
+                                testID="viz-mode-mel-paused"
+                                mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
+                                onPress={() => setVizMode('melSpectrogram')}
+                                compact
+                            >
+                                Mel Spectrogram
+                            </Button>
+                        </View>
+                    )}
                     {vizMode === 'waveform' ? (
                         <AudioVisualizer
                             candleSpace={2}
@@ -1246,6 +1250,24 @@ style={{
                     }}
                 />
                 
+                {/* Mel Spectrogram Switch */}
+                <View style={{ marginTop: 16 }}>
+                    <LabelSwitch
+                        label="Enable Mel Spectrogram"
+                        value={startRecordingConfig.features?.melSpectrogram === true}
+                        onValueChange={(enabled: boolean) => {
+                            setStartRecordingConfig((prev) => ({
+                                ...prev,
+                                features: {
+                                    ...prev.features,
+                                    melSpectrogram: enabled,
+                                },
+                            }))
+                            if (!enabled) setVizMode('waveform')
+                        }}
+                    />
+                </View>
+
                 {/* Live Transcription Switch - Always visible */}
                 <View style={{ marginTop: 16 }}>
                     <LabelSwitch
