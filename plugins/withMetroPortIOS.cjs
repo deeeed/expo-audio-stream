@@ -63,6 +63,8 @@ module.exports = function withMetroPortIOS(config, { port = 7365 } = {}) {
       // Don't add if already patched
       if (contents.includes("METRO_PORT_OVERRIDE")) return config;
 
+      // NOTE: LAN IP is resolved at prebuild time. If your network changes
+      // (e.g. switching Wi-Fi), you must re-run prebuild to update the IP.
       const lanIP = getLanIP();
 
       // Set jsLocation before the factory is created so both simulator
