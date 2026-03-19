@@ -124,7 +124,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         owner: 'deeeed',
         plugins: [
             ["./plugins/withMetroPort.cjs", { port: 7500 }],
-            ["./plugins/withMetroPortIOS.cjs", { port: 7500 }],
+            ["../../plugins/withMetroPortIOS.cjs", { port: 7500 }],
             "./plugins/withCustomGradleConfig.cjs",
             "expo-router",
             [
