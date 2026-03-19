@@ -9,7 +9,7 @@ import type { AppTheme } from '@siteed/design-system'
 import { Notice, NumberAdjuster, ScreenWrapper, useTheme, useToast } from '@siteed/design-system'
 import type { MelSpectrogram } from '@siteed/audio-studio'
 import { extractMelSpectrogram, MAX_DURATION_MS } from '@siteed/audio-studio'
-import { MelSpectrogramVisualizer } from '@siteed/audio-ui'
+import { AudioTimeRangeSelector, MelSpectrogramVisualizer } from '@siteed/audio-ui'
 
 import { baseLogger } from '../config'
 import { useSampleAudio } from '../hooks/useSampleAudio'
@@ -63,6 +63,8 @@ export default function MelSpectrogramScreen() {
     const [hopLengthMs, setHopLengthMs] = useState(10)
     const [startTimeMs, setStartTimeMs] = useState(0)
     const [endTimeMs, setEndTimeMs] = useState(5000)
+    const [showManualInput, setShowManualInput] = useState(false)
+    const [fileDurationMs, setFileDurationMs] = useState(60000)
 
     const { isLoading: isSampleLoading, loadSampleAudio } = useSampleAudio({
         onError: (err) => {
@@ -133,6 +135,9 @@ export default function MelSpectrogramScreen() {
             setCurrentFile(newFile)
             setMelData(null)
             setError(undefined)
+            setFileDurationMs(60000)
+            setStartTimeMs(0)
+            setEndTimeMs(5000)
         } catch (err) {
             show({ type: 'error', message: 'Failed to load audio file', duration: 3000 })
         }
@@ -146,15 +151,22 @@ export default function MelSpectrogramScreen() {
                 setCurrentFile({ fileUri: SAMPLE_AUDIO_WEB, filename: 'JFK Speech Sample' })
                 setMelData(null)
                 setError(undefined)
+                setFileDurationMs(60000)
+                setStartTimeMs(0)
+                setEndTimeMs(5000)
                 return
             }
 
             const sampleFile = await loadSampleAudio(require('@assets/jfk.mp3'))
             if (!sampleFile) throw new Error('Failed to load sample audio file')
 
+            const duration = sampleFile.durationMs || 60000
             setCurrentFile({ fileUri: sampleFile.uri, filename: 'JFK Speech Sample' })
             setMelData(null)
             setError(undefined)
+            setFileDurationMs(duration)
+            setStartTimeMs(0)
+            setEndTimeMs(Math.min(5000, duration))
         } catch (err) {
             show({ type: 'error', message: 'Failed to load sample audio', duration: 3000 })
         } finally {
@@ -245,24 +257,67 @@ export default function MelSpectrogramScreen() {
                             step={1}
                             disabled={isProcessing}
                         />
-                        <NumberAdjuster
-                            label="Start Time (ms)"
-                            value={startTimeMs}
-                            onChange={setStartTimeMs}
-                            min={0}
-                            max={999999}
-                            step={100}
-                            disabled={isProcessing}
-                        />
-                        <NumberAdjuster
-                            label="End Time (ms)"
-                            value={endTimeMs}
-                            onChange={setEndTimeMs}
-                            min={0}
-                            max={startTimeMs + MAX_DURATION_MS}
-                            step={100}
-                            disabled={isProcessing}
-                        />
+                        <View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <Text variant="titleMedium">Analysis Range</Text>
+                                <Button
+                                    mode="text"
+                                    icon={showManualInput ? 'keyboard-close' : 'pencil'}
+                                    onPress={() => setShowManualInput((prev) => !prev)}
+                                    compact
+                                >
+                                    {showManualInput ? 'Hide' : 'Edit'}
+                                </Button>
+                            </View>
+
+                            <View style={{ paddingHorizontal: 16 }}>
+                                <AudioTimeRangeSelector
+                                    durationMs={fileDurationMs}
+                                    startTime={startTimeMs}
+                                    endTime={endTimeMs}
+                                    onRangeChange={(start, end) => {
+                                        setStartTimeMs(start)
+                                        setEndTimeMs(end)
+                                    }}
+                                    disabled={isProcessing}
+                                    theme={{
+                                        container: {
+                                            backgroundColor: theme.colors.surfaceVariant,
+                                        },
+                                        selectedRange: {
+                                            backgroundColor: theme.colors.primary,
+                                            opacity: 0.5,
+                                        },
+                                        handle: {
+                                            backgroundColor: theme.colors.primary,
+                                        },
+                                    }}
+                                />
+                            </View>
+
+                            {showManualInput && (
+                                <View style={{ gap: 12, marginTop: 16 }}>
+                                    <NumberAdjuster
+                                        label="Start Time (ms)"
+                                        value={startTimeMs}
+                                        onChange={setStartTimeMs}
+                                        min={0}
+                                        max={fileDurationMs}
+                                        step={100}
+                                        disabled={isProcessing}
+                                    />
+                                    <NumberAdjuster
+                                        label="End Time (ms)"
+                                        value={endTimeMs}
+                                        onChange={setEndTimeMs}
+                                        min={0}
+                                        max={Math.min(fileDurationMs, startTimeMs + MAX_DURATION_MS)}
+                                        step={100}
+                                        disabled={isProcessing}
+                                    />
+                                </View>
+                            )}
+                        </View>
 
                         <Button
                             mode="contained"
