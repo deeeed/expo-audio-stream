@@ -423,6 +423,22 @@ export const MoreScreen = () => {
             />
             <ListItem
                 contentContainerStyle={styles.listItemContainer}
+                label="Audio Analysis"
+                subLabel="Extract spectral, MFCC, and chromagram features"
+                onPress={() => {
+                    router.navigate('/audio-analysis')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
+                label="Mel Spectrogram"
+                subLabel="Mel spectrogram extraction and visualization"
+                onPress={() => {
+                    router.navigate('/mel-spectrogram')
+                }}
+            />
+            <ListItem
+                contentContainerStyle={styles.listItemContainer}
                 label="Decibel"
                 subLabel="Decibel Viewer"
                 onPress={() => {
