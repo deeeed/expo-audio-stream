@@ -323,17 +323,34 @@ private func computeDCT(from input: [Float]) -> [Float] {
 }
 
 func computeMelSpectrogram(from segment: [Float], sampleRate: Float) -> [Float] {
-    let nMels = 128
-    let fftData = sharedFFT.processSegment(segment)
-    
-    let powerSpectrum = computePowerSpectrum(from: fftData)
-    let melFilters = computeMelFilterbank(numFilters: nMels, fftSize: FFT_LENGTH, sampleRate: sampleRate)
-    
-    return melFilters.map { filter in
-        zip(filter, powerSpectrum)
-            .map { $0 * $1 }
-            .reduce(0, +)
+    let nMels: Int32 = 128
+    let fftLength: Int32 = 2048
+    let windowSize = Int32(min(segment.count, Int(fftLength)))
+    let hopLength = windowSize  // single frame
+
+    MelSpectrogramWrapper.initWithSampleRate(
+        Int32(sampleRate),
+        fftLength: fftLength,
+        windowSizeSamples: windowSize,
+        hopLengthSamples: hopLength,
+        nMels: nMels,
+        fMin: 0.0,
+        fMax: sampleRate / 2.0,
+        windowType: 0  // Hann
+    )
+
+    let melResult: [NSNumber]? = segment.withUnsafeBufferPointer { bufPtr in
+        return MelSpectrogramWrapper.computeFrame(
+            withSamples: bufPtr.baseAddress,
+            frameSize: Int32(segment.count)
+        )
     }
+
+    guard let result = melResult else {
+        return []
+    }
+
+    return result.map { $0.floatValue }
 }
 
 func computeSpectralContrast(from segment: [Float], sampleRate: Float) -> [Float] {
