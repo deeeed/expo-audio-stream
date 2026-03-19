@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import * as FileSystem from 'expo-file-system/legacy'
 import { Stack, useRouter } from 'expo-router'
-import { Image, Platform, StyleSheet, View } from 'react-native'
+import { Image, type LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native'
 import { ActivityIndicator } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -33,7 +33,7 @@ import {
     useSharedAudioRecorder,
     useAudioDevices,
 } from '@siteed/audio-studio'
-import { AudioVisualizer } from '@siteed/audio-ui'
+import { AudioVisualizer, MelSpectrogramVisualizer, useLiveMelSpectrogram } from '@siteed/audio-ui'
 
 import { AudioDeviceSelector } from '../../component/AudioDeviceSelector'
 import { AudioRecordingView } from '../../component/AudioRecordingView'
@@ -69,7 +69,7 @@ const baseRecordingConfig: RecordingConfig = {
     encoding: 'pcm_32bit',
     segmentDurationMs: 100,
     enableProcessing: true,
-    features: undefined,
+    features: { melSpectrogram: true },
     output: {
         primary: { enabled: true },
         compressed: {
@@ -165,10 +165,16 @@ const getStyles = ({ theme, insets }: { theme: AppTheme, insets?: { bottom: numb
 }
 
 export default function RecordScreen() {
+    const [containerWidth, setContainerWidth] = useState(300)
+    const handleMelLayout = useCallback((e: LayoutChangeEvent) => {
+        const w = e.nativeEvent.layout.width
+        if (w > 0) setContainerWidth(w)
+    }, [])
     const [error, setError] = useState<string | null>(null)
-    
+
     // Add state for visualization display
     const [showVisualization, setShowVisualization] = useState(true)
+    const [vizMode, setVizMode] = useState<'waveform' | 'melSpectrogram'>('waveform')
     
     // Add state for advanced mode
     const [advancedMode, setAdvancedMode] = useState(false)
@@ -261,6 +267,8 @@ export default function RecordScreen() {
         isRecording,
         analysisData,
     } = useSharedAudioRecorder()
+
+    const liveMelData = useLiveMelSpectrogram(analysisData)
 
     const transcriptionContext = useTranscription()
 
@@ -923,13 +931,44 @@ export default function RecordScreen() {
         <View style={{ gap: 10, display: 'flex' }}>
             {/* Conditionally render visualizer based on showVisualization state */}
             {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
-                <AudioVisualizer
-                    candleSpace={2}
-                    candleWidth={5}
-                    canvasHeight={200}
-                    mode="live"
-                    audioData={analysisData}
-                />
+                <View>
+                    <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
+                        <Button
+                            testID="viz-mode-waveform"
+                            mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('waveform')}
+                            compact
+                        >
+                            Waveform
+                        </Button>
+                        <Button
+                            testID="viz-mode-mel"
+                            mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('melSpectrogram')}
+                            compact
+                        >
+                            Mel Spectrogram
+                        </Button>
+                    </View>
+                    {vizMode === 'waveform' ? (
+                        <AudioVisualizer
+                            candleSpace={2}
+                            candleWidth={5}
+                            canvasHeight={200}
+                            mode="live"
+                            audioData={analysisData}
+                        />
+                    ) : (
+                        <View onLayout={handleMelLayout} style={{ flex: 1 }}>
+                            <MelSpectrogramVisualizer
+                                data={liveMelData}
+                                width={containerWidth}
+                                height={200}
+                                normalization="sliding"
+                            />
+                        </View>
+                    )}
+                </View>
             )}
             <RecordingStats
                 duration={durationMs}
@@ -967,10 +1006,10 @@ style={{
                     <Text variant="bodyLarge">
                         {activeTranscript?.text || 'Listening...'}
                     </Text>
-                    
+
                     {/* Add this to debug what's happening */}
                     <Text variant="labelSmall" style={{ marginTop: 8, color: colors.outline }}>
-                        Status: {isProcessing ? 'Processing' : 'Idle'}, 
+                        Status: {isProcessing ? 'Processing' : 'Idle'},
                         Batch Running: {isProgressiveBatchRunning ? 'Yes' : 'No'},
                         Transcripts: {transcripts.length}
                     </Text>
@@ -989,9 +1028,9 @@ style={{
                         }
                     />
                 )}
-            <Button 
+            <Button
                 testID="pause-recording-button"
-                mode="contained" 
+                mode="contained"
                 onPress={() => {
                     pauseRecording()
                     if (isProgressiveBatchRunningRef.current || isRealtimeTranscribing) {
@@ -1001,9 +1040,9 @@ style={{
             >
                 Pause Recording
             </Button>
-            <Button 
+            <Button
                 testID="stop-recording-button"
-                mode="contained" 
+                mode="contained"
                 onPress={() => handleStopRecording()}
                 loading={stopping}
                 disabled={stopping}
@@ -1035,13 +1074,44 @@ style={{
         <View style={{ gap: 10, display: 'flex' }}>
             {/* Conditionally render visualizer based on showVisualization state */}
             {analysisData && showVisualization && startRecordingConfig.enableProcessing && (
-                <AudioVisualizer
-                    candleSpace={2}
-                    candleWidth={5}
-                    canvasHeight={200}
-                    mode="live"
-                    audioData={analysisData}
-                />
+                <View>
+                    <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
+                        <Button
+                            testID="viz-mode-waveform-paused"
+                            mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('waveform')}
+                            compact
+                        >
+                            Waveform
+                        </Button>
+                        <Button
+                            testID="viz-mode-mel-paused"
+                            mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('melSpectrogram')}
+                            compact
+                        >
+                            Mel Spectrogram
+                        </Button>
+                    </View>
+                    {vizMode === 'waveform' ? (
+                        <AudioVisualizer
+                            candleSpace={2}
+                            candleWidth={5}
+                            canvasHeight={200}
+                            mode="live"
+                            audioData={analysisData}
+                        />
+                    ) : (
+                        <View onLayout={handleMelLayout} style={{ flex: 1 }}>
+                            <MelSpectrogramVisualizer
+                                data={liveMelData}
+                                width={containerWidth}
+                                height={200}
+                                normalization="sliding"
+                            />
+                        </View>
+                    )}
+                </View>
             )}
             <RecordingStats
                 duration={durationMs}
