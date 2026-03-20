@@ -83,7 +83,7 @@ The playground app can be used for the following purposes:
 
 ## UI Components
 
-The playground also showcases the ready-to-use UI components available in the [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package, including:
+The playground also showcases the ready-to-use UI components available in the [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/audio-ui) package, including:
 
 - Waveform visualizers
 - Recording controls

@@ -6,7 +6,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import type { ExtractAudioDataOptions, ExtractedAudioData, TranscriberData } from '@siteed/audio-studio'
 import { extractAudioData } from '@siteed/audio-studio'
 
-import { isWeb } from '../../../../packages/expo-audio-ui/src/constants'
+import { isWeb } from '../../../../packages/audio-ui/src/constants'
 import { baseLogger } from '../config'
 import { useTranscription } from '../context/TranscriptionProvider'
 import { validateExtractedAudio } from '../utils/audioValidation'

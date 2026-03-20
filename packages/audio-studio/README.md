@@ -157,7 +157,7 @@ const trimmed = await trimAudio({
 - [Getting Started Guide](https://deeeed.github.io/audiolab/docs/)
 - [Contributing](./CONTRIBUTE.md)
 - [AudioPlayground](https://deeeed.github.io/audiolab/playground) — live demo of all features
-- [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) — waveform, spectrogram, and audio control components
+- [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/audio-ui) — waveform, spectrogram, and audio control components
 
 ## License
 

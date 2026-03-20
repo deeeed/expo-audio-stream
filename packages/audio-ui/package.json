@@ -1,6 +1,6 @@
 {
   "name": "@siteed/audio-ui",
-  "version": "0.7.2",
+  "version": "1.0.0",
   "description": "UI experiments for @siteed/audio-studio",
   "license": "MIT",
   "main": "dist/index.cjs.js",
@@ -11,7 +11,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deeeed/audiolab.git",
-    "directory": "packages/expo-audio-ui"
+    "directory": "packages/audio-ui"
   },
   "bugs": {
     "url": "https://github.com/deeeed/audiolab/issues"

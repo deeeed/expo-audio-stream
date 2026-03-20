@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-03-20
+
+### BREAKING CHANGES
+- Package renamed from `@siteed/expo-audio-ui` to `@siteed/audio-ui`
+- Folder renamed from `packages/expo-audio-ui` to `packages/audio-ui`
 
 ## [0.7.2] - 2026-02-23
 ### Changed

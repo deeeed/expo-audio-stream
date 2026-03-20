@@ -5,7 +5,7 @@ const main: StorybookConfig = {
     '../src/**/*.stories.@(js|jsx|ts|tsx)',
     '../ui-components/**/*.stories.@(js|jsx|ts|tsx)',
     // Temporarily disabled UI library stories to debug displayName error
-    // '../../../packages/expo-audio-ui/src/**/*.stories.@(js|jsx|ts|tsx)'
+    // '../../../packages/audio-ui/src/**/*.stories.@(js|jsx|ts|tsx)'
   ],
   addons: [
     '@storybook/addon-ondevice-controls',

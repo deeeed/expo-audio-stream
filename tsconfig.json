@@ -39,7 +39,7 @@
             "path": "./packages/expo-audio-stream"
         },
         {
-            "path": "./packages/expo-audio-ui"
+            "path": "./packages/audio-ui"
         },
         {
             "path": "./apps/playground"

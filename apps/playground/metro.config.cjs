@@ -7,13 +7,13 @@ const path = require('node:path')
 const withStorybook = require('@storybook/react-native/metro/withStorybook')
 
 const pakLib = require('../../packages/audio-studio/package.json')
-const pakUI = require('../../packages/expo-audio-ui/package.json')
+const pakUI = require('../../packages/audio-ui/package.json')
 
 // Find the project and workspace directories
 const projectRoot = __dirname
 // This can be replaced with `find-yarn-workspace-root`
 const monorepoRoot = path.resolve(projectRoot, '../..')
-const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
+const uiRoot = path.resolve(monorepoRoot, 'packages/audio-ui')
 const libRoot = path.resolve(monorepoRoot, 'packages/audio-studio')
 const playgroundApiRoot = path.resolve(monorepoRoot, 'packages/playgroundapi')
 const essentiaRoot = path.resolve(monorepoRoot, 'packages/react-native-essentia')
@@ -151,7 +151,7 @@ config.resolver = {
         }
         if (moduleName === '@siteed/audio-ui') {
             return {
-                filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',
+                filePath: monorepoRoot + '/packages/audio-ui/src/index.ts',
                 type: 'sourceFile',
             }
         } else if (moduleName === '@siteed/audio-studio') {
