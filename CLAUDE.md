@@ -154,7 +154,7 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ✅ All prebuild/build commands run from `apps/playground/` only
 - ❌ `expo prebuild --clean` manually before a local EAS build — EAS local builds manage their own temp dir; manual prebuild is only for Xcode/screenshots workflows
 - ❌ `expo prebuild --clean --platform android` to "fix" build issues — it nukes the platform dir (gitignored, no recovery) and can remove autolinked dependencies (e.g. expo-splash-screen → ClassNotFoundException)
-- ✅ `npx expo prebuild --platform android` (without --clean) to re-link modules after dependency changes
+- ✅ `yarn expo prebuild --platform android` (without --clean) to re-link modules after dependency changes
 - ✅ After prebuild --clean: verify no ClassNotFoundException in logcat before debugging further
 - ✅ Local builds: `yarn build:ios:production:local` / `yarn build:android:production:local` (both run `eas build --local`)
 - ✅ Switch ios/ variant via setup scripts only: `yarn setup:development` / `yarn setup:production`

@@ -30,7 +30,7 @@ check_web_server() {
 if ! check_web_server; then
   echo "Starting Expo web on port $PORT..."
   mkdir -p .agent
-  npx expo start --web --port "$PORT" 2>&1 | tee -a .agent/metro.log &
+  yarn expo start --web --port "$PORT" 2>&1 | tee -a .agent/metro.log &
   WEB_PID=$!
   echo "$WEB_PID" > .agent/metro.pid
 
@@ -59,7 +59,7 @@ FILENAME="${TIMESTAMP}_${LABEL}.png"
 FILEPATH="$DIR/$FILENAME"
 
 # Try Playwright for screenshot if available
-if command -v npx &>/dev/null && npx playwright --version &>/dev/null 2>&1; then
+if yarn dlx playwright --version &>/dev/null 2>&1; then
   echo "Taking web screenshot with Playwright..."
 
   # Create a temporary Playwright script

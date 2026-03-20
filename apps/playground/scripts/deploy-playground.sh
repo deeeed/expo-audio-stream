@@ -314,18 +314,34 @@ deploy_web() {
   echo -e "\n${CYAN}Preparing web deployment...${NC}"
   read -p "$(echo -e ${YELLOW}"Choose environment (development/production) [production]: "${NC})" WEB_ENV
   WEB_ENV=${WEB_ENV:-production}
-  
+
   # Clear caches first
   clear_all_caches
-  
+
   if [[ "$WEB_ENV" == "development" ]]; then
     echo -e "${CYAN}Deploying to web (development)...${NC}"
-    NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/
+    NODE_ENV=development APP_VARIANT=development EXPO_WEB=true yarn expo export -p web
+    if [ ! -d "dist" ]; then
+      echo -e "${RED}❌ Export failed: dist/ directory not found${NC}"
+      return 1
+    fi
+    yarn serve dist/
   else
     echo -e "${CYAN}Deploying to web (production)...${NC}"
-    NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web && cp playstore_policy.html dist/ && gh-pages -t -d dist --dest playground
+    NODE_ENV=production APP_VARIANT=production EXPO_WEB=true yarn expo export -p web
+    if [ ! -d "dist" ]; then
+      echo -e "${RED}❌ Export failed: dist/ directory not found${NC}"
+      return 1
+    fi
+    cp playstore_policy.html dist/
+    echo -e "${CYAN}Publishing to gh-pages...${NC}"
+    yarn gh-pages -t -d dist --dest playground
+    if [ $? -ne 0 ]; then
+      echo -e "${RED}❌ gh-pages publish failed${NC}"
+      return 1
+    fi
   fi
-  
+
   echo -e "${GREEN}✅ Web deployment completed!${NC}"
 }
 

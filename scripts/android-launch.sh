@@ -128,7 +128,7 @@ if [ "$SKIP_METRO_CHECK" = false ]; then
         success "Metro running on port $METRO_PORT"
     else
         warn "Metro not detected on port $METRO_PORT"
-        warn "Start it with: npx expo start --port $METRO_PORT --dev-client"
+        warn "Start it with: yarn expo start --port $METRO_PORT --dev-client"
     fi
 fi
 

@@ -15,7 +15,7 @@
 # - Not be blocked by third-party TypeScript errors we can't control
 
 # Run TypeScript compiler and capture output
-output=$(npx tsc -p tsconfig.json --noEmit 2>&1)
+output=$(yarn tsc -p tsconfig.json --noEmit 2>&1)
 exit_code=$?
 
 # If no errors, exit successfully

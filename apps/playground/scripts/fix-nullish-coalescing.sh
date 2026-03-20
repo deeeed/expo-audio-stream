@@ -4,7 +4,7 @@
 echo "Fixing nullish coalescing and optional chaining issues..."
 
 # Extract list of files with issues
-npx eslint src/ --format=json > eslint-report.json
+yarn eslint src/ --format=json > eslint-report.json
 
 # Count issues by type
 NULLISH_COUNT=$(grep -c "prefer-nullish-coalescing" eslint-report.json)
