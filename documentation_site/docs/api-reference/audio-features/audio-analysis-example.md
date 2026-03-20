@@ -19,7 +19,7 @@ import {
   AudioAnalysis, 
   AudioFeatures,
   AudioRecording
-} from '@siteed/expo-audio-studio';
+} from '@siteed/audio-studio';
 import { LineChart } from 'react-native-chart-kit';
 
 interface FeatureDisplayProps {

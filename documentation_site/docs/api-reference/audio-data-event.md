@@ -50,7 +50,7 @@ With `streamFormat: 'float32'`, `data` is guaranteed to be `Float32Array` on all
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder, type AudioDataEvent } from '@siteed/expo-audio-studio';
+import { useAudioRecorder, type AudioDataEvent } from '@siteed/audio-studio';
 
 const { startRecording } = useAudioRecorder({ debug: true });
 

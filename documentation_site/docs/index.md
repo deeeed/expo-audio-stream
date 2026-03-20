@@ -4,14 +4,14 @@ title: Introduction
 sidebar_label: Introduction
 ---
 
-# @siteed/expo-audio-studio
+# @siteed/audio-studio
 
-`@siteed/expo-audio-studio` is a comprehensive library designed to facilitate real-time audio processing and streaming across iOS, Android, and web platforms.
+`@siteed/audio-studio` is a cross-platform audio recording, analysis, and processing library for React Native and Expo. It works on iOS, Android, and web.
 
 ## Overview
 
-**@siteed/expo-audio-studio** provides a complete audio solution for React Native and Expo applications with recording, analysis, visualization, and streaming capabilities. The library offers a unified API that works consistently across iOS, Android, and web platforms.
+**@siteed/audio-studio** handles audio recording, real-time streaming, feature extraction, and audio manipulation with a consistent API across all platforms.
 
-> **Important Requirement:** This library requires using an ejected Expo project (bare workflow). You must run `npx expo prebuild` to eject from the managed workflow before using this library. See the [Installation](installation.md) section for details.
+> **Important:** This library requires an ejected Expo project (bare workflow). You must run `yarn expo prebuild` before using it. See the [Installation](installation.md) section for details.
 
-> **Note:** This package was formerly known as `@siteed/expo-audio-stream`. The name has been changed to better reflect the expanded capabilities beyond just audio streaming.
+> **Note:** This package was formerly known as `@siteed/expo-audio-studio`. See the [Migration Guide](https://github.com/deeeed/audiolab/blob/main/MIGRATION.md) for upgrade steps.

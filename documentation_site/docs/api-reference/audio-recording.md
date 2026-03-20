@@ -30,7 +30,7 @@ export interface AudioRecording {
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder } from '@siteed/audio-studio';
 
 const {
     startRecording,

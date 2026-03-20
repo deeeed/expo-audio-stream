@@ -6,7 +6,7 @@ sidebar_label: Audio Devices
 
 # Audio Device Detection & Selection
 
-The `@siteed/expo-audio-studio` library provides a comprehensive API for detecting, examining, and selecting audio input devices across iOS, Android, and web platforms.
+The `@siteed/audio-studio` library provides a comprehensive API for detecting, examining, and selecting audio input devices across iOS, Android, and web platforms.
 
 ## Overview
 
@@ -68,7 +68,7 @@ type DeviceDisconnectionBehaviorType =
 The easiest way to integrate audio device detection and selection is with the `useAudioDevices` hook:
 
 ```typescript
-import { useAudioDevices } from '@siteed/expo-audio-studio';
+import { useAudioDevices } from '@siteed/audio-studio';
 
 function MyComponent() {
   const {
@@ -120,7 +120,7 @@ function MyComponent() {
 For a ready-to-use UI component, you can use the `AudioDeviceSelector`:
 
 ```typescript
-import { AudioDeviceSelector } from '@siteed/expo-audio-studio';
+import { AudioDeviceSelector } from '@siteed/audio-studio';
 
 function MyRecordingScreen() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>();
@@ -149,7 +149,7 @@ function MyRecordingScreen() {
 To use a specific audio device with recording, include the `deviceId` in your recording configuration:
 
 ```typescript
-import { useAudioRecorder, useAudioDevices } from '@siteed/expo-audio-studio';
+import { useAudioRecorder, useAudioDevices } from '@siteed/audio-studio';
 
 function RecordingComponent() {
   const { devices, currentDevice } = useAudioDevices();
@@ -185,7 +185,7 @@ function RecordingComponent() {
 For advanced use cases, you can directly access the `AudioDeviceManager`:
 
 ```typescript
-import { audioDeviceManager } from '@siteed/expo-audio-studio';
+import { audioDeviceManager } from '@siteed/audio-studio';
 
 // Get all available devices
 const devices = await audioDeviceManager.getAvailableDevices();

@@ -1,10 +1,10 @@
 # Performance
 
-Learn about the performance characteristics of expo-audio-stream and how to optimize your audio recording configurations.
+Learn about the performance characteristics of @siteed/audio-studio and how to optimize your audio recording configurations.
 
 ## Overview
 
-expo-audio-stream is built with performance as a core priority. The library has undergone significant optimizations to ensure fast, reliable audio recording across all platforms.
+@siteed/audio-studio is built with performance as a core priority. The library has undergone significant optimizations to ensure fast, reliable audio recording across all platforms.
 
 ### Key Performance Features
 

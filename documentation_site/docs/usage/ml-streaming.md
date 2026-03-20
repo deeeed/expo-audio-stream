@@ -42,7 +42,7 @@ On web, the AudioWorklet already operates on Float32 internally. Setting `stream
 ## Configuration
 
 ```typescript
-import { useAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder } from '@siteed/audio-studio';
 
 const { startRecording } = useAudioRecorder();
 

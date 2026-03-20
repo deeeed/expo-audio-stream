@@ -7,10 +7,10 @@ sidebar_label: Installation
 # Installation
 
 > ## ⚠️ Important: Bare Workflow Required
-> 
-> **`@siteed/expo-audio-studio` requires using an ejected Expo project (bare workflow).** 
-> 
-> This library **will not work** in the managed Expo workflow. You must run `npx expo prebuild` 
+>
+> **`@siteed/audio-studio` requires using an ejected Expo project (bare workflow).**
+>
+> This library **will not work** in the managed Expo workflow. You must run `yarn expo prebuild`
 > to eject from the managed workflow before using this library.
 >
 > While the expo plugin configures permissions and native modules, the actual functionality
@@ -18,24 +18,22 @@ sidebar_label: Installation
 
 ## Installing the library
 
-To install `@siteed/expo-audio-studio`, add it to your project using npm or Yarn:
+To install `@siteed/audio-studio`, add it to your project:
 
 ```bash
-npm install @siteed/expo-audio-studio
-# or
-yarn add @siteed/expo-audio-studio
+yarn add @siteed/audio-studio
 ```
 
 ## Configuring with app.json
 
-To ensure expo-audio-stream works correctly with Expo, you must add it as a plugin in your app.json configuration file. You can add it with default configuration or customize its behavior using options:
+To ensure `@siteed/audio-studio` works correctly with Expo, you must add it as a plugin in your app.json configuration file. You can add it with default configuration or customize its behavior using options:
 
 ### Basic Configuration
 
 ```json
 {
     "expo": {
-        "plugins": ["@siteed/expo-audio-studio"]
+        "plugins": ["@siteed/audio-studio"]
     }
 }
 ```
@@ -49,7 +47,7 @@ You can customize the plugin's behavior by providing options:
     "expo": {
         "plugins": [
             [
-                "@siteed/expo-audio-studio",
+                "@siteed/audio-studio",
                 {
                     "enablePhoneStateHandling": true,
                     "enableNotifications": true,
@@ -188,7 +186,7 @@ The plugin also adds necessary service components to your Android manifest:
     android:foregroundServiceType="microphone" />
 ```
 
-Make sure to run `npx expo prebuild` after modifying the plugin configuration in your app.json file.
+Make sure to run `yarn expo prebuild` after modifying the plugin configuration in your app.json file.
 
 ## Requesting Permissions
 
@@ -197,7 +195,7 @@ To request microphone permissions in your Expo project, you can use the followin
 ```tsx
 import {
     AudioStudioModule,
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 
 const requestPermissions = async () => {
     const { granted } =

@@ -19,7 +19,7 @@ The `useAudioRecorder` hook provides methods and state for managing audio record
 ## Usage
 
 ```tsx
-import { useAudioRecorder, RecordingConfig } from '@siteed/expo-audio-studio'
+import { useAudioRecorder, RecordingConfig } from '@siteed/audio-studio'
 import { Audio } from 'expo-av'
 import { Button, Text, View } from 'react-native'
 
@@ -169,7 +169,7 @@ Phone call handling is controlled by the `enablePhoneStateHandling` option in yo
     "expo": {
         "plugins": [
             [
-                "@siteed/expo-audio-studio",
+                "@siteed/audio-studio",
                 {
                     "enablePhoneStateHandling": true  // Default value
                 }

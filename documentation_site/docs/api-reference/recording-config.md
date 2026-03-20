@@ -169,7 +169,7 @@ The `prepareRecording` method decouples these initialization steps from the actu
 ### Using prepareRecording
 
 ```tsx
-import { useAudioRecorder, useSharedAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder, useSharedAudioRecorder } from '@siteed/audio-studio';
 
 // With individual recorder hook
 const { 
@@ -667,7 +667,7 @@ const efficientStreamingConfig = {
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder } from '@siteed/audio-studio';
 
 const config = {
     sampleRate: 16000,
@@ -910,7 +910,7 @@ Example iOS Info.plist configuration:
 ## Example Usage
 
 ```tsx
-import { useAudioRecorder } from '@siteed/expo-audio-studio';
+import { useAudioRecorder } from '@siteed/audio-studio';
 
 const config = {
     sampleRate: 16000,

@@ -6,7 +6,7 @@ sidebar_label: Features
 
 # Key Features
 
-`@siteed/expo-audio-studio` provides a comprehensive set of audio recording, processing, and analysis features that work consistently across iOS, Android, and web platforms:
+`@siteed/audio-studio` provides a comprehensive set of audio recording, processing, and analysis features that work consistently across iOS, Android, and web platforms:
 
 ## Recording Features
 
@@ -48,7 +48,7 @@ sidebar_label: Features
 
 ## User Interface
 
-- Ready-to-use UI components via [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package
+- Ready-to-use UI components via [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package
 - Audio device selection components
 - Visualizations, waveforms, and interactive audio controls
 - Full-featured AudioPlayground application showcasing API usage

@@ -17,7 +17,7 @@ import {
     AudioRecorderProvider,
     useSharedAudioRecorder,
     RecordingConfig
-} from '@siteed/expo-audio-studio'
+} from '@siteed/audio-studio'
 import { View, Text, Button } from 'react-native'
 
 export default function ParentComponent() {

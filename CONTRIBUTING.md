@@ -1,10 +1,11 @@
-# Contributing to expo-audio-stream
+# Contributing to audiolab
 
-## Quick Start
+Thanks for your interest in contributing! This monorepo contains several audio processing packages for React Native and Expo.
 
-### Setup
+## Setup
+
 ```bash
-# 1. Install Git LFS for ONNX models
+# 1. Install Git LFS (needed for ONNX models)
 ./scripts/setup-lfs.sh
 
 # 2. Install dependencies
@@ -14,29 +15,56 @@ yarn install
 cd apps/playground && yarn build:deps
 ```
 
-### Development Approaches
+## Development
 
-**CDP Bridge Validation (Recommended)**
+The playground app is the best way to test changes across all packages:
+
 ```bash
 cd apps/playground
-scripts/agentic/start-metro.sh                        # Start Metro
-scripts/agentic/app-navigate.sh "/(tabs)/record"      # Navigate
-scripts/agentic/app-state.sh state                     # Query state
-scripts/agentic/screenshot.sh my-label                 # Screenshot
+yarn start
 ```
 
-**Traditional Testing**
+For individual package builds:
+
 ```bash
-./scripts/run_tests.sh        # Run comprehensive test suite
+yarn workspace @siteed/audio-studio build
+yarn workspace @siteed/expo-audio-ui build
 ```
 
-### Constraints
-- NEVER IMPLEMENT UNLESS ASKED
-- ALWAYS VERIFY IN SOURCE CODE
-- MINIMIZE DIFF
-- NO WORKAROUNDS - fix root causes
-- REAL TESTING ONLY
+## Testing
 
-## Documentation
-- **Complete Guide**: `apps/playground/docs/AGENTIC_FEEDBACK_LOOPS.md`
-- **Package Details**: `packages/audio-studio/CONTRIBUTE.md`
+```bash
+./scripts/run_tests.sh
+```
+
+## Project Structure
+
+```
+packages/
+  audio-studio/          # Core audio recording, analysis, processing
+  expo-audio-ui/         # Skia-based visualization components
+  react-native-essentia/ # Audio feature extraction (Essentia bindings)
+  sherpa-onnx.rn/        # Speech-to-text / text-to-speech
+apps/
+  playground/            # Full demo app (App Store / Play Store)
+  minimal/               # Minimal integration example
+  essentia-demo/         # Audio analysis demo
+  sherpa-voice/          # Speech recognition demo
+```
+
+## Guidelines
+
+- Keep diffs minimal — smallest change that solves the problem
+- Fix root causes, not symptoms
+- Test on both iOS and Android for UI/navigation changes
+- Use `yarn` (not `npm` or `npx`) for all commands
+
+## Docs
+
+- [Package README](packages/audio-studio/README.md)
+- [Package contribution guide](packages/audio-studio/CONTRIBUTE.md)
+- [Testing strategy](packages/expo-audio-studio/docs/TESTING_STRATEGY.md)
+
+## License
+
+MIT — contributions are welcome under the same license.

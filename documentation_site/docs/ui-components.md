@@ -6,22 +6,18 @@ sidebar_label: UI Components
 
 # UI Components
 
-The [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
+The [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
 
 ## Installation
 
 ```bash
-# Install the UI components package
-npm install @siteed/expo-audio-ui
-
-# or with yarn
-yarn add @siteed/expo-audio-ui
+yarn add @siteed/audio-ui
 ```
 
 Make sure you have the required peer dependencies installed:
 
 ```bash
-npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+yarn add @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
 ```
 
 ## Available Components
@@ -87,8 +83,8 @@ Here's a simple example of using the AudioVisualizer component:
 ```tsx
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { AudioVisualizer } from '@siteed/expo-audio-ui';
-import { extractAudioAnalysis } from '@siteed/expo-audio-studio';
+import { AudioVisualizer } from '@siteed/audio-ui';
+import { extractAudioAnalysis } from '@siteed/audio-studio';
 
 const AudioWaveform = ({ audioUri }) => {
   const [audioData, setAudioData] = React.useState(null);
@@ -143,7 +139,7 @@ Here's how to use the DecibelGauge component:
 ```tsx
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { DecibelGauge } from '@siteed/expo-audio-ui';
+import { DecibelGauge } from '@siteed/audio-ui';
 
 const AudioLevelMeter = ({ level }) => {
   return (
@@ -177,20 +173,6 @@ const styles = StyleSheet.create({
 
 export default AudioLevelMeter;
 ```
-
-## Upcoming Components
-
-The following components are currently in development and may be available in future releases:
-
-- **NavigationControls**: Advanced controls for audio navigation and playback
-- **EmbeddingVisualizer**: Visualization tools for audio embeddings and feature vectors
-- **YAxis**: Customizable Y-axis component for audio visualizations
-- **SkiaTimeRuler**: High-performance time ruler component using Skia
-- **AnimatedCandle**: Animated visualization for audio levels
-
-## Development Status
-
-This package is currently under active development. More components will be added in future releases. The current focus is on providing robust visualization tools for audio data.
 
 ## Storybook
 

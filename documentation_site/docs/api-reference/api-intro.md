@@ -6,9 +6,9 @@ sidebar_label: API Intro
 
 # API Introduction
 
-> **Note:** `@siteed/expo-audio-studio` requires using an ejected Expo project (bare workflow). See the [Installation](../installation.md) section for details.
+> **Note:** `@siteed/audio-studio` requires using an ejected Expo project (bare workflow). See the [Installation](../installation.md) section for details.
 
-This section provides detailed information about the various types, interfaces, and functions provided by the `@siteed/expo-audio-studio` library.
+This section provides detailed information about the various types, interfaces, and functions provided by the `@siteed/audio-studio` library.
 
 ## Overview
 
@@ -73,4 +73,4 @@ Click on the links above to navigate to detailed documentation for each componen
 
 ## UI Components
 
-For ready-to-use UI components, check out the [@siteed/expo-audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package, which provides waveform visualizers, recording controls, and more.
+For ready-to-use UI components, check out the [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package, which provides waveform visualizers, recording controls, and more.

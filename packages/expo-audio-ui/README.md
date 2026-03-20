@@ -1,87 +1,58 @@
+# @siteed/expo-audio-ui
+
+[![Version](https://img.shields.io/npm/v/@siteed/expo-audio-ui.svg)](https://www.npmjs.com/package/@siteed/expo-audio-ui)
+[![License](https://img.shields.io/npm/l/@siteed/expo-audio-ui.svg)](https://www.npmjs.com/package/@siteed/expo-audio-ui)
+[![GitHub stars](https://img.shields.io/github/stars/deeeed/audiolab.svg?style=social&label=Star)](https://github.com/deeeed/audiolab)
+
+**Give it a GitHub star, if you found this repo useful.**
+
+Audio visualization and control components for React Native, built with Skia and Reanimated. Designed to work with [@siteed/audio-studio](https://github.com/deeeed/audiolab/tree/main/packages/audio-studio).
+
 <div align="center">
-  <h1 align="center">
-    @siteed/expo-audio-studio-ui
-  </h1>
-  <p>
-  <strong>@siteed/expo-audio-studio-ui<strong> is a UI component library designed to complement the @siteed/expo-audio-studio library for real-time audio processing and streaming.
-  </p>
-  <div align="center">
-    <b>Storybook</b>
-    <p><a href="https://deeeed.github.io/audiolab/expo-audio-ui-storybook">https://deeeed.github.io/audiolab/expo-audio-ui-storybook</a></p>
-  </div>
   <a href="https://deeeed.github.io/audiolab/playground/">
-    <img src="../../docs/demo.gif" alt="Screenshot Playground">
+    <img src="../../docs/demo.gif" alt="Demo" />
   </a>
+  <p><a href="https://deeeed.github.io/audiolab/expo-audio-ui-storybook">Storybook</a></p>
 </div>
 
-## Features
+## Components
 
-- Customizable UI components for real-time audio streaming.
-- Intuitive interfaces for audio controls and visualizations.
-- Seamless integration with @siteed/expo-audio-studio.
-- Support for iOS, Android, and web platforms.
+- **AudioVisualizer** — interactive waveform with navigation, amplitude scaling, and theming
+- **DecibelGauge** — gauge display for audio levels in dB
+- **DecibelMeter** — linear meter with customizable thresholds
+- **RecordButton** — recording button with visual feedback and animations
+- **Waveform** — lightweight waveform renderer
+- **AudioTimeRangeSelector** — interactive time range selection with drag handles
+- **MelSpectrogramVisualizer** — real-time mel spectrogram display
 
-## Currently Available Components
-
-- **AudioVisualizer**: A powerful component for visualizing audio waveforms with extensive customization options, including interactive navigation, amplitude scaling, and theming.
-- **DecibelGauge**: A gauge component for displaying audio levels in decibels with various formatting options and customizable appearance.
-- **DecibelMeter**: A linear meter component for displaying audio levels in decibels with customizable appearance and thresholds.
-- **RecordButton**: A button component specifically designed for audio recording with visual feedback and animated transitions.
-- **Waveform**: A lightweight component for rendering audio waveforms with customizable styling options.
-- **AudioTimeRangeSelector**: A component for selecting a time range within an audio file with interactive handles.
-
-## Upcoming Components
-
-The following components are currently in development:
-
-- **NavigationControls**: Advanced controls for audio navigation and playback
-- **EmbeddingVisualizer**: Visualization tools for audio embeddings and feature vectors
-- **YAxis**: Customizable Y-axis component for audio visualizations
-- **SkiaTimeRuler**: High-performance time ruler component using Skia
-- **AnimatedCandle**: Animated visualization for audio levels
-
-## Installation
+## Install
 
 ```bash
-# Install the UI components package
-npm install @siteed/expo-audio-ui
-
-# or with yarn
 yarn add @siteed/expo-audio-ui
 ```
 
-Make sure you have the required peer dependencies installed:
+Peer dependencies:
 
 ```bash
-npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+yarn add @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
 ```
-
-## Development Status
-
-This package is currently under active development and is primarily used for testing purposes. The API and features are subject to change. Future updates will focus on optimization and expanding the component library with additional audio visualization and control components.
 
 ## Development
 
-### Storybook
-
-This package uses Storybook v9 for component development and documentation.
-
 ```bash
-# Run Storybook locally (web-only)
 cd packages/expo-audio-ui
 yarn storybook
 # Opens at http://localhost:6068
 ```
 
-**Note**: Currently using React 18.3.1 for Storybook compatibility. React Native Storybook support is planned for future releases.
+## Docs
 
-## Documentation
-
-For detailed documentation and usage instructions, please refer to the [Getting Started Guide](https://deeeed.github.io/audiolab/docs/).
+- [Getting Started Guide](https://deeeed.github.io/audiolab/docs/)
+- [Storybook](https://deeeed.github.io/audiolab/expo-audio-ui-storybook)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
-<sub>Created by [Arthur Breton](https://siteed.net) • See more projects at [siteed.net](https://siteed.net)</sub>
+<sub>Created by [Arthur Breton](https://siteed.net)</sub>
