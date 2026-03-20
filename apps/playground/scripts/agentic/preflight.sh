@@ -57,29 +57,39 @@ if [ "$PLATFORM" = "ios" ]; then
   fi
 
   if [ "$USE_IOS_PHYSICAL" = true ]; then
-    # Try to find a connected physical iOS device via xcrun devicectl
+    # Auto-detect connected physical iOS device via xcrun devicectl
     IOS_PHYSICAL_UDID=""
     IOS_PHYSICAL_NAME=""
     if command -v xcrun &>/dev/null; then
-      # devicectl (Xcode 15+) lists physical devices
-      # Output format: Name   Hostname   Identifier   State   Model
-      # Parse lines with "available" state (connected devices)
-      IOS_PHYSICAL_LINE=$(xcrun devicectl list devices 2>/dev/null \
-        | grep -E 'available' | grep -v 'Simulator' | head -1 || true)
-      if [ -n "$IOS_PHYSICAL_LINE" ]; then
-        # Extract UDID (8-4-4-4-12 hex pattern)
-        IOS_PHYSICAL_UDID=$(echo "$IOS_PHYSICAL_LINE" \
-          | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' \
-          | head -1 || true)
-        # Extract device name (first column before the long whitespace gap)
-        IOS_PHYSICAL_NAME=$(echo "$IOS_PHYSICAL_LINE" | sed 's/  .*//' | sed 's/^ *//' || true)
+      # Parse devicectl verbose output for the real UDID (not CoreDevice identifier)
+      # CoreDevice identifier (8-4-4-4-12 format) != real device UDID
+      IOS_PHYSICAL_INFO=$(xcrun devicectl list devices -v 2>/dev/null | python3 -c "
+import sys, re
+text = sys.stdin.read()
+# Find physical devices that are available
+blocks = re.split(r'(?=▿ .+ - [0-9A-F]{8}-)', text)
+for block in blocks:
+    if 'available' not in block and 'paired' not in block:
+        continue
+    if 'physical' not in block:
+        continue
+    udid_match = re.search(r'udid: Optional\(\"([^\"]+)\"\)', block)
+    name_match = re.search(r'marketingName: Optional\(\"([^\"]+)\"\)', block)
+    if udid_match:
+        name = name_match.group(1) if name_match else 'unknown'
+        print(f'{udid_match.group(1)}|{name}')
+        break
+" 2>/dev/null || true)
+      if [ -n "$IOS_PHYSICAL_INFO" ]; then
+        IOS_PHYSICAL_UDID="${IOS_PHYSICAL_INFO%%|*}"
+        IOS_PHYSICAL_NAME="${IOS_PHYSICAL_INFO##*|}"
       fi
     fi
 
     if [ -n "$IOS_PHYSICAL_UDID" ]; then
       IOS_DEVICE_UDID="$IOS_PHYSICAL_UDID"
       IOS_DEVICE_MODE="physical"
-      pass "Physical iOS device detected: ${IOS_PHYSICAL_NAME:-unknown} (${IOS_DEVICE_UDID})"
+      pass "Physical iOS device detected: ${IOS_PHYSICAL_NAME} (${IOS_DEVICE_UDID})"
     else
       # Fallback to default simulator
       info "No physical iOS device found — falling back to simulator"
@@ -205,10 +215,33 @@ if [ "$APP_INSTALLED" = false ]; then
       yarn expo run:ios --device "${IOS_DEVICE_UDID}" --no-bundler
     pass "iOS app built and installed on physical device"
   elif [ "$PLATFORM" = "ios" ]; then
-    info "Building iOS app for simulator ${SIM}..."
-    APP_VARIANT=development RCT_METRO_PORT="${PORT}" NODE_ENV=development \
-      yarn expo run:ios --device "${SIM}" --no-bundler
-    pass "iOS app built and installed"
+    # Resolve simulator name → UUID for reliable targeting
+    SIM_UUID=$(xcrun simctl list devices -j | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for runtime,devs in data['devices'].items():
+  for d in devs:
+    if d['name']=='${SIM}' and d['isAvailable']:
+      print(d['udid']); sys.exit(0)
+sys.exit(1)
+")
+    info "Building iOS app for simulator ${SIM} (${SIM_UUID})..."
+    # Build via xcodebuild with explicit destination to avoid expo misrouting
+    WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+    SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
+    xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME_NAME" \
+      -destination "platform=iOS Simulator,id=${SIM_UUID}" \
+      -configuration Debug \
+      -derivedDataPath ios/build \
+      build 2>&1 | tail -5
+    # Install explicitly on the correct simulator
+    APP_PATH="ios/build/Build/Products/Debug-iphonesimulator/${SCHEME_NAME}.app"
+    if [ ! -d "$APP_PATH" ]; then
+      fail "Built .app not found at $APP_PATH"
+      exit 1
+    fi
+    xcrun simctl install "${SIM_UUID}" "$APP_PATH"
+    pass "iOS app built and installed on ${SIM}"
   elif [ "$PLATFORM" = "android" ]; then
     info "Building Android app for ${SERIAL}..."
     # Build APK via Gradle (no device targeting — just compile)
