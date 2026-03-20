@@ -43,6 +43,7 @@ function AppContent() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="download" options={{ title: 'Download', headerBackTitle: 'Back' }} />
       </Stack>
     </ThemeProvider>
   );

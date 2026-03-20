@@ -9,6 +9,7 @@ import {
   type AppTheme,
 } from '@siteed/design-system';
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppUpdates } from '../../hooks/useAppUpdates';
@@ -68,6 +69,7 @@ const logoSource = require('@assets/icon.png');
 
 export default function AboutScreen() {
   const { toggleDarkMode, darkMode, theme } = useThemePreferences();
+  const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const styles = useMemo(() => getStyles({ theme, insets: { bottom } }), [theme, bottom]);
   const {
@@ -103,6 +105,17 @@ export default function AboutScreen() {
 
       <View style={styles.configSection}>
         <Text style={styles.sectionTitle}>Links</Text>
+        {isWeb && (
+          <ListItem
+            contentContainerStyle={{
+              ...styles.listItemContainer,
+              backgroundColor: theme.colors.primaryContainer,
+            }}
+            label="Download Apps"
+            subLabel="Get Sherpa Voice for iOS and Android"
+            onPress={() => router.navigate('/download')}
+          />
+        )}
         <ListItem
           contentContainerStyle={styles.listItemContainer}
           label="GitHub Repository"

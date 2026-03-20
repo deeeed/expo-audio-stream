@@ -1,15 +1,16 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@siteed/design-system";
+import { useRouter } from "expo-router";
 import React, { useMemo, useCallback, useState, useEffect } from "react";
-import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const WEB_APP_BANNER_DISMISSED_KEY = "@SherpaVoice:webAppBannerDismissed";
-const APP_STORE_URL = "https://apps.apple.com/us/app/sherpa-voice/id6760437954";
 
 export const WebAppBanner = () => {
   const theme = useTheme();
+  const router = useRouter();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -56,8 +57,8 @@ export const WebAppBanner = () => {
   );
 
   const handlePress = useCallback(() => {
-    Linking.openURL(APP_STORE_URL);
-  }, []);
+    router.navigate("/download");
+  }, [router]);
 
   const handleDismiss = useCallback(async () => {
     setIsDismissed(true);
@@ -80,7 +81,7 @@ export const WebAppBanner = () => {
             color={theme.colors.onPrimaryContainer}
           />
           <Text style={styles.text}>
-            Get Sherpa Voice on iOS — try the full native experience!
+            Try Sherpa Voice on iOS and Android — full model selection and mic input!
           </Text>
         </Pressable>
         <Pressable style={styles.dismissButton} onPress={handleDismiss}>
