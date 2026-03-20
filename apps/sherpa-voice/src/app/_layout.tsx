@@ -9,6 +9,7 @@ import { UIProvider, useTheme, useThemePreferences } from '@siteed/design-system
 import type { ThemePreferences } from '@siteed/design-system';
 import { ModelManagementProvider } from '../contexts/ModelManagement';
 import { AgenticBridgeSync } from '../components/AgenticBridgeSync';
+import { WebAppBanner } from '../components/WebAppBanner';
 import '../agentic-bridge';
 
 const THEME_STORAGE_KEY = 'sherpa-voice-theme-preferences';
@@ -32,6 +33,7 @@ function AppContent() {
   return (
     <ThemeProvider value={navigationTheme}>
       <StatusBar style={darkMode ? 'light' : 'dark'} />
+      <WebAppBanner />
       <AgenticBridgeSync />
       <Stack
         screenOptions={{
