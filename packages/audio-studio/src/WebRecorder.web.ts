@@ -512,6 +512,12 @@ export class WebRecorder {
             const seg = chunk.slice(numSegs * samplesPerSeg)
             this.pendingMelFrames.push(computeMelFrameWasm(seg))
         }
+
+        // Cap queue to prevent unbounded memory growth if consumer falls behind
+        const MAX_PENDING_MEL_FRAMES = 200
+        if (this.pendingMelFrames.length > MAX_PENDING_MEL_FRAMES) {
+            this.pendingMelFrames = this.pendingMelFrames.slice(-MAX_PENDING_MEL_FRAMES)
+        }
     }
 
     /**
