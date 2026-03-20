@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useModelManagement } from '../contexts/ModelManagement';
 import type { ModelType } from '../utils/models';
 import { formatBytes } from '../utils/formatters';
@@ -22,6 +23,7 @@ export function InlineModelDownloader({
   const pendingRef = useRef<Set<string>>(new Set());
   const prevStatusRef = useRef<Record<string, string>>({});
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { getAvailableModels, modelsState, downloadModel, cancelDownload } =
     useModelManagement();
 
@@ -126,6 +128,7 @@ export function InlineModelDownloader({
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
               padding: 20,
+              paddingBottom: Math.max(20, insets.bottom + 16),
               maxHeight: '80%',
             }}
           >
