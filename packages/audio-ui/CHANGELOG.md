@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### BREAKING CHANGES
+
+## [1.0.0] - 2026-03-20
 - Package renamed from `@siteed/expo-audio-ui` to `@siteed/audio-ui`
 - Folder renamed from `packages/expo-audio-ui` to `packages/audio-ui`
-
+- `MelSpectrogramVisualizer` component with Skia canvas rendering and NaN guards
+- `useLiveMelSpectrogram` hook for real-time mel frame accumulation during recording
+- Optimized mel rendering: single SkImage pixel buffer instead of ~8000 individual Rect components (-36% CPU, -11% peak memory)
+- Remove unused `normalization` prop from `MelSpectrogramVisualizer`
+- Add missing `@expo/vector-icons` devDependency (fixes TS2307 build warnings)
+- Add missing peerDependencies for `react` and `@expo/vector-icons`
+- Add `@siteed/publisher` for standardized release workflow
 ## [0.7.2] - 2026-02-23
 ### Changed
 - fix(expo-audio-ui): enlarge AudioTimeRangeSelector handles and fix end-handle clamping ([036ebf2](https://github.com/deeeed/expo-audio-stream/commit/036ebf2c5f2e946c97d5eee159fc062582282e0a))
@@ -88,15 +95,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Seamless integration with @siteed/expo-audio-studio
 - Feature: Support for iOS, Android, and web platforms
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.2...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-ui@1.0.0...HEAD
+[1.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/audio-ui@0.7.2...@siteed/audio-ui@1.0.0
 [0.7.2]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.1...@siteed/expo-audio-ui@0.7.2
 [0.7.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.7.0...@siteed/expo-audio-ui@0.7.1
 [0.7.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.6.0...@siteed/expo-audio-ui@0.7.0
 [0.6.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.5.0...@siteed/expo-audio-ui@0.6.0
 [0.5.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.4.0...@siteed/expo-audio-ui@0.5.0
-[0.4.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.3.0...@siteed/expo-audio-ui@0.4.0
+[0.4.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.3.0...@siteed/expo-audio-ui@0.3.0
 [0.3.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.2.1...@siteed/expo-audio-ui@0.3.0
 [0.2.1]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.2.0...@siteed/expo-audio-ui@0.2.1
 [0.2.0]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.1.19...@siteed/expo-audio-ui@0.2.0
-[Unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-ui@0.1.19...HEAD
 [0.1.19]: https://github.com/deeeed/expo-audio-stream/releases/tag/@siteed/expo-audio-ui@0.1.19
