@@ -83,8 +83,6 @@ export const MelSpectrogramVisualizer: React.FC<MelSpectrogramVisualizerProps> =
     width,
     height,
     colorMap = 'magma',
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    normalization = 'global',
     style,
 }) => {
     const pixelBufRef = useRef<Uint8Array | null>(null)
