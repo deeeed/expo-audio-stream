@@ -19,7 +19,10 @@ function getModule(): Promise<AudioFeaturesWasmModule> {
             const mod = await import('../../prebuilt/wasm/mel-spectrogram.js')
             const factory = mod.default ?? mod
             return factory() as Promise<AudioFeaturesWasmModule>
-        })()
+        })().catch((err) => {
+            modulePromise = null
+            throw err
+        })
     }
     return modulePromise
 }
@@ -95,6 +98,8 @@ export async function initAudioFeaturesWasm(
     // Pre-allocate result struct on WASM heap
     if (streamingResultPtr) Module._free(streamingResultPtr)
     streamingResultPtr = Module._malloc(STRUCT_SIZE)
+    // Zero-initialize to prevent freeing garbage pointers on first use
+    Module.HEAPU8.fill(0, streamingResultPtr, streamingResultPtr + STRUCT_SIZE)
 
     // Frame input buffer allocated on demand
     streamingFrameCapacity = 0

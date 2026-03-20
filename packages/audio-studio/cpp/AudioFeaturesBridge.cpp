@@ -43,6 +43,10 @@ static void fillResultFromCpp(const AudioFeaturesResult& src, CAudioFeaturesResu
     r->spectralRolloff = src.spectralRolloff;
     r->spectralBandwidth = src.spectralBandwidth;
 
+    // Free prior allocations to prevent leaks on repeated calls
+    if (r->mfcc) { free(r->mfcc); r->mfcc = nullptr; }
+    if (r->chromagram) { free(r->chromagram); r->chromagram = nullptr; }
+
     r->mfccCount = static_cast<int>(src.mfcc.size());
     if (r->mfccCount > 0) {
         r->mfcc = (float*)malloc(r->mfccCount * sizeof(float));

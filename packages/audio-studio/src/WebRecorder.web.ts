@@ -68,6 +68,8 @@ export class WebRecorder {
     private pcmData: Float32Array | null = null // Store original PCM data
     private totalSampleCount: number = 0
     private melWasmReady: boolean = false
+    private melWasmInitPromise: Promise<void> | null = null
+    private melPendingChunks: { chunk: Float32Array; sampleRate: number }[] = []
     private pendingMelFrames: (number[] | null)[] = [] // Queued mel frames to attach to datapoints
 
     /**
@@ -161,13 +163,20 @@ export class WebRecorder {
                 const sr = this.config.sampleRate || this.audioContext.sampleRate
                 const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
                 const windowSamples = Math.floor(sr * segMs / 1000)
-                initMelStreamingWasm(sr, 128, 2048, windowSamples, windowSamples)
+                this.melWasmInitPromise = initMelStreamingWasm(sr, 128, 2048, windowSamples, windowSamples)
                     .then(() => {
                         this.melWasmReady = true
                         this.logger?.log('Mel WASM streaming processor ready')
+                        // Process any chunks that arrived during init
+                        for (const pending of this.melPendingChunks) {
+                            this.computeMelFrames(pending.chunk, pending.sampleRate)
+                        }
+                        this.melPendingChunks = []
                     })
                     .catch((err) => {
                         console.error(`[${TAG}] Failed to init mel WASM:`, err)
+                        this.melWasmInitPromise = null
+                        this.melPendingChunks = []
                     })
             }
         }
@@ -483,7 +492,14 @@ export class WebRecorder {
      * Frames are queued in pendingMelFrames and attached to datapoints in handleFeatureExtractorMessage.
      */
     private computeMelFrames(chunk: Float32Array, sampleRate: number): void {
-        if (!this.melWasmReady || !this.config.features?.melSpectrogram) return
+        if (!this.config.features?.melSpectrogram) return
+        if (!this.melWasmReady) {
+            // Buffer chunks while WASM is still initializing
+            if (this.melWasmInitPromise) {
+                this.melPendingChunks.push({ chunk: new Float32Array(chunk), sampleRate })
+            }
+            return
+        }
         const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
         const samplesPerSeg = Math.floor(sampleRate * segMs / 1000)
         const numSegs = Math.floor(chunk.length / samplesPerSeg)

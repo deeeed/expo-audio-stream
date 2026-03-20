@@ -28,14 +28,17 @@ function initWasm(sampleRate) {
         wasmModule = Module;
         Module._audio_features_init(sampleRate, N_FFT, 13, 26, 1, 1);
         wasmResultPtr = Module._malloc(STRUCT_SIZE);
+        Module.HEAPU8.fill(0, wasmResultPtr, wasmResultPtr + STRUCT_SIZE);
         return Module;
+    }).catch(function(err) {
+        wasmInitPromise = null;
+        throw err;
     });
     return wasmInitPromise;
 }
 
 function readWasmResult(Module, ptr) {
     var getValue = Module.getValue;
-    var HEAPF32 = Module.HEAPF32;
     var centroid = getValue(ptr, 'float');
     var flatness = getValue(ptr + 4, 'float');
     var rolloff  = getValue(ptr + 8, 'float');
@@ -48,12 +51,12 @@ function readWasmResult(Module, ptr) {
     var mfcc = [];
     if (mfccPtr && mfccCount > 0) {
         var off = mfccPtr >> 2;
-        for (var i = 0; i < mfccCount; i++) mfcc.push(HEAPF32[off + i]);
+        for (var i = 0; i < mfccCount; i++) mfcc.push(Module.HEAPF32[off + i]);
     }
     var chromagram = [];
     if (chromaPtr && chromaCount > 0) {
         var off2 = chromaPtr >> 2;
-        for (var i = 0; i < chromaCount; i++) chromagram.push(HEAPF32[off2 + i]);
+        for (var i = 0; i < chromaCount; i++) chromagram.push(Module.HEAPF32[off2 + i]);
     }
     return { centroid: centroid, flatness: flatness, rolloff: rolloff, bandwidth: bandwidth, mfcc: mfcc, chromagram: chromagram };
 }

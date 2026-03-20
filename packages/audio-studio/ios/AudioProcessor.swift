@@ -479,7 +479,7 @@ public class AudioProcessor {
         var chromagram: [Float] = []
 
         if needSpectral || needMfcc || needChroma {
-            let cppResult: NSDictionary? = segmentData.withUnsafeBufferPointer { bufPtr in
+            let cppResult = segmentData.withUnsafeBufferPointer { bufPtr in
                 AudioFeaturesWrapper.computeFrame(
                     withSamples: bufPtr.baseAddress,
                     numSamples: Int32(segmentData.count),

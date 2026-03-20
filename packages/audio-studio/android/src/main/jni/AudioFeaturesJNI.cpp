@@ -106,6 +106,7 @@ Java_net_siteed_audiostudio_AudioFeaturesNative_computeFrame(
     // Put scalar values
     auto putFloat = [&](const char* key, float value) {
         jstring jKey = env->NewStringUTF(key);
+        if (!jKey) return;
         jobject jVal = env->CallStaticObjectMethod(floatClass, floatValueOf, value);
         env->CallObjectMethod(map, hashMapPut, jKey, jVal);
         env->DeleteLocalRef(jKey);
@@ -123,8 +124,10 @@ Java_net_siteed_audiostudio_AudioFeaturesNative_computeFrame(
         if (jMfcc) {
             env->SetFloatArrayRegion(jMfcc, 0, static_cast<jsize>(result.mfcc.size()), result.mfcc.data());
             jstring key = env->NewStringUTF("mfcc");
-            env->CallObjectMethod(map, hashMapPut, key, jMfcc);
-            env->DeleteLocalRef(key);
+            if (key) {
+                env->CallObjectMethod(map, hashMapPut, key, jMfcc);
+                env->DeleteLocalRef(key);
+            }
             env->DeleteLocalRef(jMfcc);
         }
     }
@@ -135,8 +138,10 @@ Java_net_siteed_audiostudio_AudioFeaturesNative_computeFrame(
         if (jChroma) {
             env->SetFloatArrayRegion(jChroma, 0, static_cast<jsize>(result.chromagram.size()), result.chromagram.data());
             jstring key = env->NewStringUTF("chromagram");
-            env->CallObjectMethod(map, hashMapPut, key, jChroma);
-            env->DeleteLocalRef(key);
+            if (key) {
+                env->CallObjectMethod(map, hashMapPut, key, jChroma);
+                env->DeleteLocalRef(key);
+            }
             env->DeleteLocalRef(jChroma);
         }
     }
