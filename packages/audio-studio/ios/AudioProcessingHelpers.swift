@@ -504,30 +504,67 @@ func computeFeatures(segmentData: [Float], sampleRate: Float, sumSquares: Float,
     let rms = sqrt(sumSquares / Float(segmentLength))
     let energy = featureOptions["energy"] == true ? sumSquares : 0
     let zcr = featureOptions["zcr"] == true ? Float(zeroCrossings) / Float(segmentLength) : 0
-    
-    // Compute min and max amplitudes
-    let _ = segmentData.min() ?? 0
-    let _ = segmentData.max() ?? 0
-    
-    // Call feature extraction functions
-    let mfcc = featureOptions["mfcc"] == true ? extractMFCC(from: segmentData, sampleRate: sampleRate) : []
+
+    // Determine which C++ features are needed
+    let needSpectral = featureOptions["spectralCentroid"] == true ||
+                      featureOptions["spectralFlatness"] == true ||
+                      featureOptions["spectralRolloff"] == true ||
+                      featureOptions["spectralBandwidth"] == true
+    let needMfcc = featureOptions["mfcc"] == true
+    let needChroma = featureOptions["chromagram"] == true
+
+    // Single C++ call for all FFT-based features (spectral + MFCC + chroma)
+    var spectralCentroid: Float = 0
+    var spectralFlatness: Float = 0
+    var spectralRolloff: Float = 0
+    var spectralBandwidth: Float = 0
+    var mfcc: [Float] = []
+    var chromagram: [Float] = []
+
+    if needSpectral || needMfcc || needChroma {
+        let cppResult: NSDictionary? = segmentData.withUnsafeBufferPointer { bufPtr in
+            AudioFeaturesWrapper.computeFrame(
+                withSamples: bufPtr.baseAddress,
+                numSamples: Int32(segmentData.count),
+                sampleRate: Int32(sampleRate),
+                fftLength: Int32(N_FFT),
+                nMfcc: 13,
+                nMelFilters: 26,
+                computeMfcc: needMfcc,
+                computeChroma: needChroma
+            )
+        }
+        if let result = cppResult {
+            if needSpectral {
+                spectralCentroid = (result["spectralCentroid"] as? NSNumber)?.floatValue ?? 0
+                spectralFlatness = (result["spectralFlatness"] as? NSNumber)?.floatValue ?? 0
+                spectralRolloff = (result["spectralRolloff"] as? NSNumber)?.floatValue ?? 0
+                spectralBandwidth = (result["spectralBandwidth"] as? NSNumber)?.floatValue ?? 0
+            }
+            if needMfcc {
+                mfcc = (result["mfcc"] as? [NSNumber])?.map { $0.floatValue } ?? []
+            }
+            if needChroma {
+                chromagram = (result["chromagram"] as? [NSNumber])?.map { $0.floatValue } ?? []
+            }
+        }
+    }
+
     let melSpectrogram = featureOptions["melSpectrogram"] == true ? computeMelSpectrogram(from: segmentData, sampleRate: sampleRate) : []
-    let chromagram = featureOptions["chromagram"] == true ? extractChromagram(from: segmentData, sampleRate: sampleRate) : []
     let spectralContrast = featureOptions["spectralContrast"] == true ? computeSpectralContrast(from: segmentData, sampleRate: sampleRate) : []
     let tonnetz = featureOptions["tonnetz"] == true ? computeTonnetz(from: segmentData, sampleRate: sampleRate) : []
-    
-    // Add pitch calculation
+
     let pitch = featureOptions["pitch"] == true ? estimatePitch(from: segmentData, sampleRate: sampleRate) : nil
-    
+
     return Features(
         energy: energy,
         mfcc: mfcc,
         rms: rms,
         zcr: zcr,
-        spectralCentroid: extractSpectralCentroid(from: segmentData, sampleRate: sampleRate),
-        spectralFlatness: extractSpectralFlatness(from: segmentData),
-        spectralRollOff: extractSpectralRollOff(from: segmentData, sampleRate: sampleRate),
-        spectralBandwidth: extractSpectralBandwidth(from: segmentData, sampleRate: sampleRate),
+        spectralCentroid: spectralCentroid,
+        spectralFlatness: spectralFlatness,
+        spectralRolloff: spectralRolloff,
+        spectralBandwidth: spectralBandwidth,
         chromagram: chromagram,
         tempo: extractTempo(from: segmentData, sampleRate: sampleRate),
         hnr: extractHNR(from: segmentData),

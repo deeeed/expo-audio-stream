@@ -10,9 +10,12 @@ set(CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../cpp")
 add_library(audio-studio-cpp SHARED
     ${CPP_DIR}/MelSpectrogram.cpp
     ${CPP_DIR}/MelSpectrogramBridge.cpp
+    ${CPP_DIR}/AudioFeatures.cpp
+    ${CPP_DIR}/AudioFeaturesBridge.cpp
     ${CPP_DIR}/kiss_fft/kiss_fft.c
     ${CPP_DIR}/kiss_fft/kiss_fftr.c
     jni/MelSpectrogramJNI.cpp
+    jni/AudioFeaturesJNI.cpp
 )
 
 target_include_directories(audio-studio-cpp PRIVATE

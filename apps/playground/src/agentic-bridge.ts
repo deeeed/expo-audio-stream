@@ -17,6 +17,7 @@ import type { UseAudioRecorderState } from '@siteed/audio-studio'
 import {
     extractPreview,
     extractAudioData,
+    extractAudioAnalysis,
     extractMelSpectrogram,
     trimAudio,
     AudioDeviceManager,
@@ -226,6 +227,63 @@ if (__DEV__) {
                     const fileUri = await loadSampleFileUri()
                     const result = await extractMelSpectrogram({ fileUri, windowSizeMs: 25, hopLengthMs: 10, nMels: 40, startTimeMs: 0, endTimeMs: 5000 })
                     _lastAsyncResult = { op, status: 'success', result: { timeSteps: result.timeSteps, nMels: result.nMels, durationMs: result.durationMs } }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testAudioFeatures: () => {
+            const op = 'audioFeatures'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    let analysisInput: { fileUri?: string; arrayBuffer?: ArrayBuffer }
+                    if (Platform.OS === 'web') {
+                        const asset = Asset.fromModule(require('@assets/jfk.mp3'))
+                        await asset.downloadAsync()
+                        const uri = asset.localUri ?? asset.uri
+                        const resp = await fetch(uri)
+                        const arrayBuffer = await resp.arrayBuffer()
+                        analysisInput = { arrayBuffer }
+                    } else {
+                        const fileUri = await loadSampleFileUri()
+                        analysisInput = { fileUri }
+                    }
+                    const result = await extractAudioAnalysis({
+                        ...analysisInput,
+                        startTimeMs: 0,
+                        endTimeMs: 5000,
+                        segmentDurationMs: 500,
+                        features: {
+                            spectralCentroid: true,
+                            spectralFlatness: true,
+                            spectralRolloff: true,
+                            spectralBandwidth: true,
+                            mfcc: true,
+                            chromagram: true,
+                        },
+                    })
+                    const dp = result.dataPoints?.[0]
+                    const f = dp?.features
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            platform: Platform.OS,
+                            dataPointCount: result.dataPoints?.length ?? 0,
+                            extractionTimeMs: result.extractionTimeMs,
+                            spectralCentroid: f?.spectralCentroid ?? null,
+                            spectralFlatness: f?.spectralFlatness ?? null,
+                            spectralRolloff: f?.spectralRolloff ?? null,
+                            spectralBandwidth: f?.spectralBandwidth ?? null,
+                            mfccLength: f?.mfcc?.length ?? 0,
+                            mfccSample: f?.mfcc?.slice(0, 3) ?? [],
+                            chromagramLength: f?.chromagram?.length ?? 0,
+                            chromagramSample: f?.chromagram?.slice(0, 3) ?? [],
+                        },
+                    }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
                 }

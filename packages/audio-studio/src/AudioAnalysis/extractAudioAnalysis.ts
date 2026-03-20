@@ -20,6 +20,7 @@ import { convertPCMToFloat32 } from '../utils/convertPCMToFloat32'
 import crc32 from '../utils/crc32'
 import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
+import { wasmGlueJs } from '../workers/wasmGlueString.web'
 
 function calculateCRC32ForDataPoint(data: Float32Array): number {
     // Convert float array to byte array for CRC32
@@ -135,10 +136,11 @@ export async function extractAudioAnalysis(
 
                 const channelData = processedBuffer.buffer.getChannelData(0)
 
-                // Create and initialize the worker
-                const blob = new Blob([InlineFeaturesExtractor], {
-                    type: 'application/javascript',
-                })
+                // Create worker blob: WASM glue (defines createMelSpectrogramModule) + worker code
+                const blob = new Blob(
+                    [wasmGlueJs, '\n', InlineFeaturesExtractor],
+                    { type: 'application/javascript' }
+                )
                 const workerUrl = URL.createObjectURL(blob)
                 const worker = new Worker(workerUrl)
 
@@ -298,17 +300,22 @@ export const extractRawWavAnalysis = async ({
         const constrainedChannelData = channelData.slice(startIndex, endIndex)
 
         return new Promise((resolve, reject) => {
-            const blob = new Blob([InlineFeaturesExtractor], {
-                type: 'application/javascript',
-            })
+            const blob = new Blob(
+                [wasmGlueJs, '\n', InlineFeaturesExtractor],
+                { type: 'application/javascript' }
+            )
             const url = URL.createObjectURL(blob)
             const worker = new Worker(url)
 
             worker.onmessage = (event) => {
+                URL.revokeObjectURL(url)
+                worker.terminate()
                 resolve(event.data.result)
             }
 
             worker.onerror = (error) => {
+                URL.revokeObjectURL(url)
+                worker.terminate()
                 reject(error)
             }
 
