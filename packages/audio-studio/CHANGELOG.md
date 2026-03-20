@@ -5,8 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - 2026-03-20
+## [Unreleased]
 
+
+## [3.0.0] - 2026-03-20
+### BREAKING CHANGES
+- Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
+- Native module renamed from `ExpoAudioStream` to `AudioStudio`
+
+### Added
+- C++ mel spectrogram streaming with WASM build (#324)
+- `streamFormat: 'float32'` option — native delivers `Float32Array` to `onAudioStream`, eliminating base64 encode/decode overhead (#315)
+
+### Fixed
+- Memory safety, WASM lifecycle, and platform bug fixes (#329)
+- iOS: audio device switching bugs during active recording
+- iOS: `resetToDefaultDevice` correctly resets engine tap when switching back to default input
+- iOS: recovery after failed device switch no longer produces silent audio
+- iOS: `setupNowPlayingInfo` no longer overrides user-configured audio session options
+- iOS: `selectInputDevice` syncs `deviceId` into `recordingSettings` before engine update
+- iOS: phone-call auto-resume respects user-configured `categoryOptions`
+- iOS: `AudioDeviceManager.prepareAudSession` preserves existing session options
+
+### Performance
+- Optimized mel spectrogram C++ implementation
 ### BREAKING CHANGES
 - Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
 - Native module renamed from `ExpoAudioStream` to `AudioStudio`
@@ -27,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 - Optimized mel spectrogram C++ implementation
-
 ## [2.18.5] - 2026-02-23
 ### Changed
 - fix(expo-audio-studio): guard Bluetooth API calls behind permission check on API 31+ (#294) ([05d6e5a](https://github.com/deeeed/expo-audio-stream/commit/05d6e5adb0b8aff35d88aea264d8b75ebb1ae1e4))
@@ -419,7 +440,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Audio features extraction during recording.
 - Feature: Consistent WAV PCM recording format across all platforms.
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.5...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.0.0...HEAD
+[3.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@2.18.6...@siteed/audio-studio@3.0.0
 [2.18.5]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.4...@siteed/expo-audio-studio@2.18.5
 [2.18.4]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.3...@siteed/expo-audio-studio@2.18.4
 [2.18.3]: https://github.com/deeeed/expo-audio-stream/compare/@siteed/expo-audio-studio@2.18.2...@siteed/expo-audio-studio@2.18.3
