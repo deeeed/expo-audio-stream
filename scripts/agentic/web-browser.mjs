@@ -42,10 +42,10 @@
  *   regular browser session opened manually.
  */
 
-import { chromium } from 'playwright';
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,15 +53,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Resolve APP_ROOT from env or cwd
 const APP_ROOT = process.env.APP_ROOT || process.cwd();
 
-// Read port from conf if not provided via WATCHER_PORT
-function readPortFromConf() {
+// Resolve playwright from APP_ROOT's node_modules (not this script's location)
+const require = createRequire(path.join(APP_ROOT, 'package.json'));
+const { chromium } = require('playwright');
+
+// Read a value from agentic.conf
+function readConf(key, fallback) {
     const confPath = path.join(APP_ROOT, 'scripts/agentic/agentic.conf');
     try {
         const content = fs.readFileSync(confPath, 'utf8');
-        const match = content.match(/^AGENTIC_PORT=(\d+)/m);
-        return match ? match[1] : '7365';
+        const match = content.match(new RegExp(`^${key}=(\\S+)`, 'm'));
+        return match ? match[1] : fallback;
     } catch {
-        return '7365';
+        return fallback;
     }
 }
 
@@ -69,10 +73,10 @@ function readPortFromConf() {
 // Configuration
 // ---------------------------------------------------------------------------
 
-const PORT = Number.parseInt(process.env.WATCHER_PORT || readPortFromConf(), 10);
+const PORT = Number.parseInt(process.env.WATCHER_PORT || readConf('AGENTIC_PORT', '7365'), 10);
 const HEADLESS = process.env.WEB_HEADLESS === 'true';
 const TIMEOUT = Number.parseInt(process.env.WEB_TIMEOUT || '30000', 10);
-const CDP_PORT = Number.parseInt(process.env.CDP_PORT || '9222', 10);
+const CDP_PORT = Number.parseInt(process.env.CDP_PORT || readConf('AGENTIC_CDP_PORT', '9222'), 10);
 
 const AGENT_DIR = path.join(APP_ROOT, '.agent');
 const CONNECTION_FILE = path.join(AGENT_DIR, 'web-browser.json');
@@ -210,7 +214,18 @@ async function cmdLaunch() {
 
   setupConsoleCapture(page);
 
-  await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
+  // Retry page.goto — Metro may still be starting up
+  const maxRetries = 10;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
+      break;
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      console.log(`Waiting for web server (attempt ${attempt}/${maxRetries})...`);
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
 
   console.log('Waiting for __AGENTIC__ bridge...');
   try {
