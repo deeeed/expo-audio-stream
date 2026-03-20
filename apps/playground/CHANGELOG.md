@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [2.0.0] - 2026-03-20
+
+### Added
+- iOS physical device Metro connectivity plugin (#322)
+- unified preflight launch scripts and App Store fixes (#320)
+- add shared C++ mel spectrogram implementation
+
+### Changed
+- dependency and version bumps (#323)
+- remove unneeded .deploy-gitattributes
+- optimize mel spectrogram C++ implementation
+- Merge pull request #319 from deeeed/refactor/rename-audiostudio
+- update all remaining old name references across docs, configs, and source
+- rename native module ExpoAudioStream → AudioStudio
+- rename all internal references from expo-audio-studio/expo-audio-ui to audio-studio/audio-ui
+- rename repo references audio-suite → audiolab
+- rename packages to @siteed/audio-studio and @siteed/audio-ui, add expo-audio-studio shim
+- add migration banner to README
+- add MIGRATION.md for audio-suite rename
+- add store assets and Android tablet screenshots
+- add tablet/appstore detox configs and move expo-dev-client to devDependencies
+- add changelog generation script
+- add preview profile, store submission config, and privacy policy
+
+### Fixed
+- deploy all wasm models locally except 2 files >100MB (served from HuggingFace)
+- remove only model subdirs from wasm on deploy, keep JS runtime
+- only strip large model binaries from wasm deploy, keep JS loaders
+- exclude wasm/ from gh-pages deploy (models load from remote URLs)
+- correct cp path in sherpa-voice deploy script
+- inject LFS gitattributes into sherpa-voice gh-pages deploy
+- add --repo flag to gh-pages deploy scripts after audiolab rename
+- correct plugin path expo-audio-studio -> audio-studio in app.config
+- update repo references from expo-audio-stream to audiolab
+- repair shim package for npm publishing, document release process
+- correct sherpa-voice 404 redirect path and skip .html files
+
+
 ## [1.10.1] - 2026-03-13
 
 ### Added
@@ -239,7 +277,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.1...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.0.0...HEAD
+[2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.1...audio-playground@2.0.0
 [1.10.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.0...audio-playground@1.10.1
 [1.9.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.1...audio-playground@1.9.0
 [1.8.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.0...audio-playground@1.8.1
