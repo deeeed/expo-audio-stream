@@ -57,6 +57,7 @@
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@babel/preset-env": "^7.24.8",
     "@babel/preset-react": "^7.24.7",
+    "@expo/vector-icons": "^15.1.1",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
