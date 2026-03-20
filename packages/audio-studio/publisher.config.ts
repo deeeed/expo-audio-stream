@@ -1,7 +1,7 @@
 import type { ReleaseConfig, DeepPartial } from '@siteed/publisher'
 
 const config: DeepPartial<ReleaseConfig> = {
-    packageManager: 'npm',
+    packageManager: 'yarn',
     changelogFile: 'CHANGELOG.md',
     conventionalCommits: true,
     changelogFormat: 'conventional',
