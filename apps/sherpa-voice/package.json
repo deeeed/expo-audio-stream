@@ -8,6 +8,7 @@
         "stop": "bash scripts/agentic/stop-metro.sh",
         "android": "PLATFORM=android HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios": "PLATFORM=ios HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
+        "ios:device": "IOS_SIMULATOR= PLATFORM=ios HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-SherpaVoice-Dev}\" --boot-only",
         "ios:launch": "PLATFORM=ios HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme sherpa-voice --port 7500",

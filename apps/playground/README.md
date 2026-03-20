@@ -96,17 +96,12 @@ yarn setup:production:force
 
 ### Development Workflow
 
-1. Set custom port for development (if needed):
-```bash
-./setPort.sh
-```
-
-2. For Android debugging with custom port:
+1. For Android debugging with custom port:
 ```bash
 adb reverse tcp:7365 tcp:7365
 ```
 
-3. Run the development server:
+2. Run the development server:
 ```bash
 yarn start
 ```
