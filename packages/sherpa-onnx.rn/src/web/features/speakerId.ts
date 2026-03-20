@@ -26,10 +26,10 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
 
 export function SpeakerIdMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
-    private speakerExtractor: SpeakerEmbeddingExtractorInstance | null = null;
-    private speakerManager: SpeakerEmbeddingManagerInstance | null = null;
-    private speakerIdStream: number | null = null;
-    private speakerIdSamplesProcessed = 0;
+    public speakerExtractor: SpeakerEmbeddingExtractorInstance | null = null;
+    public speakerManager: SpeakerEmbeddingManagerInstance | null = null;
+    public speakerIdStream: number | null = null;
+    public speakerIdSamplesProcessed = 0;
 
     async initSpeakerId(
       config: SpeakerIdModelConfig
