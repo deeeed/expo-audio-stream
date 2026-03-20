@@ -28,7 +28,7 @@ For individual package builds:
 
 ```bash
 yarn workspace @siteed/audio-studio build
-yarn workspace @siteed/expo-audio-ui build
+yarn workspace @siteed/audio-ui build
 ```
 
 ## Testing
@@ -42,7 +42,7 @@ yarn workspace @siteed/expo-audio-ui build
 ```
 packages/
   audio-studio/          # Core audio recording, analysis, processing
-  expo-audio-ui/         # Skia-based visualization components
+  audio-ui/              # Skia-based visualization components
   react-native-essentia/ # Audio feature extraction (Essentia bindings)
   sherpa-onnx.rn/        # Speech-to-text / text-to-speech
 apps/

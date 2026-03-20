@@ -6,20 +6,20 @@ const { default: exclusionList } = require('metro-config/private/defaults/exclus
 const path = require('node:path')
 
 const pakLib = require('../../packages/audio-studio/package.json')
-const pakUI = require('../../packages/expo-audio-ui/package.json')
+const pakUI = require('../../packages/audio-ui/package.json')
 
 // Find the project and workspace directories
 const projectRoot = __dirname
 // This can be replaced with `find-yarn-workspace-root`
 const monorepoRoot = path.resolve(projectRoot, '../..')
-const uiRoot = path.resolve(monorepoRoot, 'packages/expo-audio-ui')
+const uiRoot = path.resolve(monorepoRoot, 'packages/audio-ui')
 const libRoot = path.resolve(monorepoRoot, 'packages/audio-studio')
 
 const modules = [
     'react-native-paper',
     'react-native-safe-area-context',
     'react-native-reanimated',
-    '@siteed/expo-audio-ui',
+    '@siteed/audio-ui',
     'react-native-gesture-handler',
     '@siteed/expo-audio-studio',
     'react-dom',
@@ -72,9 +72,9 @@ config.resolver = {
     extraNodeModules,
     blacklistRE,
     resolveRequest: (context, moduleName, platform) => {
-        if (moduleName === '@siteed/expo-audio-ui') {
+        if (moduleName === '@siteed/audio-ui') {
             return {
-                filePath: monorepoRoot + '/packages/expo-audio-ui/src/index.ts',
+                filePath: monorepoRoot + '/packages/audio-ui/src/index.ts',
                 type: 'sourceFile',
             }
         } else if (moduleName === '@siteed/expo-audio-studio') {

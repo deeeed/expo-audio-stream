@@ -16,7 +16,7 @@ The expo-audio-stream monorepo implements a comprehensive multi-tier Storybook s
    - Purpose: Cross-platform component development
    - Features: React Native Web compatibility, rapid iteration
 
-3. **UI Library Storybook** (v8) - `packages/expo-audio-ui`
+3. **UI Library Storybook** (v8) - `packages/audio-ui`
    - Port: 6068 (Vite bundler)
    - Purpose: Library-specific component iteration
    - Features: Isolated component development, documentation
@@ -79,7 +79,7 @@ cd apps/playground
 yarn storybook:web                   # http://localhost:6006 (Vite)
 
 # Terminal 4: UI Library Storybook
-cd packages/expo-audio-ui
+cd packages/audio-ui
 yarn storybook                       # http://localhost:6068 (Vite)
 ```
 
@@ -87,7 +87,7 @@ yarn storybook                       # http://localhost:6068 (Vite)
 - **7365** → Regular playground app (Metro bundler)
 - **7366** → Native Storybook for iOS/Android (Metro bundler)  
 - **6006** → Web Storybook for playground components (Vite bundler)
-- **6068** → UI Library Storybook for expo-audio-ui package (Vite bundler)
+- **6068** → UI Library Storybook for audio-ui package (Vite bundler)
 
 All four can run simultaneously for maximum development flexibility!
 
@@ -106,7 +106,7 @@ yarn storybook:android               # Run on Android device/emulator
 yarn storybook:web                   # Playground web (localhost:6006)
 
 # UI Library Storybook
-cd ../../packages/expo-audio-ui
+cd ../../packages/audio-ui
 yarn storybook                       # Library web (localhost:6068)
 ```
 
@@ -184,7 +184,7 @@ module.exports = withStorybook(config, {
 ### Auto-Discovery
 Stories are automatically loaded from:
 - `ui-components/**/*.stories.tsx` (playground)
-- `../expo-audio-ui/src/**/*.stories.tsx` (UI library)
+- `../audio-ui/src/**/*.stories.tsx` (UI library)
 - Additional paths can be configured in `.rnstorybook/main.ts`
 
 ### Critical Files

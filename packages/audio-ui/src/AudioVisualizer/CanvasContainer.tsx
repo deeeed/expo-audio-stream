@@ -1,4 +1,4 @@
-// packages/expo-audio-ui/src/AudioVisualizer/CanvasContainer.tsx
+// packages/audio-ui/src/AudioVisualizer/CanvasContainer.tsx
 import { Canvas, Group, Path, SkFont } from '@shopify/react-native-skia'
 import { DataPoint } from '@siteed/audio-studio'
 import React, { useEffect, useMemo, useRef } from 'react'

@@ -1,4 +1,4 @@
-// packages/expo-audio-ui/src/AudioVisualizer/GestureHandler.tsx
+// packages/audio-ui/src/AudioVisualizer/GestureHandler.tsx
 import { DataPoint } from '@siteed/audio-studio'
 import React from 'react'
 import { Platform } from 'react-native'

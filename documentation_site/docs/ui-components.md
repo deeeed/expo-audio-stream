@@ -6,7 +6,7 @@ sidebar_label: UI Components
 
 # UI Components
 
-The [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
+The [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/audio-ui) package provides ready-to-use UI components for audio applications. These components are built with React Native, Reanimated, and Skia for optimal performance across platforms.
 
 ## Installation
 
@@ -179,7 +179,7 @@ export default AudioLevelMeter;
 The package includes a Storybook with examples of all components. You can run it locally:
 
 ```bash
-cd packages/expo-audio-ui
+cd packages/audio-ui
 yarn storybook
 ```
 

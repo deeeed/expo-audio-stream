@@ -1,4 +1,4 @@
-// packages/expo-audio-ui/src/AnimatedCandle/AnimatedCandle.tsx
+// packages/audio-ui/src/AnimatedCandle/AnimatedCandle.tsx
 import { Rect } from '@shopify/react-native-skia'
 import React, { useEffect } from 'react'
 import { useSharedValue, withTiming } from 'react-native-reanimated'

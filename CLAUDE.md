@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Core Packages
 - **`@siteed/expo-audio-studio`** - Main audio processing library with dual-stream recording, device management, and format conversion
-- **`@siteed/expo-audio-ui`** - React Native Skia-based audio visualization components (waveforms, spectrograms)
+- **`@siteed/audio-ui`** - React Native Skia-based audio visualization components (waveforms, spectrograms)
 - **`@siteed/react-native-essentia`** - Advanced audio analysis using Essentia (feature extraction, classification)
 - **`@siteed/sherpa-onnx.rn`** - Speech-to-text and text-to-speech capabilities (development)
 
@@ -33,7 +33,7 @@ cd apps/playground && yarn build:deps && yarn start  # Run playground app
 
 # Building packages
 yarn workspace @siteed/expo-audio-studio build
-yarn workspace @siteed/expo-audio-ui build
+yarn workspace @siteed/audio-ui build
 ```
 
 ## Agentic Validation (CDP Bridge)

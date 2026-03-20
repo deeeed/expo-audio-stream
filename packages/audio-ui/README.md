@@ -40,7 +40,7 @@ yarn add @shopify/react-native-skia react-native-gesture-handler react-native-re
 ## Development
 
 ```bash
-cd packages/expo-audio-ui
+cd packages/audio-ui
 yarn storybook
 # Opens at http://localhost:6068
 ```

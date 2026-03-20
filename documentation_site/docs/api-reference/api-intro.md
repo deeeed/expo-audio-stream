@@ -73,4 +73,4 @@ Click on the links above to navigate to detailed documentation for each componen
 
 ## UI Components
 
-For ready-to-use UI components, check out the [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/expo-audio-ui) package, which provides waveform visualizers, recording controls, and more.
+For ready-to-use UI components, check out the [@siteed/audio-ui](https://github.com/deeeed/audiolab/tree/main/packages/audio-ui) package, which provides waveform visualizers, recording controls, and more.

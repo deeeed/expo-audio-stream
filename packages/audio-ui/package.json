@@ -11,7 +11,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deeeed/audiolab.git",
-    "directory": "packages/expo-audio-ui"
+    "directory": "packages/audio-ui"
   },
   "bugs": {
     "url": "https://github.com/deeeed/audiolab/issues"
