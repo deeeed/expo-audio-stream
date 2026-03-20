@@ -8705,6 +8705,7 @@ __metadata:
     "@rollup/plugin-url": "npm:^8.0.2"
     "@shopify/react-native-skia": "npm:~2.4.21"
     "@siteed/audio-studio": "workspace:^"
+    "@siteed/publisher": "npm:^0.7.0"
     "@size-limit/preset-big-lib": "npm:^11.1.4"
     "@storybook/addon-links": "npm:^10.2.10"
     "@storybook/addon-ondevice-actions": "npm:^10.2.3"
@@ -8895,6 +8896,29 @@ __metadata:
   bin:
     publisher: ./dist/bin/publisher.js
   checksum: 10/80c2efc8254db69d1edc56fc568b4eb53265643df21d23fb36141aabbd84c019f5fea6c668cb010bd777712adee59ea1a95ca5f0f9046ec3274dbef1a7eec368
+  languageName: node
+  linkType: hard
+
+"@siteed/publisher@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "@siteed/publisher@npm:0.7.0"
+  dependencies:
+    "@inquirer/prompts": "npm:^7.1.0"
+    chalk: "npm:4.1.2"
+    commander: "npm:^11.1.0"
+    conventional-changelog: "npm:^5.1.0"
+    date-fns: "npm:^4.1.0"
+    execa: "npm:^5.1.1"
+    globby: "npm:^11.1.0"
+    inquirer: "npm:^8.2.6"
+    ora: "npm:^5.4.1"
+    semver: "npm:^7.5.4"
+    simple-git: "npm:^3.21.0"
+    update-notifier: "npm:^5.1.0"
+    zod: "npm:^3.22.4"
+  bin:
+    publisher: ./dist/bin/publisher.js
+  checksum: 10/d29244e9f023f2dddc8ee0baefcd316c155e07cfe2fb6834fd5d848bdc683d61cf182686581997fd56b19ed921bc590e4449bedae84713a674e560e70a3d80d0
   languageName: node
   linkType: hard
 
