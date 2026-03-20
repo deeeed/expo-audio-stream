@@ -120,7 +120,8 @@ struct RecordingSettings {
     
     var outputDirectory: String? = nil
     var filename: String? = nil
-    
+    var filenamePrefix: String? = nil
+
     // Update default to 100ms
     var segmentDurationMs: Int = 100  // Default 100ms segments
     
@@ -294,7 +295,8 @@ struct RecordingSettings {
         }
         
         settings.filename = dict["filename"] as? String
-        
+        settings.filenamePrefix = dict["filenamePrefix"] as? String
+
         // Set new properties
         settings.deviceId = deviceId
         settings.deviceDisconnectionBehavior = DeviceDisconnectionBehavior(rawValue: deviceDisconnectionBehaviorStr ?? "fallback") ?? .FALLBACK

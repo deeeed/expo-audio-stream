@@ -462,6 +462,10 @@ export interface RecordingConfig {
     outputDirectory?: string // If not provided, uses default app directory
     /** Optional filename for the recording (uses UUID if not provided) */
     filename?: string // If not provided, uses UUID
+    /** Optional prefix for auto-generated filenames. When set (and `filename` is not),
+     *  the filename becomes `{filenamePrefix}-{YYYY-MM-DD}_{UUID}`.
+     *  Ignored when `filename` is explicitly provided. */
+    filenamePrefix?: string
 
     /** ID of the device to use for recording (if not specified, uses default) */
     deviceId?: string
