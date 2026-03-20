@@ -43,8 +43,14 @@ export async function initMelStreamingWasm(
     streamingModule = Module
     const actualFMax = fMax > 0 ? fMax : sampleRate / 2
     Module._mel_spectrogram_init(
-        sampleRate, fftLength, windowSizeSamples, hopLengthSamples,
-        nMels, fMin, actualFMax, 0 /* hann */
+        sampleRate,
+        fftLength,
+        windowSizeSamples,
+        hopLengthSamples,
+        nMels,
+        fMin,
+        actualFMax,
+        0 /* hann */
     )
     streamingNMels = nMels
 
@@ -76,7 +82,9 @@ export function computeMelFrameWasm(samples: Float32Array): number[] | null {
     Module.HEAPF32.set(samples, streamingFramePtr >> 2)
 
     const ok = Module._mel_spectrogram_compute_frame(
-        streamingFramePtr, samples.length, streamingMelPtr
+        streamingFramePtr,
+        samples.length,
+        streamingMelPtr
     )
     if (!ok) return null
 
@@ -135,7 +143,9 @@ export async function computeMelSpectrogramWasm(
     Module._free(inputPtr)
 
     if (resultPtr === 0) {
-        throw new Error('mel_spectrogram_compute returned null (too few samples?)')
+        throw new Error(
+            'mel_spectrogram_compute returned null (too few samples?)'
+        )
     }
 
     // Read CMelSpectrogramResult struct (wasm32 pointers are 4 bytes)
@@ -146,7 +156,9 @@ export async function computeMelSpectrogramWasm(
 
     if (!dataPtr || timeSteps <= 0 || resultNMels <= 0) {
         Module._mel_spectrogram_free(resultPtr)
-        throw new Error('mel_spectrogram_compute returned invalid result struct')
+        throw new Error(
+            'mel_spectrogram_compute returned invalid result struct'
+        )
     }
 
     // Copy spectrogram data to JS arrays

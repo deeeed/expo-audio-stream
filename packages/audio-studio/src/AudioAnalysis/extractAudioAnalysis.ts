@@ -300,10 +300,9 @@ export const extractRawWavAnalysis = async ({
         const constrainedChannelData = channelData.slice(startIndex, endIndex)
 
         return new Promise((resolve, reject) => {
-            const blob = new Blob(
-                [wasmGlueJs, '\n', InlineFeaturesExtractor],
-                { type: 'application/javascript' }
-            )
+            const blob = new Blob([wasmGlueJs, '\n', InlineFeaturesExtractor], {
+                type: 'application/javascript',
+            })
             const url = URL.createObjectURL(blob)
             const worker = new Worker(url)
 

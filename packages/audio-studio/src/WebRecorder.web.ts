@@ -1,6 +1,10 @@
 // packages/audio-studio/src/WebRecorder.web.ts
 
 import { AudioAnalysis } from './AudioAnalysis/AudioAnalysis.types'
+import {
+    initMelStreamingWasm,
+    computeMelFrameWasm,
+} from './AudioAnalysis/melSpectrogramWasm'
 import { ConsoleLike, RecordingConfig } from './AudioStudio.types'
 import {
     EmitAudioAnalysisFunction,
@@ -8,10 +12,9 @@ import {
 } from './AudioStudio.web'
 import { encodingToBitDepth } from './utils/encodingToBitDepth'
 import { writeWavHeader } from './utils/writeWavHeader'
-import { initMelStreamingWasm, computeMelFrameWasm } from './AudioAnalysis/melSpectrogramWasm'
 import { InlineFeaturesExtractor } from './workers/InlineFeaturesExtractor.web'
-import { wasmGlueJs } from './workers/wasmGlueString.web'
 import { InlineAudioWebWorker } from './workers/inlineAudioWebWorker.web'
+import { wasmGlueJs } from './workers/wasmGlueString.web'
 
 interface AudioWorkletEvent {
     data: {
@@ -160,16 +163,27 @@ export class WebRecorder {
         if (recordingConfig.enableProcessing) {
             this.initFeatureExtractorWorker()
             if (recordingConfig.features?.melSpectrogram) {
-                const sr = this.config.sampleRate || this.audioContext.sampleRate
-                const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
-                const windowSamples = Math.floor(sr * segMs / 1000)
-                this.melWasmInitPromise = initMelStreamingWasm(sr, 128, 2048, windowSamples, windowSamples)
+                const sr =
+                    this.config.sampleRate || this.audioContext.sampleRate
+                const segMs =
+                    this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
+                const windowSamples = Math.floor((sr * segMs) / 1000)
+                this.melWasmInitPromise = initMelStreamingWasm(
+                    sr,
+                    128,
+                    2048,
+                    windowSamples,
+                    windowSamples
+                )
                     .then(() => {
                         this.melWasmReady = true
                         this.logger?.log('Mel WASM streaming processor ready')
                         // Process any chunks that arrived during init
                         for (const pending of this.melPendingChunks) {
-                            this.computeMelFrames(pending.chunk, pending.sampleRate)
+                            this.computeMelFrames(
+                                pending.chunk,
+                                pending.sampleRate
+                            )
                         }
                         this.melPendingChunks = []
                     })
@@ -411,10 +425,9 @@ export class WebRecorder {
      */
     initFeatureExtractorWorker() {
         try {
-            const blob = new Blob(
-                [wasmGlueJs, '\n', InlineFeaturesExtractor],
-                { type: 'application/javascript' }
-            )
+            const blob = new Blob([wasmGlueJs, '\n', InlineFeaturesExtractor], {
+                type: 'application/javascript',
+            })
             const url = URL.createObjectURL(blob)
             this.featureExtractorWorkerUrl = url
             this.featureExtractorWorker = new Worker(url)
@@ -496,12 +509,16 @@ export class WebRecorder {
         if (!this.melWasmReady) {
             // Buffer chunks while WASM is still initializing
             if (this.melWasmInitPromise) {
-                this.melPendingChunks.push({ chunk: new Float32Array(chunk), sampleRate })
+                this.melPendingChunks.push({
+                    chunk: new Float32Array(chunk),
+                    sampleRate,
+                })
             }
             return
         }
-        const segMs = this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
-        const samplesPerSeg = Math.floor(sampleRate * segMs / 1000)
+        const segMs =
+            this.config.segmentDurationMs ?? DEFAULT_SEGMENT_DURATION_MS
+        const samplesPerSeg = Math.floor((sampleRate * segMs) / 1000)
         const numSegs = Math.floor(chunk.length / samplesPerSeg)
         for (let s = 0; s < numSegs; s++) {
             const seg = chunk.slice(s * samplesPerSeg, (s + 1) * samplesPerSeg)
@@ -516,7 +533,9 @@ export class WebRecorder {
         // Cap queue to prevent unbounded memory growth if consumer falls behind
         const MAX_PENDING_MEL_FRAMES = 200
         if (this.pendingMelFrames.length > MAX_PENDING_MEL_FRAMES) {
-            this.pendingMelFrames = this.pendingMelFrames.slice(-MAX_PENDING_MEL_FRAMES)
+            this.pendingMelFrames = this.pendingMelFrames.slice(
+                -MAX_PENDING_MEL_FRAMES
+            )
         }
     }
 

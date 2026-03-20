@@ -9,12 +9,12 @@ import {
     ExtractMelSpectrogramOptions,
     MelSpectrogram,
 } from './AudioAnalysis.types'
+import { computeMelSpectrogramWasm } from './melSpectrogramWasm'
 import {
     processAudioBuffer,
     ProcessedAudioData,
 } from '../utils/audioProcessing'
 import { cleanNativeOptions } from '../utils/cleanNativeOptions'
-import { computeMelSpectrogramWasm } from './melSpectrogramWasm'
 
 /**
  * Maximum duration in milliseconds that extractMelSpectrogram will process in a single call.

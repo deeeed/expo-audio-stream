@@ -5,9 +5,15 @@ import {
     extractAudioAnalysis,
 } from './AudioAnalysis/extractAudioAnalysis'
 import { extractAudioData } from './AudioAnalysis/extractAudioData'
-import { extractMelSpectrogram, MAX_DURATION_MS } from './AudioAnalysis/extractMelSpectrogram'
-import { initMelStreamingWasm, computeMelFrameWasm } from './AudioAnalysis/melSpectrogramWasm'
+import {
+    extractMelSpectrogram,
+    MAX_DURATION_MS,
+} from './AudioAnalysis/extractMelSpectrogram'
 import { extractPreview } from './AudioAnalysis/extractPreview'
+import {
+    initMelStreamingWasm,
+    computeMelFrameWasm,
+} from './AudioAnalysis/melSpectrogramWasm'
 import {
     AudioRecorderProvider,
     useSharedAudioRecorder,

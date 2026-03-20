@@ -214,9 +214,7 @@ export class AudioDeviceManager {
             } else if (AudioStudioModule.getAvailableInputDevices) {
                 // Expecting an array of raw device objects from native
                 const rawDevices: any[] =
-                    await AudioStudioModule.getAvailableInputDevices(
-                        options
-                    )
+                    await AudioStudioModule.getAvailableInputDevices(options)
                 // Map raw objects to the AudioDevice interface
                 this.availableDevices = rawDevices.map(
                     mapRawDeviceToAudioDevice
@@ -287,8 +285,7 @@ export class AudioDeviceManager {
                     success = false
                 }
             } else if (AudioStudioModule.selectInputDevice) {
-                success =
-                    await AudioStudioModule.selectInputDevice(deviceId)
+                success = await AudioStudioModule.selectInputDevice(deviceId)
                 if (success) {
                     this.currentDeviceId = deviceId
                 }

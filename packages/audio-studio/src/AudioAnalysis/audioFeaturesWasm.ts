@@ -38,7 +38,10 @@ function getModule(): Promise<AudioFeaturesWasmModule> {
 // Offset 28: int chromagramCount     (4 bytes)
 const STRUCT_SIZE = 32
 
-function readResult(Module: AudioFeaturesWasmModule, ptr: number): AudioFeaturesWasmResult {
+function readResult(
+    Module: AudioFeaturesWasmModule,
+    ptr: number
+): AudioFeaturesWasmResult {
     const spectralCentroid = Module.getValue(ptr, 'float')
     const spectralFlatness = Module.getValue(ptr + 4, 'float')
     const spectralRolloff = Module.getValue(ptr + 8, 'float')
@@ -65,7 +68,14 @@ function readResult(Module: AudioFeaturesWasmModule, ptr: number): AudioFeatures
         }
     }
 
-    return { spectralCentroid, spectralFlatness, spectralRolloff, spectralBandwidth, mfcc, chromagram }
+    return {
+        spectralCentroid,
+        spectralFlatness,
+        spectralRolloff,
+        spectralBandwidth,
+        mfcc,
+        chromagram,
+    }
 }
 
 // --- Streaming (per-frame) API ---
@@ -91,8 +101,12 @@ export async function initAudioFeaturesWasm(
     streamingModule = Module
 
     Module._audio_features_init(
-        sampleRate, fftLength, nMfcc, nMelFilters,
-        computeMfcc ? 1 : 0, computeChroma ? 1 : 0
+        sampleRate,
+        fftLength,
+        nMfcc,
+        nMelFilters,
+        computeMfcc ? 1 : 0,
+        computeChroma ? 1 : 0
     )
 
     // Pre-allocate result struct on WASM heap
@@ -110,7 +124,9 @@ export async function initAudioFeaturesWasm(
  * Compute audio features for a single frame via WASM C++.
  * Returns null if not initialised or on error.
  */
-export function computeAudioFeaturesFrameWasm(samples: Float32Array): AudioFeaturesWasmResult | null {
+export function computeAudioFeaturesFrameWasm(
+    samples: Float32Array
+): AudioFeaturesWasmResult | null {
     if (!streamingModule || !streamingResultPtr) return null
     const Module = streamingModule
 
@@ -125,7 +141,9 @@ export function computeAudioFeaturesFrameWasm(samples: Float32Array): AudioFeatu
     Module.HEAPF32.set(samples, streamingFramePtr >> 2)
 
     const ok = Module._audio_features_compute_frame(
-        streamingFramePtr, samples.length, streamingResultPtr
+        streamingFramePtr,
+        samples.length,
+        streamingResultPtr
     )
     if (!ok) return null
 
@@ -159,9 +177,14 @@ export async function computeAudioFeaturesWasm(
     Module.HEAPF32.set(audioData, inputPtr >> 2)
 
     const resultPtr = Module._audio_features_compute(
-        inputPtr, numSamples, sampleRate, fftLength,
-        nMfcc, nMelFilters,
-        computeMfcc ? 1 : 0, computeChroma ? 1 : 0
+        inputPtr,
+        numSamples,
+        sampleRate,
+        fftLength,
+        nMfcc,
+        nMelFilters,
+        computeMfcc ? 1 : 0,
+        computeChroma ? 1 : 0
     )
 
     Module._free(inputPtr)

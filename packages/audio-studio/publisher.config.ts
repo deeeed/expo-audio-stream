@@ -20,7 +20,7 @@ const config: DeepPartial<ReleaseConfig> = {
         commit: true,
         push: true,
         commitMessage:
-            'chore(expo-audio-studio): release @siteed/expo-audio-studio@${version}',
+            'chore(audio-studio): release @siteed/audio-studio@${version}',
         tag: true,
         allowedBranches: ['main', 'master'],
         remote: 'origin',

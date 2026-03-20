@@ -8,10 +8,7 @@ import {
     TrimAudioOptions,
     TrimAudioResult,
 } from './AudioStudio.types'
-import {
-    AudioStudioWeb,
-    AudioStudioWebProps,
-} from './AudioStudio.web'
+import { AudioStudioWeb, AudioStudioWebProps } from './AudioStudio.web'
 import { processAudioBuffer } from './utils/audioProcessing'
 import crc32 from './utils/crc32'
 import { writeWavHeader } from './utils/writeWavHeader'
@@ -774,10 +771,7 @@ if (Platform.OS === 'web') {
     AudioStudioModule.listeners = {}
 
     // Add methods for event listeners that LegacyEventEmitter will use
-    AudioStudioModule.addListener = (
-        eventName: string,
-        listener: Function
-    ) => {
+    AudioStudioModule.addListener = (eventName: string, listener: Function) => {
         if (!AudioStudioModule.listeners[eventName]) {
             AudioStudioModule.listeners[eventName] = []
         }

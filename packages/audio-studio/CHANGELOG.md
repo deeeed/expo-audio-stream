@@ -5,18 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-### Added
-- feat(expo-audio-studio): `streamFormat: 'float32'` option on `RecordingConfig` — native delivers `Float32Array` to `onAudioStream`, eliminating base64 encode/decode on the bridge. Default `'raw'` preserves existing behavior.
+## [3.0.0] - 2026-03-20
 
-## [2.18.6] - 2026-03-06
+### BREAKING CHANGES
+- Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
+- Native module renamed from `ExpoAudioStream` to `AudioStudio`
+
+### Added
+- C++ mel spectrogram streaming with WASM build (#324)
+- `streamFormat: 'float32'` option — native delivers `Float32Array` to `onAudioStream`, eliminating base64 encode/decode overhead (#315)
+
 ### Fixed
-- fix(expo-audio-studio): `resetToDefaultDevice` now correctly resets the engine tap when switching back to the system default input (was a no-op due to `deviceId=nil` guard)
-- fix(expo-audio-studio): recovery path after a failed device switch no longer produces silent audio (missing tap reinstall before engine restart)
-- fix(expo-audio-studio): `setupNowPlayingInfo` no longer overrides user-configured audio session options (e.g. whisper-mode / no-Bluetooth configs)
-- fix(expo-audio-studio): `selectInputDevice` now syncs `deviceId` into `recordingSettings` before updating the engine, ensuring the port lookup succeeds
-- fix(expo-audio-studio): phone-call auto-resume handler respects user-configured `categoryOptions` instead of hardcoded `[.allowBluetooth, .mixWithOthers]`
-- fix(expo-audio-studio): `AudioDeviceManager.prepareAudioSession` preserves existing session options when already `.playAndRecord`
+- Memory safety, WASM lifecycle, and platform bug fixes (#329)
+- iOS: audio device switching bugs during active recording
+- iOS: `resetToDefaultDevice` correctly resets engine tap when switching back to default input
+- iOS: recovery after failed device switch no longer produces silent audio
+- iOS: `setupNowPlayingInfo` no longer overrides user-configured audio session options
+- iOS: `selectInputDevice` syncs `deviceId` into `recordingSettings` before engine update
+- iOS: phone-call auto-resume respects user-configured `categoryOptions`
+- iOS: `AudioDeviceManager.prepareAudioSession` preserves existing session options
+
+### Performance
+- Optimized mel spectrogram C++ implementation
 
 ## [2.18.5] - 2026-02-23
 ### Changed
