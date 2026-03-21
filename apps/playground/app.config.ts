@@ -211,6 +211,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         // Keep .so files uncompressed so AGP 8.5+ can zipalign them at 16KB boundaries
                         // Required for Google Play's 16KB page size alignment check (Android 15+)
                         useLegacyPackaging: false,
+                        enableProguardInReleaseBuilds: true,
+                        extraProguardRules: "-keep class com.facebook.hermes.unicode.** { *; }\n-dontwarn expo.modules.kotlin.services.FilePermissionService$Permission",
                     },
                 },
             ],

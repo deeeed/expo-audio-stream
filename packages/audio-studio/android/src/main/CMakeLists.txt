@@ -27,3 +27,6 @@ target_link_libraries(audio-studio-cpp
     android
     log
 )
+
+# 16KB page size alignment for Android 15+ (required for Play Store)
+target_link_options(audio-studio-cpp PRIVATE "-Wl,-z,max-page-size=16384")
