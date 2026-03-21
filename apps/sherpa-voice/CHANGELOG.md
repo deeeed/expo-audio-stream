@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.1.3] - 2026-03-21
+
+### Added
+- 
+
+### Changed
+- Merge branch 'main' of https://github.com/deeeed/audiolab
+- auto-release internal track on Play Store submission
+
+### Fixed
+- fix R8 build failure — narrow Commons Compress keep rules (#343)
+
+
 ## [1.1.2] - 2026-03-21
 
 ### Added
