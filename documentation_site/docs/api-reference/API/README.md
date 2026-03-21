@@ -88,6 +88,7 @@
 - [initMelStreamingWasm](functions/initMelStreamingWasm.md)
 - [isBitDepthSupported](functions/isBitDepthSupported.md)
 - [isEncodingSupported](functions/isEncodingSupported.md)
+- [setMelSpectrogramWasmUrl](functions/setMelSpectrogramWasmUrl.md)
 - [trimAudio](functions/trimAudio.md)
 - [useAudioDevices](functions/useAudioDevices.md)
 - [useAudioRecorder](functions/useAudioRecorder.md)

@@ -8,7 +8,7 @@
 
 > **getFallbackBitDepth**(`requestedBitDepth`): [`BitDepth`](../type-aliases/BitDepth.md)
 
-Defined in: [src/constants/platformLimitations.ts:79](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/constants/platformLimitations.ts#L79)
+Defined in: [src/constants/platformLimitations.ts:79](https://github.com/deeeed/audiolab/blob/290409aae8d1160e1952a5ee1961ce3864fbb0c8/packages/audio-studio/src/constants/platformLimitations.ts#L79)
 
 Get a fallback bit depth if the requested one is not supported
 
