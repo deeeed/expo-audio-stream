@@ -16,7 +16,7 @@ const { exec } = require('child_process');
 const ProgressBar = require('progress');
 
 // Configuration
-const BINARY_VERSION = '1.12.29'; // Matches the bundled sherpa-onnx upstream version
+const BINARY_VERSION = require('./package.json').sherpaOnnxVersion; // Matches the bundled sherpa-onnx upstream version
 
 // URLs for precompiled binaries
 const REPO_URL = 'https://github.com/deeeed/audiolab';
@@ -151,8 +151,7 @@ async function install() {
     
     console.log('Sherpa-onnx installation completed successfully!');
   } catch (error) {
-    console.error('Installation failed:', error);
-    console.error(`Failed to download prebuilt binaries from: ${RELEASE_URL}`);
+    console.error(`Installation failed — could not download prebuilt binaries from: ${RELEASE_URL}`, error);
     console.log('If the release asset does not exist, build manually:');
     console.log('  ./setup.sh && ./build-sherpa-ios.sh && ./build-sherpa-android.sh');
     

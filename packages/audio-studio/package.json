@@ -72,7 +72,7 @@
     ],
     "scripts": {
         "build:wasm": "bash scripts/build-wasm.sh",
-        "build": "rimraf build && yarn build:types && yarn build:cjs && yarn build:esm && yarn build:plugin && cp -r prebuilt build/cjs/ && cp -r prebuilt build/esm/",
+        "build": "rimraf build && yarn build:types && yarn build:cjs && yarn build:esm && yarn build:plugin && cp -r prebuilt/ build/cjs/prebuilt && cp -r prebuilt/ build/esm/prebuilt",
         "build:cjs": "tsc -p tsconfig.cjs.json",
         "build:esm": "tsc -p tsconfig.esm.json",
         "build:types": "tsc -p tsconfig.types.json",
