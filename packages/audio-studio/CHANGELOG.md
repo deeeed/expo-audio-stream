@@ -7,15 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.1] - 2026-03-21
 
+## [3.0.2] - 2026-03-21
+### Changed
+- fix(audio-studio): load WASM via CDN URL instead of broken relative path ([7427f28](https://github.com/deeeed/audiolab/commit/7427f289d273ffad609a4c6b0fb45c5094445dde))
+- chore(audio-studio): disable conventionalCommits in publisher config, rewrite clean CHANGELOG ([4a2bbfa](https://github.com/deeeed/audiolab/commit/4a2bbfa605a56cab06618c0ca1afe6ff8cb19441))
+- chore(audio-studio): release @siteed/audio-studio@3.0.1 ([04fe6f7](https://github.com/deeeed/audiolab/commit/04fe6f706d372e3ced0f83b796923c490bebd64d))
+## [3.0.1] - 2026-03-21
 ### Fixed
 - Add `@expo/config-plugins` to `peerDependencies` — fixes Yarn PnP `ambiguous require` error during `expo prebuild` (#341)
 - WASM path resolution in build output — `prebuilt/` is now copied into `build/cjs/` and `build/esm/` so Metro resolves WASM imports correctly after install (#341)
 - Split WASM modules into separate web/native platform files to prevent Metro bundling issues (#338)
-
 ## [3.0.0] - 2026-03-20
-
 ### BREAKING CHANGES
 - Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
 - Native module renamed from `ExpoAudioStream` to `AudioStudio`
@@ -36,214 +39,140 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 - Optimized mel spectrogram C++ implementation
-
 ## [2.18.5] - 2026-02-23
-
 ### Fixed
 - Android: guard Bluetooth API calls behind permission check on API 31+ (#294)
 - Android: migrate phone state listener to `TelephonyCallback` on API 31+ (#275)
 - Android: reset `startTime` in `startRecording` and validate hardware format (#298, #223)
 - Android: gate foreground service on `enableBackgroundAudio` (#288, #294)
 - Android: sanitize options before native bridge calls to prevent crash
-
 ## [2.18.4] - 2026-02-16
-
 ### Added
 - Expo SDK 54 (React Native 0.81, React 19) support (#305)
 
 ### Fixed
 - iOS: include compression data in `onAudioStream` events
 - Android: properly emit final chunk of audio data on stop (#293)
-
 ## [2.18.1] - 2025-08-02
-
 ### Added
 - Improved memory monitoring
-
 ## [2.18.0] - 2025-08-01
-
 ### Fixed
 - Android: optimize buffer size to prevent OOM errors
 - Android: invalid paused duration calculation
-
 ## [2.17.0] - 2025-07-31
-
 ### Fixed
 - Android: fix `OutOfMemoryError` by tracking stream position correctly
-
 ## [2.16.1] - 2025-07-27
-
 ### Fixed
 - Android: audio analysis accumulation showing 0 bytes
-
 ## [2.16.0] - 2025-07-27
-
 ### Performance
 - Android: optimize stop recording performance for long recordings
-
 ## [2.15.0] - 2025-07-15
-
 ### Added
 - Android: `showPauseResumeActions` option to notification config (#282)
-
 ## [2.14.4] - 2025-07-15
-
 ### Fixed
 - Plugin: respect `enableDeviceDetection` configuration for Android permissions
 - Android: add missing `BLUETOOTH_ADMIN` permission for device detection
-
 ## [2.14.3] - 2025-06-12
-
 ### Changed
 - Remove analysis bit depth logging for cleaner debug output
-
 ## [2.14.2] - 2025-06-11
-
 ### Added
 - Platform limitations validation and documentation
 
 ### Fixed
 - iOS: update compressed file size when primary output is disabled
-
 ## [2.14.1] - 2025-06-11
-
 ### Fixed
 - Android: fix duration returning 0 when primary output is disabled (#244)
-
 ## [2.14.0] - 2025-06-11
-
 ### Performance
 - Comprehensive cross-platform stop recording performance optimization
-
 ## [2.13.2] - 2025-06-10
-
 ### Fixed
 - Invalid type exports
-
 ## [2.13.1] - 2025-06-09
-
 ### Added
 - Sub-100ms audio events analysis and improvements (#270)
 
 ### Fixed
 - Update `expo-modules-core` peer dependency for Expo SDK 53 compatibility
-
 ## [2.13.0] - 2025-06-09
-
 ### Added
 - Enhanced device detection and management — configurable `enableDeviceDetection`, automatic connect/disconnect events, force refresh (#269)
-
 ## [2.12.3] - 2025-06-07
-
 ### Changed
 - Adjust audio focus request timing in `AudioRecorderManager`
-
 ## [2.12.2] - 2025-06-07
-
 ### Fixed
 - Android: audio focus strategy for background recording (#267)
-
 ## [2.12.0] - 2025-06-07
-
 ### Added
 - Android-only `audioFocusStrategy` option (#264)
 
 ### Fixed
 - Android: PCM streaming duration calculation bug (#263, #265)
-
 ## [2.11.0] - 2025-06-05
-
 ### Added
 - M4A support with `preferRawStream` option (#261)
 
 ### Fixed
 - Enforce 10ms minimum interval on both platforms (#262)
 - Android: proper `MediaCodec` resource cleanup in `AudioProcessor`
-
 ## [2.10.6] - 2025-06-04
-
 ### Fixed
 - iOS: prevent `durationMs` returning 0 (#244, #260)
-
 ## [2.10.5] - 2025-06-04
-
 ### Fixed
 - iOS: enable audio streaming when primary output is disabled (#259)
-
 ## [2.10.4] - 2025-06-03
-
 ### Fixed
 - iOS: resolve Swift compilation scope error in `AudioStreamManager` (#256)
-
 ## [2.10.3] - 2025-06-02
-
 ### Fixed
 - Prevent `UninitializedPropertyAccessException` crash in developer menu (#250)
 - Return compression info when primary output is disabled (#244, #249)
-
 ## [2.10.2] - 2025-05-31
-
 ### Fixed
 - Buffer size calculation and duplicate emission fix (#248)
-
 ## [2.10.1] - 2025-05-27
-
 ### Fixed
 - `useAudioRecorder`: update `intervalId` type for better type safety
-
 ## [2.10.0] - 2025-05-26
-
 ### Added
 - Buffer duration control and `skipFileWriting` options
 - Enhanced testing framework with instrumented tests (#242)
-
 ## [2.9.0] - 2025-05-15
-
 ### Added
 - Web audio chunk handling improvements (#240)
-
 ## [2.8.4] - 2025-05-11
-
 ### Fixed
 - Expo plugin setup
-
 ## [2.8.3] - 2025-05-06
-
 ### Changed
 - Update plugin configuration to use ESM format
-
 ## [2.8.2] - 2025-05-06
-
 ### Changed
 - TypeScript configurations for dual module (ESM/CJS) support
-
 ## [2.8.1] - 2025-05-06
-
 ### Added
 - Dual module format (ESM/CommonJS) to resolve module resolution issues (#235)
-
 ## [2.7.0] - 2025-05-04
-
 ### Fixed
 - iOS: enhance background audio recording and audio format conversion (#228)
-
 ## [2.6.2] - 2025-05-01
-
 ### Fixed
 - Android: ensure foreground-only audio recording works with `FOREGROUND_SERVICE` (#202, #221)
-
 ## [2.6.1] - 2025-05-01
-
 ### Fixed
 - iOS: resolve hardware format mismatch crash and enhance logging (#220)
-
 ## [2.6.0] - 2025-05-01
-
 ### Fixed
 - Web: resolve audio recording issue without compression (#217, #219)
-
 ## [2.5.0] - 2025-04-30
-
 ### Added
 - Complete Android implementation for audio device API (#214)
 - Cross-platform audio device detection, selection, and fallback handling (#213)
@@ -251,49 +180,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - iOS: ensure complete audio data emission on recording stop/pause (#215)
-
 ## [2.4.1] - 2025-04-08
-
 ### Added
 - Enhanced background audio handling and permission checks (#200)
-
 ## [2.4.0] - 2025-04-03
-
 ### Fixed
 - iOS: resolve sample rate mismatch and enhance recording stability (#198)
 - Android: enhance permission handling for phone state and notifications (#196)
-
 ## [2.3.1] - 2025-04-03
-
 ### Changed
 - Remove external CRC32 library dependency (#195)
-
 ## [2.3.0] - 2025-03-29
-
 ### Fixed
 - Always generate a new UUID unless filename is provided (#182)
-
 ## [2.2.0] - 2025-03-28
-
 ### Changed
 - Platform-specific CRC32 handling
-
 ## [2.1.0] - 2025-03-04
-
 ### Added
 - Mel spectrogram extraction and language detection (#157)
 - Audio import functionality and decibel visualization (#156)
 - iOS trim support with custom filename (#152)
 - Sample rate control and web trimming support (#151)
 - Audio trimming with optimized processing and detailed feedback (#150, #149)
-
 ## [2.0.1] - 2025-02-27
-
 ### Changed
 - Update background mode handling for audio stream plugin
-
 ## [2.0.0] - 2025-02-27
-
 ### Added
 - Full audio analysis with spectral features and time range controls (#132)
 - `extractAudioData` API
@@ -302,166 +215,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Audio recording reliability improvements and web IndexedDB management (#146)
-
 ## [1.17.0] - 2025-02-18
-
 ### Added
 - Interval audio analysis for web, Android, and iOS (#125, #126)
-
 ## [1.16.0] - 2025-02-17
-
 ### Fixed
 - iOS: prevent adding background modes when disabled
 - iOS: replace CallKit with `AVAudioSession` for phone call detection
-
 ## [1.15.1] - 2025-02-17
-
 ### Fixed
 - iOS: restore Opus compression support (#122)
 - Emit audio analysis without blocking the recording thread
-
 ## [1.15.0] - 2025-02-15
-
 ### Fixed
 - iOS: improve audio recording interruption handling and auto-resume (#119)
 - Android: improve background recording and call interruption handling (#118)
-
 ## [1.14.2] - 2025-02-13
-
 ### Fixed
 - Clear recording metadata on STOP action
-
 ## [1.14.1] - 2025-02-12
-
 ### Fixed
 - Enable background recording by default (#114)
-
 ## [1.14.0] - 2025-02-12
-
 ### Fixed
 - `keepAwake` issue on iOS and auto-resume after call (#113)
-
 ## [1.13.2] - 2025-02-10
-
 ### Fixed
 - Ensure foreground service starts within required timeframe
-
 ## [1.13.0] - 2025-02-09
-
 ### Added
 - Audio decode support (#104)
 
 ### Fixed
 - Background recording issues and status checking (#103)
-
 ## [1.12.1] - 2025-02-01
-
 ### Fixed
 - Improve audio recording interruption handling and consistency (#98)
-
 ## [1.12.0] - 2025-01-31
-
 ### Added
 - Call state checks before starting or resuming recording (#94)
 - Custom filename and directory support for recordings (#92)
 - Compressed recording info with file size (#90)
-
 ## [1.11.3] - 2025-01-25
-
 ### Fixed
 - Disable duplicate notification alerts (#82)
-
 ## [1.11.2] - 2025-01-22
-
 ### Fixed
 - Resources not cleaned up properly on app kill (#80)
-
 ## [1.11.0] - 2025-01-22
-
 ### Added
 - Intelligent call interruption handling and compression improvements (#78)
-
 ## [1.10.0] - 2025-01-14
-
 ### Added
 - Support for pausing and resuming compressed recordings
 - Optimized notification channel settings
-
 ## [1.9.2] - 2025-01-12
-
 ### Fixed
 - iOS: bitrate verification to prevent invalid values
-
 ## [1.9.1] - 2025-01-12
-
 ### Fixed
 - iOS: potentially missing compressed file info
-
 ## [1.9.0] - 2025-01-11
-
 ### Performance
 - Optimize memory usage and streaming performance for web audio recording (#75)
-
 ## [1.8.0] - 2025-01-10
-
 ### Added
 - Audio compression support
-
 ## [1.7.2] - 2025-01-07
-
 ### Fixed
 - Web: correct WAV header handling in audio recording
-
 ## [1.7.1] - 2025-01-07
-
 ### Fixed
 - Notification: avoid triggering new alerts on update (#71)
-
 ## [1.7.0] - 2025-01-05
-
 ### Fixed
 - iOS: improve audio resampling and duration tracking (#69)
 - Handle paused state in `stopRecording` (#68)
 - Reset audio recording state properly on iOS and Android (#66)
 - Android: total size not resetting on new recording (#64)
-
 ## [1.3.1] - 2024-12-05
-
 ### Added
 - Web: throttling and optimized event processing (#49)
-
 ## [1.3.0] - 2024-11-28
-
 ### Added
 - Standardize permission status response structure across platforms (#44)
-
 ## [1.2.4] - 2024-11-05
-
 ### Changed
 - Android: minimum audio interval set to 10ms
 - Plugin: do not include `notification` config by default to prevent iOS version mismatch
 
 ### Fixed
 - Remove frequently firing log statements on web
-
 ## [1.2.0] - 2024-10-24
-
 ### Added
 - `keepAwake` — continue recording when app is in background (default: true)
 - Customizable recording notifications for Android and iOS
   - Android: rich notification with live waveform, configurable actions/colors/priorities
   - iOS: media player integration
-
 ## [1.1.17] - 2024-10-21
-
 ### Added
 - Bluetooth headset support on iOS
 
 ### Fixed
 - Android: not reading custom interval audio update
-
 ## [1.0.0] - 2024-04-01
-
 ### Added
 - Initial release
 - Real-time audio streaming across iOS, Android, and web
@@ -471,6 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audio features extraction during recording
 - Consistent WAV PCM recording format across all platforms
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.0.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.0.2...HEAD
+[3.0.2]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.0.2-beta.2...@siteed/audio-studio@3.0.2
 [3.0.1]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@3.0.0...@siteed/audio-studio@3.0.1
 [3.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/audio-studio@2.18.5...@siteed/audio-studio@3.0.0
