@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [1.1.1] - 2026-03-21
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
+## [1.1.0] - 2026-03-21
+
+### Added
+- 
+
+### Changed
+- update api references for v3.0.2
+- release @siteed/audio-studio@3.0.2
+- bump expo-audio-studio shim to 3.0.1 and update lockfile
+- disable conventionalCommits in publisher config, rewrite clean CHANGELOG
+- update api references for v3.0.1
+- release @siteed/audio-studio@3.0.1
+- clean up full CHANGELOG history — remove chores, playground entries, and noise
+- clean up CHANGELOG — add 3.0.1 section, deduplicate 3.0.0, remove commit noise
+
+### Fixed
+- feat(sherpa-voice): comprehensive logging + fix Android prod model extraction (#342)
+- sherpa-onnx.rn prebuilts v1.12.29 + audio-studio WASM/peerDeps fixes (#341)
+
+
 ## [1.0.2] - 2026-03-21
 
 ### Added
