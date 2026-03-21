@@ -15,6 +15,9 @@ import {
     useSpeakerIdModels,
 } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS } from '../utils/constants'
+import { baseLogger } from '../config'
+
+const logger = baseLogger.extend('SpeakerId')
 
 const SAMPLE_AUDIO_FILES = [
     { id: '1', name: 'Speaker 1', module: require('@assets/audio/jfk.wav') },
@@ -155,6 +158,7 @@ export function useSpeakerId() {
                 onProgress: makeWebProgressHandler(setStatusMessage),
             }
 
+            logger.info(`Calling SpeakerId.init() - model: ${selectedModelId}, threads: ${numThreads}, provider: ${provider}`)
             const result = await SpeakerId.init(modelConfig)
             if (!result.success)
                 throw new Error(
@@ -167,7 +171,9 @@ export function useSpeakerId() {
             setStatusMessage(
                 `Speaker ID initialized successfully! Embedding dimension: ${result.embeddingDim}`
             )
+            logger.info(`SpeakerId initialized, embeddingDim: ${result.embeddingDim}`)
         } catch (err) {
+            logger.error(`SpeakerId.init() failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Error initializing speaker ID: ${err instanceof Error ? err.message : String(err)}`
             )
@@ -216,6 +222,7 @@ export function useSpeakerId() {
         setStatusMessage('Processing audio...')
 
         try {
+            logger.info(`Calling SpeakerId.processFile() - file: ${audioItem.name}`)
             const result = await SpeakerId.processFile(audioItem.localUri)
             if (!result.success)
                 throw new Error(
@@ -224,6 +231,7 @@ export function useSpeakerId() {
 
             setEmbeddingResult(result)
             setStatusMessage('Audio processed successfully!')
+            logger.info(`SpeakerId embedding computed, dim: ${result.embeddingDim}, duration: ${result.durationMs}ms`)
 
             if (speakerCount > 0) {
                 setStatusMessage('Identifying speaker...')
@@ -232,6 +240,8 @@ export function useSpeakerId() {
                     threshold
                 )
                 setIdentifyResult(idResult)
+                const identified = idResult.identified ? idResult.speakerName : 'no match'
+                logger.info(`Speaker identification result: ${identified}`)
                 setStatusMessage(
                     idResult.identified
                         ? `Speaker identified: ${idResult.speakerName}`
@@ -239,6 +249,7 @@ export function useSpeakerId() {
                 )
             }
         } catch (err) {
+            logger.error(`SpeakerId.processFile() failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Error processing audio: ${err instanceof Error ? err.message : String(err)}`
             )
@@ -258,6 +269,7 @@ export function useSpeakerId() {
             return
         }
 
+        logger.info(`action: register speaker "${newSpeakerName}"`)
         setProcessing(true)
         setError(null)
         setStatusMessage('Registering speaker...')
@@ -278,9 +290,11 @@ export function useSpeakerId() {
             setStatusMessage(
                 `Speaker "${newSpeakerName}" registered successfully`
             )
+            logger.info(`Speaker "${newSpeakerName}" registered`)
             setNewSpeakerName('')
             await refreshSpeakerList()
         } catch (err) {
+            logger.error(`registerSpeaker failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Error registering speaker: ${err instanceof Error ? err.message : String(err)}`
             )
@@ -296,6 +310,7 @@ export function useSpeakerId() {
             return
         }
 
+        logger.info(`action: remove speaker "${name}"`)
         setProcessing(true)
         setError(null)
         setStatusMessage(`Removing speaker "${name}"...`)
@@ -310,6 +325,7 @@ export function useSpeakerId() {
             setStatusMessage(`Speaker "${name}" removed successfully`)
             await refreshSpeakerList()
         } catch (err) {
+            logger.error(`removeSpeaker failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Error removing speaker: ${err instanceof Error ? err.message : String(err)}`
             )

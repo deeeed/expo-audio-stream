@@ -21,6 +21,9 @@ import {
   ThemedButton,
   useTheme,
 } from '../../../components/ui';
+import { baseLogger } from '../../../config';
+
+const logger = baseLogger.extend('ASRScreen');
 
 function getModelBadge(modelId: string): { label: string; color: string } {
   if (modelId.startsWith('streaming-')) return { label: 'Streaming', color: '#4CAF50' };
@@ -88,12 +91,12 @@ export default function AsrScreen() {
 
       {/* Mode Toggle */}
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.margin.m }}>
-        <TouchableOpacity style={modeTabStyle('file')} onPress={() => handleSetMode('file')}>
+        <TouchableOpacity style={modeTabStyle('file')} onPress={() => { logger.info('action: mode changed to file'); handleSetMode('file'); }}>
           <Text variant="labelLarge" style={{ color: mode === 'file' ? theme.colors.onPrimary : theme.colors.onSurface }}>
             File
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={modeTabStyle('live')} onPress={() => handleSetMode('live')}>
+        <TouchableOpacity style={modeTabStyle('live')} onPress={() => { logger.info('action: mode changed to live'); handleSetMode('live'); }}>
           <Text variant="labelLarge" style={{ color: mode === 'live' ? theme.colors.onPrimary : theme.colors.onSurface }}>
             Live Mic
           </Text>

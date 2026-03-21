@@ -21,6 +21,9 @@ import {
   useTheme,
 } from '../../../components/ui';
 import { useDiarization } from '../../../hooks/useDiarization';
+import { baseLogger } from '../../../config';
+
+const logger = baseLogger.extend('DiarizationScreen');
 
 const SPEAKER_COLORS = [
   '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
@@ -286,7 +289,7 @@ export default function DiarizationScreen() {
                   testID="diar-run-btn"
                   label={processing ? 'Processing...' : 'Run Diarization'}
                   variant="primary"
-                  onPress={() => handleProcessFile(selectedAudio)}
+                  onPress={() => { logger.info(`action: run diarization on "${selectedAudio.name}"`); handleProcessFile(selectedAudio); }}
                   disabled={processing}
                   style={{ flex: 1 }}
                 />

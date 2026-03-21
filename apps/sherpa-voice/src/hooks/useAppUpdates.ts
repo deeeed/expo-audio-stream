@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react'
 import * as Updates from 'expo-updates'
 import Constants from 'expo-constants'
+import { baseLogger } from '../config'
+
+const logger = baseLogger.extend('AppUpdates')
 
 export interface UpdateDetails {
   updateId?: string;
@@ -63,6 +66,7 @@ export const useAppUpdates = () => {
 
       if (checking || downloading) return
 
+      logger.info('Checking for updates...')
       try {
         setChecking(true)
         setError(null)
@@ -70,16 +74,21 @@ export const useAppUpdates = () => {
         setLastChecked(new Date())
 
         if (result.isAvailable) {
+          logger.info('Update available, downloading...')
           setDownloading(true)
           const update = await Updates.fetchUpdateAsync()
           if (update) {
-            setUpdateDetails(extractUpdateDetails(update))
+            const details = extractUpdateDetails(update)
+            setUpdateDetails(details)
+            logger.info(`Update downloaded: ${details.updateId || 'unknown'}`)
           }
+        } else {
+          logger.info('No update available')
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'
         setError(msg)
-        console.warn('Update check failed:', msg)
+        logger.warn(`Update check failed: ${msg}`)
       } finally {
         setChecking(false)
         setDownloading(false)
@@ -90,10 +99,11 @@ export const useAppUpdates = () => {
 
   const doUpdate = useCallback(async () => {
     if (!downloadedUpdate) return
+    logger.info('Applying downloaded update...')
     try {
       await Updates.reloadAsync()
     } catch (err) {
-      console.warn('Failed to reload with update:', err)
+      logger.warn(`Failed to reload with update: ${err instanceof Error ? err.message : String(err)}`)
     }
   }, [downloadedUpdate])
 

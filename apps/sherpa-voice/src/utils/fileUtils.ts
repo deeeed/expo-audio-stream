@@ -6,6 +6,9 @@
  */
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('fileUtils');
 
 /** Normalize a URI so it's fetchable on web or readable by expo-file-system on native. */
 function toNativeUri(uri: string): string {
@@ -83,6 +86,7 @@ export async function resolveModelDir(rawPath: string): Promise<string> {
   let cleanPath = rawPath.replace(/^file:\/\//, '');
   try {
     const dirContents = await FileSystem.readDirectoryAsync(rawPath);
+    logger.info(`resolveModelDir: ${rawPath} contents: [${dirContents.join(', ')}]`);
     const sherpaDir = dirContents.find((item) => item.includes('sherpa-onnx'));
     if (sherpaDir) {
       const subPath = `${rawPath}/${sherpaDir}`;
@@ -91,11 +95,12 @@ export async function resolveModelDir(rawPath: string): Promise<string> {
         const subContents = await FileSystem.readDirectoryAsync(subPath);
         if (subContents.some((f) => f.endsWith('.onnx') || f === 'tokens.txt')) {
           cleanPath = cleanPath + '/' + sherpaDir;
+          logger.info(`resolveModelDir: descending into subdirectory → ${cleanPath}`);
         }
       }
     }
-  } catch (_) {
-    /* use original path */
+  } catch (e) {
+    logger.warn(`resolveModelDir: failed to read ${rawPath}: ${e}`);
   }
   return cleanPath;
 }

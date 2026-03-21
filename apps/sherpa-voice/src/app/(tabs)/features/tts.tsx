@@ -21,6 +21,9 @@ import {
   useTheme,
 } from '../../../components/ui';
 import { useTts } from '../../../hooks/useTts';
+import { baseLogger } from '../../../config';
+
+const logger = baseLogger.extend('TTSScreen');
 
 export default function TtsScreen() {
   const theme = useTheme();
@@ -204,7 +207,7 @@ export default function TtsScreen() {
           </Section>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: theme.margin.m }}>
-            <ThemedButton label="Generate Speech" variant="primary" onPress={handleGenerateTts} disabled={isLoading} style={{ flex: 1 }} />
+            <ThemedButton label="Generate Speech" variant="primary" onPress={() => { logger.info(`action: generate speech (speakerId: ${speakerId}, rate: ${speakingRate})`); handleGenerateTts(); }} disabled={isLoading} style={{ flex: 1 }} />
           </View>
         </>
       )}

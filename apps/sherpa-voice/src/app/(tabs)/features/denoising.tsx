@@ -5,7 +5,10 @@ import {
   View,
 } from 'react-native';
 import { useDenoising, DenoisingAudioFile } from '../../../hooks/useDenoising';
+import { baseLogger } from '../../../config';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
+
+const logger = baseLogger.extend('DenoisingScreen');
 import {
   AudioPlayButton,
   LoadingOverlay,
@@ -122,7 +125,7 @@ export default function DenoisingScreen() {
               <ThemedButton
                 label={processing ? 'Denoising...' : 'Denoise'}
                 variant="primary"
-                onPress={() => handleDenoise(selectedAudio)}
+                onPress={() => { logger.info(`action: denoise "${selectedAudio.name}"`); handleDenoise(selectedAudio); }}
                 disabled={processing}
                 testID="denoising-run"
               />

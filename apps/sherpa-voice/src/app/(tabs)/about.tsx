@@ -130,6 +130,16 @@ export default function AboutScreen() {
         />
       </View>
 
+      <View style={styles.configSection}>
+        <Text style={styles.sectionTitle}>Developer</Text>
+        <ListItem
+          contentContainerStyle={styles.listItemContainer}
+          label="Logs"
+          subLabel="View debug logs"
+          onPress={() => router.navigate('/logs')}
+        />
+      </View>
+
       <LabelSwitch
         label="Dark Mode"
         containerStyle={{ backgroundColor: theme.colors.surface }}

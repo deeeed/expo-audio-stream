@@ -28,6 +28,9 @@ import {
 } from '../../../hooks/useModelWithConfig'
 import { DEFAULT_LIVE_SAMPLE_RATE } from '../../../utils/constants'
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webModelUtils'
+import { baseLogger } from '../../../config'
+
+const logger = baseLogger.extend('LanguageId')
 
 interface AudioItem {
     id: string
@@ -107,7 +110,7 @@ export default function LanguageIdScreen() {
                         })
                     }
                 } catch (e) {
-                    console.warn(`Failed to load ${audio.name}:`, e)
+                    logger.warn(`Failed to load ${audio.name}: ${e instanceof Error ? e.message : String(e)}`)
                 }
             }
             setAudioItems(items)
@@ -163,6 +166,7 @@ export default function LanguageIdScreen() {
             return
         }
 
+        logger.info(`action: initialize LanguageId - model: ${selectedModelId}`)
         setLoading(true)
         setError(null)
         setStatusMessage('Initializing Language ID...')
@@ -174,15 +178,19 @@ export default function LanguageIdScreen() {
                 modelBaseUrl: getWebModelBaseUrl('languageId'),
                 onProgress: makeWebProgressHandler(setStatusMessage),
             }
+            logger.info('Calling LanguageId.init()...')
             const result = await LanguageId.init(config)
             if (result.success) {
                 setInitialized(true)
                 setStatusMessage('Language ID initialized successfully')
+                logger.info('LanguageId initialized successfully')
             } else {
                 setError(result.error || 'Init failed')
                 setStatusMessage('')
+                logger.warn(`LanguageId.init() failed: ${result.error}`)
             }
         } catch (e) {
+            logger.error(`LanguageId.init() error: ${e instanceof Error ? e.message : String(e)}`)
             setError(e instanceof Error ? e.message : String(e))
         } finally {
             setLoading(false)
@@ -194,6 +202,7 @@ export default function LanguageIdScreen() {
         const selected = audioItems.find((a) => a.id === selectedAudioId)
         if (!selected || !initialized) return
 
+        logger.info(`action: detect language from file "${selected.name}"`)
         setDetecting(true)
         setError(null)
         setDetectedLanguage(null)
@@ -210,10 +219,13 @@ export default function LanguageIdScreen() {
                 setStatusMessage(
                     `Detected: ${result.language} (${result.durationMs}ms)`
                 )
+                logger.info(`Language detected: ${result.language} in ${result.durationMs}ms`)
             } else {
                 setError(result.error || 'Detection failed')
+                logger.warn(`Language detection failed: ${result.error}`)
             }
         } catch (e) {
+            logger.error(`detectLanguageFromFile error: ${e instanceof Error ? e.message : String(e)}`)
             setError(e instanceof Error ? e.message : String(e))
         } finally {
             setDetecting(false)
@@ -226,6 +238,7 @@ export default function LanguageIdScreen() {
             setError('Language ID not initialized')
             return
         }
+        logger.info('action: start live mic')
         setLiveChunks(0)
         setLiveLanguage(null)
         samplesBufferRef.current = []
@@ -252,7 +265,7 @@ export default function LanguageIdScreen() {
                     if (!recordingRef.current) return
                     try {
                         if (!(event.data instanceof Float32Array)) {
-                            console.warn('[LanguageId] Expected Float32Array but got', typeof event.data)
+                            logger.warn(`Expected Float32Array but got ${typeof event.data}`)
                             return
                         }
                         const samples = Array.from(event.data)
@@ -275,15 +288,13 @@ export default function LanguageIdScreen() {
                             samplesBufferRef.current = []
                         }
                     } catch (e) {
-                        console.warn(
-                            '[LanguageId] Error processing audio chunk:',
-                            e
-                        )
+                        logger.warn(`Error processing audio chunk: ${e instanceof Error ? e.message : String(e)}`)
                     }
                 },
             })
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
+            logger.error(`Mic start error: ${msg}`)
             setError(`Mic error: ${msg}`)
             recordingRef.current = false
             setIsLiveMic(false)
@@ -291,6 +302,7 @@ export default function LanguageIdScreen() {
     }, [initialized, recorder])
 
     const handleStopMic = useCallback(async () => {
+        logger.info('action: stop live mic')
         recordingRef.current = false
         try {
             // Process remaining buffered samples
@@ -306,7 +318,7 @@ export default function LanguageIdScreen() {
             }
             await recorder.stopRecording()
         } catch (e) {
-            console.warn('[LanguageId] Stop error:', e)
+            logger.warn(`Stop mic error: ${e instanceof Error ? e.message : String(e)}`)
         }
         setIsLiveMic(false)
         setStatusMessage(`Live mic stopped. ${liveChunks} chunks processed.`)
@@ -334,16 +346,20 @@ export default function LanguageIdScreen() {
                     <InlineModelDownloader
                         modelType="language-id"
                         emptyLabel="No Language ID models downloaded."
-                        onModelDownloaded={(modelId) =>
+                        onModelDownloaded={(modelId) => {
+                            logger.info(`action: model downloaded ${modelId}`)
                             setSelectedModelId(modelId)
-                        }
+                        }}
                     />
                 ) : (
                     <ModelSelector
                         models={downloadedModels}
                         selectedId={selectedModelId}
                         onSelect={(id) => {
-                            if (!initialized) setSelectedModelId(id)
+                            if (!initialized) {
+                                logger.info(`action: model selected ${id}`)
+                                setSelectedModelId(id)
+                            }
                         }}
                         disabled={initialized}
                     />

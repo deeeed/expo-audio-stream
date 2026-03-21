@@ -6,6 +6,9 @@ import { registerRootComponent } from 'expo'
 import { Platform } from 'react-native'
 
 import { getEnabledModulePaths, getWasmBasePath } from './config/webFeatures'
+import { baseLogger } from './config'
+
+const logger = baseLogger.extend('App')
 
 // Enable this for debugging WASM loading
 const DEBUG_WASM = true
@@ -16,11 +19,11 @@ const DEBUG_WASM = true
 async function initializeApp() {
   // For web: Load WASM module before continuing
   if (Platform.OS === 'web') {
-    console.log('Web environment detected, loading WASM module...')
+    logger.info('Web environment detected, loading WASM module...')
 
     try {
-      const wasmBase = getWasmBasePath();
-      console.log('WASM base path:', wasmBase);
+      const wasmBase = getWasmBasePath()
+      logger.info(`WASM base path: ${wasmBase}`)
 
       // Configure path to espeak-ng-data for TTS
       if (window) {
@@ -28,7 +31,7 @@ async function initializeApp() {
         window.sherpaOnnxConfig = {
           espeakNgDataZipUrl: `${wasmBase}models/espeak-ng-data.zip`,
           assetsBasePath: `${wasmBase}models/`,
-        };
+        }
       }
 
       // Build module list from web feature config — only enabled features are loaded
@@ -43,13 +46,13 @@ async function initializeApp() {
         modulePaths,
       })
 
-      console.log('WASM module loaded:', loaded)
+      logger.info(`WASM module loaded: ${loaded}`)
 
       if (!loaded) {
-        console.warn('WASM module failed to load. Some features may not work correctly.')
+        logger.warn('WASM module failed to load. Some features may not work correctly.')
       }
     } catch (error) {
-      console.error('Error loading WASM module:', error)
+      logger.error(`Error loading WASM module: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -59,7 +62,7 @@ async function initializeApp() {
 
 // Start the initialization process
 initializeApp().catch(error => {
-  console.error('Failed to initialize app:', error)
+  logger.error(`Failed to initialize app: ${error instanceof Error ? error.message : String(error)}`)
   // Still register the Expo Router App component even if initialization fails
   registerRootComponent(ExpoRouterApp)
 })

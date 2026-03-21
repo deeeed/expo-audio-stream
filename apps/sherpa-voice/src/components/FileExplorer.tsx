@@ -14,6 +14,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { formatBytes } from '../utils/formatters';
 import { useModelManagement } from '../contexts/ModelManagement/ModelManagementContext';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('FileExplorer');
 
 interface FileItem {
   name: string;
@@ -82,15 +85,12 @@ export function FileExplorer({
 
     // Safety check (though currentPath should be stable now)
     if (pathForFetch === null || pathForFetch === undefined) { // Check the derived path
-      console.log(`fetchItems (${prefix}): Skipping fetch, derived currentPath is null/undefined.`);
+      logger.warn(`fetchItems (${prefix}): Skipping fetch, derived currentPath is null/undefined.`);
       if (!logOnly) setLoading(false);
       return;
     }
 
-    console.log(`fetchItems (${prefix}): Starting fetch.`);
-    console.log(`  > currentPath (normalized): "${pathForFetch}"`);
-    // Log raw prop for comparison if needed
-    // console.log(`  > rawCurrentPath prop: "${rawCurrentPath}"`);
+    logger.info(`fetchItems (${prefix}): Starting fetch for "${pathForFetch}"`);
 
     if (!logOnly) {
       setLoading(true);
@@ -113,27 +113,20 @@ export function FileExplorer({
       }
       // Else: It's not virtual root and doesn't look like a known real path format
 
-      // **CRITICAL LOGGING FOR UI PATH**
       if (!logOnly) {
-          console.log(`fetchItems (UI): Path Type Determination for "${pathForFetch}":`);
-          console.log(`  > normalizedDocumentDirectory: ${normalizedDocumentDirectory}`);
-          console.log(`  > pathForFetch.startsWith(normalizedDocumentDirectory): ${pathForFetch.startsWith(normalizedDocumentDirectory)}`);
-          console.log(`  > pathForFetch.startsWith('file://'): ${pathForFetch.startsWith('file://')}`);
-          console.log(`  > Determined Path Type: ${pathType}`);
+        logger.info(`fetchItems (UI): path="${pathForFetch}", type=${pathType}`);
       }
       // --- End Explicit Path Type Check ---
 
 
       // Case 1: Real file system path
       if (pathType === 'real') {
-        console.log(`fetchItems (${prefix}): Handling as REAL path: ${pathForFetch}`);
+        logger.info(`fetchItems (${prefix}): Handling as REAL path: ${pathForFetch}`);
 
         // --- Filesystem operations ---
         let pathInfo: FileSystem.FileInfo | null = null;
          try {
-           // console.log(`fetchItems (${prefix}): Attempting getInfoAsync for: ${pathForFetch}`); // Less verbose
            pathInfo = await FileSystem.getInfoAsync(pathForFetch, { size: true });
-           // console.log(`fetchItems (${prefix}): getInfoAsync result:`, JSON.stringify(pathInfo)); // Less verbose
 
            if (!pathInfo.exists) throw new Error(`Path does not exist.`);
            if (!pathInfo.isDirectory) throw new Error(`Path is a file, not a directory.`);
@@ -141,7 +134,7 @@ export function FileExplorer({
          } catch (e) {
            const infoError = e instanceof Error ? e : new Error(String(e));
            const errorMsg = `getInfoAsync failed for ${pathForFetch}: ${infoError.message}`;
-           console.error(`fetchItems (${prefix}): ${errorMsg}`, infoError);
+           logger.error(`fetchItems (${prefix}): ${errorMsg}`);
            if (!logOnly) setError(errorMsg);
            setItems([]);
            return; // Stop processing
@@ -149,13 +142,11 @@ export function FileExplorer({
 
          let fileList: string[] = [];
          try {
-          //  console.log(`fetchItems (${prefix}): Attempting readDirectoryAsync for: ${pathForFetch}`); // Less verbose
            fileList = await FileSystem.readDirectoryAsync(pathForFetch);
-          //  console.log(`fetchItems (${prefix}): readDirectoryAsync succeeded, found ${fileList.length} items.`); // Less verbose
          } catch (e) {
            const readDirError = e instanceof Error ? e : new Error(String(e));
            const errorMsg = `readDirectoryAsync failed for ${pathForFetch}: ${readDirError.message}`;
-           console.error(`fetchItems (${prefix}): ${errorMsg}`, readDirError);
+           logger.error(`fetchItems (${prefix}): ${errorMsg}`);
            if (!logOnly) setError(errorMsg);
            setItems([]);
            return; // Stop processing
@@ -166,7 +157,7 @@ export function FileExplorer({
            try {
              const info = await FileSystem.getInfoAsync(itemPath, { size: true });
              if (!info.exists) {
-                 console.warn(`fetchItems (${prefix}): Item ${name} reported but doesn't exist at ${itemPath}`);
+                 logger.warn(`fetchItems (${prefix}): Item ${name} reported but doesn't exist at ${itemPath}`);
                  return { name, path: itemPath, displayPath: itemPath.replace(/^file:\/\//, ''), isDirectory: false, exists: false, error: 'Reported but doesn\'t exist' };
              }
              return {
@@ -176,7 +167,7 @@ export function FileExplorer({
                uri: info.uri, exists: info.exists,
              };
            } catch (itemError) {
-             console.error(`fetchItems (${prefix}): Error getting info for ${itemPath}:`, itemError);
+             logger.error(`fetchItems (${prefix}): Error getting info for ${itemPath}: ${itemError instanceof Error ? itemError.message : String(itemError)}`);
              return { name, path: itemPath, displayPath: itemPath.replace(/^file:\/\//, ''), isDirectory: false, exists: false, error: `Failed to get info: ${String(itemError)}` };
            }
          });
@@ -186,17 +177,15 @@ export function FileExplorer({
 
          if (!logOnly) {
            setItems(validItems as FileItem[]);
-           console.log(`fetchItems (${prefix}): Set ${validItems.length} valid items for UI.`);
+           logger.info(`fetchItems (${prefix}): Set ${validItems.length} valid items for UI.`);
          } else {
-           console.log(`fetchItems (${prefix}): Debug - Found ${validItems.length} valid items.`);
-           // Log debug items if needed
-           // validItems.forEach(item => console.log(JSON.stringify(item)));
+           logger.info(`fetchItems (${prefix}): Debug - Found ${validItems.length} valid items.`);
          }
          // --- End Filesystem operations ---
       }
       // Case 2: Virtual root
       else if (pathType === 'virtual') {
-        console.log(`fetchItems (${prefix}): Handling as VIRTUAL root.`);
+        logger.info(`fetchItems (${prefix}): Handling as VIRTUAL root.`);
         const downloadedModels = getDownloadedModels();
         const filteredModels = filterType === 'all'
            ? downloadedModels
@@ -204,7 +193,7 @@ export function FileExplorer({
 
         if (filteredModels.length === 0) {
            const msg = 'No downloaded models found matching the filter.';
-           console.log(`fetchItems (${prefix}): ${msg}`);
+           logger.info(`fetchItems (${prefix}): ${msg}`);
            if (!logOnly) setError(msg);
            setItems([]);
          } else {
@@ -219,35 +208,35 @@ export function FileExplorer({
              }));
            if (!logOnly) {
                setItems(modelItems);
-               console.log(`fetchItems (${prefix}): Set ${modelItems.length} model items for UI.`);
+               logger.info(`fetchItems (${prefix}): Set ${modelItems.length} model items for UI.`);
            } else {
-               console.log(`fetchItems (${prefix}): Debug - Found ${modelItems.length} model items.`);
+               logger.info(`fetchItems (${prefix}): Debug - Found ${modelItems.length} model items.`);
            }
          }
       }
       // Case 3: Invalid/Unhandled path
       else { // pathType === 'invalid'
          const errorMsg = `Invalid or unhandled path state: "${pathForFetch}"`;
-         console.error(`fetchItems (${prefix}): ${errorMsg}`);
+         logger.error(`fetchItems (${prefix}): ${errorMsg}`);
          if (!logOnly) setError(errorMsg);
          setItems([]);
       }
     } catch (error) {
       const errorMsg = `Error in fetchItems for ${pathForFetch}: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(`fetchItems (${prefix}): Caught top-level error - ${errorMsg}`, error);
+      logger.error(`fetchItems (${prefix}): Caught top-level error - ${errorMsg}`);
       if (!logOnly) setError(errorMsg);
       setItems([]);
     } finally {
       if (!logOnly) {
           setLoading(false);
       }
-      console.log(`fetchItems (${prefix}): Fetch finished for path: "${pathForFetch}"`);
+      logger.info(`fetchItems (${prefix}): Fetch finished for path: "${pathForFetch}"`);
     }
   }, [currentPath, filterType, getDownloadedModels]); // Depend on memoized path, filter, getter
 
   // Effect to trigger fetch when currentPath or filterType changes
   useEffect(() => {
-    console.log("Fetch Effect: Triggered. currentPath=", currentPath);
+    logger.info(`Fetch Effect: Triggered. currentPath="${currentPath}"`);
     // No need to check for null/undefined here if currentPath is derived via useMemo from prop
     fetchItems();
   }, [fetchItems, currentPath]); // Depend on callback and currentPath
@@ -257,57 +246,57 @@ export function FileExplorer({
     try {
       // Use a temporary array to hold debug items
       const tempDebugItems: FileItem[] = [];
-      
+
       // Determine path type
       let pathType: 'virtual' | 'real' | 'invalid' = 'invalid';
-      
+
       if (currentPath === '') {
         pathType = 'virtual';
       } else if (currentPath.startsWith(normalizedDocumentDirectory) || currentPath.startsWith('file://')) {
         pathType = 'real';
       }
-      
+
       // Log path type info
-      console.log(`Debug Info: Path Type for "${currentPath}": ${pathType}`);
-      
+      logger.info(`Debug Info: Path Type for "${currentPath}": ${pathType}`);
+
       if (pathType === 'real') {
         // Check path exists
         const pathInfo = await FileSystem.getInfoAsync(currentPath, { size: true });
         if (!pathInfo.exists || !pathInfo.isDirectory) {
           throw new Error(`Path ${currentPath} does not exist or is not a directory`);
         }
-        
+
         // Read directory
         const fileList = await FileSystem.readDirectoryAsync(currentPath);
-        console.log(`Debug: Found ${fileList.length} items in ${currentPath}`);
-        
+        logger.info(`Debug: Found ${fileList.length} items in ${currentPath}`);
+
         // Get info for each item
         const itemsWithInfoPromises = fileList.map(async (name) => {
           const itemPath = `${currentPath}/${name}`;
           try {
             const info = await FileSystem.getInfoAsync(itemPath, { size: true });
             return {
-              name, 
-              path: itemPath, 
+              name,
+              path: itemPath,
               displayPath: itemPath.replace(/^file:\/\//, ''),
               isDirectory: info.isDirectory ?? false,
               size: info.exists && 'size' in info ? info.size : undefined,
-              uri: info.uri, 
+              uri: info.uri,
               exists: info.exists,
               modificationTime: info.exists && 'modificationTime' in info ? info.modificationTime : undefined,
             };
           } catch (itemError) {
-            return { 
-              name, 
-              path: itemPath, 
-              displayPath: itemPath.replace(/^file:\/\//, ''), 
-              isDirectory: false, 
-              exists: false, 
-              error: `Error: ${String(itemError)}` 
+            return {
+              name,
+              path: itemPath,
+              displayPath: itemPath.replace(/^file:\/\//, ''),
+              isDirectory: false,
+              exists: false,
+              error: `Error: ${String(itemError)}`
             };
           }
         });
-        
+
         const detailedItems = await Promise.all(itemsWithInfoPromises);
         tempDebugItems.push(...detailedItems as FileItem[]);
       } else if (pathType === 'virtual') {
@@ -328,16 +317,15 @@ export function FileExplorer({
           }));
         tempDebugItems.push(...modelItems);
       }
-      
+
       // Update debug state
       setDebugItems(tempDebugItems);
       setShowDebugInfo(true);
-      
-      // Still log to console as before
-      console.log("Debug items:", tempDebugItems);
-      
+
+      logger.info(`Debug items: ${tempDebugItems.length} items found`);
+
     } catch (error) {
-      console.error("Debug info error:", error);
+      logger.error(`Debug info error: ${error instanceof Error ? error.message : String(error)}`);
       Alert.alert("Debug Error", String(error));
     } finally {
       setLoading(false);
@@ -351,16 +339,16 @@ export function FileExplorer({
         isActualFilePath = true;
     }
 
-    console.log(`Navigate Up: Current path: "${currentPath}", Model root: "${modelRootPath}", isActualFilePath: ${isActualFilePath}`);
+    logger.info(`Navigate Up: currentPath="${currentPath}", modelRoot="${modelRootPath}", isActualFilePath=${isActualFilePath}`);
 
     if (!isActualFilePath) { // At virtual root
-      console.log("Navigate Up: At virtual root. Calling onBackToDownloads.");
+      logger.info('Navigate Up: At virtual root. Calling onBackToDownloads.');
       onBackToDownloads?.();
       return;
     }
 
     if (currentPath === modelRootPath) { // Exactly at the root of the selected model
-      console.log(`Navigate Up: At model root (${currentPath}). Calling onBackToDownloads.`);
+      logger.info(`Navigate Up: At model root (${currentPath}). Calling onBackToDownloads.`);
       onBackToDownloads?.(); // Go back to the virtual list
       return;
     }
@@ -368,7 +356,7 @@ export function FileExplorer({
     // --- Parent Path Calculation (Keep as is) ---
     const pathParts = currentPath.split('/');
     if (pathParts.length <= (currentPath.startsWith('file://') ? 3 : 1)) {
-       console.log("Navigate Up: Cannot go further up from filesystem root.", pathParts);
+       logger.warn(`Navigate Up: Cannot go further up from filesystem root.`);
        onBackToDownloads?.();
        return;
     }
@@ -380,31 +368,24 @@ export function FileExplorer({
 
     // Safety check against navigating above model root
      if (modelRootPath && !parentPath.startsWith(modelRootPath) && parentPath !== modelRootPath) {
-       console.warn(`Navigate Up: Calculated parent "${parentPath}" is outside model root "${modelRootPath}". Returning to downloads.`);
+       logger.warn(`Navigate Up: Calculated parent "${parentPath}" is outside model root "${modelRootPath}". Returning to downloads.`);
        onBackToDownloads?.();
        return;
      }
     // --- End Parent Path Calculation ---
 
-    console.log(`Navigate Up: Navigating from ${currentPath} to parent: ${parentPath}`);
+    logger.info(`Navigate Up: Navigating from ${currentPath} to parent: ${parentPath}`);
     onNavigate(parentPath);
   };
 
   const handleItemPress = (item: FileItem) => {
     if (item.isDirectory) {
-      console.log(`Navigating to folder: ${item.path}`);
+      logger.info(`Navigating to folder: ${item.path}`);
       onNavigate(item.path); // Navigate using the path from the item
     } else {
-      // Log detailed file information to the console
-      console.log('File Details:', {
-        name: item.name,
-        path: item.path,
-        displayPath: item.displayPath,
-        size: item.size ? formatBytes(item.size) : 'Unknown',
-        uri: item.uri,
-        exists: item.exists,
-      });
-      
+      // Log detailed file information
+      logger.info(`File selected: ${item.name} (${item.size ? formatBytes(item.size) : 'unknown size'}), path: ${item.path}`);
+
       // Copy path to clipboard and show alert
       try {
         // Copy the path to clipboard
@@ -415,19 +396,19 @@ export function FileExplorer({
               "File Selected",
               `Path copied to clipboard:\n${item.path}`,
               [
-                { 
-                  text: "OK", 
-                  style: "default" 
+                {
+                  text: "OK",
+                  style: "default"
                 }
               ]
             );
           })
           .catch(error => {
-            console.error('Failed to copy to clipboard:', error);
+            logger.error(`Failed to copy to clipboard: ${error instanceof Error ? error.message : String(error)}`);
             Alert.alert("File Selected", `Path: ${item.path}\n\nFailed to copy to clipboard.`);
           });
       } catch (error) {
-        console.error('Error accessing clipboard:', error);
+        logger.error(`Error accessing clipboard: ${error instanceof Error ? error.message : String(error)}`);
         Alert.alert("File Selected", `Path: ${item.path}`);
       }
     }
@@ -492,14 +473,14 @@ export function FileExplorer({
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.webUnsupportedContainer}>
           <Text style={styles.webUnsupportedTitle}>File Explorer Unavailable</Text>
           <Text style={styles.webUnsupportedText}>
             The file explorer feature is not available on web platforms as it requires
             native file system access.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.returnButton}
             onPress={onBackToDownloads}
           >
@@ -578,7 +559,7 @@ export function FileExplorer({
           ) : null
         }
       />
-      
+
       {/* Debug Overlay */}
       {showDebugInfo && (
         <View style={styles.debugOverlay}>
@@ -588,7 +569,7 @@ export function FileExplorer({
               <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
-          
+
           <FlatList
             data={debugItems}
             keyExtractor={(item, index) => `${item.path}-${index}`}
@@ -753,4 +734,4 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
-}); 
+});

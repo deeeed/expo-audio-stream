@@ -33,6 +33,9 @@ import {
     DEFAULT_VAD_WINDOW_SIZE,
 } from '../../../utils/constants'
 import { readFileAsArrayBuffer } from '../../../utils/fileUtils'
+import { baseLogger } from '../../../config'
+
+const logger = baseLogger.extend('VAD')
 
 interface AudioItem {
     id: string
@@ -106,7 +109,7 @@ export default function VadScreen() {
                         })
                     }
                 } catch (e) {
-                    console.warn(`Failed to load ${audio.name}:`, e)
+                    logger.warn(`Failed to load ${audio.name}: ${e instanceof Error ? e.message : String(e)}`)
                 }
             }
             setAudioItems(items)
@@ -172,6 +175,7 @@ export default function VadScreen() {
             return
         }
 
+        logger.info(`action: initialize VAD - model: ${selectedModelId}`)
         setLoading(true)
         setError(null)
         setStatusMessage('Initializing VAD...')
@@ -183,15 +187,19 @@ export default function VadScreen() {
                 modelBaseUrl: getWebModelBaseUrl('vad'),
                 onProgress: makeWebProgressHandler(setStatusMessage),
             }
+            logger.info('Calling VAD.init()...')
             const result = await VAD.init(config)
             if (result.success) {
                 setInitialized(true)
                 setStatusMessage('VAD initialized successfully')
+                logger.info('VAD initialized successfully')
             } else {
                 setError(result.error || 'Init failed')
                 setStatusMessage('')
+                logger.warn(`VAD.init() failed: ${result.error}`)
             }
         } catch (e) {
+            logger.error(`VAD.init() error: ${e instanceof Error ? e.message : String(e)}`)
             setError(e instanceof Error ? e.message : String(e))
         } finally {
             setLoading(false)
@@ -203,6 +211,7 @@ export default function VadScreen() {
         const selected = audioItems.find((a) => a.id === selectedAudioId)
         if (!selected || !initialized) return
 
+        logger.info(`action: detect speech from file "${selected.name}"`)
         setDetecting(true)
         setError(null)
         setSegments([])
@@ -254,10 +263,12 @@ export default function VadScreen() {
             setStatusMessage(
                 `Done. ${allSegments.length} segment(s) found, speech ${speechDetected ? 'detected' : 'not detected'}`
             )
+            logger.info(`VAD result: ${allSegments.length} segments, speech ${speechDetected ? 'detected' : 'not detected'}`)
 
             // Reset VAD for next detection
             await VAD.reset()
         } catch (e) {
+            logger.error(`VAD file detection error: ${e instanceof Error ? e.message : String(e)}`)
             setError(e instanceof Error ? e.message : String(e))
         } finally {
             setDetecting(false)
@@ -270,6 +281,7 @@ export default function VadScreen() {
             setError('VAD not initialized')
             return
         }
+        logger.info('action: start live mic')
         setLiveChunks(0)
         setLiveSegments([])
         setLiveSpeechDetected(false)
@@ -296,7 +308,7 @@ export default function VadScreen() {
                     if (!recordingRef.current) return
                     try {
                         if (!(event.data instanceof Float32Array)) {
-                            console.warn('[VAD] Expected Float32Array but got', typeof event.data)
+                            logger.warn(`Expected Float32Array but got ${typeof event.data}`)
                             return
                         }
                         const samples = Array.from(event.data)
@@ -315,15 +327,16 @@ export default function VadScreen() {
                             }
                             setLiveChunks((prev) => prev + 1)
                         } else {
-                            console.warn('[VAD] acceptWaveform failed:', result)
+                            logger.warn(`VAD.acceptWaveform failed: ${result.error || 'unknown error'}`)
                         }
                     } catch (e) {
-                        console.warn('[VAD] Error processing audio chunk:', e)
+                        logger.warn(`Error processing audio chunk: ${e instanceof Error ? e.message : String(e)}`)
                     }
                 },
             })
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
+            logger.error(`Mic start error: ${msg}`)
             setError(`Mic error: ${msg}`)
             recordingRef.current = false
             setIsLiveMic(false)
@@ -331,11 +344,12 @@ export default function VadScreen() {
     }, [initialized, recorder])
 
     const handleStopMic = useCallback(async () => {
+        logger.info('action: stop live mic')
         recordingRef.current = false
         try {
             await recorder.stopRecording()
         } catch (e) {
-            console.warn('[VAD] Stop error:', e)
+            logger.warn(`Stop mic error: ${e instanceof Error ? e.message : String(e)}`)
         }
         setIsLiveMic(false)
         setStatusMessage(
@@ -366,16 +380,20 @@ export default function VadScreen() {
                     <InlineModelDownloader
                         modelType="vad"
                         emptyLabel="No VAD models downloaded."
-                        onModelDownloaded={(modelId) =>
+                        onModelDownloaded={(modelId) => {
+                            logger.info(`action: model downloaded ${modelId}`)
                             setSelectedModelId(modelId)
-                        }
+                        }}
                     />
                 ) : (
                     <ModelSelector
                         models={downloadedModels}
                         selectedId={selectedModelId}
                         onSelect={(id) => {
-                            if (!initialized) setSelectedModelId(id)
+                            if (!initialized) {
+                                logger.info(`action: model selected ${id}`)
+                                setSelectedModelId(id)
+                            }
                         }}
                         disabled={initialized}
                     />

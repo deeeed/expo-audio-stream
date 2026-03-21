@@ -39,6 +39,9 @@ import {
     readFileAsArrayBuffer,
     readFileAsText,
 } from '../../../utils/fileUtils'
+import { baseLogger } from '../../../config'
+
+const logger = baseLogger.extend('KWS')
 
 interface AudioItem {
     id: string
@@ -189,7 +192,7 @@ export default function KwsScreen() {
         return () => {
             if (initialized) {
                 KWS.release().catch((e: Error) =>
-                    console.error('KWS cleanup error:', e)
+                    logger.error(`KWS cleanup error: ${e instanceof Error ? e.message : String(e)}`)
                 )
             }
         }
@@ -235,7 +238,7 @@ export default function KwsScreen() {
             }
             setKeywords(parseKeywordsFile(kwContent))
         } catch (e) {
-            console.warn('[KWS] Could not read keywords.txt:', e)
+            logger.warn(`Could not read keywords.txt: ${e instanceof Error ? e.message : String(e)}`)
         }
 
         // Read test_keywords.txt (subset keywords that match the test wavs)
@@ -311,7 +314,7 @@ export default function KwsScreen() {
                 }
             }
         } catch (e) {
-            console.warn('[KWS] Could not load bundled audio:', e)
+            logger.warn(`Could not load bundled audio: ${e instanceof Error ? e.message : String(e)}`)
         }
 
         setAudioFiles(items)
@@ -343,11 +346,12 @@ export default function KwsScreen() {
                 setDetectedKeywords((prev) => [...prev, kw])
                 addLog(`DETECTED: "${kw}"`)
                 setStatusMessage(`Detected: "${kw}"`)
+                logger.info(`Keyword detected: "${kw}"`)
             }
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
             addLog(`ERROR: ${msg}`)
-            console.warn('[KWS] acceptWaveform error:', msg)
+            logger.warn(`acceptWaveform error: ${msg}`)
             setMicError(msg)
             // Stop recording on native crash to prevent repeated failures
             recordingRef.current = false
@@ -371,6 +375,7 @@ export default function KwsScreen() {
             setError('KWS not initialized')
             return
         }
+        logger.info('action: start live mic')
         setMicError(null)
         setDetectedKeywords([])
         setChunksProcessed(0)
@@ -398,7 +403,7 @@ export default function KwsScreen() {
                     if (!recordingRef.current) return
                     try {
                         if (!(event.data instanceof Float32Array)) {
-                            console.warn('[KWS] Expected Float32Array but got', typeof event.data)
+                            logger.warn(`Expected Float32Array but got ${typeof event.data}`)
                             return
                         }
                         const samples = Array.from(event.data)
@@ -409,7 +414,7 @@ export default function KwsScreen() {
                         })
                         processKwsQueue()
                     } catch (e) {
-                        console.warn('[KWS] Error processing audio chunk:', e)
+                        logger.warn(`Error processing audio chunk: ${e instanceof Error ? e.message : String(e)}`)
                     }
                 },
             })
@@ -423,6 +428,7 @@ export default function KwsScreen() {
     }, [initialized, recorder, processKwsQueue, addLog])
 
     const handleStopMic = useCallback(async () => {
+        logger.info('action: stop live mic')
         recordingRef.current = false
         queueRef.current = []
         try {
@@ -434,7 +440,7 @@ export default function KwsScreen() {
             setStatusMessage(msg)
             addLog(msg)
         } catch (e) {
-            console.warn('[KWS] Stop error:', e)
+            logger.warn(`Stop mic error: ${e instanceof Error ? e.message : String(e)}`)
         }
     }, [recorder, detectedKeywords.length, chunksProcessed, addLog])
 
@@ -444,6 +450,7 @@ export default function KwsScreen() {
             return
         }
 
+        logger.info(`action: initialize KWS - model: ${selectedModelId}, threads: ${numThreads}, debug: ${debugMode}`)
         setLoading(true)
         setError(null)
         setStatusMessage('Initializing KWS...')
@@ -451,7 +458,7 @@ export default function KwsScreen() {
         try {
             const cleanPath = await resolveModelDir(localPath)
             setModelDir(cleanPath)
-            console.log(`[KWS] Using model dir: ${cleanPath}`)
+            logger.info(`Using model dir: ${cleanPath}`)
 
             // Decide which keywords file to use
             const kwFile = useTestKeywords
@@ -478,21 +485,24 @@ export default function KwsScreen() {
                 setInitialized(true)
                 setInitResult(result)
                 setStatusMessage('KWS initialized successfully')
+                logger.info('KWS initialized successfully')
                 // Load keywords display and test wavs
                 await loadModelAssets(cleanPath)
             } else {
                 setError(`KWS init failed: ${result.error}`)
+                logger.warn(`KWS.init() failed: ${result.error}`)
             }
         } catch (err) {
-            setError(
-                `KWS init error: ${err instanceof Error ? err.message : String(err)}`
-            )
+            const msg = err instanceof Error ? err.message : String(err)
+            logger.error(`KWS.init() error: ${msg}`)
+            setError(`KWS init error: ${msg}`)
         } finally {
             setLoading(false)
         }
     }
 
     const handleRelease = async () => {
+        logger.info('action: release KWS')
         try {
             if (recorder.isRecording) {
                 recordingRef.current = false
@@ -523,6 +533,7 @@ export default function KwsScreen() {
             return
         }
 
+        logger.info(`action: detect keywords from file "${audioItem.name.split(':')[0]}"`)
         setDetecting(true)
         setDetectedKeyword(null)
         setError(null)
@@ -549,9 +560,7 @@ export default function KwsScreen() {
                 samples.push(int16 / 32768.0)
             }
 
-            console.log(
-                `[KWS] Decoded ${numSamples} samples at ${sampleRate}Hz`
-            )
+            logger.info(`Decoded ${numSamples} samples at ${sampleRate}Hz`)
 
             // Feed all samples at once — the native handler calls
             // acceptWaveform + decode loop internally.
@@ -560,16 +569,16 @@ export default function KwsScreen() {
             if (result.detected) {
                 setDetectedKeyword(result.keyword)
                 setStatusMessage(`Keyword detected: "${result.keyword}"`)
-                console.log(`[KWS] Detected: "${result.keyword}"`)
+                logger.info(`Detected: "${result.keyword}"`)
             } else {
                 setDetectedKeyword('')
                 setStatusMessage('No keyword detected in this audio')
+                logger.info('No keyword detected')
             }
         } catch (err) {
-            console.error('[KWS] Detection error:', err)
-            setError(
-                `Detection error: ${err instanceof Error ? err.message : String(err)}`
-            )
+            const msg = err instanceof Error ? err.message : String(err)
+            logger.error(`Detection error: ${msg}`)
+            setError(`Detection error: ${msg}`)
         } finally {
             setDetecting(false)
         }
@@ -597,15 +606,19 @@ export default function KwsScreen() {
                     <InlineModelDownloader
                         modelType="kws"
                         emptyLabel="No KWS models downloaded."
-                        onModelDownloaded={(modelId) =>
+                        onModelDownloaded={(modelId) => {
+                            logger.info(`action: model downloaded ${modelId}`)
                             setSelectedModelId(modelId)
-                        }
+                        }}
                     />
                 ) : (
                     <ModelSelector
                         models={downloadedModels}
                         selectedId={selectedModelId}
-                        onSelect={setSelectedModelId}
+                        onSelect={(id) => {
+                            logger.info(`action: model selected ${id}`)
+                            setSelectedModelId(id)
+                        }}
                         accentColor={theme.colors.error}
                     />
                 )}

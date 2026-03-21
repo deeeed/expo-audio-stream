@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils';
 import { useModelManagement } from '../contexts/ModelManagement';
 import { useModels } from './useModelWithConfig';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('Denoising');
 
 const SAMPLE_AUDIO_FILES = [
   { id: '1', name: 'JFK Speech Extract', module: require('@assets/audio/jfk.wav') },
@@ -51,7 +54,7 @@ export function useDenoising() {
           SAMPLE_AUDIO_FILES.map((f, i) => ({ ...f, localUri: assets[i].localUri || assets[i].uri || '' }))
         );
       } catch (err) {
-        console.error('[useDenoising] Failed to load audio assets:', err);
+        logger.error(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`);
       }
     })();
   }, []);
@@ -87,6 +90,7 @@ export function useDenoising() {
       const cleanPath = modelState.localPath.replace(/^file:\/\//, '');
       const modelFile = `${cleanPath}/gtcrn_simple.onnx`;
 
+      logger.info(`Calling Denoising.init() - model: ${selectedModelId}, file: ${modelFile}`);
       const result = await Denoising.init({
         modelFile,
         modelBaseUrl: getWebModelBaseUrl('denoising'),
@@ -97,10 +101,12 @@ export function useDenoising() {
         setInitialized(true);
         setSampleRate(result.sampleRate);
         setStatusMessage(`Ready (${result.sampleRate} Hz)`);
+        logger.info(`Denoising initialized, sampleRate: ${result.sampleRate}`);
       } else {
         throw new Error(result.error || 'Initialization failed');
       }
     } catch (err) {
+      logger.error(`Denoising.init() failed: ${err instanceof Error ? err.message : String(err)}`);
       setError(`Init error: ${err instanceof Error ? err.message : String(err)}`);
       setInitialized(false);
     } finally {
@@ -124,15 +130,18 @@ export function useDenoising() {
           ? audioFile.localUri
           : `file://${audioFile.localUri}`;
 
+      logger.info(`Calling Denoising.denoiseFile() - uri: ${uri}`);
       const result = await Denoising.denoiseFile(uri);
       if (result.success) {
         setOutputUri(result.outputPath);
         setProcessingDurationMs(result.durationMs);
         setStatusMessage(`Done in ${result.durationMs}ms`);
+        logger.info(`Denoising done in ${result.durationMs}ms → ${result.outputPath}`);
       } else {
         throw new Error(result.error || 'Denoising failed');
       }
     } catch (err) {
+      logger.error(`Denoising.denoiseFile() failed: ${err instanceof Error ? err.message : String(err)}`);
       setError(`Denoising error: ${err instanceof Error ? err.message : String(err)}`);
       setStatusMessage('');
     } finally {

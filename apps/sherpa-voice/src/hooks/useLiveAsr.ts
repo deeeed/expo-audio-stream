@@ -1,5 +1,8 @@
 import { ASR } from '@siteed/sherpa-onnx.rn';
 import { useCallback, useRef, useState } from 'react';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('LiveAsr');
 
 export interface UseLiveAsrResult {
   committedText: string;
@@ -31,6 +34,7 @@ export function useLiveAsr(): UseLiveAsrResult {
       const { text } = await ASR.getResult();
 
       if (isEndpoint && text.length > 0) {
+        logger.info(`Committed text (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
         setCommittedText((prev) => prev ? `${prev} ${text}` : text);
         setInterimText('');
         await ASR.resetStream();
@@ -38,7 +42,7 @@ export function useLiveAsr(): UseLiveAsrResult {
         setInterimText(text);
       }
     } catch (e) {
-      console.warn('[useLiveAsr] feedAudio error:', e);
+      logger.warn(`feedAudio error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       processingRef.current = false;
       // Process next queued chunk
@@ -58,6 +62,7 @@ export function useLiveAsr(): UseLiveAsrResult {
   );
 
   const start = useCallback(() => {
+    logger.info('Live ASR started');
     listeningRef.current = true;
     setIsListening(true);
     setCommittedText('');
@@ -66,6 +71,7 @@ export function useLiveAsr(): UseLiveAsrResult {
   }, []);
 
   const stop = useCallback(() => {
+    logger.info('Live ASR stopped');
     listeningRef.current = false;
     setIsListening(false);
     queueRef.current = [];
