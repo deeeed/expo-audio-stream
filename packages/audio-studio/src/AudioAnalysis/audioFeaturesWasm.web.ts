@@ -17,7 +17,9 @@ function getModule(): Promise<AudioFeaturesWasmModule> {
         modulePromise = (async () => {
             const url = getMelSpectrogramWasmUrl()
             // webpackIgnore + @vite-ignore prevent bundlers from trying to resolve the URL
-            const mod = await import(/* webpackIgnore: true */ /* @vite-ignore */ url)
+            const mod = await import(
+                /* webpackIgnore: true */ /* @vite-ignore */ url
+            )
             const factory = mod.default ?? mod
             return factory() as Promise<AudioFeaturesWasmModule>
         })().catch((err) => {
