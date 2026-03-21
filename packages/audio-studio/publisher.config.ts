@@ -3,7 +3,7 @@ import type { ReleaseConfig, DeepPartial } from '@siteed/publisher'
 const config: DeepPartial<ReleaseConfig> = {
     packageManager: 'yarn',
     changelogFile: 'CHANGELOG.md',
-    conventionalCommits: true,
+    conventionalCommits: false,
     changelogFormat: 'conventional',
     versionStrategy: 'independent',
     bumpStrategy: 'prompt',
