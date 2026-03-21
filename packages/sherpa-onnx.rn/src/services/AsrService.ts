@@ -38,6 +38,8 @@ export class AsrService {
         ...config,
         modelDir: cleanFilePath(config.modelDir),
       };
+      // Note: passing a streaming-only model with streaming: false will produce
+      // a cryptic native error. See AsrModelConfig.streaming JSDoc for compatible types.
       const result = await this.api.initAsr(cleanedConfig);
       this.initialized = result.success;
       return result;

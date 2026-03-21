@@ -16,12 +16,11 @@ const { exec } = require('child_process');
 const ProgressBar = require('progress');
 
 // Configuration
-const PACKAGE_VERSION = require('./package.json').version;
-const BINARY_VERSION = '0.1.0'; // This should match the version of Sherpa-onnx libraries
+const BINARY_VERSION = require('./package.json').sherpaOnnxVersion; // Matches the bundled sherpa-onnx upstream version
 
 // URLs for precompiled binaries
 const REPO_URL = 'https://github.com/deeeed/audiolab';
-const RELEASE_URL = `${REPO_URL}/releases/download/v${PACKAGE_VERSION}/sherpa-onnx-binaries-${BINARY_VERSION}.zip`;
+const RELEASE_URL = `${REPO_URL}/releases/download/sherpa-onnx-prebuilt-v${BINARY_VERSION}/sherpa-onnx-binaries-${BINARY_VERSION}.zip`;
 
 // Directories
 const SCRIPT_DIR = __dirname;
@@ -109,14 +108,14 @@ function extractZip(zipPath, destDir) {
  */
 function prebuiltLibsExist() {
   // Check for iOS libraries
-  const iosLibsExist = existsSync(path.join(PREBUILT_DIR, 'ios', 'libsherpa-onnx.a'));
-  
-  // Check for Android libraries
-  const androidLibsExist = existsSync(path.join(PREBUILT_DIR, 'android', 'arm64-v8a', 'libsherpa-onnx.so')) &&
-                           existsSync(path.join(PREBUILT_DIR, 'android', 'armeabi-v7a', 'libsherpa-onnx.so')) &&
-                           existsSync(path.join(PREBUILT_DIR, 'android', 'x86', 'libsherpa-onnx.so')) &&
-                           existsSync(path.join(PREBUILT_DIR, 'android', 'x86_64', 'libsherpa-onnx.so'));
-  
+  const iosLibsExist = existsSync(path.join(PREBUILT_DIR, 'ios', 'device', 'libsherpa-onnx-core.a'));
+
+  // Check for Android libraries (x86 not shipped; only arm64-v8a, armeabi-v7a, x86_64)
+  const androidLibsExist =
+    existsSync(path.join(PREBUILT_DIR, 'android', 'arm64-v8a', 'libsherpa-onnx-jni.so')) &&
+    existsSync(path.join(PREBUILT_DIR, 'android', 'armeabi-v7a', 'libsherpa-onnx-jni.so')) &&
+    existsSync(path.join(PREBUILT_DIR, 'android', 'x86_64', 'libsherpa-onnx-jni.so'));
+
   return iosLibsExist && androidLibsExist;
 }
 
@@ -152,8 +151,9 @@ async function install() {
     
     console.log('Sherpa-onnx installation completed successfully!');
   } catch (error) {
-    console.error('Installation failed:', error);
-    console.log('Please run ./build-ios.sh and/or ./build-android.sh to build the libraries manually.');
+    console.error(`Installation failed — could not download prebuilt binaries from: ${RELEASE_URL}`, error);
+    console.log('If the release asset does not exist, build manually:');
+    console.log('  ./setup.sh && ./build-sherpa-ios.sh && ./build-sherpa-android.sh');
     
     // Don't exit with an error code, as this would cause npm/yarn to fail
     // but the library might still be usable if the user builds it manually
