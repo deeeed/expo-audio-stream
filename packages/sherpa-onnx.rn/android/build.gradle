@@ -64,6 +64,8 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // consumerProguardFiles ensures these rules are applied to the consuming app's R8 pass
+            consumerProguardFiles 'proguard-rules.pro'
         }
     }
 

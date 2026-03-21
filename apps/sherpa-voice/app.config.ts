@@ -126,6 +126,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             ["./plugins/withMetroPort.cjs", { port: 7500 }],
             ["../../plugins/withMetroPortIOS.cjs", { port: 7500 }],
             "./plugins/withCustomGradleConfig.cjs",
+            "./plugins/withProguardRules.cjs",
             "expo-router",
             [
                 "expo-audio",
