@@ -7,28 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
-## [3.0.0] - 2026-03-20
-### BREAKING CHANGES
-- Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
-- Native module renamed from `ExpoAudioStream` to `AudioStudio`
-
-### Added
-- C++ mel spectrogram streaming with WASM build (#324)
-- `streamFormat: 'float32'` option — native delivers `Float32Array` to `onAudioStream`, eliminating base64 encode/decode overhead (#315)
+## [3.0.1] - 2026-03-21
 
 ### Fixed
-- Memory safety, WASM lifecycle, and platform bug fixes (#329)
-- iOS: audio device switching bugs during active recording
-- iOS: `resetToDefaultDevice` correctly resets engine tap when switching back to default input
-- iOS: recovery after failed device switch no longer produces silent audio
-- iOS: `setupNowPlayingInfo` no longer overrides user-configured audio session options
-- iOS: `selectInputDevice` syncs `deviceId` into `recordingSettings` before engine update
-- iOS: phone-call auto-resume respects user-configured `categoryOptions`
-- iOS: `AudioDeviceManager.prepareAudSession` preserves existing session options
+- Add `@expo/config-plugins` to `peerDependencies` — fixes Yarn PnP `ambiguous require` error during `expo prebuild` (#341)
+- WASM path resolution in build output — `prebuilt/` is now copied into `build/cjs/` and `build/esm/` so Metro resolves WASM imports correctly after install (#341)
+- Split WASM modules into separate web/native platform files to prevent Metro bundling issues (#338)
 
-### Performance
-- Optimized mel spectrogram C++ implementation
+## [3.0.0] - 2026-03-20
+
 ### BREAKING CHANGES
 - Package renamed from `@siteed/expo-audio-studio` to `@siteed/audio-studio`. The old package continues as a backwards-compatible shim.
 - Native module renamed from `ExpoAudioStream` to `AudioStudio`
@@ -49,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 - Optimized mel spectrogram C++ implementation
+
 ## [2.18.5] - 2026-02-23
 ### Changed
 - fix(expo-audio-studio): guard Bluetooth API calls behind permission check on API 31+ (#294) ([05d6e5a](https://github.com/deeeed/expo-audio-stream/commit/05d6e5adb0b8aff35d88aea264d8b75ebb1ae1e4))
