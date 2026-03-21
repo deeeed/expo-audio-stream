@@ -8,7 +8,7 @@
 
 > **writeWavHeader**(`options`): `ArrayBuffer`
 
-Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/utils/writeWavHeader.ts#L36)
+Defined in: [src/utils/writeWavHeader.ts:36](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/utils/writeWavHeader.ts#L36)
 
 Writes or updates a WAV (RIFF) header based on the provided options.
 

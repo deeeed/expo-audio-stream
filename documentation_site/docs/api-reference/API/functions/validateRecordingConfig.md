@@ -8,7 +8,7 @@
 
 > **validateRecordingConfig**(`config`): `object`
 
-Defined in: [src/constants/platformLimitations.ts:91](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/constants/platformLimitations.ts#L91)
+Defined in: [src/constants/platformLimitations.ts:91](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/constants/platformLimitations.ts#L91)
 
 Validate and adjust recording configuration based on platform limitations
 

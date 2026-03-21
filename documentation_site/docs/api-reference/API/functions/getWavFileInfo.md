@@ -8,7 +8,7 @@
 
 > **getWavFileInfo**(`arrayBuffer`): `Promise`\<[`WavFileInfo`](../interfaces/WavFileInfo.md)\>
 
-Defined in: [src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/utils/getWavFileInfo.ts#L47)
+Defined in: [src/utils/getWavFileInfo.ts:47](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/utils/getWavFileInfo.ts#L47)
 
 Extracts metadata from a WAV buffer.
 

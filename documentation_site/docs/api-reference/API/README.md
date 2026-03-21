@@ -68,11 +68,13 @@
 - [AudioStudioModule](variables/AudioStudioModule.md)
 - [DeviceDisconnectionBehavior](variables/DeviceDisconnectionBehavior.md)
 - [~~ExpoAudioStreamModule~~](variables/ExpoAudioStreamModule.md)
+- [MAX\_DURATION\_MS](variables/MAX_DURATION_MS.md)
 - [WAV\_HEADER\_SIZE](variables/WAV_HEADER_SIZE.md)
 
 ## Functions
 
 - [AudioRecorderProvider](functions/AudioRecorderProvider.md)
+- [computeMelFrameWasm](functions/computeMelFrameWasm.md)
 - [convertPCMToFloat32](functions/convertPCMToFloat32.md)
 - [extractAudioAnalysis](functions/extractAudioAnalysis.md)
 - [extractAudioData](functions/extractAudioData.md)
@@ -83,6 +85,7 @@
 - [getFallbackEncoding](functions/getFallbackEncoding.md)
 - [getPlatformCapabilities](functions/getPlatformCapabilities.md)
 - [getWavFileInfo](functions/getWavFileInfo.md)
+- [initMelStreamingWasm](functions/initMelStreamingWasm.md)
 - [isBitDepthSupported](functions/isBitDepthSupported.md)
 - [isEncodingSupported](functions/isEncodingSupported.md)
 - [trimAudio](functions/trimAudio.md)

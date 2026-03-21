@@ -6,7 +6,7 @@
 
 # Interface: TrimProgressEvent
 
-Defined in: [src/AudioStudio.types.ts:708](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L708)
+Defined in: [src/AudioStudio.types.ts:708](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioStudio.types.ts#L708)
 
 Represents an event emitted during the trimming process to report progress.
 
@@ -16,7 +16,7 @@ Represents an event emitted during the trimming process to report progress.
 
 > `optional` **bytesProcessed**: `number`
 
-Defined in: [src/AudioStudio.types.ts:717](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L717)
+Defined in: [src/AudioStudio.types.ts:717](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioStudio.types.ts#L717)
 
 The number of bytes that have been processed so far. This is optional and may not be provided in all implementations.
 
@@ -26,7 +26,7 @@ The number of bytes that have been processed so far. This is optional and may no
 
 > **progress**: `number`
 
-Defined in: [src/AudioStudio.types.ts:712](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L712)
+Defined in: [src/AudioStudio.types.ts:712](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioStudio.types.ts#L712)
 
 The percentage of the trimming process that has been completed, ranging from 0 to 100.
 
@@ -36,6 +36,6 @@ The percentage of the trimming process that has been completed, ranging from 0 t
 
 > `optional` **totalBytes**: `number`
 
-Defined in: [src/AudioStudio.types.ts:722](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L722)
+Defined in: [src/AudioStudio.types.ts:722](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioStudio.types.ts#L722)
 
 The total number of bytes to process. This is optional and may not be provided in all implementations.

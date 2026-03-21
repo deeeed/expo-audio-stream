@@ -8,4 +8,4 @@
 
 > **AudioDataEvent**: [`AudioDataEventRaw`](../interfaces/AudioDataEventRaw.md) \| [`AudioDataEventFloat32`](../interfaces/AudioDataEventFloat32.md)
 
-Defined in: [src/AudioStudio.types.ts:69](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioStudio.types.ts#L69)
+Defined in: [src/AudioStudio.types.ts:69](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioStudio.types.ts#L69)

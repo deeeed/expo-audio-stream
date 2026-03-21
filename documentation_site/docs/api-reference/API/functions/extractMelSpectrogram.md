@@ -8,15 +8,14 @@
 
 > **extractMelSpectrogram**(`options`): `Promise`\<[`MelSpectrogram`](../interfaces/MelSpectrogram.md)\>
 
-Defined in: [src/AudioAnalysis/extractMelSpectrogram.ts:25](https://github.com/deeeed/audiolab/blob/17565b5e1440d46feb6c48f8ce60978ce1465c2d/packages/audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L25)
+Defined in: [src/AudioAnalysis/extractMelSpectrogram.ts:33](https://github.com/deeeed/audiolab/blob/04fe6f706d372e3ced0f83b796923c490bebd64d/packages/audio-studio/src/AudioAnalysis/extractMelSpectrogram.ts#L33)
 
 **`Experimental`**
 
 Extracts a mel spectrogram from audio data
 
- This feature is experimental and currently only available on Android.
-The iOS implementation will throw an "UNSUPPORTED_PLATFORM" error.
-The web implementation is a placeholder that returns dummy data.
+ This feature is experimental.
+Uses shared C++ implementation on all platforms (native on iOS/Android, WASM on web).
 
 ## Parameters
 
