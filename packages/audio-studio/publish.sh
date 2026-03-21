@@ -40,23 +40,11 @@ fi
 version=$(node -p "require('./package.json').version")
 echo -e "${GREEN}New version: $version${NC}"
 
-# Verify jsDelivr CDN serves the WASM file (poll up to 3 minutes)
+# Print CDN URL for manual verification (jsDelivr syncs from npm within ~5 min)
 WASM_CDN_URL="https://cdn.jsdelivr.net/npm/@siteed/audio-studio@${version}/prebuilt/wasm/mel-spectrogram.js"
-echo -e "${YELLOW}Waiting for jsDelivr CDN to serve WASM file...${NC}"
-for i in $(seq 1 18); do
-    status=$(curl -s -o /dev/null -w "%{http_code}" "$WASM_CDN_URL")
-    if [[ "$status" == "200" ]]; then
-        echo -e "${GREEN}CDN ready: $WASM_CDN_URL${NC}"
-        break
-    fi
-    echo "  Attempt $i/18 — HTTP $status, retrying in 10s..."
-    sleep 10
-done
-if [[ "$status" != "200" ]]; then
-    echo -e "${YELLOW}Warning: CDN not yet available (HTTP $status). Users can override with setMelSpectrogramWasmUrl() until it propagates.${NC}"
-    echo -e "${YELLOW}GitHub release fallback URL (once you attach the asset):${NC}"
-    echo -e "  https://github.com/deeeed/audiolab/releases/download/@siteed/audio-studio@${version}/mel-spectrogram.js"
-fi
+echo -e "${BLUE}WASM CDN URL (verify once propagated): $WASM_CDN_URL${NC}"
+echo -e "${BLUE}GitHub release fallback (attach mel-spectrogram.js as asset):${NC}"
+echo -e "  https://github.com/deeeed/audiolab/releases/download/@siteed/audio-studio@${version}/mel-spectrogram.js"
 
 # Ask about publishing the compatibility shim
 read -p "$(echo -e ${YELLOW}Do you want to publish the @siteed/expo-audio-studio shim? [Y/n]: ${NC})" publish_shim
