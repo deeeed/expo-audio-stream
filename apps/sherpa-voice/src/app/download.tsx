@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@siteed/design-system";
 import { Link } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { Linking, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 
@@ -11,7 +11,7 @@ const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=net.siteed
 export default function DownloadPage() {
   const theme = useTheme();
 
-  const styles = StyleSheet.create({
+  const styles = useMemo(() => StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -80,14 +80,14 @@ export default function DownloadPage() {
       textAlign: "center",
       maxWidth: 600,
     },
-  });
+  }), [theme]);
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Sherpa Voice</Text>
         <Text style={styles.subtitle}>
-          On-device speech &amp; audio ML — no cloud required
+          On-device speech & audio ML — no cloud required
         </Text>
 
         <Text style={styles.paragraph}>
