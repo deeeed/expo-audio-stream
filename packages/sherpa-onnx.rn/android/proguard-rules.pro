@@ -29,4 +29,10 @@
 }
 
 # Keep all classes in our namespace
--keep class net.siteed.sherpaonnx.** { *; } 
+-keep class net.siteed.sherpaonnx.** { *; }
+
+# Keep Apache Commons Compress — used at runtime for tar.bz2 extraction.
+# Without this, R8 renames these classes and Class.forName() in SherpaOnnxImpl
+# throws ClassNotFoundException, causing isLibraryLoaded to be set to false
+# even though the JNI .so loaded successfully.
+-keep class org.apache.commons.compress.** { *; }
