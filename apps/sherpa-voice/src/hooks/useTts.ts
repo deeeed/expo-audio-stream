@@ -7,7 +7,10 @@ import type {
 import { TTS } from '@siteed/sherpa-onnx.rn'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useEffect, useState } from 'react'
+import { baseLogger } from '../config'
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
+
+const logger = baseLogger.extend('TTS')
 import { useTtsModels, useTtsModelWithConfig } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS } from '../utils/constants'
 import { setAgenticPageState } from '../agentic-bridge'
@@ -129,6 +132,7 @@ export function useTts() {
 
         try {
             const cleanLocalPath = localPath.replace('file://', '')
+            logger.info(`Initializing TTS model: ${selectedModelId}, type: ${ttsConfig.ttsModelType || 'vits'}, dir: ${cleanLocalPath}`)
 
             const modelConfig: TtsModelConfig = {
                 modelDir: cleanLocalPath,
@@ -148,13 +152,16 @@ export function useTts() {
             setTtsInitialized(result.success)
 
             if (result.success) {
+                logger.info(`TTS initialized: sampleRate=${result.sampleRate}Hz, speakers=${result.numSpeakers}`)
                 setStatusMessage(
                     `TTS initialized successfully! Sample rate: ${result.sampleRate}Hz, Speakers: ${result.numSpeakers}`
                 )
             } else {
+                logger.error(`TTS initialization failed: ${result.error}`)
                 setErrorMessage(`TTS initialization failed: ${result.error}`)
             }
         } catch (error) {
+            logger.error(`TTS init error: ${(error as Error).message}`)
             setErrorMessage(`TTS init error: ${(error as Error).message}`)
             setTtsInitialized(false)
         } finally {
@@ -177,6 +184,7 @@ export function useTts() {
         setStatusMessage('Generating speech...')
 
         try {
+            logger.info(`Generating TTS speech: speakerId=${speakerId}, rate=${speakingRate}, chars=${text.length}`)
             const result = await TTS.generateSpeech(text, {
                 speakerId,
                 speakingRate,
@@ -184,6 +192,7 @@ export function useTts() {
             })
 
             if (result.success || result.filePath) {
+                logger.info(`TTS speech generated: filePath=${result.filePath}`)
                 setStatusMessage('Speech generated successfully!')
 
                 if (result.filePath) {
@@ -211,9 +220,11 @@ export function useTts() {
                     setStatusMessage('Speech played successfully!')
                 }
             } else {
+                logger.error('TTS generation failed: no filePath and success=false')
                 setErrorMessage('TTS generation failed')
             }
         } catch (error) {
+            logger.error(`TTS generation error: ${(error as Error).message}`)
             setErrorMessage(`TTS generation error: ${(error as Error).message}`)
         } finally {
             setIsLoading(false)

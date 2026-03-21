@@ -10,7 +10,10 @@ import type { ThemePreferences } from '@siteed/design-system';
 import { ModelManagementProvider } from '../contexts/ModelManagement';
 import { AgenticBridgeSync } from '../components/AgenticBridgeSync';
 import { WebAppBanner } from '../components/WebAppBanner';
+import { setLoggerConfig } from '@siteed/react-native-logger';
 import '../agentic-bridge';
+
+setLoggerConfig({ namespaces: '*', maxLogs: 500 });
 
 const THEME_STORAGE_KEY = 'sherpa-voice-theme-preferences';
 
@@ -44,6 +47,7 @@ function AppContent() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="download" options={{ title: 'Download', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="logs" options={{ title: 'Logs', headerBackTitle: 'Back' }} />
       </Stack>
     </ThemeProvider>
   );

@@ -4,7 +4,10 @@ import {
     AudioStudioModule,
     type AudioDataEvent,
 } from '@siteed/audio-studio'
+import { baseLogger } from '../config'
 import { resolveModelDir } from '../utils/fileUtils'
+
+const logger = baseLogger.extend('ASR')
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
 import { Asset } from 'expo-asset'
 import { createAudioPlayer } from 'expo-audio'
@@ -195,10 +198,12 @@ export function useAsr() {
                 },
             }
 
+            logger.info(`Calling ASR.initialize() for model: ${selectedModelId}, type: ${config.modelType}, dir: ${modelDir}`)
             setStatusMessage('Calling ASR.initialize()...')
             const result = await ASR.initialize(config)
 
             if (result.success) {
+                logger.info(`ASR initialized: ${result.modelType} @ ${result.sampleRate}Hz`)
                 setInitialized(true)
                 setStatusMessage('')
                 if (mode === 'live')
@@ -206,9 +211,11 @@ export function useAsr() {
                         `Initialized: ${result.modelType} @ ${result.sampleRate}Hz`
                     )
             } else {
+                logger.error(`ASR initialize failed: ${result.error}`)
                 setError(`Failed to initialize: ${result.error}`)
             }
         } catch (e) {
+            logger.error(`ASR initialization error: ${e instanceof Error ? e.message : String(e)}`)
             setError(
                 `Initialization error: ${e instanceof Error ? e.message : String(e)}`
             )
@@ -314,14 +321,14 @@ export function useAsr() {
                     if (!streamCreatedRef.current) return
                     try {
                         if (!(event.data instanceof Float32Array)) {
-                            console.warn('[ASR] Expected Float32Array but got', typeof event.data)
+                            logger.warn(`Expected Float32Array but got ${typeof event.data}`)
                             return
                         }
                         const samples = Array.from(event.data)
                         if (samples.length === 0) return
                         liveAsr.feedAudio(samples, DEFAULT_LIVE_SAMPLE_RATE)
                     } catch (e) {
-                        console.warn('[ASR] Audio chunk error:', e)
+                        logger.warn(`Audio chunk error: ${e}`)
                     }
                 },
             })
@@ -516,7 +523,7 @@ export function useAsr() {
                     const uri = asset.localUri || asset.uri
                     if (uri) files.push({ ...s, localUri: uri })
                 } catch (e) {
-                    console.error('[ASR] Error loading audio asset:', e)
+                    logger.error(`Error loading audio asset: ${e}`)
                 }
             }
             setLoadedAudioFiles(files)

@@ -14,6 +14,9 @@ import {
     useAudioTaggingModelWithConfig,
 } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS, DEFAULT_TOP_K } from '../utils/constants'
+import { baseLogger } from '../config'
+
+const logger = baseLogger.extend('AudioTagging')
 
 const SAMPLE_AUDIO_FILES = [
     {
@@ -220,6 +223,7 @@ export function useAudioTagging() {
                 onProgress: makeWebProgressHandler(setStatusMessage),
             }
 
+            logger.info(`Calling AudioTagging.initialize() - model: ${selectedModelId}, topK: ${topK}, threads: ${numThreads}, provider: ${provider}`)
             try {
                 const result = await AudioTagging.initialize(config)
                 if (result.success) {
@@ -235,12 +239,14 @@ export function useAudioTagging() {
                     setStatusMessage(
                         'Audio tagging engine initialized successfully'
                     )
+                    logger.info('AudioTagging initialized successfully')
                 } else {
                     throw new Error(
                         result.error || 'Unknown initialization error'
                     )
                 }
             } catch (initError) {
+                logger.error(`AudioTagging.initialize() failed: ${initError instanceof Error ? initError.message : String(initError)}`)
                 throw new Error(
                     `Failed to initialize audio tagging engine: ${initError instanceof Error ? initError.message : String(initError)}`
                 )
@@ -276,6 +282,7 @@ export function useAudioTagging() {
             if (!audioItem.localUri)
                 throw new Error('Audio file not yet loaded')
 
+            logger.info(`Calling AudioTagging.processAndCompute() - file: ${audioItem.name}`)
             try {
                 const result = await AudioTagging.processAndCompute({
                     filePath: audioItem.localUri,
@@ -289,7 +296,9 @@ export function useAudioTagging() {
                 setStatusMessage(
                     `Detected ${result.events?.length || 0} audio events in ${result.durationMs}ms`
                 )
+                logger.info(`AudioTagging result: ${result.events?.length || 0} events in ${result.durationMs}ms, top: ${result.events?.[0]?.name}`)
             } catch (processingError) {
+                logger.error(`AudioTagging.processAndCompute() failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`)
                 setError(
                     `Error processing audio data: ${processingError instanceof Error ? processingError.message : String(processingError)}`
                 )

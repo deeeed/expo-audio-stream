@@ -1,6 +1,9 @@
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('ArchiveUtils');
 
 /**
  * Interface for extraction result
@@ -16,98 +19,94 @@ interface ExtractionResult {
  * Extracts a tar.bz2 file using platform-specific methods
  * On Android and iOS, uses the native module
  * No mock files are created on extraction failure.
- * 
+ *
  * @param archivePath Path to the tar.bz2 file
  * @param targetDir Directory to extract to
  * @returns Promise with the extraction result
  */
 export async function extractTarBz2(
-  archivePath: string, 
+  archivePath: string,
   targetDir: string
 ): Promise<ExtractionResult> {
   try {
-    console.log(`ArchiveUtils: Extracting tar.bz2 from ${archivePath} to ${targetDir}...`);
-    
+    logger.info(`Extracting tar.bz2 from ${archivePath} to ${targetDir}...`);
+
     // Verify the archive exists
     const archiveInfo = await FileSystem.getInfoAsync(archivePath);
-    console.log(`ArchiveUtils: Archive info:`, archiveInfo);
-    
+    logger.info(`Archive info: exists=${archiveInfo.exists}, uri=${archiveInfo.uri}`);
+
     if (!archiveInfo.exists) {
-      console.warn(`ArchiveUtils: Archive file not found at ${archivePath}`);
+      logger.warn(`Archive file not found at ${archivePath}`);
       return {
-        success: false, 
+        success: false,
         message: `Archive file not found at ${archivePath}`
       };
     }
-    
+
     // Verify the target directory exists
     const dirInfo = await FileSystem.getInfoAsync(targetDir);
-    console.log(`ArchiveUtils: Target directory info:`, dirInfo);
-    
+
     if (!dirInfo.exists) {
-      console.log(`ArchiveUtils: Creating target directory: ${targetDir}`);
+      logger.info(`Creating target directory: ${targetDir}`);
       await FileSystem.makeDirectoryAsync(targetDir, { intermediates: true });
     }
-    
+
     // Check if NativeSherpaOnnx is properly initialized
     if (!SherpaOnnx.Archive || typeof SherpaOnnx.Archive.extractTarBz2 !== 'function') {
-      console.error('ArchiveUtils: NativeSherpaOnnx.extractTarBz2 is not available');
+      logger.error('NativeSherpaOnnx.extractTarBz2 is not available');
       return {
         success: false,
         message: 'Native module not available',
         extractedFiles: []
       };
     }
-    
+
     // First validate that the library is loaded
     const validationResult = await SherpaOnnx.validateLibraryLoaded();
     if (!validationResult.loaded) {
-      console.error(`ArchiveUtils: Native library not loaded: ${validationResult.status}`);
+      logger.error(`Native library not loaded: ${validationResult.status}`);
       return {
         success: false,
         message: `Native library not loaded: ${validationResult.status}`,
         extractedFiles: []
       };
     }
-    
-    console.log(`ArchiveUtils: Using native module to extract tar.bz2 on ${Platform.OS}`);
-    
+
+    logger.info(`Using native module to extract tar.bz2 on ${Platform.OS}`);
+
     try {
       // Call the extractTarBz2 method directly from SherpaOnnx.Archive
       const result = await SherpaOnnx.Archive.extractTarBz2(archivePath, targetDir);
-      console.log(`ArchiveUtils: Native extraction result:`, result);
-      
+      logger.info(`Native extraction result: success=${result.success}, files=${result.extractedFiles?.length ?? 0}`);
+
       if (result.success) {
-        // Verify extraction by checking files
-        // const extractedFiles = result.extractedFiles || [];
-        
         return {
           success: true,
           extractedFiles: result.extractedFiles,
           message: "Extraction successful"
         };
       } else {
-        console.warn(`ArchiveUtils: Native extraction failed: ${result.message}`);
+        logger.warn(`Native extraction failed: ${result.message}`);
         // Check if there are any files already extracted
         const existingFiles = await FileSystem.readDirectoryAsync(targetDir);
-        
+
         if (existingFiles.length > 0) {
-          console.log(`ArchiveUtils: Found ${existingFiles.length} existing files in target directory`);
+          logger.info(`Found ${existingFiles.length} existing files in target directory`);
           return {
             success: true,
             extractedFiles: existingFiles,
             message: "Found existing files in target directory"
           };
         }
-        
+
         // Clean up target directory on failure
         try {
-          console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+          logger.info(`Cleaning up failed extraction directory: ${targetDir}`);
           await FileSystem.deleteAsync(targetDir, { idempotent: true });
         } catch (cleanupError) {
-          console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
+          logger.error(`Error cleaning up directory: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
         }
-        
+
         return {
           success: false,
           message: `Native extraction failed: ${result.message}`,
@@ -115,16 +114,16 @@ export async function extractTarBz2(
         };
       }
     } catch (nativeError) {
-      console.error(`ArchiveUtils: Error in native extraction:`, nativeError);
-      
+      logger.error(`Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`);
+
       // Clean up target directory on error
       try {
-        console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+        logger.info(`Cleaning up failed extraction directory: ${targetDir}`);
         await FileSystem.deleteAsync(targetDir, { idempotent: true });
       } catch (cleanupError) {
-        console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
+        logger.error(`Error cleaning up directory: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
       }
-      
+
       return {
         success: false,
         message: `Error in native extraction: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}`,
@@ -132,16 +131,16 @@ export async function extractTarBz2(
       };
     }
   } catch (error) {
-    console.error('ArchiveUtils: Error extracting tar.bz2:', error);
-    
+    logger.error(`Error extracting tar.bz2: ${error instanceof Error ? error.message : String(error)}`);
+
     // Clean up target directory on general error
     try {
-      console.log(`ArchiveUtils: Cleaning up failed extraction directory: ${targetDir}`);
+      logger.info(`Cleaning up failed extraction directory: ${targetDir}`);
       await FileSystem.deleteAsync(targetDir, { idempotent: true });
     } catch (cleanupError) {
-      console.error(`ArchiveUtils: Error cleaning up directory:`, cleanupError);
+      logger.error(`Error cleaning up directory: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
     }
-    
+
     return {
       success: false,
       message: `Error extracting archive: ${error instanceof Error ? error.message : String(error)}`,
@@ -149,4 +148,3 @@ export async function extractTarBz2(
     };
   }
 }
-

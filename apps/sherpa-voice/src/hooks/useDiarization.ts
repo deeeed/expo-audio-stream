@@ -10,6 +10,9 @@ import {
     useSpeakerIdModels,
 } from './useModelWithConfig'
 import { DEFAULT_NUM_THREADS } from '../utils/constants'
+import { baseLogger } from '../config'
+
+const logger = baseLogger.extend('Diarization')
 
 const SAMPLE_AUDIO_FILES = [
     {
@@ -97,10 +100,7 @@ export function useDiarization() {
                     }))
                 )
             } catch (err) {
-                console.error(
-                    '[useDiarization] Failed to load audio assets:',
-                    err
-                )
+                logger.error(`Failed to load audio assets: ${err instanceof Error ? err.message : String(err)}`)
             }
         })()
     }, [])
@@ -176,6 +176,7 @@ export function useDiarization() {
             const modelFile = speakerIdConfig?.modelFile || 'model.onnx'
             const embeddingModelFile = `${cleanEmbPath}/${modelFile}`
 
+            logger.info(`Calling Diarization.init() - segModel: ${selectedSegModelId}, embModel: ${selectedEmbModelId}`)
             setStatusMessage(`Loading models...`)
             const result = await Diarization.init({
                 segmentationModelDir: segModelDir,
@@ -192,10 +193,12 @@ export function useDiarization() {
                 setStatusMessage(
                     `Initialized (sample rate: ${result.sampleRate} Hz)`
                 )
+                logger.info(`Diarization initialized, sampleRate: ${result.sampleRate}`)
             } else {
                 throw new Error(result.error || 'Initialization failed')
             }
         } catch (err) {
+            logger.error(`Diarization.init() failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Initialization error: ${err instanceof Error ? err.message : String(err)}`
             )
@@ -225,6 +228,7 @@ export function useDiarization() {
                   ? audioFile.localUri
                   : `file://${audioFile.localUri}`
 
+            logger.info(`Calling Diarization.processFile() - uri: ${uri}`)
             const result = await Diarization.processFile(
                 uri,
                 numClusters,
@@ -237,10 +241,12 @@ export function useDiarization() {
                 setStatusMessage(
                     `Found ${result.numSpeakers} speaker(s) in ${result.durationMs}ms`
                 )
+                logger.info(`Diarization: ${result.numSpeakers} speakers, ${result.segments.length} segments in ${result.durationMs}ms`)
             } else {
                 throw new Error(result.error || 'Processing failed')
             }
         } catch (err) {
+            logger.error(`Diarization.processFile() failed: ${err instanceof Error ? err.message : String(err)}`)
             setError(
                 `Processing error: ${err instanceof Error ? err.message : String(err)}`
             )

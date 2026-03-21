@@ -19,6 +19,9 @@ import { useModelManagement } from '../contexts/ModelManagement/ModelManagementC
 import { ModelState } from '../contexts/ModelManagement/types';
 import { formatBytes } from '../utils/formatters';
 import { ModelType, type ModelMetadata, type DependencyMetadata } from '../utils/models';
+import { baseLogger } from '../config';
+
+const logger = baseLogger.extend('ModelManager');
 
 interface ModelCardProps {
   model: ModelMetadata;
@@ -62,7 +65,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
   const [fileListError, setFileListError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
-  
+
   const isDownloaded = state?.status === 'downloaded';
   const isDownloading = state?.status === 'downloading';
   const isExtracting = state?.status === 'extracting';
@@ -93,7 +96,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
       );
       return;
     }
-    
+
     try {
       setIsLoading(true);
       await onDownload();
@@ -130,31 +133,31 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
     // If we have the onBrowseFiles prop, use it to navigate to file explorer
     if (onBrowseFiles && state?.localPath) {
-      console.log(`Attempting to browse files at: ${state.localPath}`);
-      
+      logger.info(`Attempting to browse files at: ${state.localPath}`);
+
       // Check if the path exists before attempting to browse
       const pathInfo = await FileSystem.getInfoAsync(state.localPath);
-      
+
       if (!pathInfo.exists) {
-        console.warn(`Path does not exist: ${state.localPath}`);
-        
+        logger.warn(`Path does not exist: ${state.localPath}`);
+
         // For iOS, try to reconstruct the path
         if (Platform.OS === 'ios') {
           // Try to rebuild the path with current document directory
           const documentsPath = FileSystem.documentDirectory || '';
           const modelId = model.id;
           const fallbackPath = `${documentsPath}models/${modelId}`;
-          
-          console.log(`Trying fallback path: ${fallbackPath}`);
-          
+
+          logger.info(`Trying fallback path: ${fallbackPath}`);
+
           const fallbackPathInfo = await FileSystem.getInfoAsync(fallbackPath);
           if (fallbackPathInfo.exists) {
-            console.log(`Fallback path exists, using it`);
+            logger.info('Fallback path exists, using it');
             onBrowseFiles(fallbackPath);
             return;
           }
         }
-        
+
         // If all attempts fail, show an error
         Alert.alert(
           'Path Not Found',
@@ -162,7 +165,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
         );
         return;
       }
-      
+
       // Path exists, proceed with browsing
       onBrowseFiles(state.localPath);
       return;
@@ -172,38 +175,29 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     setFileListError('');
     try {
       if (!state) {
-        console.warn('Cannot show files: State is not available');
+        logger.warn('Cannot show files: State is not available');
         setFileListError('Cannot show files: State is not available');
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
-      
+
       if (!state.localPath) {
-        console.warn('Cannot show files: Model local path is not available');
+        logger.warn('Cannot show files: Model local path is not available');
         setFileListError('Cannot show files: Model local path is not available');
-        
-        // Add more detailed error info
-        console.error(`Model: ${model.id}`);
-        console.error(`State: ${JSON.stringify(state, null, 2)}`);
-        
+        logger.error(`Model: ${model.id}, State: ${JSON.stringify(state)}`);
         setFileDetails([]);
         setIsLoading(false);
         return;
       }
-      
-      console.log(`=== Model Files: ${model.id} ===`);
-      console.log(`Local path: ${state.localPath}`);
-      console.log(`Model status: ${state.status}`);
-      console.log(`Is archive: ${model.url.endsWith('.tar.bz2')}`);
-      console.log(`Extracted files: ${state.extractedFiles?.join(', ') || 'none'}`);
-      
+
+      logger.info(`Model files ${model.id} — path: ${state.localPath}, status: ${state.status}, archive: ${model.url.endsWith('.tar.bz2')}, extracted: ${state.extractedFiles?.join(', ') || 'none'}`);
+
       // Check if the path exists
       const fileInfo = await FileSystem.getInfoAsync(state.localPath);
-      console.log(`Path info:`, fileInfo);
 
       if (!fileInfo.exists) {
-        console.warn(`Path does not exist: ${state.localPath}`);
+        logger.warn(`Path does not exist: ${state.localPath}`);
         setFileListError(`Path does not exist: ${state.localPath}`);
         setFileDetails([]);
         setIsLoading(false);
@@ -212,10 +206,8 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
 
       // If it's a single file (not a directory), show just that file
       if (!fileInfo.isDirectory) {
-        console.log(`Path is a single file`);
-        // Get the filename from the path
         const fileName = state.localPath.split('/').pop() || 'Unknown file';
-        
+
         setFileDetails([{
           id: `${model.id}_file_${fileName}`,
           name: fileName,
@@ -224,17 +216,17 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
           uri: fileInfo.uri,
           isDirectory: false,
         }]);
-        
+
         setShowFiles(prev => !prev);
         setIsLoading(false);
         return;
       }
 
       // For directories, get the contents
-      console.log(`Scanning directory: ${state.localPath}`);
+      logger.info(`Scanning directory: ${state.localPath}`);
       const dirContents = await FileSystem.readDirectoryAsync(state.localPath);
-      console.log(`Found ${dirContents.length} items in directory`);
-      
+      logger.info(`Found ${dirContents.length} items in directory`);
+
       // Get details for each file
       const details = await Promise.all(
         dirContents.map(async (file, index) => {
@@ -250,11 +242,11 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
           };
         })
       );
-      
+
       setFileDetails(details);
       setShowFiles(prev => !prev);
     } catch (error) {
-      console.error('Error toggling file view:', error);
+      logger.error(`Error toggling file view: ${error instanceof Error ? error.message : String(error)}`);
       setFileListError(`Error listing files: ${error instanceof Error ? error.message : String(error)}`);
       setFileDetails([]);
     } finally {
@@ -266,10 +258,10 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
     setIsExpanded(!isExpanded);
   };
 
-  // Log progress updates when status is downloading 
+  // Log progress updates when status is downloading
   useEffect(() => {
     if (state?.status === 'downloading') {
-      console.log(`[ModelCard] ${model.name} - progress: ${Math.round((state.progress || 0) * 100)}%`);
+      logger.info(`${model.name} - progress: ${Math.round((state.progress || 0) * 100)}%`);
     }
   }, [state?.progress, state?.status, model.name]);
 
@@ -373,7 +365,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
               Extracting model files...
             </Text>
             {onCancelDownload && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={cardStyles.cancelButton}
                 onPress={async () => {
                   try {
@@ -455,11 +447,11 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
               ) : (
                 fileDetails.map((file, index) => (
                   <View key={file.id || `file_${model.id}_${index}`} style={cardStyles.fileItem}>
-                    <Text 
+                    <Text
                       style={[
-                        cardStyles.fileText, 
+                        cardStyles.fileText,
                         file.isDirectory && cardStyles.directoryText
-                      ]} 
+                      ]}
                       selectable
                     >
                       {file.isDirectory ? '📁' : '📄'} {file.name} {file.exists ? `(${formatBytes(file.size)})` : '(Missing)'}
@@ -507,7 +499,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
             {/* Show Files button - disabled on web */}
             <TouchableOpacity
               style={[
-                cardStyles.button, 
+                cardStyles.button,
                 cardStyles.infoButton,
                 Platform.OS === 'web' && cardStyles.buttonDisabled
               ]}
@@ -518,10 +510,10 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
                 {showFiles ? 'Hide Files' : 'Show Files'}
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[
-                cardStyles.button, 
+                cardStyles.button,
                 cardStyles.deleteButton,
                 Platform.OS === 'web' && cardStyles.buttonDisabled
               ]}
@@ -534,7 +526,7 @@ const ModelCard: React.FC<ModelCardProps> = React.memo(function ModelCard({
         ) : isExtracting ? (
           <TouchableOpacity
             style={[
-              cardStyles.button, 
+              cardStyles.button,
               cardStyles.deleteButton,
               Platform.OS === 'web' && cardStyles.buttonDisabled
             ]}
@@ -708,14 +700,12 @@ export function ModelManager({ filterType, onModelSelect, onBackToDownloads }: M
       if (item.type === 'model') {
           // Use a type guard or assertion for clarity
           const isStateItem = 'metadata' in item.modelData;
-          const modelMetadata: ModelMetadata = isStateItem 
-              ? (item.modelData as ModelState).metadata 
+          const modelMetadata: ModelMetadata = isStateItem
+              ? (item.modelData as ModelState).metadata
               : item.modelData as ModelMetadata;
-              
-          // Ensure we get the LATEST state from the context map inside the render function
-          const modelState = modelsState[modelMetadata.id]; 
 
-          // console.log(`Rendering ModelCard for ${modelMetadata.id}, State:`, modelState?.status, modelState?.progress); // Optional: Log state passed to card
+          // Ensure we get the LATEST state from the context map inside the render function
+          const modelState = modelsState[modelMetadata.id];
 
           return (
               <ModelCard
@@ -1084,4 +1074,4 @@ const cardStyles = StyleSheet.create({
     opacity: 0.5,
     backgroundColor: '#cccccc',
   },
-}); 
+});

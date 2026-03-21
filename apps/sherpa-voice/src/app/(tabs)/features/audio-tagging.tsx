@@ -8,7 +8,10 @@ import {
   View,
 } from 'react-native';
 import { useAudioTagging } from '../../../hooks/useAudioTagging';
+import { baseLogger } from '../../../config';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
+
+const logger = baseLogger.extend('AudioTaggingScreen');
 import {
   AudioPlayButton,
   ConfigRow,
@@ -338,7 +341,7 @@ export default function AudioTaggingScreen() {
             <AudioPlayButton uri={selectedAudio.localUri} compact />
             <ThemedButton
               label="Classify"
-              onPress={() => handleProcessAudio(selectedAudio)}
+              onPress={() => { logger.info(`action: classify audio "${selectedAudio.name}"`); handleProcessAudio(selectedAudio); }}
               disabled={!initialized || processing}
               style={{ flex: 1 }}
             />

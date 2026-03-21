@@ -10,6 +10,7 @@ import { makeWebProgressHandler, getWebModelBaseUrl } from '../../../utils/webMo
 import { usePunctuationModels, usePunctuationModelWithConfig } from '../../../hooks/useModelWithConfig';
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader';
 import { setAgenticPageState } from '../../../agentic-bridge';
+import { baseLogger } from '../../../config';
 import {
   PageContainer,
   Section,
@@ -20,6 +21,8 @@ import {
   Text,
   useTheme,
 } from '../../../components/ui';
+
+const logger = baseLogger.extend('PunctuationScreen');
 
 const SAMPLE_TEXTS = [
   'how are you doing today i am fine thank you',
@@ -76,6 +79,7 @@ export default function PunctuationScreen() {
       return;
     }
 
+    logger.info(`action: initialize Punctuation - model: ${selectedModelId}`);
     setLoading(true);
     setError(null);
     setStatusMessage('Initializing Punctuation...');
@@ -106,6 +110,7 @@ export default function PunctuationScreen() {
   const handleAddPunctuation = useCallback(async () => {
     if (!initialized || !inputText.trim()) return;
 
+    logger.info(`action: add punctuation (${inputText.length} chars)`);
     setProcessing(true);
     setError(null);
     setOutputText(null);
@@ -130,6 +135,7 @@ export default function PunctuationScreen() {
 
   // Release
   const handleRelease = useCallback(async () => {
+    logger.info('action: release Punctuation');
     await Punctuation.release();
     setInitialized(false);
     setOutputText(null);

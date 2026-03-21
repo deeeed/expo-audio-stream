@@ -29,6 +29,9 @@ import {
 } from '../../utils/constants';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
+import { baseLogger } from '../../config';
+
+const logger = baseLogger.extend('ModelManagement');
 
 const ModelManagementContext = createContext<ModelManagementContextType | undefined>(undefined);
 
@@ -106,13 +109,12 @@ export function ModelManagementProvider({
   // Original loadSavedModelStates
   const loadSavedModelStates = useCallback(async () => {
     try {
-      console.log('Loading saved model states from key:', storageKey);
+      logger.info(`Loading saved model states from key: ${storageKey}`);
       const savedStatesJSON = await AsyncStorage.getItem(storageKey);
       if (savedStatesJSON) {
-        // console.log('Found saved model states raw JSON:', savedStatesJSON);
         try {
           const parsedStates = JSON.parse(savedStatesJSON);
-          console.log('Successfully parsed saved states:', parsedStates);
+          logger.info(`Successfully parsed saved states: ${Object.keys(parsedStates).length} entries`);
           // Basic validation: Check if it's an object
           if (typeof parsedStates === 'object' && parsedStates !== null) {
             // Handle migration of absolute paths to relative paths for iOS
@@ -124,7 +126,7 @@ export function ModelManagementProvider({
               if (catalogIds.has(id)) {
                 reconciledStates[id] = state as ModelState;
               } else {
-                console.log(`[ModelManagement] Removing stale model state: ${id} (not in catalog)`);
+                logger.info(`Removing stale model state: ${id} (not in catalog)`);
               }
             }
             // Add new catalog entries not yet in saved state
@@ -138,7 +140,9 @@ export function ModelManagementProvider({
                     const contents = await FileSystem.readDirectoryAsync(modelDir);
                     isOnDisk = contents.length > 0;
                   }
-                } catch (_) { /* ignore */ }
+                } catch (fsErr) {
+                  logger.warn(`Filesystem check failed for new catalog entry ${meta.id} at ${modelDir}: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`);
+                }
                 reconciledStates[meta.id] = {
                   metadata: meta,
                   status: isOnDisk ? 'downloaded' as ModelStatus : 'pending' as ModelStatus,
@@ -155,7 +159,7 @@ export function ModelManagementProvider({
             let hadStaleDownloads = false;
             for (const [id, state] of Object.entries(reconciledStates)) {
               if (state.status === 'downloading' || state.status === 'extracting') {
-                console.log(`[ModelManagement] Resetting stale ${state.status} state for ${id} to pending`);
+                logger.warn(`Resetting stale ${state.status} state for ${id} to pending`);
                 reconciledStates[id] = { ...state, status: 'pending', progress: 0, bytesWritten: undefined, totalBytes: undefined, downloadSpeedBytesPerSec: undefined };
                 hadStaleDownloads = true;
               }
@@ -165,18 +169,18 @@ export function ModelManagementProvider({
             }
             setModelStates(reconciledStates);
           } else {
-            console.warn('Parsed state is not an object, starting fresh.');
+            logger.warn('Parsed state is not an object, starting fresh.');
             setModelStates({});
             await AsyncStorage.removeItem(storageKey);
           }
         } catch (parseError) {
-          console.error('Error parsing saved model states JSON:', parseError);
-          console.warn('Could not parse saved state, starting fresh.');
+          logger.error(`Error parsing saved model states JSON: ${parseError}`);
+          logger.warn('Could not parse saved state, starting fresh.');
           setModelStates({}); // Start fresh if parsing fails
           await AsyncStorage.removeItem(storageKey); // Clear invalid state
         }
       } else {
-        console.log(`No saved model states found for key \'${storageKey}\'. Initializing with filesystem check.`);
+        logger.info(`No saved model states found for key '${storageKey}'. Initializing with filesystem check.`);
         // Initialize state from AVAILABLE_MODELS, checking filesystem for existing downloads
         const initialStates: Record<string, ModelState> = {};
         for (const meta of AVAILABLE_MODELS) {
@@ -189,10 +193,12 @@ export function ModelManagementProvider({
               // Consider downloaded if directory has files (not just empty)
               isOnDisk = contents.length > 0;
             }
-          } catch (_) { /* ignore */ }
+          } catch (fsErr) {
+            logger.warn(`Filesystem check failed for ${meta.id} at ${modelDir}: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`);
+          }
 
           if (isOnDisk) {
-            console.log(`[ModelManagement] Found existing model on disk: ${meta.id}`);
+            logger.info(`Found existing model on disk: ${meta.id}`);
             initialStates[meta.id] = {
               metadata: meta,
               status: 'downloaded' as ModelStatus,
@@ -221,13 +227,14 @@ export function ModelManagementProvider({
         await AsyncStorage.setItem(storageKey, JSON.stringify(initialStates));
       }
     } catch (error) { // Catch errors during AsyncStorage.getItem or other operations
-      console.error('Critical error loading model states:', error);
+      logger.error(`Critical error loading model states: ${error}`);
       setModelStates({}); // Ensure state is an object even on critical load error
     }
   }, [storageKey]); // Include storageKey dependency
 
   // Load saved model states on mount
   useEffect(() => {
+    logger.info(`Platform: ${Platform.OS}, documentDirectory: ${FileSystem.documentDirectory}`);
     loadSavedModelStates();
   }, [loadSavedModelStates]); // Include loadSavedModelStates dependency
 
@@ -241,8 +248,11 @@ export function ModelManagementProvider({
 
       // Check if we have a localPath that needs migration
       if (state.localPath) {
-        // Migrate path to current app container if needed
-        newState.localPath = await migrateModelPath(state.localPath, modelId);
+        const migratedPath = await migrateModelPath(state.localPath, modelId);
+        if (migratedPath !== state.localPath) {
+          logger.info(`Migrated path for ${modelId}: ${state.localPath} → ${migratedPath}`);
+        }
+        newState.localPath = migratedPath;
       }
 
       migratedStates[modelId] = newState;
@@ -256,15 +266,15 @@ export function ModelManagementProvider({
     // Prevent saving empty state immediately after a failed load/clear
     if (Object.keys(states).length === 0 && Object.keys(modelStates).length > 0) {
       // Check against previous state length to avoid clearing valid empty state
-      console.warn('Prevented saving empty state potentially due to load error.');
+      logger.warn('Prevented saving empty state potentially due to load error.');
       return;
     }
     try {
-      console.log('Saving model states to key:', storageKey);
+      logger.info(`Saving model states to key: ${storageKey}`);
       await AsyncStorage.setItem(storageKey, JSON.stringify(states));
-      console.log('Successfully saved model states.');
+      logger.info('Successfully saved model states.');
     } catch (error) {
-      console.error('Error saving model states:', error);
+      logger.error(`Error saving model states: ${error}`);
     }
   }, [storageKey, modelStates]); // Include dependencies
 
@@ -275,7 +285,7 @@ export function ModelManagementProvider({
       const currentMetadata = existingState?.metadata ?? AVAILABLE_MODELS.find(m => m.id === modelId);
 
       if (!currentMetadata) {
-        console.error(`[updateModelState] Cannot update ${modelId}, metadata not found.`);
+        logger.error(`[updateModelState] Cannot update ${modelId}, metadata not found.`);
         return prev;
       }
       const baseState: ModelState = existingState ?? {
@@ -401,7 +411,7 @@ export function ModelManagementProvider({
   ): Promise<void> => {
     const depFileName = dependency.url.split('/').pop() || '';
     const depPath = `${modelDir}/${depFileName}`;
-    console.log(`Downloading dependency: ${dependency.name} to ${depPath}`);
+    logger.info(`Downloading dependency: ${dependency.name} to ${depPath}`);
 
     const depResumable = FileSystem.createDownloadResumable(dependency.url, depPath);
     const depKey = `${modelId}_dep_${dependency.id}`;
@@ -412,9 +422,9 @@ export function ModelManagementProvider({
       await depResumable.downloadAsync();
 
       extractedFileNames.push(depFileName);
-      console.log(`Dependency ${dependency.name} downloaded.`);
+      logger.info(`Dependency ${dependency.name} downloaded.`);
     } catch (depError) {
-      console.error(`Error downloading dependency ${dependency.name}:`, depError);
+      logger.error(`Error downloading dependency ${dependency.name}: ${depError}`);
       throw new Error(`Failed to download dependency ${dependency.name}`);
     } finally {
       setActiveDownloads(prev => {
@@ -439,7 +449,7 @@ export function ModelManagementProvider({
     FileSystem.getInfoAsync(modelDir)
       .then(dirInfo => {
         if (!dirInfo.exists) {
-          console.log(`Model directory does not exist yet, creating it...`);
+          logger.info(`Model directory does not exist yet, creating: ${modelDir}`);
           return FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
         } else {
           return Promise.resolve();
@@ -447,7 +457,7 @@ export function ModelManagementProvider({
       })
       .then(() => downloadResumable.downloadAsync())
       .then(async (downloadResult) => {
-        console.log(`Download completed for ${modelId}. Status: ${downloadResult?.status}`);
+        logger.info(`Download completed for ${modelId}. Status: ${downloadResult?.status}`);
 
         // Remove from active downloads
         setActiveDownloads(prev => {
@@ -462,17 +472,18 @@ export function ModelManagementProvider({
           return;
         }
         if (downloadResult.status !== 200) {
-          throw new Error(`Download failed with status ${downloadResult.status}`);
+          logger.error(`Download failed: ${model.url} returned HTTP ${downloadResult.status}`);
+          throw new Error(`Download failed with status ${downloadResult.status} for ${model.url}`);
         }
 
         const fileInfo = await FileSystem.getInfoAsync(filePath);
         if (!fileInfo.exists) throw new Error(`Downloaded file not found: ${filePath}`);
-        console.log(`Downloaded file size: ${fileInfo.size} bytes`);
+        logger.info(`Downloaded file size: ${fileInfo.size} bytes`);
 
         let extractedFileNames: string[] = [];
 
         if (isArchive) {
-          console.log(`Extracting archive: ${filePath} to ${modelDir}...`);
+          logger.info(`Extracting archive: ${filePath} to ${modelDir}...`);
 
           // Update state to extracting
           updateModelState(modelId, { status: 'extracting' as ModelStatus, progress: 1 });
@@ -482,18 +493,18 @@ export function ModelManagementProvider({
             throw new Error(`Extraction failed: ${extractionResult.message || 'Unknown error'}`);
           }
 
-          console.log(`Archive extracted successfully.`);
+          logger.info(`Archive extracted successfully for ${modelId}.`);
           extractedFileNames = extractionResult.extractedFiles || [];
 
           await FileSystem.deleteAsync(filePath, { idempotent: true });
-          console.log(`Cleaned up archive file: ${filePath}`);
+          logger.info(`Cleaned up archive file: ${filePath}`);
         } else {
           extractedFileNames = [fileName];
         }
 
         // Handle dependencies if any
         if (model.dependencies && model.dependencies.length > 0) {
-          console.log(`Downloading ${model.dependencies.length} dependencies for ${modelId}...`);
+          logger.info(`Downloading ${model.dependencies.length} dependencies for ${modelId}...`);
           updateModelState(modelId, { status: 'downloading' as ModelStatus, progress: 0.95 });
 
           // Process dependencies one by one
@@ -526,12 +537,12 @@ export function ModelManagementProvider({
           error: undefined,
         };
 
-        console.log(`Final state update for ${modelId}`);
+        logger.info(`Final state update for ${modelId}: ${actualDirContents.length} files`);
         updateModelState(modelId, finalState);
-        console.log(`Model ${modelId} successfully downloaded and processed.`);
+        logger.info(`Model ${modelId} successfully downloaded and processed.`);
       })
       .catch(error => {
-        console.error(`Error processing model ${modelId}:`, error);
+        logger.error(`Error processing model ${modelId}: ${error}`);
         updateModelState(modelId, {
           status: 'error' as ModelStatus,
           progress: modelStates[modelId]?.progress || 0,
@@ -540,7 +551,7 @@ export function ModelManagementProvider({
 
         // Cleanup on error
         FileSystem.deleteAsync(modelDir, { idempotent: true }).catch(e => {
-          console.log(`Error cleaning up model dir: ${e}`);
+          logger.warn(`Error cleaning up model dir after failure: ${e}`);
         });
       });
   }, [updateModelState, modelStates, setActiveDownloads, downloadDependency]);
@@ -549,28 +560,28 @@ export function ModelManagementProvider({
   const downloadModel = useCallback(async (modelId: string): Promise<void> => {
     // Block downloads on web platform
     if (Platform.OS === 'web') {
-      console.log('[downloadModel] Downloads not supported on web platform');
+      logger.info('[downloadModel] Downloads not supported on web platform');
       throw new Error('Model downloads are not available on the web platform');
     }
 
-    console.log(`[downloadModel] Starting download for model: ${modelId}`);
+    logger.info(`[downloadModel] Starting download for model: ${modelId}`);
     const model = AVAILABLE_MODELS.find((m) => m.id === modelId);
     if (!model) {
-      console.error(`Model ${modelId} not found`);
+      logger.error(`Model ${modelId} not found in catalog`);
       updateModelState(modelId, { status: 'error', error: 'Model definition not found.' });
       return;
     }
 
     // For web TTS models, simulate immediate download completion
     if (isTtsModelOnWeb(modelId, model)) {
-      console.log(`Web TTS model ${modelId} - simulating download`);
+      logger.info(`Web TTS model ${modelId} - simulating download`);
       updateModelState(modelId, createWebTtsModelState(model));
       return;
     }
 
     const currentState = modelStates[modelId];
     if (currentState?.status === 'downloading' || currentState?.status === 'downloaded') {
-      console.log(`Model ${modelId} already ${currentState.status}.`);
+      logger.info(`Model ${modelId} already ${currentState.status}.`);
       return;
     }
 
@@ -582,7 +593,7 @@ export function ModelManagementProvider({
     const filePath = `${modelDir}/${fileName}`;
 
     try {
-      console.log(`Starting download: ${modelId}`);
+      logger.info(`Starting download: ${modelId} from ${model.url}`);
 
       // Update initial state immediately
       updateModelState(modelId, {
@@ -627,7 +638,7 @@ export function ModelManagementProvider({
       // Return immediately
       return;
     } catch (initError) {
-      console.error(`Error initializing download for ${modelId}:`, initError);
+      logger.error(`Error initializing download for ${modelId}: ${initError}`);
       updateModelState(modelId, {
         status: 'error' as ModelStatus,
         progress: 0,
@@ -639,20 +650,20 @@ export function ModelManagementProvider({
 
   // Original cancelDownload
   const cancelDownload = useCallback(async (modelId: string) => {
-    console.log(`Attempting to cancel download/extraction for ${modelId}...`);
+    logger.info(`Attempting to cancel download/extraction for ${modelId}...`);
     let cancelled = false;
     const downloadResumable = activeDownloads[modelId];
     if (downloadResumable) {
-      try { await downloadResumable.cancelAsync(); console.log(`Cancelled main task ${modelId}`); cancelled = true; }
-      catch (error) { console.error(`Error cancelling main task ${modelId}:`, error); }
+      try { await downloadResumable.cancelAsync(); logger.info(`Cancelled main task ${modelId}`); cancelled = true; }
+      catch (error) { logger.error(`Error cancelling main task ${modelId}: ${error}`); }
       finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[modelId]; return newState; }); }
     }
     const depKeys = Object.keys(activeDownloads).filter(key => key.startsWith(`${modelId}_dep_`));
     for (const key of depKeys) {
       const depResumable = activeDownloads[key];
       if (depResumable) {
-        try { await depResumable.cancelAsync(); console.log(`Cancelled dep task ${key}`); cancelled = true; }
-        catch (error) { console.error(`Error cancelling dep task ${key}:`, error); }
+        try { await depResumable.cancelAsync(); logger.info(`Cancelled dep task ${key}`); cancelled = true; }
+        catch (error) { logger.error(`Error cancelling dep task ${key}: ${error}`); }
         finally { setActiveDownloads(prev => { const newState = { ...prev }; delete newState[key]; return newState; }); }
       }
     }
@@ -670,9 +681,9 @@ export function ModelManagementProvider({
         files: undefined,
         extractedFiles: undefined,
       });
-      console.log(`Reset state for ${modelId} to pending.`);
+      logger.info(`Reset state for ${modelId} to pending.`);
     } else {
-      console.log(`No active download/extraction found to cancel for ${modelId}.`);
+      logger.info(`No active download/extraction found to cancel for ${modelId}.`);
     }
   }, [activeDownloads, modelStates, updateModelState]); // Include dependencies
 
@@ -680,11 +691,11 @@ export function ModelManagementProvider({
   const deleteModel = useCallback(async (modelId: string): Promise<void> => {
     // Block deletion on web platform
     if (Platform.OS === 'web') {
-      console.log('[deleteModel] Model deletion not supported on web platform');
+      logger.info('[deleteModel] Model deletion not supported on web platform');
       throw new Error('Model deletion is not available on the web platform');
     }
 
-    console.log(`[deleteModel] Deleting model: ${modelId}`);
+    logger.info(`[deleteModel] Deleting model: ${modelId}`);
     const state = modelStates[modelId];
     await cancelDownload(modelId); // Ensure any active download is cancelled
 
@@ -693,17 +704,17 @@ export function ModelManagementProvider({
         const pathToDelete = state.localPath; // Assume this is the directory path
         const dirInfo = await FileSystem.getInfoAsync(pathToDelete);
         if (dirInfo.exists && dirInfo.isDirectory) {
-          console.log(`Deleting directory: ${pathToDelete}`);
+          logger.info(`Deleting directory: ${pathToDelete}`);
           await FileSystem.deleteAsync(pathToDelete, { idempotent: true });
-          console.log(`Successfully deleted directory ${pathToDelete}.`);
+          logger.info(`Successfully deleted directory ${pathToDelete}.`);
         } else if (dirInfo.exists) {
-          console.warn(`Path ${pathToDelete} exists but is not a directory. Deleting anyway.`);
+          logger.warn(`Path ${pathToDelete} exists but is not a directory. Deleting anyway.`);
           await FileSystem.deleteAsync(pathToDelete, { idempotent: true });
         } else {
-          console.log(`Path ${pathToDelete} not found, nothing to delete from filesystem.`);
+          logger.info(`Path ${pathToDelete} not found, nothing to delete from filesystem.`);
         }
       } catch (error) {
-        console.error(`Error deleting model files for ${modelId}:`, error);
+        logger.error(`Error deleting model files for ${modelId}: ${error}`);
       }
     }
 
@@ -711,7 +722,7 @@ export function ModelManagementProvider({
       const newStates = { ...prev };
       delete newStates[modelId];
       saveModelStates(newStates);
-      console.log(`Model ${modelId} removed from state.`);
+      logger.info(`Model ${modelId} removed from state.`);
       return newStates;
     });
     // No separate status update needed, just remove from state.
@@ -727,31 +738,31 @@ export function ModelManagementProvider({
 
   // Original refreshModelStatus - simplified
   const refreshModelStatus = async (modelId: string) => {
-    console.log(`Refreshing status for model ${modelId}...`);
+    logger.info(`Refreshing status for model ${modelId}...`);
     const state = modelStates[modelId];
     if (!state) return;
 
     const modelMetadata = state.metadata ?? AVAILABLE_MODELS.find(m => m.id === modelId);
     if (!modelMetadata) {
-      console.warn(`Metadata missing for ${modelId}`);
+      logger.warn(`Metadata missing for ${modelId}`);
       return;
     }
 
     try {
       // Use a consistent path format through the helper function
       const modelDir = getModelDirectoryPath(modelId);
-      console.log(`Checking model at: ${modelDir}`);
+      logger.info(`Checking model at: ${modelDir}`);
 
       // Check if the stored path exists
       if (state.localPath && state.localPath !== modelDir) {
-        console.log(`Migrating from stored path ${state.localPath} to standard path ${modelDir}`);
+        logger.info(`Migrating from stored path ${state.localPath} to standard path ${modelDir}`);
       }
 
       // Check the directory
       const dirInfo = await FileSystem.getInfoAsync(modelDir);
 
       if (!dirInfo.exists || !dirInfo.isDirectory) {
-        console.log(`Directory ${modelDir} not found.`);
+        logger.warn(`Directory ${modelDir} not found for model ${modelId}.`);
 
         if (state.status === 'downloaded') {
           updateModelState(modelId, {
@@ -797,9 +808,9 @@ export function ModelManagementProvider({
         error: undefined
       });
 
-      console.log(`Status refresh completed for ${modelId}.`);
+      logger.info(`Status refresh completed for ${modelId}: ${filesList.length} files found.`);
     } catch (error) {
-      console.error(`Error refreshing status for ${modelId}:`, error);
+      logger.error(`Error refreshing status for ${modelId}: ${error}`);
       updateModelState(modelId, {
         status: 'error' as ModelStatus,
         error: error instanceof Error ? error.message : 'Unknown error during refresh',
@@ -811,13 +822,13 @@ export function ModelManagementProvider({
   const clearAllModels = async () => {
     try {
       const modelDir = `${baseUrl}models`;
-      console.log(`Clearing all model files from: ${modelDir}`);
+      logger.info(`Clearing all model files from: ${modelDir}`);
       await FileSystem.deleteAsync(modelDir, { idempotent: true });
       setModelStates({});
       await AsyncStorage.removeItem(storageKey);
-      console.log('Cleared all model states and files.');
+      logger.info('Cleared all model states and files.');
     } catch (error) {
-      console.error('Error clearing all models:', error);
+      logger.error(`Error clearing all models: ${error}`);
     }
   };
 

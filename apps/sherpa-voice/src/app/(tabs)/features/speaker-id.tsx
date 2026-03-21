@@ -22,6 +22,9 @@ import {
   useTheme,
 } from '../../../components/ui';
 import { useSpeakerId } from '../../../hooks/useSpeakerId';
+import { baseLogger } from '../../../config';
+
+const logger = baseLogger.extend('SpeakerIdScreen');
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
@@ -206,7 +209,7 @@ export default function SpeakerIdScreen() {
 
                 <View style={{ flexDirection: 'row', gap: theme.gap?.s ?? 8, marginTop: theme.margin.s }}>
                   <AudioPlayButton uri={selectedAudio.localUri} compact />
-                  <ThemedButton testID="spkr-process-btn" label="Process" variant="primary" onPress={() => handleProcessAudio(selectedAudio)} disabled={processing} style={{ flex: 1 }} />
+                  <ThemedButton testID="spkr-process-btn" label="Process" variant="primary" onPress={() => { logger.info(`action: process audio "${selectedAudio.name}"`); handleProcessAudio(selectedAudio); }} disabled={processing} style={{ flex: 1 }} />
                 </View>
               </View>
             )}
