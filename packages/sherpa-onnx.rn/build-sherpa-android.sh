@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build-sherpa-android.sh
-# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v1.12.28
+# Build Sherpa-onnx for Android platforms from k2-fsa/sherpa-onnx v1.12.29
 # Run ./setup.sh first to clone the upstream repository.
 
 set -e
