@@ -506,8 +506,18 @@ export interface AsrModelConfig {
     cachedDecoder?: string;
   };
   /**
-   * Whether to use streaming (online) recognition
-   * Default: false
+   * Whether to use streaming (online) recognition.
+   * Default: false (offline/batch mode).
+   *
+   * IMPORTANT: Some model types only support one mode:
+   * - Offline only: 'whisper', 'paraformer', 'nemo_ctc', 'nemo_transducer',
+   *   'moonshine', 'sense_voice', 'fire_red_asr', 'tdnn', 'telespeech_ctc',
+   *   'wenet_ctc', 'zipformer2_ctc', 'lstm'
+   * - Both modes: 'transducer', 'zipformer', 'zipformer2'
+   *
+   * Models with "streaming" in their name from the sherpa-onnx model zoo are
+   * online-only and MUST use streaming: true. Using them with streaming: false
+   * causes a cryptic native dimension mismatch error.
    */
   streaming?: boolean;
 
