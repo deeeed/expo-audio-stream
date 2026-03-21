@@ -1,4 +1,5 @@
 import type { AudioFeaturesWasmModule } from './audio-features-wasm'
+import { getMelSpectrogramWasmUrl } from './wasmConfig'
 
 export interface AudioFeaturesWasmResult {
     spectralCentroid: number
@@ -14,9 +15,9 @@ let modulePromise: Promise<AudioFeaturesWasmModule> | null = null
 function getModule(): Promise<AudioFeaturesWasmModule> {
     if (!modulePromise) {
         modulePromise = (async () => {
-            // Same WASM module as mel spectrogram (now includes audio features)
-            // @ts-expect-error -- prebuilt Emscripten JS glue has no .d.ts
-            const mod = await import('../../prebuilt/wasm/mel-spectrogram.js')
+            const url = getMelSpectrogramWasmUrl()
+            // webpackIgnore + @vite-ignore prevent bundlers from trying to resolve the URL
+            const mod = await import(/* webpackIgnore: true */ /* @vite-ignore */ url)
             const factory = mod.default ?? mod
             return factory() as Promise<AudioFeaturesWasmModule>
         })().catch((err) => {

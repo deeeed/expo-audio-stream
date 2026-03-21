@@ -1,13 +1,18 @@
 import type { MelSpectrogramWasmModule } from './mel-spectrogram-wasm'
+import { getMelSpectrogramWasmUrl, _registerModuleReset } from './wasmConfig'
 
 let modulePromise: Promise<MelSpectrogramWasmModule> | null = null
+
+_registerModuleReset(() => {
+    modulePromise = null
+})
 
 function getModule(): Promise<MelSpectrogramWasmModule> {
     if (!modulePromise) {
         modulePromise = (async () => {
-            // Dynamic import of the prebuilt SINGLE_FILE Emscripten module
-            // @ts-expect-error -- prebuilt Emscripten JS glue has no .d.ts
-            const mod = await import('../../prebuilt/wasm/mel-spectrogram.js')
+            const url = getMelSpectrogramWasmUrl()
+            // webpackIgnore + @vite-ignore prevent bundlers from trying to resolve the URL
+            const mod = await import(/* webpackIgnore: true */ /* @vite-ignore */ url)
             const factory = mod.default ?? mod
             return factory() as Promise<MelSpectrogramWasmModule>
         })().catch((err) => {

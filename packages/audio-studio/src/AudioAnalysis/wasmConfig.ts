@@ -1,0 +1,24 @@
+// Version is inlined here — keep in sync with package.json when releasing.
+// The publish.sh script should bump this string alongside package.json.
+const WASM_VERSION = '3.0.2-beta.1'
+// jsDelivr syncs from npm automatically within ~5 min of publish.
+// GitHub release fallback (attach mel-spectrogram.js as a release asset):
+//   https://github.com/deeeed/audiolab/releases/download/@siteed/audio-studio@VERSION/mel-spectrogram.js
+// To use the fallback: setMelSpectrogramWasmUrl('<url>') before any mel-spectrogram API call.
+const DEFAULT_WASM_CDN = `https://cdn.jsdelivr.net/npm/@siteed/audio-studio@${WASM_VERSION}/prebuilt/wasm/mel-spectrogram.js`
+
+let _wasmUrl: string = DEFAULT_WASM_CDN
+let _modulePromiseReset: (() => void) | null = null
+
+export function _registerModuleReset(fn: () => void): void {
+    _modulePromiseReset = fn
+}
+
+export function setMelSpectrogramWasmUrl(url: string): void {
+    _wasmUrl = url
+    _modulePromiseReset?.() // invalidate cached module so next call re-fetches
+}
+
+export function getMelSpectrogramWasmUrl(): string {
+    return _wasmUrl
+}

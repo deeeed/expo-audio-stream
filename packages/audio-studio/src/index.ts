@@ -43,6 +43,8 @@ export { AudioDeviceManager, audioDeviceManager } from './AudioDeviceManager'
 // Export useAudioDevices hook
 export { useAudioDevices } from './hooks/useAudioDevices'
 
+export { setMelSpectrogramWasmUrl } from './AudioAnalysis/wasmConfig'
+
 export {
     AudioRecorderProvider,
     AudioStudioModule,
