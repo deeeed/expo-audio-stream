@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, View, Platform } from 'react-native';
 import { ScreenWrapper } from '@siteed/design-system';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FileExplorer } from '../../components/FileExplorer';
 import { ModelManager } from '../../components/ModelManager';
 import { ModelTypeSelector } from '../../components/ModelTypeSelector';
@@ -13,6 +14,7 @@ import type { ViewMode } from '../../types/models';
 import { ModelType } from '../../utils/models';
 
 export default function ModelsScreen() {
+  const { bottom } = useSafeAreaInsets();
   const params = useLocalSearchParams<{ type?: string }>();
   const [selectedType, setSelectedType] = useState<ModelType | 'all'>(
     (params.type as ModelType | 'all') ?? 'all'
@@ -126,7 +128,7 @@ export default function ModelsScreen() {
   };
 
   return (
-    <ScreenWrapper withScrollView={false} style={styles.container}>
+    <ScreenWrapper withScrollView={false} useInsets={false} style={[styles.container, { paddingBottom: bottom || 16 }]}>
       {Platform.OS === 'web' && <WebInfoBanner />}
       
       <ModelTypeSelector

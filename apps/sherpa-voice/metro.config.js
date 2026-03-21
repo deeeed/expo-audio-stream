@@ -19,6 +19,17 @@ config.resolver.nodeModulesPaths = [
 // 3. Force Metro to resolve (sub)dependencies only from the `nodeModulesPaths`
 config.resolver.disableHierarchicalLookup = true;
 
+// 4. Resolve workspace packages from source so relative imports (e.g. prebuilt/wasm/) work
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === '@siteed/audio-studio') {
+    return {
+      filePath: path.resolve(workspaceRoot, 'packages/audio-studio/src/index.ts'),
+      type: 'sourceFile',
+    };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 // add assetExts
 config.resolver.assetExts = [
   ...config.resolver.assetExts,

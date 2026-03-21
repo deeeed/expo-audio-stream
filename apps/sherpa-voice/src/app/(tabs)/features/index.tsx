@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWebFeatureRouteEnabled } from '../../../config/webFeatures';
 
 
@@ -120,6 +121,7 @@ function FeatureCard({ title, description, icon, route, color }: FeatureCardProp
 
 export default function FeaturesScreen() {
   const theme = useTheme();
+  const { bottom } = useSafeAreaInsets();
 
   // On web, only show features that are enabled in webFeatures config
   const visibleFeatures = Platform.OS === 'web'
@@ -127,7 +129,7 @@ export default function FeaturesScreen() {
     : FEATURES;
 
   return (
-    <ScreenWrapper contentContainerStyle={{ padding: theme.padding.m }}>
+    <ScreenWrapper useInsets={false} contentContainerStyle={{ padding: theme.padding.m, paddingBottom: bottom || 16 }}>
       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>
         On-device ML features — no internet required. Tap any feature to get started.
       </Text>

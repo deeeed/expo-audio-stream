@@ -9,6 +9,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── Page Container ──────────────────────────────────────────
 
@@ -19,8 +20,9 @@ interface PageContainerProps {
 
 export function PageContainer({ children, style }: PageContainerProps) {
   const theme = useTheme();
+  const { bottom } = useSafeAreaInsets();
   return (
-    <ScreenWrapper style={style} useInsets={false} contentContainerStyle={{ padding: theme.padding.m }}>
+    <ScreenWrapper style={style} useInsets={false} contentContainerStyle={{ padding: theme.padding.m, paddingBottom: bottom || 16 }}>
       {children}
     </ScreenWrapper>
   );

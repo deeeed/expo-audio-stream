@@ -149,9 +149,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                         "deploymentTarget": "15.1"
                     },
                     "android": {
-                        "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }",
+                        "extraProguardRules": "-keep class com.facebook.hermes.unicode.** { *; }\n-dontwarn expo.modules.kotlin.services.FilePermissionService$Permission",
                         "extraMavenRepos": [],
                         "useLegacyPackaging": false,
+                        "enableProguardInReleaseBuilds": true,
                         "gradleProperties": {
                             "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
                             "reactNativeDevServerPort": "7500"

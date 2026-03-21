@@ -291,10 +291,10 @@ deploy_web() {
 
   if [[ "$WEB_ENV" == "development" ]]; then
     echo -e "${CYAN}Deploying to web (development)...${NC}"
-    NODE_ENV=development APP_VARIANT=development EXPO_WEB=true expo export -p web && yarn serve dist/
+    NODE_ENV=development APP_VARIANT=development EXPO_WEB=true yarn expo export -p web && yarn serve dist/
   else
     echo -e "${CYAN}Deploying to web (production)...${NC}"
-    NODE_ENV=production APP_VARIANT=production EXPO_WEB=true expo export -p web
+    NODE_ENV=production APP_VARIANT=production EXPO_WEB=true yarn expo export -p web
     cp privacy_policy.html dist/
     # All models load from external CDN (HuggingFace) via modelBaseUrl in
     # webFeatures.ts — remove their static copies entirely.
@@ -307,7 +307,7 @@ deploy_web() {
     # Safety net: also remove any remaining files >95MB
     find dist -type f -size +95M -exec echo "  Removing: {}" \; -delete 2>/dev/null
     find dist -type d -empty -delete 2>/dev/null
-    gh-pages -t -d dist --dest sherpa-voice
+    yarn gh-pages -t -d dist --dest sherpa-voice
   fi
 
   echo -e "${GREEN}Web deployment completed!${NC}"
