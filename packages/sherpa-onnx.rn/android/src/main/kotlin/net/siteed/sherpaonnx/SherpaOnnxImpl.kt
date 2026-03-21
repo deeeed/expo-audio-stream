@@ -50,15 +50,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
             try {
                 System.loadLibrary("sherpa-onnx-jni")
                 isLibraryLoaded = true
-                Log.i(TAG, "Sherpa ONNX JNI library is available")
-                
-                try {
-                    Class.forName("org.apache.commons.compress.archivers.tar.TarArchiveInputStream")
-                    Log.i(TAG, "Apache Commons Compress library is available")
-                } catch (e: ClassNotFoundException) {
-                    Log.e(TAG, "Failed to load Apache Commons Compress: ${e.message}")
-                    isLibraryLoaded = false
-                }
+                Log.i(TAG, "Sherpa ONNX JNI library loaded successfully")
             } catch (e: UnsatisfiedLinkError) {
                 isLibraryLoaded = false
                 Log.e(TAG, "Failed to load Sherpa ONNX JNI library", e)
