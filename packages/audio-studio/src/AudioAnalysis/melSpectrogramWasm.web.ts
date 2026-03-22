@@ -1,29 +1,5 @@
 import type { MelSpectrogramWasmModule } from './mel-spectrogram-wasm'
-import { getMelSpectrogramWasmUrl, _registerModuleReset } from './wasmConfig'
-
-let modulePromise: Promise<MelSpectrogramWasmModule> | null = null
-
-_registerModuleReset(() => {
-    modulePromise = null
-})
-
-function getModule(): Promise<MelSpectrogramWasmModule> {
-    if (!modulePromise) {
-        modulePromise = (async () => {
-            const url = getMelSpectrogramWasmUrl()
-            // webpackIgnore + @vite-ignore prevent bundlers from trying to resolve the URL
-            const mod = await import(
-                /* webpackIgnore: true */ /* @vite-ignore */ url
-            )
-            const factory = mod.default ?? mod
-            return factory() as Promise<MelSpectrogramWasmModule>
-        })().catch((err) => {
-            modulePromise = null
-            throw err
-        })
-    }
-    return modulePromise
-}
+import { getWasmModule } from './wasmLoader.web'
 
 // --- Streaming (per-frame) API for live mel spectrogram ---
 
@@ -46,7 +22,7 @@ export async function initMelStreamingWasm(
     fMin = 0,
     fMax = 0
 ): Promise<void> {
-    const Module = await getModule()
+    const Module = (await getWasmModule()) as MelSpectrogramWasmModule
     streamingModule = Module
     const actualFMax = fMax > 0 ? fMax : sampleRate / 2
     Module._mel_spectrogram_init(
@@ -120,7 +96,7 @@ export async function computeMelSpectrogramWasm(
     normalize: boolean,
     logScale: boolean
 ): Promise<number[][]> {
-    const Module = await getModule()
+    const Module = (await getWasmModule()) as MelSpectrogramWasmModule
 
     const fftLength = 2048
     const windowTypeInt = windowType === 'hamming' ? 1 : 0

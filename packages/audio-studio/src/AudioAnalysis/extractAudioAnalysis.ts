@@ -22,6 +22,14 @@ import { getWavFileInfo, WavFileInfo } from '../utils/getWavFileInfo'
 import { InlineFeaturesExtractor } from '../workers/InlineFeaturesExtractor.web'
 import { wasmGlueJs } from '../workers/wasmGlueString.web'
 
+function createAnalysisWorker(): { worker: Worker; workerUrl: string } {
+    const blob = new Blob([wasmGlueJs, '\n', InlineFeaturesExtractor], {
+        type: 'application/javascript',
+    })
+    const workerUrl = URL.createObjectURL(blob)
+    return { worker: new Worker(workerUrl), workerUrl }
+}
+
 function calculateCRC32ForDataPoint(data: Float32Array): number {
     // Convert float array to byte array for CRC32
     const byteArray = new Uint8Array(data.length * 4)
@@ -137,16 +145,13 @@ export async function extractAudioAnalysis(
                 const channelData = processedBuffer.buffer.getChannelData(0)
 
                 // Create worker blob: WASM glue (defines createMelSpectrogramModule) + worker code
-                const blob = new Blob(
-                    [wasmGlueJs, '\n', InlineFeaturesExtractor],
-                    { type: 'application/javascript' }
-                )
-                const workerUrl = URL.createObjectURL(blob)
-                const worker = new Worker(workerUrl)
+                const { worker, workerUrl } = createAnalysisWorker()
 
                 return new Promise((resolve, reject) => {
                     worker.onmessage = (event) => {
                         if (event.data.error) {
+                            URL.revokeObjectURL(workerUrl)
+                            worker.terminate()
                             reject(new Error(event.data.error))
                             return
                         }
@@ -300,20 +305,16 @@ export const extractRawWavAnalysis = async ({
         const constrainedChannelData = channelData.slice(startIndex, endIndex)
 
         return new Promise((resolve, reject) => {
-            const blob = new Blob([wasmGlueJs, '\n', InlineFeaturesExtractor], {
-                type: 'application/javascript',
-            })
-            const url = URL.createObjectURL(blob)
-            const worker = new Worker(url)
+            const { worker, workerUrl } = createAnalysisWorker()
 
             worker.onmessage = (event) => {
-                URL.revokeObjectURL(url)
+                URL.revokeObjectURL(workerUrl)
                 worker.terminate()
                 resolve(event.data.result)
             }
 
             worker.onerror = (error) => {
-                URL.revokeObjectURL(url)
+                URL.revokeObjectURL(workerUrl)
                 worker.terminate()
                 reject(error)
             }
@@ -337,13 +338,15 @@ export const extractRawWavAnalysis = async ({
             fileUri,
             segmentDurationMs,
         })
-        const res = await AudioStudioModule.extractAudioAnalysis({
-            fileUri,
-            segmentDurationMs,
-            features,
-            position,
-            length,
-        })
+        const res = await AudioStudioModule.extractAudioAnalysis(
+            cleanNativeOptions({
+                fileUri,
+                segmentDurationMs,
+                features,
+                position,
+                length,
+            })
+        )
         logger?.log(`extractAudioAnalysis`, res)
         return res
     }

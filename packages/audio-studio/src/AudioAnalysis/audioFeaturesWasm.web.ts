@@ -1,34 +1,6 @@
+import type { AudioFeaturesWasmResult } from './AudioAnalysis.types'
 import type { AudioFeaturesWasmModule } from './audio-features-wasm'
-import { getMelSpectrogramWasmUrl } from './wasmConfig'
-
-export interface AudioFeaturesWasmResult {
-    spectralCentroid: number
-    spectralFlatness: number
-    spectralRolloff: number
-    spectralBandwidth: number
-    mfcc: number[]
-    chromagram: number[]
-}
-
-let modulePromise: Promise<AudioFeaturesWasmModule> | null = null
-
-function getModule(): Promise<AudioFeaturesWasmModule> {
-    if (!modulePromise) {
-        modulePromise = (async () => {
-            const url = getMelSpectrogramWasmUrl()
-            // webpackIgnore + @vite-ignore prevent bundlers from trying to resolve the URL
-            const mod = await import(
-                /* webpackIgnore: true */ /* @vite-ignore */ url
-            )
-            const factory = mod.default ?? mod
-            return factory() as Promise<AudioFeaturesWasmModule>
-        })().catch((err) => {
-            modulePromise = null
-            throw err
-        })
-    }
-    return modulePromise
-}
+import { getWasmModule } from './wasmLoader.web'
 
 // --- Struct layout for CAudioFeaturesResult (wasm32) ---
 // Offset  0: float spectralCentroid  (4 bytes)
@@ -83,79 +55,115 @@ function readResult(
 
 // --- Streaming (per-frame) API ---
 
-let streamingModule: AudioFeaturesWasmModule | null = null
-let streamingFramePtr = 0
-let streamingFrameCapacity = 0
-let streamingResultPtr = 0
-
 /**
- * Initialise the WASM streaming audio features processor.
- * Call once before computeAudioFeaturesFrameWasm().
+ * Encapsulates a single WASM streaming audio features session.
+ * Each instance owns its own WASM heap allocations; multiple sessions
+ * can exist concurrently without interfering with each other.
+ *
+ * Usage:
+ *   const session = await AudioFeaturesStreamingSession.create(sampleRate)
+ *   try {
+ *     for (const frame of frames) {
+ *       const result = session.computeFrame(frame)
+ *     }
+ *   } finally {
+ *     session.dispose()
+ *   }
  */
-export async function initAudioFeaturesWasm(
-    sampleRate: number,
-    fftLength = 1024,
-    nMfcc = 13,
-    nMelFilters = 26,
-    computeMfcc = true,
-    computeChroma = true
-): Promise<void> {
-    const Module = await getModule()
-    streamingModule = Module
+export class AudioFeaturesStreamingSession {
+    private module: AudioFeaturesWasmModule
+    private framePtr = 0
+    private frameCapacity = 0
+    private resultPtr = 0
 
-    Module._audio_features_init(
-        sampleRate,
-        fftLength,
-        nMfcc,
-        nMelFilters,
-        computeMfcc ? 1 : 0,
-        computeChroma ? 1 : 0
-    )
-
-    // Pre-allocate result struct on WASM heap
-    if (streamingResultPtr) Module._free(streamingResultPtr)
-    streamingResultPtr = Module._malloc(STRUCT_SIZE)
-    // Zero-initialize to prevent freeing garbage pointers on first use
-    Module.HEAPU8.fill(0, streamingResultPtr, streamingResultPtr + STRUCT_SIZE)
-
-    // Frame input buffer allocated on demand
-    streamingFrameCapacity = 0
-    streamingFramePtr = 0
-}
-
-/**
- * Compute audio features for a single frame via WASM C++.
- * Returns null if not initialised or on error.
- */
-export function computeAudioFeaturesFrameWasm(
-    samples: Float32Array
-): AudioFeaturesWasmResult | null {
-    if (!streamingModule || !streamingResultPtr) return null
-    const Module = streamingModule
-
-    // (Re-)allocate frame input buffer if needed
-    if (samples.length > streamingFrameCapacity) {
-        if (streamingFramePtr) Module._free(streamingFramePtr)
-        streamingFramePtr = Module._malloc(samples.length * 4)
-        streamingFrameCapacity = samples.length
+    private constructor(module: AudioFeaturesWasmModule) {
+        this.module = module
     }
 
-    // Copy samples to WASM heap
-    Module.HEAPF32.set(samples, streamingFramePtr >> 2)
+    /**
+     * Initialise a new streaming session. Loads the WASM module if needed.
+     */
+    static async create(
+        sampleRate: number,
+        fftLength = 1024,
+        nMfcc = 13,
+        nMelFilters = 26,
+        computeMfcc = true,
+        computeChroma = true
+    ): Promise<AudioFeaturesStreamingSession> {
+        const Module = await getWasmModule()
+        const session = new AudioFeaturesStreamingSession(Module)
 
-    const ok = Module._audio_features_compute_frame(
-        streamingFramePtr,
-        samples.length,
-        streamingResultPtr
-    )
-    if (!ok) return null
+        Module._audio_features_init(
+            sampleRate,
+            fftLength,
+            nMfcc,
+            nMelFilters,
+            computeMfcc ? 1 : 0,
+            computeChroma ? 1 : 0
+        )
 
-    const result = readResult(Module, streamingResultPtr)
+        // Pre-allocate result struct on WASM heap
+        session.resultPtr = Module._malloc(STRUCT_SIZE)
+        // Zero-initialize to prevent freeing garbage pointers on first use
+        Module.HEAPU8.fill(
+            0,
+            session.resultPtr,
+            session.resultPtr + STRUCT_SIZE
+        )
 
-    // Free internal arrays (mfcc, chromagram) allocated by C
-    Module._audio_features_free_arrays(streamingResultPtr)
+        return session
+    }
 
-    return result
+    /**
+     * Compute audio features for a single frame.
+     * Returns null on error or if the session has been disposed.
+     */
+    computeFrame(samples: Float32Array): AudioFeaturesWasmResult | null {
+        if (!this.resultPtr) return null
+        const Module = this.module
+
+        // (Re-)allocate frame input buffer if needed
+        if (samples.length > this.frameCapacity) {
+            if (this.framePtr) Module._free(this.framePtr)
+            this.framePtr = Module._malloc(samples.length * 4)
+            this.frameCapacity = samples.length
+        }
+
+        // Copy samples to WASM heap
+        Module.HEAPF32.set(samples, this.framePtr >> 2)
+
+        const ok = Module._audio_features_compute_frame(
+            this.framePtr,
+            samples.length,
+            this.resultPtr
+        )
+        if (!ok) return null
+
+        const result = readResult(Module, this.resultPtr)
+
+        // Free internal arrays (mfcc, chromagram) allocated by C
+        Module._audio_features_free_arrays(this.resultPtr)
+
+        return result
+    }
+
+    /**
+     * Free all WASM heap allocations owned by this session.
+     * The session must not be used after calling dispose().
+     */
+    dispose(): void {
+        const Module = this.module
+        if (this.framePtr) {
+            Module._free(this.framePtr)
+            this.framePtr = 0
+            this.frameCapacity = 0
+        }
+        if (this.resultPtr) {
+            Module._free(this.resultPtr)
+            this.resultPtr = 0
+        }
+    }
 }
 
 // --- Batch API ---
@@ -173,7 +181,7 @@ export async function computeAudioFeaturesWasm(
     computeMfcc = true,
     computeChroma = true
 ): Promise<AudioFeaturesWasmResult> {
-    const Module = await getModule()
+    const Module = await getWasmModule()
 
     const numSamples = audioData.length
     const inputPtr = Module._malloc(numSamples * 4)

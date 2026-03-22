@@ -8,15 +8,15 @@ const WASM_VERSION = '3.0.2'
 const DEFAULT_WASM_CDN = `https://cdn.jsdelivr.net/npm/@siteed/audio-studio@${WASM_VERSION}/prebuilt/wasm/mel-spectrogram.js`
 
 let _wasmUrl: string = DEFAULT_WASM_CDN
-let _modulePromiseReset: (() => void) | null = null
+const _resetListeners: Array<() => void> = []
 
 export function _registerModuleReset(fn: () => void): void {
-    _modulePromiseReset = fn
+    _resetListeners.push(fn)
 }
 
 export function setMelSpectrogramWasmUrl(url: string): void {
     _wasmUrl = url
-    _modulePromiseReset?.() // invalidate cached module so next call re-fetches
+    _resetListeners.forEach((fn) => fn())
 }
 
 export function getMelSpectrogramWasmUrl(): string {
