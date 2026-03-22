@@ -212,6 +212,18 @@ export interface ExtractMelSpectrogramOptions {
 }
 
 /**
+ * Result type for WASM-based audio feature extraction.
+ */
+export interface AudioFeaturesWasmResult {
+    spectralCentroid: number
+    spectralFlatness: number
+    spectralRolloff: number
+    spectralBandwidth: number
+    mfcc: number[]
+    chromagram: number[]
+}
+
+/**
  * Return type for mel spectrogram extraction
  *
  * @experimental This feature is experimental and currently only available on Android.
