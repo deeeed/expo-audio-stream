@@ -17,6 +17,27 @@ import { writeWavHeader } from './utils/writeWavHeader'
 // Create a single emitter instance
 const emitter = new LegacyEventEmitter(AudioStudioModule)
 
+function encodeBufferToWav(buffer: AudioBuffer, bitDepth: BitDepth): ArrayBuffer {
+    const { length, numberOfChannels, sampleRate } = buffer
+    const channels: Float32Array[] = []
+    for (let c = 0; c < numberOfChannels; c++) {
+        channels.push(buffer.getChannelData(c))
+    }
+    const interleavedData = new Int16Array(length * numberOfChannels)
+    for (let i = 0; i < length; i++) {
+        for (let c = 0; c < numberOfChannels; c++) {
+            const clamped = Math.max(-1, Math.min(1, channels[c][i]))
+            interleavedData[i * numberOfChannels + c] = Math.round(clamped * 32767)
+        }
+    }
+    return writeWavHeader({
+        buffer: interleavedData.buffer as ArrayBuffer,
+        sampleRate,
+        numChannels: numberOfChannels,
+        bitDepth,
+    })
+}
+
 /**
  * Trims an audio file based on the provided options.
  *
@@ -84,18 +105,6 @@ export async function trimAudio(
             const originalSampleRate = originalAudioBuffer.sampleRate
             const originalChannels = originalAudioBuffer.numberOfChannels
 
-            // Add more detailed logging
-            console.log(`Original audio details:`, {
-                sampleRate: originalSampleRate,
-                channels: originalChannels,
-                duration: originalAudioBuffer.duration,
-                length: originalAudioBuffer.length,
-                // Log a few samples to verify content
-                firstSamples: Array.from(
-                    originalAudioBuffer.getChannelData(0).slice(0, 5)
-                ),
-            })
-
             // Determine output format - use original values as defaults if not specified
             let format = outputFormat?.format || 'wav'
             const targetSampleRate =
@@ -128,17 +137,6 @@ export async function trimAudio(
                     audioContext,
                 })
 
-                console.log(`Processed buffer details:`, {
-                    sampleRate: buffer.sampleRate,
-                    channels: buffer.numberOfChannels,
-                    duration: buffer.duration,
-                    length: buffer.length,
-                    // Log a few samples to verify content
-                    firstSamples: Array.from(
-                        buffer.getChannelData(0).slice(0, 5)
-                    ),
-                })
-
                 resultBuffer = buffer
 
                 // If we need to change sample rate or channels, do it after extraction
@@ -146,11 +144,7 @@ export async function trimAudio(
                     targetSampleRate !== originalSampleRate ||
                     targetChannels !== originalChannels
                 ) {
-                    console.log(
-                        `Resampling from ${originalSampleRate}Hz to ${targetSampleRate}Hz`
-                    )
                     resultBuffer = await resampleAudioBuffer(
-                        audioContext,
                         buffer,
                         targetSampleRate,
                         targetChannels
@@ -289,11 +283,7 @@ export async function trimAudio(
                     targetSampleRate !== originalSampleRate ||
                     targetChannels !== originalChannels
                 ) {
-                    console.log(
-                        `Resampling concatenated buffer from ${originalSampleRate}Hz to ${targetSampleRate}Hz`
-                    )
                     resultBuffer = await resampleAudioBuffer(
-                        audioContext,
                         concatenatedBuffer,
                         targetSampleRate,
                         targetChannels
@@ -307,9 +297,9 @@ export async function trimAudio(
             // Encode the result based on the requested format
             let outputData: ArrayBuffer
             let outputMimeType: string
-            let compressionInfo: any = null
+            let compressionInfo: TrimAudioResult['compression'] = undefined
 
-            // Check if AAC was requested on web and show a warning
+            // AAC is not reliably supported in browsers; fall back to opus
             if (format === 'aac') {
                 console.warn(
                     'AAC format is not supported on web platforms. Falling back to OPUS format.'
@@ -318,111 +308,23 @@ export async function trimAudio(
             }
 
             if (format === 'wav') {
-                // Create a properly interleaved buffer for WAV format
-                // For WAV, we need to convert Float32Array to Int16Array (for 16-bit audio)
-                const numSamples =
-                    resultBuffer.length * resultBuffer.numberOfChannels
-                const interleavedData = new Int16Array(numSamples)
-
-                // Log detailed information about the buffer before encoding
-                console.log(`Creating WAV file:`, {
-                    bufferSampleRate: resultBuffer.sampleRate,
-                    bufferChannels: resultBuffer.numberOfChannels,
-                    bufferLength: resultBuffer.length,
-                    targetSampleRate,
-                    targetChannels,
-                    targetBitDepth,
-                    // Log a few samples to verify content
-                    firstSamples: Array.from(
-                        resultBuffer.getChannelData(0).slice(0, 5)
-                    ),
-                })
-
-                // Interleave channels properly
-                for (let i = 0; i < resultBuffer.length; i++) {
-                    for (
-                        let channel = 0;
-                        channel < resultBuffer.numberOfChannels;
-                        channel++
-                    ) {
-                        // Convert float (-1.0 to 1.0) to int16 (-32768 to 32767)
-                        const floatSample =
-                            resultBuffer.getChannelData(channel)[i]
-                        // Clamp the value to -1.0 to 1.0
-                        const clampedSample = Math.max(
-                            -1.0,
-                            Math.min(1.0, floatSample)
-                        )
-                        // Convert to int16
-                        const intSample = Math.round(clampedSample * 32767)
-                        // Store in interleaved buffer
-                        interleavedData[
-                            i * resultBuffer.numberOfChannels + channel
-                        ] = intSample
-                    }
-                }
-
-                // Convert Int16Array to ArrayBuffer for WAV header
-                const rawBuffer = interleavedData.buffer
-
-                // IMPORTANT: Make sure we're using the ACTUAL sample rate of the buffer
-                // not just what was requested in the options
-                console.log(
-                    `Creating WAV with ${resultBuffer.numberOfChannels} channels at ${resultBuffer.sampleRate}Hz`
-                )
-
-                outputData = writeWavHeader({
-                    buffer: rawBuffer as ArrayBuffer,
-                    sampleRate: resultBuffer.sampleRate, // Use the actual buffer's sample rate
-                    numChannels: resultBuffer.numberOfChannels,
-                    bitDepth: targetBitDepth as BitDepth,
-                })
+                outputData = encodeBufferToWav(resultBuffer, targetBitDepth as BitDepth)
                 outputMimeType = 'audio/wav'
-            } else if (format === 'opus' || format === 'aac') {
+            } else if (format === 'opus') {
                 try {
-                    // Try to use MediaRecorder for compressed formats
                     const { data, bitrate } = await encodeCompressedAudio(
                         resultBuffer,
                         format,
                         outputFormat?.bitrate
                     )
-
                     outputData = data
-                    outputMimeType =
-                        format === 'opus' ? 'audio/webm' : 'audio/aac'
-                    compressionInfo = {
-                        format,
-                        bitrate,
-                        size: data.byteLength,
-                    }
+                    outputMimeType = 'audio/webm'
+                    compressionInfo = { format, bitrate, size: data.byteLength }
                 } catch (error) {
                     console.warn(
                         `Failed to encode to ${format}, falling back to WAV: ${error}`
                     )
-
-                    // Same WAV encoding as above
-                    const wavData = new Float32Array(
-                        resultBuffer.length * resultBuffer.numberOfChannels
-                    )
-
-                    for (let i = 0; i < resultBuffer.length; i++) {
-                        for (
-                            let channel = 0;
-                            channel < resultBuffer.numberOfChannels;
-                            channel++
-                        ) {
-                            wavData[
-                                i * resultBuffer.numberOfChannels + channel
-                            ] = resultBuffer.getChannelData(channel)[i]
-                        }
-                    }
-
-                    outputData = writeWavHeader({
-                        buffer: wavData.buffer as ArrayBuffer,
-                        sampleRate: resultBuffer.sampleRate,
-                        numChannels: resultBuffer.numberOfChannels,
-                        bitDepth: targetBitDepth as BitDepth,
-                    })
+                    outputData = encodeBufferToWav(resultBuffer, targetBitDepth as BitDepth)
                     outputMimeType = 'audio/wav'
                 }
             } else {
@@ -430,29 +332,7 @@ export async function trimAudio(
                 console.warn(
                     `Format ${format} not supported on web, using WAV instead`
                 )
-
-                // Same WAV encoding as above
-                const wavData = new Float32Array(
-                    resultBuffer.length * resultBuffer.numberOfChannels
-                )
-
-                for (let i = 0; i < resultBuffer.length; i++) {
-                    for (
-                        let channel = 0;
-                        channel < resultBuffer.numberOfChannels;
-                        channel++
-                    ) {
-                        wavData[i * resultBuffer.numberOfChannels + channel] =
-                            resultBuffer.getChannelData(channel)[i]
-                    }
-                }
-
-                outputData = writeWavHeader({
-                    buffer: wavData.buffer as ArrayBuffer,
-                    sampleRate: resultBuffer.sampleRate,
-                    numChannels: resultBuffer.numberOfChannels,
-                    bitDepth: targetBitDepth as BitDepth,
-                })
+                outputData = encodeBufferToWav(resultBuffer, targetBitDepth as BitDepth)
                 outputMimeType = 'audio/wav'
             }
 
@@ -484,7 +364,6 @@ export async function trimAudio(
                 },
             }
 
-            // Add compression info if available
             if (compressionInfo) {
                 result.compression = compressionInfo
             }

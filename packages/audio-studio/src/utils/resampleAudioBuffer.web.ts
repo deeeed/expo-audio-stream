@@ -1,5 +1,4 @@
 export async function resampleAudioBuffer(
-    context: AudioContext,
     buffer: AudioBuffer,
     targetSampleRate: number,
     targetChannels: number
@@ -11,10 +10,6 @@ export async function resampleAudioBuffer(
     ) {
         return buffer
     }
-
-    console.log(
-        `Resampling: ${buffer.sampleRate}Hz → ${targetSampleRate}Hz, ${buffer.numberOfChannels} → ${targetChannels} channels`
-    )
 
     // Calculate the new length based on the sample rate change
     const newLength = Math.round(
@@ -66,10 +61,6 @@ export async function resampleAudioBuffer(
     // Start rendering
     source.start(0)
     const resampledBuffer = await offlineContext.startRendering()
-
-    console.log(
-        `Resampling complete: ${resampledBuffer.length} samples at ${resampledBuffer.sampleRate}Hz`
-    )
 
     return resampledBuffer
 }

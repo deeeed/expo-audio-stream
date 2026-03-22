@@ -183,11 +183,9 @@ export const extractAudioData = async (
             }
 
             if (includeBase64Data) {
-                // Convert the PCM data to a base64 string
-                const binary = Array.from(new Uint8Array(pcmData.buffer))
-                    .map((b) => String.fromCharCode(b))
-                    .join('')
-                result.base64Data = btoa(binary)
+                result.base64Data = btoa(
+                    String.fromCharCode(...new Uint8Array(pcmData.buffer))
+                )
             }
 
             if (props.computeChecksum) {

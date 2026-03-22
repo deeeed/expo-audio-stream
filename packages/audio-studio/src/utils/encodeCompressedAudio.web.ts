@@ -1,15 +1,17 @@
-import { Platform } from 'react-native'
-
-export async function encodeCompressedAudio(
+/**
+ * NOTE: Encodes audio in real-time via AudioContext + MediaRecorder playback.
+ * A 60-second clip takes ~60 seconds to encode — this is a known Web Audio API
+ * limitation; there is no offline API for Opus/AAC encoding in browsers.
+ */
+export function encodeCompressedAudio(
     buffer: AudioBuffer,
     format: 'opus' | 'aac',
     bitrate?: number
 ): Promise<{ data: ArrayBuffer; bitrate: number }> {
     return new Promise((resolve, reject) => {
         try {
-            // On web, always use opus if aac is requested
-            const actualFormat =
-                Platform.OS === 'web' && format === 'aac' ? 'opus' : format
+            // On web, always use opus if aac is requested (browser aac support is rare)
+            const actualFormat = format === 'aac' ? 'opus' : format
 
             // Check if MediaRecorder supports the requested format
             const mimeType =
