@@ -37,6 +37,13 @@ export async function initMelStreamingWasm(
     )
     streamingNMels = nMels
 
+    // Free frame buffer from previous session (if any) to avoid leak on re-init
+    if (streamingFramePtr) {
+        Module._free(streamingFramePtr)
+        streamingFramePtr = 0
+        streamingFrameCapacity = 0
+    }
+
     // Pre-allocate output buffer (fixed size)
     if (streamingMelPtr) Module._free(streamingMelPtr)
     streamingMelPtr = Module._malloc(nMels * 4)

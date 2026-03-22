@@ -67,15 +67,10 @@ export function encodeCompressedAudio(
                 }
             }
 
-            // Start recording and playback
+            // Start recording and playback; stop recorder when playback ends
             recorder.start()
+            source.onended = () => recorder.stop()
             source.start(0)
-
-            // Stop recording when the buffer finishes playing
-            setTimeout(() => {
-                recorder.stop()
-                source.stop()
-            }, buffer.duration * 1000)
         } catch (error) {
             reject(error)
         }

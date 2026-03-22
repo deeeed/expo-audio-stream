@@ -144,7 +144,7 @@ export const extractAudioData = async (
 
             // Add WAV header if requested
             if (includeWavHeader) {
-                logger?.debug('EXTRACT AUDIO - Step 4: Adding WAV header', {
+                logger?.debug('EXTRACT AUDIO - Step 5: Adding WAV header', {
                     originalLength: pcmData.length,
                     newLength: result.pcmData.length,
                     firstBytes: Array.from(result.pcmData.slice(0, 44)), // WAV header is 44 bytes
@@ -160,25 +160,6 @@ export const extractAudioData = async (
             }
 
             if (includeNormalizedData) {
-                // // Simple approach: Create normalized data directly from the PCM data
-                // // Just convert to -1 to 1 range without any amplification
-                // const normalizedData = new Float32Array(numSamples)
-
-                // // Convert the PCM data to float values
-                // for (let i = 0; i < numSamples; i++) {
-                //     // Get the 16-bit PCM value (little endian)
-                //     const lowByte = pcmData[i * 2]
-                //     const highByte = pcmData[i * 2 + 1]
-                //     const pcmValue = (highByte << 8) | lowByte
-
-                //     // Convert to signed 16-bit value
-                //     const signedValue =
-                //         pcmValue > 32767 ? pcmValue - 65536 : pcmValue
-
-                //     // Normalize to float between -1 and 1
-                //     normalizedData[i] = signedValue / 32768.0
-                // }
-                // Store the normalized data in the result
                 result.normalizedData = channelData
             }
 

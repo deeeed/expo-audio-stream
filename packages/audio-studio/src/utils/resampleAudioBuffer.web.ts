@@ -27,36 +27,9 @@ export async function resampleAudioBuffer(
     const source = offlineContext.createBufferSource()
     source.buffer = buffer
 
-    // If we need to change channel count
-    if (buffer.numberOfChannels !== targetChannels) {
-        if (targetChannels === 1 && buffer.numberOfChannels > 1) {
-            // Downmix to mono
-            const merger = offlineContext.createChannelMerger(1)
-
-            // Create a gain node to reduce volume when downmixing to prevent clipping
-            const gainNode = offlineContext.createGain()
-            gainNode.gain.value = 1.0 / buffer.numberOfChannels
-
-            source.connect(gainNode)
-            gainNode.connect(merger)
-            merger.connect(offlineContext.destination)
-        } else if (targetChannels === 2 && buffer.numberOfChannels === 1) {
-            // Upmix mono to stereo (duplicate the channel)
-            const splitter = offlineContext.createChannelSplitter(1)
-            const merger = offlineContext.createChannelMerger(2)
-
-            source.connect(splitter)
-            splitter.connect(merger, 0, 0)
-            splitter.connect(merger, 0, 1)
-            merger.connect(offlineContext.destination)
-        } else {
-            // For other cases, just connect and let the system handle it
-            source.connect(offlineContext.destination)
-        }
-    } else {
-        // No channel conversion needed
-        source.connect(offlineContext.destination)
-    }
+    // The OfflineAudioContext was created with targetChannels; the Web Audio API
+    // applies its built-in speaker downmix/upmix rules automatically.
+    source.connect(offlineContext.destination)
 
     // Start rendering
     source.start(0)

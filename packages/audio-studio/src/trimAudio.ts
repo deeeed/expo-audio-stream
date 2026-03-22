@@ -17,6 +17,23 @@ import { writeWavHeader } from './utils/writeWavHeader'
 // Create a single emitter instance
 const emitter = new LegacyEventEmitter(AudioStudioModule)
 
+function sliceAudioBuffer(
+    src: AudioBuffer,
+    ctx: AudioContext,
+    startMs: number,
+    endMs: number
+): AudioBuffer {
+    const sr = src.sampleRate
+    const start = Math.floor((startMs / 1000) * sr)
+    const end = Math.min(Math.ceil((endMs / 1000) * sr), src.length)
+    const length = Math.max(0, end - start)
+    const out = ctx.createBuffer(src.numberOfChannels, length, sr)
+    for (let c = 0; c < src.numberOfChannels; c++) {
+        out.getChannelData(c).set(src.getChannelData(c).subarray(start, end))
+    }
+    return out
+}
+
 function encodeBufferToWav(buffer: AudioBuffer, bitDepth: BitDepth): ArrayBuffer {
     const { length, numberOfChannels, sampleRate } = buffer
     const channels: Float32Array[] = []
@@ -230,16 +247,13 @@ export async function trimAudio(
                             Math.round((i / segmentsToProcess.length) * 40),
                     })
 
-                    // Use processAudioBuffer to extract this segment
-                    const { buffer: segmentBuffer } = await processAudioBuffer({
-                        fileUri,
-                        targetSampleRate: originalSampleRate, // Use original sample rate
-                        targetChannels: originalChannels, // Use original channels
-                        normalizeAudio: false,
-                        startTimeMs: segment.startTimeMs,
-                        endTimeMs: segment.endTimeMs,
+                    // Slice from the already-decoded buffer (avoids N re-fetches)
+                    const segmentBuffer = sliceAudioBuffer(
+                        originalAudioBuffer,
                         audioContext,
-                    })
+                        segment.startTimeMs,
+                        segment.endTimeMs
+                    )
 
                     segmentBuffers.push(segmentBuffer)
                 }

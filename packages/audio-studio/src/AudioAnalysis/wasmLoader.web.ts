@@ -1,6 +1,8 @@
 import type { AudioFeaturesWasmModule } from './audio-features-wasm'
 import { getMelSpectrogramWasmUrl, _registerModuleReset } from './wasmConfig'
 
+// Global factory name for the shared WASM binary. Despite the name referring to
+// mel spectrogram, this single binary also exports all audio-features functions.
 const WASM_GLOBAL_NAME = 'createMelSpectrogramModule'
 let modulePromise: Promise<AudioFeaturesWasmModule> | null = null
 
