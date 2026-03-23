@@ -22,17 +22,6 @@ export class OnnxInferenceService {
 
   public async createSession(config: OnnxSessionConfig): Promise<OnnxSessionInfo> {
     try {
-      const validateResult = await this.validateLibrary();
-      if (!validateResult.loaded) {
-        return {
-          success: false,
-          sessionId: '',
-          inputNames: [],
-          outputNames: [],
-          error: validateResult.status || 'Library not loaded',
-        };
-      }
-
       const nativeConfig: OnnxSessionConfig = {
         modelPath: cleanFilePath(config.modelPath),
         numThreads: config.numThreads,

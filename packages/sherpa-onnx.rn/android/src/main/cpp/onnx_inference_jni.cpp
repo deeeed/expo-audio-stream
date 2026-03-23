@@ -14,9 +14,9 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 static const OrtApi* g_ort = nullptr;
+static OrtEnv* g_env = nullptr;
 
 struct SessionData {
-    OrtEnv* env = nullptr;
     OrtSession* session = nullptr;
     OrtSessionOptions* session_options = nullptr;
     std::vector<std::string> input_names;
@@ -48,6 +48,10 @@ static void init_ort_api() {
         g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
         LOGI("ORT API initialized (version %d)", ORT_API_VERSION);
     }
+    if (g_env == nullptr) {
+        check_ort_status(g_ort, g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &g_env));
+        LOGI("Global OrtEnv created");
+    }
 }
 
 extern "C" {
@@ -65,13 +69,12 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeCreateSession(
 
         SessionData data;
 
-        check_ort_status(g_ort, g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &data.env));
         check_ort_status(g_ort, g_ort->CreateSessionOptions(&data.session_options));
         check_ort_status(g_ort, g_ort->SetIntraOpNumThreads(data.session_options, num_threads));
         check_ort_status(g_ort, g_ort->SetSessionGraphOptimizationLevel(data.session_options, ORT_ENABLE_ALL));
 
         LOGI("Creating session from: %s", model_path_str.c_str());
-        check_ort_status(g_ort, g_ort->CreateSession(data.env, model_path_str.c_str(), data.session_options, &data.session));
+        check_ort_status(g_ort, g_ort->CreateSession(g_env, model_path_str.c_str(), data.session_options, &data.session));
 
         OrtAllocator* allocator;
         check_ort_status(g_ort, g_ort->GetAllocatorWithDefaultOptions(&allocator));
@@ -279,7 +282,8 @@ static size_t element_size_for_type(ONNXTensorElementDataType type) {
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8: return 1;
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE: return 8;
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL: return 1;
-        default: return 0;
+        default:
+            throw std::runtime_error("Unsupported tensor element type: " + std::to_string((int)type));
     }
 }
 
@@ -308,15 +312,12 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
         std::string session_id(sid);
         env->ReleaseStringUTFChars(session_id_j, sid);
 
-        SessionData* session_data;
-        {
-            std::lock_guard<std::mutex> lock(g_mutex);
-            auto it = g_sessions.find(session_id);
-            if (it == g_sessions.end()) {
-                throw std::runtime_error("Session not found: " + session_id);
-            }
-            session_data = &it->second;
+        std::lock_guard<std::mutex> lock(g_mutex);
+        auto it = g_sessions.find(session_id);
+        if (it == g_sessions.end()) {
+            throw std::runtime_error("Session not found: " + session_id);
         }
+        SessionData* session_data = &it->second;
 
         OrtAllocator* allocator;
         check_ort_status(g_ort, g_ort->GetAllocatorWithDefaultOptions(&allocator));
@@ -515,9 +516,6 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeReleaseSession(
         }
         if (data.session_options) {
             g_ort->ReleaseSessionOptions(data.session_options);
-        }
-        if (data.env) {
-            g_ort->ReleaseEnv(data.env);
         }
 
         g_sessions.erase(it);

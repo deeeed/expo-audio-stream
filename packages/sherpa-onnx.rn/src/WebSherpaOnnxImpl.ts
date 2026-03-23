@@ -37,13 +37,13 @@ const WebComposed = TtsMixin(
 );
 
 export class WebSherpaOnnxImpl extends WebComposed implements ApiInterface {
-  async createOnnxSession(): Promise<{ success: boolean; sessionId: string; inputNames: string[]; outputNames: string[]; error?: string }> {
+  async createOnnxSession(_config: { modelPath: string; numThreads?: number }): Promise<{ success: boolean; sessionId: string; inputNames: string[]; outputNames: string[]; error?: string }> {
     return { success: false, sessionId: '', inputNames: [], outputNames: [], error: 'ONNX inference via sherpa-onnx is not needed on web. Use onnxruntime-web directly.' };
   }
-  async runOnnxSession(): Promise<{ success: boolean; error?: string }> {
+  async runOnnxSession(_sessionId: string, _inputs: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
     return { success: false, error: 'ONNX inference via sherpa-onnx is not needed on web.' };
   }
-  async releaseOnnxSession(): Promise<{ released: boolean }> {
+  async releaseOnnxSession(_sessionId: string): Promise<{ released: boolean }> {
     return { released: false };
   }
 }

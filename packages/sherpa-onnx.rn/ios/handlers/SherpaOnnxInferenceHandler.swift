@@ -5,7 +5,6 @@ import COnnxRuntime
     private static let TAG = "[SherpaOnnxInference]"
 
     private struct SessionData {
-        let env: OpaquePointer
         let session: OpaquePointer
         let inputNames: [String]
         let outputNames: [String]
@@ -14,6 +13,7 @@ import COnnxRuntime
     private var sessions: [String: SessionData] = [:]
     private let lock = NSLock()
     private var nextId: Int = 0
+    private var globalEnv: OpaquePointer? = nil
 
     @objc public override init() {
         super.init()
@@ -28,9 +28,23 @@ import COnnxRuntime
         if let api = getApi() {
             for (_, data) in allSessions {
                 api.pointee.ReleaseSession(data.session)
-                api.pointee.ReleaseEnv(data.env)
+            }
+            if let env = globalEnv {
+                api.pointee.ReleaseEnv(env)
             }
         }
+    }
+
+    private func getOrCreateEnv(_ api: UnsafePointer<OrtApi>) -> OpaquePointer? {
+        if let env = globalEnv { return env }
+        var env: OpaquePointer? = nil
+        let status = api.pointee.CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &env)
+        if let err = checkStatus(api, status) {
+            NSLog("%@ Failed to create global OrtEnv: %@", SherpaOnnxInferenceHandler.TAG, err)
+            return nil
+        }
+        globalEnv = env
+        return env
     }
 
     // MARK: - Helpers
@@ -64,7 +78,9 @@ import COnnxRuntime
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32: return 4
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64: return 8
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:   return 1
-        default: return 4
+        default:
+            NSLog("%@ Unsupported tensor element type: %d, defaulting to 4", SherpaOnnxInferenceHandler.TAG, type.rawValue)
+            return 0
         }
     }
 
@@ -108,18 +124,14 @@ import COnnxRuntime
             return ["success": false, "error": "Failed to get ORT API"]
         }
 
-        // Create env
-        var env: OpaquePointer? = nil
-        var status = api.pointee.CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &env)
-        if let err = checkStatus(api, status) {
-            return ["success": false, "error": "CreateEnv failed: \(err)"]
+        guard let env = getOrCreateEnv(api) else {
+            return ["success": false, "error": "Failed to create ORT environment"]
         }
 
         // Create session options
         var sessionOptions: OpaquePointer? = nil
-        status = api.pointee.CreateSessionOptions(&sessionOptions)
+        var status = api.pointee.CreateSessionOptions(&sessionOptions)
         if let err = checkStatus(api, status) {
-            if let env = env { api.pointee.ReleaseEnv(env) }
             return ["success": false, "error": "CreateSessionOptions failed: \(err)"]
         }
         _ = api.pointee.SetIntraOpNumThreads(sessionOptions, Int32(numThreads))
@@ -130,7 +142,6 @@ import COnnxRuntime
         api.pointee.ReleaseSessionOptions(sessionOptions)
 
         if let err = checkStatus(api, status) {
-            if let env = env { api.pointee.ReleaseEnv(env) }
             return ["success": false, "error": "CreateSession failed: \(err)"]
         }
 
@@ -151,6 +162,23 @@ import COnnxRuntime
             }
         }
 
+        // Get input types
+        var inputTypes: [String] = []
+        for i in 0..<inputCount {
+            var typeInfo: OpaquePointer? = nil
+            _ = api.pointee.SessionGetInputTypeInfo(session, i, &typeInfo)
+            if let typeInfo = typeInfo {
+                var tensorInfo: UnsafePointer<OrtTensorTypeAndShapeInfo>? = nil
+                _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
+                if let tensorInfo = tensorInfo {
+                    var elemType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
+                    _ = api.pointee.GetTensorElementType(tensorInfo, &elemType)
+                    inputTypes.append(ortTypeToString(elemType))
+                }
+                api.pointee.ReleaseTypeInfo(typeInfo)
+            }
+        }
+
         // Get output names
         var outputCount: Int = 0
         _ = api.pointee.SessionGetOutputCount(session, &outputCount)
@@ -164,12 +192,28 @@ import COnnxRuntime
             }
         }
 
+        // Get output types
+        var outputTypes: [String] = []
+        for i in 0..<outputCount {
+            var typeInfo: OpaquePointer? = nil
+            _ = api.pointee.SessionGetOutputTypeInfo(session, i, &typeInfo)
+            if let typeInfo = typeInfo {
+                var tensorInfo: UnsafePointer<OrtTensorTypeAndShapeInfo>? = nil
+                _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
+                if let tensorInfo = tensorInfo {
+                    var elemType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
+                    _ = api.pointee.GetTensorElementType(tensorInfo, &elemType)
+                    outputTypes.append(ortTypeToString(elemType))
+                }
+                api.pointee.ReleaseTypeInfo(typeInfo)
+            }
+        }
+
         // Store session
         lock.lock()
         nextId += 1
         let sessionId = "onnx_\(nextId)"
         sessions[sessionId] = SessionData(
-            env: env!,
             session: session!,
             inputNames: inputNames,
             outputNames: outputNames
@@ -181,7 +225,9 @@ import COnnxRuntime
             "success": true,
             "sessionId": sessionId,
             "inputNames": inputNames,
-            "outputNames": outputNames
+            "outputNames": outputNames,
+            "inputTypes": inputTypes,
+            "outputTypes": outputTypes
         ]
     }
 
@@ -191,12 +237,12 @@ import COnnxRuntime
         NSLog("%@ runSession called for %@", SherpaOnnxInferenceHandler.TAG, sessionId)
 
         lock.lock()
-        let sessionData = sessions[sessionId]
-        lock.unlock()
-
-        guard let data = sessionData else {
+        guard let data = sessions[sessionId] else {
+            lock.unlock()
             return ["success": false, "error": "Session not found: \(sessionId)"]
         }
+        // Hold lock for entire run to prevent concurrent release
+        defer { lock.unlock() }
 
         guard let api = getApi() else {
             return ["success": false, "error": "Failed to get ORT API"]
@@ -382,7 +428,6 @@ import COnnxRuntime
         }
 
         api.pointee.ReleaseSession(data.session)
-        api.pointee.ReleaseEnv(data.env)
 
         NSLog("%@ Session released: %@", SherpaOnnxInferenceHandler.TAG, sessionId)
         return ["released": true]

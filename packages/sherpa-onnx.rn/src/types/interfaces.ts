@@ -1339,7 +1339,7 @@ export interface OnnxSessionInfo {
 }
 
 export interface OnnxTensorData {
-  type: 'float32' | 'int64' | 'int32' | 'uint8';
+  type: 'float32' | 'float64' | 'int64' | 'int32' | 'int8' | 'uint8' | 'bool';
   dims: number[];
   data: string; // base64-encoded raw bytes
 }
