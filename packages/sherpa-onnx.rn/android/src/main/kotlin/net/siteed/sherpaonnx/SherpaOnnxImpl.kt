@@ -272,7 +272,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
 
     // ONNX Inference Methods
     fun createOnnxSession(config: ReadableMap, promise: Promise) = onnxInferenceHandler.createSession(config, promise)
-    fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise) = onnxInferenceHandler.runSession(sessionId, inputsJson, promise)
+    fun runOnnxSession(sessionId: String, inputNames: ReadableArray, inputTypes: ReadableArray, inputDims: ReadableArray, inputData: ReadableArray, promise: Promise) = onnxInferenceHandler.runSession(sessionId, inputNames, inputTypes, inputDims, inputData, promise)
     fun releaseOnnxSession(sessionId: String, promise: Promise) = onnxInferenceHandler.releaseSession(sessionId, promise)
 
     // Utility Methods

@@ -342,12 +342,37 @@ const nativeAdapter: ApiInterface = {
   },
 
   runOnnxSession(sessionId: string, inputs: Record<string, OnnxTensorData>): Promise<OnnxInferenceResult> {
-    return NativeSherpaOnnx.runOnnxSession(sessionId, JSON.stringify(inputs)).then(
-      (result: { success: boolean; outputs?: string; error?: string }) => ({
-        success: result.success,
-        outputs: result.outputs ? JSON.parse(result.outputs) : undefined,
-        error: result.error,
-      })
+    // Convert Record<string, OnnxTensorData> to parallel arrays for the native bridge
+    const entries = Object.entries(inputs);
+    const inputNames = entries.map(([name]) => name);
+    const inputTypes = entries.map(([, t]) => t.type);
+    const inputDims = entries.map(([, t]) => t.dims.join(','));
+    const inputData = entries.map(([, t]) => t.data);
+
+    return NativeSherpaOnnx.runOnnxSession(sessionId, inputNames, inputTypes, inputDims, inputData).then(
+      (result: {
+        success: boolean;
+        outputNames?: string[];
+        outputTypes?: string[];
+        outputDims?: string[];
+        outputData?: string[];
+        error?: string;
+      }) => {
+        if (!result.success || !result.outputNames) {
+          return { success: result.success, error: result.error };
+        }
+        // Reconstruct Record<string, OnnxTensorData> from parallel arrays
+        const outputs: Record<string, OnnxTensorData> = {};
+        for (let i = 0; i < result.outputNames.length; i++) {
+          const name = result.outputNames[i]!;
+          outputs[name] = {
+            type: (result.outputTypes?.[i] ?? 'float32') as OnnxTensorData['type'],
+            dims: (result.outputDims?.[i] ?? '').split(',').map(Number),
+            data: result.outputData?.[i] ?? '',
+          };
+        }
+        return { success: true, outputs };
+      }
     );
   },
 

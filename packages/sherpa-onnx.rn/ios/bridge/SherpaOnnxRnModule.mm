@@ -1329,13 +1329,20 @@ RCT_EXPORT_METHOD(createOnnxSession:(JS::NativeSherpaOnnxSpec::SpecCreateOnnxSes
 }
 
 RCT_EXPORT_METHOD(runOnnxSession:(NSString *)sessionId
-                  inputs:(NSString *)inputsJson
+                  inputNames:(NSArray<NSString *> *)inputNames
+                  inputTypes:(NSArray<NSString *> *)inputTypes
+                  inputDims:(NSArray<NSString *> *)inputDims
+                  inputData:(NSArray<NSString *> *)inputData
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 {
     dispatch_async(inferenceSerialQueue(), ^{
         @try {
-            NSDictionary *result = [self.inferenceHandler runSession:sessionId inputsJson:inputsJson];
+            NSDictionary *result = [self.inferenceHandler runSessionWithArrays:sessionId
+                                                                   inputNames:inputNames
+                                                                   inputTypes:inputTypes
+                                                                    inputDims:inputDims
+                                                                    inputData:inputData];
             if ([result[@"success"] boolValue]) {
                 resolve(result);
             } else {

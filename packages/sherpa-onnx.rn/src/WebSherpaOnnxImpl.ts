@@ -10,21 +10,24 @@ import { DiarizationMixin } from './web/features/diarization';
 import { LanguageIdMixin } from './web/features/languageId';
 import { PunctuationMixin } from './web/features/punctuation';
 import { DenoisingMixin } from './web/features/denoising';
+import { OnnxInferenceMixin } from './web/features/onnxInference';
 
 // Re-export types used by wasmLoader for global window augmentation
 export type {} from './web/wasmTypes';
 
-const WebComposed = TtsMixin(
-  VadMixin(
-    AsrMixin(
-      KwsMixin(
-        AudioTaggingMixin(
-          SpeakerIdMixin(
-            DiarizationMixin(
-              LanguageIdMixin(
-                PunctuationMixin(
-                  DenoisingMixin(
-                    DiagnosticsMixin(class {})
+const WebComposed = OnnxInferenceMixin(
+  TtsMixin(
+    VadMixin(
+      AsrMixin(
+        KwsMixin(
+          AudioTaggingMixin(
+            SpeakerIdMixin(
+              DiarizationMixin(
+                LanguageIdMixin(
+                  PunctuationMixin(
+                    DenoisingMixin(
+                      DiagnosticsMixin(class {})
+                    )
                   )
                 )
               )
@@ -36,14 +39,4 @@ const WebComposed = TtsMixin(
   )
 );
 
-export class WebSherpaOnnxImpl extends WebComposed implements ApiInterface {
-  async createOnnxSession(_config: { modelPath: string; numThreads?: number }): Promise<{ success: boolean; sessionId: string; inputNames: string[]; outputNames: string[]; error?: string }> {
-    return { success: false, sessionId: '', inputNames: [], outputNames: [], error: 'ONNX inference via sherpa-onnx is not needed on web. Use onnxruntime-web directly.' };
-  }
-  async runOnnxSession(_sessionId: string, _inputs: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
-    return { success: false, error: 'ONNX inference via sherpa-onnx is not needed on web.' };
-  }
-  async releaseOnnxSession(_sessionId: string): Promise<{ released: boolean }> {
-    return { released: false };
-  }
-}
+export class WebSherpaOnnxImpl extends WebComposed implements ApiInterface {}

@@ -66,5 +66,18 @@ export const OnnxInference = onnxInferenceService;
 export * from './types/api';
 export * from './types/interfaces';
 
+// Export tensor utilities
+export {
+  typedArrayToBase64,
+  base64ToTypedArray,
+  createTensorData,
+  parseTensorData,
+} from './utils/tensorUtils';
+export type { TypedTensorData } from './utils/tensorUtils';
+
+// Export OnnxSession class
+export { OnnxSession } from './services/OnnxInferenceService';
+export type { OnnxSessionRunFeeds, OnnxSessionRunOutputs } from './services/OnnxInferenceService';
+
 // Export web utilities
 export { loadWasmModule } from './web/wasmLoader';

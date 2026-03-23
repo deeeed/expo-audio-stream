@@ -5,9 +5,7 @@ import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReadableMap
-import org.json.JSONArray
-import org.json.JSONObject
+import com.facebook.react.bridge.ReadableArray
 import java.util.concurrent.Executors
 
 data class OnnxRunResult(
@@ -52,7 +50,7 @@ class OnnxInferenceHandler(private val reactContext: ReactApplicationContext) {
     ): OnnxRunResult
     private external fun nativeReleaseSession(sessionId: String)
 
-    fun createSession(config: ReadableMap, promise: Promise) {
+    fun createSession(config: com.facebook.react.bridge.ReadableMap, promise: Promise) {
         if (!isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "onnx-inference-jni library is not loaded")
             return
@@ -106,7 +104,14 @@ class OnnxInferenceHandler(private val reactContext: ReactApplicationContext) {
         }
     }
 
-    fun runSession(sessionId: String, inputsJson: String, promise: Promise) {
+    fun runSession(
+        sessionId: String,
+        inputNamesArr: ReadableArray,
+        inputTypesArr: ReadableArray,
+        inputDimsArr: ReadableArray,
+        inputDataArr: ReadableArray,
+        promise: Promise
+    ) {
         if (!isLibraryLoaded) {
             promise.reject("ERR_LIBRARY_NOT_LOADED", "onnx-inference-jni library is not loaded")
             return
@@ -114,50 +119,41 @@ class OnnxInferenceHandler(private val reactContext: ReactApplicationContext) {
 
         executor.execute {
             try {
-                // Parse inputsJson: { "inputName": { "type": "float32", "dims": [1,3], "data": "<base64>" }, ... }
-                val json = JSONObject(inputsJson)
-                val keys = json.keys().asSequence().toList()
-                val numInputs = keys.size
+                val numInputs = inputNamesArr.size()
 
-                val inputNames = Array(numInputs) { "" }
-                val inputTypes = Array(numInputs) { "" }
-                val inputShapes = Array(numInputs) { IntArray(0) }
-                val inputData = Array(numInputs) { ByteArray(0) }
-
-                for ((i, key) in keys.withIndex()) {
-                    val tensorObj = json.getJSONObject(key)
-                    inputNames[i] = key
-                    inputTypes[i] = tensorObj.getString("type")
-
-                    val dimsArr = tensorObj.getJSONArray("dims")
-                    inputShapes[i] = IntArray(dimsArr.length()) { dimsArr.getInt(it) }
-
-                    val dataBase64 = tensorObj.getString("data")
-                    inputData[i] = Base64.decode(dataBase64, Base64.NO_WRAP)
+                val inputNames = Array(numInputs) { inputNamesArr.getString(it)!! }
+                val inputTypes = Array(numInputs) { inputTypesArr.getString(it)!! }
+                val inputShapes = Array(numInputs) { i ->
+                    val dimsStr = inputDimsArr.getString(i)!!
+                    dimsStr.split(",").map { it.trim().toInt() }.toIntArray()
+                }
+                val inputData = Array(numInputs) { i ->
+                    Base64.decode(inputDataArr.getString(i)!!, Base64.NO_WRAP)
                 }
 
                 Log.i(TAG, "Running session $sessionId with $numInputs inputs")
                 val result = nativeRunSession(sessionId, inputNames, inputTypes, inputShapes, inputData)
 
-                // Build JSON response as Record<string, OnnxTensorData>
-                // Format: { "outputName": { "type": "float32", "dims": [1,5], "data": "<base64>" }, ... }
-                val outputsObj = JSONObject()
-
-                for (i in result.outputNames.indices) {
-                    val tensorObj = JSONObject()
-                    tensorObj.put("type", result.outputTypes[i])
-
-                    val dimsJson = JSONArray()
-                    result.outputShapes[i].forEach { dimsJson.put(it) }
-                    tensorObj.put("dims", dimsJson)
-
-                    tensorObj.put("data", Base64.encodeToString(result.outputData[i], Base64.NO_WRAP))
-                    outputsObj.put(result.outputNames[i], tensorObj)
-                }
-
+                // Build structured response with parallel arrays
                 val resultMap = Arguments.createMap()
                 resultMap.putBoolean("success", true)
-                resultMap.putString("outputs", outputsObj.toString())
+
+                val outNames = Arguments.createArray()
+                val outTypes = Arguments.createArray()
+                val outDims = Arguments.createArray()
+                val outData = Arguments.createArray()
+
+                for (i in result.outputNames.indices) {
+                    outNames.pushString(result.outputNames[i])
+                    outTypes.pushString(result.outputTypes[i])
+                    outDims.pushString(result.outputShapes[i].joinToString(","))
+                    outData.pushString(Base64.encodeToString(result.outputData[i], Base64.NO_WRAP))
+                }
+
+                resultMap.putArray("outputNames", outNames)
+                resultMap.putArray("outputTypes", outTypes)
+                resultMap.putArray("outputDims", outDims)
+                resultMap.putArray("outputData", outData)
 
                 reactContext.runOnUiQueueThread {
                     promise.resolve(resultMap)

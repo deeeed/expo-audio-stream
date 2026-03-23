@@ -34,7 +34,7 @@ interface SherpaOnnxTurboModule : TurboModule {
     fun processDiarizationFile(filePath: String, numClusters: Int, threshold: Float, promise: Promise)
     fun releaseDiarization(promise: Promise)
     fun createOnnxSession(config: ReadableMap, promise: Promise)
-    fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise)
+    fun runOnnxSession(sessionId: String, inputNames: ReadableArray, inputTypes: ReadableArray, inputDims: ReadableArray, inputData: ReadableArray, promise: Promise)
     fun releaseOnnxSession(sessionId: String, promise: Promise)
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise)
     fun validateLibraryLoaded(promise: Promise)

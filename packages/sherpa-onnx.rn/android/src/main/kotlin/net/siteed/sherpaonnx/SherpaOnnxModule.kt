@@ -67,7 +67,7 @@ class SherpaOnnxModule(reactContext: ReactApplicationContext) :
     @ReactMethod fun denoiseFile(filePath: String, promise: Promise) = implementation.denoiseFile(filePath, promise)
     @ReactMethod fun releaseDenoiser(promise: Promise) = implementation.releaseDenoiser(promise)
     @ReactMethod fun createOnnxSession(config: ReadableMap, promise: Promise) = implementation.createOnnxSession(config, promise)
-    @ReactMethod fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise) = implementation.runOnnxSession(sessionId, inputsJson, promise)
+    @ReactMethod fun runOnnxSession(sessionId: String, inputNames: ReadableArray, inputTypes: ReadableArray, inputDims: ReadableArray, inputData: ReadableArray, promise: Promise) = implementation.runOnnxSession(sessionId, inputNames, inputTypes, inputDims, inputData, promise)
     @ReactMethod fun releaseOnnxSession(sessionId: String, promise: Promise) = implementation.releaseOnnxSession(sessionId, promise)
     @ReactMethod fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) = implementation.extractTarBz2(sourcePath, targetDir, promise)
     @ReactMethod fun validateLibraryLoaded(promise: Promise) = implementation.validateLibraryLoaded(promise)

@@ -132,8 +132,8 @@ class SherpaOnnxTurboModuleImpl(
         implementation.createOnnxSession(config, promise)
     }
 
-    override fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise) {
-        implementation.runOnnxSession(sessionId, inputsJson, promise)
+    override fun runOnnxSession(sessionId: String, inputNames: ReadableArray, inputTypes: ReadableArray, inputDims: ReadableArray, inputData: ReadableArray, promise: Promise) {
+        implementation.runOnnxSession(sessionId, inputNames, inputTypes, inputDims, inputData, promise)
     }
 
     override fun releaseOnnxSession(sessionId: String, promise: Promise) {

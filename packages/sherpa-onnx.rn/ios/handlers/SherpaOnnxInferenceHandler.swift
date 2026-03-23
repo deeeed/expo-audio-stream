@@ -231,9 +231,13 @@ import COnnxRuntime
         ]
     }
 
-    // MARK: - Run Session
+    // MARK: - Run Session (array-based, no JSON serialization)
 
-    @objc public func runSession(_ sessionId: String, inputsJson: String) -> NSDictionary {
+    @objc public func runSessionWithArrays(_ sessionId: String,
+                                           inputNames inNames: [String],
+                                           inputTypes inTypes: [String],
+                                           inputDims inDims: [String],
+                                           inputData inData: [String]) -> NSDictionary {
         NSLog("%@ runSession called for %@", SherpaOnnxInferenceHandler.TAG, sessionId)
 
         lock.lock()
@@ -241,18 +245,13 @@ import COnnxRuntime
             lock.unlock()
             return ["success": false, "error": "Session not found: \(sessionId)"]
         }
-        // Hold lock for entire run to prevent concurrent release
         defer { lock.unlock() }
 
         guard let api = getApi() else {
             return ["success": false, "error": "Failed to get ORT API"]
         }
 
-        // Parse inputs JSON
-        guard let jsonData = inputsJson.data(using: .utf8),
-              let inputs = try? JSONSerialization.jsonObject(with: jsonData) as? [String: [String: Any]] else {
-            return ["success": false, "error": "Failed to parse inputs JSON"]
-        }
+        let numInputs = inNames.count
 
         // Create memory info
         var memoryInfo: OpaquePointer? = nil
@@ -262,36 +261,24 @@ import COnnxRuntime
         }
         defer { api.pointee.ReleaseMemoryInfo(memoryInfo) }
 
-        // Build input tensors
-        let inputNames = data.inputNames
+        // Build input tensors from parallel arrays
         var inputValues: [OpaquePointer?] = []
-        var inputBuffers: [UnsafeMutableRawPointer] = [] // keep alive until Run completes
+        var inputBuffers: [UnsafeMutableRawPointer] = []
 
-        for name in inputNames {
-            guard let tensorInfo = inputs[name] else {
+        for i in 0..<numInputs {
+            let typeStr = inTypes[i]
+            let dimsStr = inDims[i]
+            let dataB64 = inData[i]
+
+            guard let rawData = Data(base64Encoded: dataB64) else {
                 for v in inputValues { if let v = v { api.pointee.ReleaseValue(v) } }
                 for b in inputBuffers { b.deallocate() }
-                return ["success": false, "error": "Missing input tensor: \(name)"]
-            }
-
-            guard let typeStr = tensorInfo["type"] as? String,
-                  let dimsAny = tensorInfo["dims"] as? [Any],
-                  let dataB64 = tensorInfo["data"] as? String,
-                  let rawData = Data(base64Encoded: dataB64) else {
-                for v in inputValues { if let v = v { api.pointee.ReleaseValue(v) } }
-                for b in inputBuffers { b.deallocate() }
-                return ["success": false, "error": "Invalid tensor format for input: \(name)"]
+                return ["success": false, "error": "Invalid base64 for input: \(inNames[i])"]
             }
 
             let ortType = typeStringToOrt(typeStr)
-            let dims: [Int64] = dimsAny.map { dim in
-                if let n = dim as? Int { return Int64(n) }
-                if let n = dim as? Int64 { return n }
-                if let n = dim as? Double { return Int64(n) }
-                return 0
-            }
+            let dims: [Int64] = dimsStr.split(separator: ",").map { Int64($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
 
-            // Copy data to a mutable buffer (ORT requires mutable pointer)
             let buffer = UnsafeMutableRawPointer.allocate(byteCount: rawData.count, alignment: 8)
             rawData.copyBytes(to: buffer.assumingMemoryBound(to: UInt8.self), count: rawData.count)
             inputBuffers.append(buffer)
@@ -313,21 +300,20 @@ import COnnxRuntime
             if let err = checkStatus(api, status) {
                 for v in inputValues { if let v = v { api.pointee.ReleaseValue(v) } }
                 for b in inputBuffers { b.deallocate() }
-                return ["success": false, "error": "CreateTensor failed for \(name): \(err)"]
+                return ["success": false, "error": "CreateTensor failed for \(inNames[i]): \(err)"]
             }
 
             inputValues.append(ortValue)
         }
 
-        // Prepare name C strings (as optional pointers for C API compatibility)
-        let inputNameCStrings: [UnsafePointer<CChar>?] = inputNames.map { UnsafePointer(strdup($0)!) }
+        // Prepare name C strings
+        let inputNameCStrings: [UnsafePointer<CChar>?] = inNames.map { UnsafePointer(strdup($0)!) }
         let outputNameCStrings: [UnsafePointer<CChar>?] = data.outputNames.map { UnsafePointer(strdup($0)!) }
         defer {
             for p in inputNameCStrings { if let p = p { free(UnsafeMutablePointer(mutating: p)) } }
             for p in outputNameCStrings { if let p = p { free(UnsafeMutablePointer(mutating: p)) } }
         }
 
-        // Prepare output values array
         let outputCount = data.outputNames.count
         var outputValues = [OpaquePointer?](repeating: nil, count: outputCount)
 
@@ -340,7 +326,7 @@ import COnnxRuntime
                         nil,
                         inNamesPtr.baseAddress!,
                         inValsPtr.baseAddress!,
-                        inputNames.count,
+                        numInputs,
                         outNamesPtr.baseAddress!,
                         outputCount,
                         &outputValues
@@ -357,15 +343,18 @@ import COnnxRuntime
             return ["success": false, "error": "Run failed: \(err)"]
         }
 
-        // Build output response
-        var outputsDict: [String: Any] = [:]
+        // Build output response as parallel arrays
+        var outNames: [String] = []
+        var outTypes: [String] = []
+        var outDims: [String] = []
+        var outData: [String] = []
+
         for i in 0..<outputCount {
             guard let outValue = outputValues[i] else { continue }
             defer { api.pointee.ReleaseValue(outValue) }
 
-            let name = data.outputNames[i]
+            outNames.append(data.outputNames[i])
 
-            // Get type and shape
             var typeAndShape: OpaquePointer? = nil
             _ = api.pointee.GetTensorTypeAndShape(outValue, &typeAndShape)
             guard let typeAndShape = typeAndShape else { continue }
@@ -373,6 +362,7 @@ import COnnxRuntime
 
             var elementType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
             _ = api.pointee.GetTensorElementType(typeAndShape, &elementType)
+            outTypes.append(ortTypeToString(elementType))
 
             var dimCount: Int = 0
             _ = api.pointee.GetDimensionsCount(typeAndShape, &dimCount)
@@ -382,32 +372,29 @@ import COnnxRuntime
                     api.pointee.GetDimensions(typeAndShape, ptr.baseAddress, dimCount)
                 }
             }
+            outDims.append(dims.map { String($0) }.joined(separator: ","))
 
-            // Get data
             var rawPtr: UnsafeMutableRawPointer? = nil
             _ = api.pointee.GetTensorMutableData(outValue, &rawPtr)
-            guard let dataPtr = rawPtr else { continue }
+            guard let dataPtr = rawPtr else {
+                outData.append("")
+                continue
+            }
 
             let totalElements = dims.reduce(1) { $0 * Int($1) }
             let elSize = elementSize(for: elementType)
             let dataSize = totalElements * elSize
-            let outData = Data(bytes: dataPtr, count: dataSize)
-            let b64 = outData.base64EncodedString()
-
-            outputsDict[name] = [
-                "data": b64,
-                "dims": dims.map { NSNumber(value: $0) },
-                "type": ortTypeToString(elementType)
-            ]
+            let resultData = Data(bytes: dataPtr, count: dataSize)
+            outData.append(resultData.base64EncodedString())
         }
 
-        // Serialize outputs to JSON
-        guard let outputJsonData = try? JSONSerialization.data(withJSONObject: outputsDict),
-              let outputJsonString = String(data: outputJsonData, encoding: .utf8) else {
-            return ["success": false, "error": "Failed to serialize outputs"]
-        }
-
-        return ["success": true, "outputs": outputJsonString]
+        return [
+            "success": true,
+            "outputNames": outNames,
+            "outputTypes": outTypes,
+            "outputDims": outDims,
+            "outputData": outData
+        ]
     }
 
     // MARK: - Release Session

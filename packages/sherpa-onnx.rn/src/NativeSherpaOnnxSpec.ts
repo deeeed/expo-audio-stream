@@ -521,12 +521,23 @@ export interface Spec extends TurboModule {
     sessionId: string;
     inputNames: string[];
     outputNames: string[];
+    inputTypes?: string[];
+    outputTypes?: string[];
     error?: string;
   }>;
 
-  runOnnxSession(sessionId: string, inputs: string): Promise<{
+  runOnnxSession(
+    sessionId: string,
+    inputNames: string[],
+    inputTypes: string[],
+    inputDims: string[],
+    inputData: string[]
+  ): Promise<{
     success: boolean;
-    outputs?: string;
+    outputNames?: string[];
+    outputTypes?: string[];
+    outputDims?: string[];
+    outputData?: string[];
     error?: string;
   }>;
 

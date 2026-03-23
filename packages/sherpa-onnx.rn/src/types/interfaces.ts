@@ -1287,9 +1287,18 @@ export interface NativeSherpaOnnxInterface {
 
   // ONNX Inference methods
   createOnnxSession(config: OnnxSessionConfig): Promise<OnnxSessionInfo>;
-  runOnnxSession(sessionId: string, inputs: string): Promise<{
+  runOnnxSession(
+    sessionId: string,
+    inputNames: string[],
+    inputTypes: string[],
+    inputDims: string[],
+    inputData: string[]
+  ): Promise<{
     success: boolean;
-    outputs?: string;
+    outputNames?: string[];
+    outputTypes?: string[];
+    outputDims?: string[];
+    outputData?: string[];
     error?: string;
   }>;
   releaseOnnxSession(sessionId: string): Promise<{ released: boolean }>;
@@ -1335,6 +1344,8 @@ export interface OnnxSessionInfo {
   sessionId: string;
   inputNames: string[];
   outputNames: string[];
+  inputTypes?: OnnxTensorData['type'][];
+  outputTypes?: OnnxTensorData['type'][];
   error?: string;
 }
 
