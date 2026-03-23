@@ -52,6 +52,10 @@ import type {
   DenoiserModelConfig,
   DenoiserInitResult,
   DenoiserResult,
+  OnnxSessionConfig,
+  OnnxSessionInfo,
+  OnnxTensorData,
+  OnnxInferenceResult,
 } from './types/interfaces';
 
 // Import the native module and potentially substitute with web implementation
@@ -330,6 +334,25 @@ const nativeAdapter: ApiInterface = {
 
   releaseDenoiser(): Promise<{ released: boolean }> {
     return NativeSherpaOnnx.releaseDenoiser();
+  },
+
+  // ONNX Inference methods
+  createOnnxSession(config: OnnxSessionConfig): Promise<OnnxSessionInfo> {
+    return NativeSherpaOnnx.createOnnxSession(config);
+  },
+
+  runOnnxSession(sessionId: string, inputs: Record<string, OnnxTensorData>): Promise<OnnxInferenceResult> {
+    return NativeSherpaOnnx.runOnnxSession(sessionId, JSON.stringify(inputs)).then(
+      (result: { success: boolean; outputs?: string; error?: string }) => ({
+        success: result.success,
+        outputs: result.outputs ? JSON.parse(result.outputs) : undefined,
+        error: result.error,
+      })
+    );
+  },
+
+  releaseOnnxSession(sessionId: string): Promise<{ released: boolean }> {
+    return NativeSherpaOnnx.releaseOnnxSession(sessionId);
   },
 
   // Archive methods

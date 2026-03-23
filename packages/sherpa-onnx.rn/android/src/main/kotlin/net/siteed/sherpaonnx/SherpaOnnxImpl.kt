@@ -27,6 +27,7 @@ import net.siteed.sherpaonnx.handlers.VadHandler
 import net.siteed.sherpaonnx.handlers.LanguageIdHandler
 import net.siteed.sherpaonnx.handlers.PunctuationHandler
 import net.siteed.sherpaonnx.handlers.DenoisingHandler
+import net.siteed.sherpaonnx.handlers.OnnxInferenceHandler
 
 class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     // Feature handlers
@@ -41,6 +42,7 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     private val languageIdHandler = LanguageIdHandler(reactContext)
     private val punctuationHandler = PunctuationHandler(reactContext)
     private val denoisingHandler = DenoisingHandler(reactContext)
+    private val onnxInferenceHandler = OnnxInferenceHandler(reactContext)
 
     companion object {
         private const val TAG = "SherpaOnnxImpl"
@@ -267,6 +269,11 @@ class SherpaOnnxImpl(private val reactContext: ReactApplicationContext) {
     fun releaseDenoiser(promise: Promise) {
         denoisingHandler.releaseDenoiser(promise)
     }
+
+    // ONNX Inference Methods
+    fun createOnnxSession(config: ReadableMap, promise: Promise) = onnxInferenceHandler.createSession(config, promise)
+    fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise) = onnxInferenceHandler.runSession(sessionId, inputsJson, promise)
+    fun releaseOnnxSession(sessionId: String, promise: Promise) = onnxInferenceHandler.releaseSession(sessionId, promise)
 
     // Utility Methods
     fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {

@@ -9,6 +9,7 @@ import { LanguageIdService } from './services/LanguageIdService';
 import { PunctuationService } from './services/PunctuationService';
 import { SpeakerIdService } from './services/SpeakerIdService';
 import { TtsService } from './services/TtsService';
+import { OnnxInferenceService } from './services/OnnxInferenceService';
 import { VadService } from './services/VadService';
 import type { ApiInterface } from './types/api';
 import type { SherpaOnnxInterface } from './types/interfaces';
@@ -26,6 +27,7 @@ const punctuationService = new PunctuationService(api);
 const archiveService = new ArchiveService(api);
 const diarizationService = new DiarizationService(api);
 const denoisingService = new DenoisingService(api);
+const onnxInferenceService = new OnnxInferenceService(api);
 
 // Create the public interface
 const SherpaOnnx: SherpaOnnxInterface = {
@@ -41,6 +43,7 @@ const SherpaOnnx: SherpaOnnxInterface = {
   Archive: archiveService,
   Diarization: diarizationService,
   Denoising: denoisingService,
+  OnnxInference: onnxInferenceService,
 };
 
 // Export the main interface
@@ -57,6 +60,7 @@ export const LanguageId = languageIdService;
 export const Punctuation = punctuationService;
 export const Diarization = diarizationService;
 export const Denoising = denoisingService;
+export const OnnxInference = onnxInferenceService;
 
 // Export types
 export * from './types/api';

@@ -117,6 +117,14 @@ RCT_EXPORT_MODULE(SherpaOnnx)
             NSLog(@"❌ [SherpaOnnx] Failed to create Denoising handler: %@", exception);
         }
 
+        NSLog(@"🚀 [SherpaOnnx] Creating Inference handler...");
+        @try {
+            self.inferenceHandler = [[SherpaOnnxInferenceHandler alloc] init];
+            NSLog(@"✅ [SherpaOnnx] Inference handler created");
+        } @catch (NSException *exception) {
+            NSLog(@"❌ [SherpaOnnx] Failed to create Inference handler: %@", exception);
+        }
+
         NSLog(@"✅ [SherpaOnnx] Module init completed");
     } else {
         NSLog(@"❌ [SherpaOnnx] Module init failed - super init returned nil");
@@ -1283,6 +1291,72 @@ RCT_EXPORT_METHOD(releaseDenoiser:(RCTPromiseResolveBlock)resolve
             resolve(result);
         } @catch (NSException *exception) {
             reject(@"ERR_DENOISER_RELEASE", exception.reason, nil);
+        }
+    });
+}
+
+// MARK: - ONNX Inference Methods
+
+static dispatch_queue_t inferenceSerialQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.sherpaonnx.inference", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
+RCT_EXPORT_METHOD(createOnnxSession:(JS::NativeSherpaOnnxSpec::SpecCreateOnnxSessionConfig &)config
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary *configDict = [NSMutableDictionary dictionary];
+    if (config.modelPath()) configDict[@"modelPath"] = config.modelPath();
+    if (config.numThreads()) configDict[@"numThreads"] = @((int)*config.numThreads());
+
+    dispatch_async(inferenceSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.inferenceHandler createSession:configDict];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_ONNX_CREATE", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_ONNX_CREATE", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(runOnnxSession:(NSString *)sessionId
+                  inputs:(NSString *)inputsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(inferenceSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.inferenceHandler runSession:sessionId inputsJson:inputsJson];
+            if ([result[@"success"] boolValue]) {
+                resolve(result);
+            } else {
+                reject(@"ERR_ONNX_RUN", result[@"error"], nil);
+            }
+        } @catch (NSException *exception) {
+            reject(@"ERR_ONNX_RUN", exception.reason, nil);
+        }
+    });
+}
+
+RCT_EXPORT_METHOD(releaseOnnxSession:(NSString *)sessionId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+{
+    dispatch_async(inferenceSerialQueue(), ^{
+        @try {
+            NSDictionary *result = [self.inferenceHandler releaseSession:sessionId];
+            resolve(result);
+        } @catch (NSException *exception) {
+            reject(@"ERR_ONNX_RELEASE", exception.reason, nil);
         }
     });
 }

@@ -36,11 +36,16 @@ if(${NEW_ARCHITECTURE_ENABLED})
     )
 endif()
 
-# If we need to add our own native code, uncomment and customize:
-# add_library(sherpa-onnx-extra SHARED
-#   src/main/cpp/sherpa-onnx-extra.cpp
-# )
+# ONNX inference JNI library (uses onnxruntime C API directly)
+add_library(onnx-inference-jni SHARED
+  src/main/cpp/onnx_inference_jni.cpp
+)
+target_include_directories(onnx-inference-jni PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../prebuilt/include
+)
+target_link_libraries(onnx-inference-jni onnxruntime log)
+target_link_options(onnx-inference-jni PRIVATE "-Wl,-z,max-page-size=16384")
 
 # Create an interface library for the JNI libraries
 add_library(sherpa-onnx-rn INTERFACE)
-target_link_libraries(sherpa-onnx-rn INTERFACE sherpa-onnx-jni onnxruntime sherpa-onnx-dummy) 
+target_link_libraries(sherpa-onnx-rn INTERFACE sherpa-onnx-jni onnxruntime sherpa-onnx-dummy onnx-inference-jni)

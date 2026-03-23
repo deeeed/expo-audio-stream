@@ -128,6 +128,18 @@ class SherpaOnnxTurboModuleImpl(
         implementation.releaseDiarization(promise)
     }
 
+    override fun createOnnxSession(config: ReadableMap, promise: Promise) {
+        implementation.createOnnxSession(config, promise)
+    }
+
+    override fun runOnnxSession(sessionId: String, inputsJson: String, promise: Promise) {
+        implementation.runOnnxSession(sessionId, inputsJson, promise)
+    }
+
+    override fun releaseOnnxSession(sessionId: String, promise: Promise) {
+        implementation.releaseOnnxSession(sessionId, promise)
+    }
+
     override fun extractTarBz2(sourcePath: String, targetDir: String, promise: Promise) {
         implementation.extractTarBz2(sourcePath, targetDir, promise)
     }

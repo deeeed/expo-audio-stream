@@ -9,6 +9,7 @@ import { VadService } from '../services/VadService';
 import { LanguageIdService } from '../services/LanguageIdService';
 import { PunctuationService } from '../services/PunctuationService';
 import { DiarizationService } from '../services/DiarizationService';
+import { OnnxInferenceService } from '../services/OnnxInferenceService';
 
 /**
  * Provider type for model inference
@@ -1284,6 +1285,15 @@ export interface NativeSherpaOnnxInterface {
   denoiseFile(filePath: string): Promise<DenoiserResult>;
   releaseDenoiser(): Promise<{ released: boolean }>;
 
+  // ONNX Inference methods
+  createOnnxSession(config: OnnxSessionConfig): Promise<OnnxSessionInfo>;
+  runOnnxSession(sessionId: string, inputs: string): Promise<{
+    success: boolean;
+    outputs?: string;
+    error?: string;
+  }>;
+  releaseOnnxSession(sessionId: string): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,
@@ -1308,6 +1318,36 @@ export interface SherpaOnnxInterface extends ApiInterface {
   Archive: ArchiveService;
   Diarization: DiarizationService;
   Denoising: import('../services/DenoisingService').DenoisingService;
+  OnnxInference: OnnxInferenceService;
+}
+
+// ----------------------------------------------------------------------------------
+// ONNX Inference Interfaces
+// ----------------------------------------------------------------------------------
+
+export interface OnnxSessionConfig {
+  modelPath: string;
+  numThreads?: number;
+}
+
+export interface OnnxSessionInfo {
+  success: boolean;
+  sessionId: string;
+  inputNames: string[];
+  outputNames: string[];
+  error?: string;
+}
+
+export interface OnnxTensorData {
+  type: 'float32' | 'int64' | 'int32' | 'uint8';
+  dims: number[];
+  data: string; // base64-encoded raw bytes
+}
+
+export interface OnnxInferenceResult {
+  success: boolean;
+  outputs?: Record<string, OnnxTensorData>;
+  error?: string;
 }
 
 // Result types

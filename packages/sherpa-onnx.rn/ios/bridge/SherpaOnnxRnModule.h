@@ -21,6 +21,7 @@
 @class SherpaOnnxPunctuationHandler;
 @class SherpaOnnxDiarizationHandler;
 @class SherpaOnnxDenoisingHandler;
+@class SherpaOnnxInferenceHandler;
 
 @interface SherpaOnnxRnModule : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) SherpaOnnxASRHandler *asrHandler;
@@ -33,4 +34,5 @@
 @property (nonatomic, strong) SherpaOnnxPunctuationHandler *punctuationHandler;
 @property (nonatomic, strong) SherpaOnnxDiarizationHandler *diarizationHandler;
 @property (nonatomic, strong) SherpaOnnxDenoisingHandler *denoisingHandler;
+@property (nonatomic, strong) SherpaOnnxInferenceHandler *inferenceHandler;
 @end
