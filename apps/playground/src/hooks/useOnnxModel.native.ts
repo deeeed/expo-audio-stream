@@ -3,16 +3,24 @@ import { OnnxInference, typedArrayToBase64, base64ToTypedArray } from '@siteed/s
 import type { OnnxTensorData } from '@siteed/sherpa-onnx.rn'
 
 import { createOnnxModelHook } from './useOnnxModel.shared'
-import type { PlatformImplementation } from './useOnnxModel.shared'
+import type { OnnxModelTensor, PlatformImplementation } from './useOnnxModel.shared'
 
-// Lightweight Tensor wrapper compatible with onnxruntime-common's Tensor interface
-class NativeTensor {
-    readonly type: string
+const SUPPORTED_TYPES: Set<OnnxTensorData['type']> = new Set(['float32', 'int64', 'int32'])
+
+function assertSupportedType(type: string): asserts type is OnnxTensorData['type'] {
+    if (!SUPPORTED_TYPES.has(type as OnnxTensorData['type'])) {
+        throw new Error(`Unsupported tensor type: ${type}`)
+    }
+}
+
+class NativeTensor implements OnnxModelTensor {
+    readonly type: OnnxTensorData['type']
     readonly data: Float32Array | BigInt64Array | Int32Array
     readonly dims: readonly number[]
     readonly size: number
 
     constructor(type: string, data: Float32Array | BigInt64Array | Int32Array, dims: number[]) {
+        assertSupportedType(type)
         this.type = type
         this.data = data
         this.dims = dims
@@ -20,13 +28,8 @@ class NativeTensor {
     }
 
     toOnnxTensorData(): OnnxTensorData {
-        const typeMap: Record<string, OnnxTensorData['type']> = {
-            float32: 'float32',
-            int64: 'int64',
-            int32: 'int32',
-        }
         return {
-            type: (typeMap[this.type] ?? 'uint8') as OnnxTensorData['type'],
+            type: this.type,
             dims: [...this.dims],
             data: typedArrayToBase64(this.data),
         }
@@ -85,11 +88,9 @@ const nativeImplementation: PlatformImplementation = {
                 await OnnxInference.releaseSession(session.sessionId)
             },
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return wrapper as any
+        return wrapper
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Tensor: NativeTensor as any,
+    Tensor: NativeTensor,
 }
 
 export const useOnnxModel = createOnnxModelHook(nativeImplementation)

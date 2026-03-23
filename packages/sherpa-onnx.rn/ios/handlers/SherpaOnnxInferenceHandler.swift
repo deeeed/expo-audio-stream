@@ -42,6 +42,8 @@ import COnnxRuntime
     }
 
     private func getOrCreateEnv(_ api: UnsafePointer<OrtApi>) -> OpaquePointer? {
+        lock.lock()
+        defer { lock.unlock() }
         if let env = globalEnv { return env }
         var env: OpaquePointer? = nil
         let status = api.pointee.CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &env)
