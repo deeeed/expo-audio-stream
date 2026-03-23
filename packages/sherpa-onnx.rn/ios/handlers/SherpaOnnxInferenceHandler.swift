@@ -99,7 +99,7 @@ import COnnxRuntime
         case "int8":    return ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8
         case "float64": return ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE
         case "bool":    return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL
-        default:        return ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+        default:        return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
         }
     }
 
@@ -112,7 +112,7 @@ import COnnxRuntime
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:  return "int64"
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE: return "float64"
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:   return "bool"
-        default: return "float32"
+        default: return "unknown"
         }
     }
 
@@ -140,7 +140,11 @@ import COnnxRuntime
         if let err = checkStatus(api, status) {
             return ["success": false, "error": "CreateSessionOptions failed: \(err)"]
         }
-        _ = api.pointee.SetIntraOpNumThreads(sessionOptions, Int32(numThreads))
+        status = api.pointee.SetIntraOpNumThreads(sessionOptions, Int32(numThreads))
+        if let err = checkStatus(api, status) {
+            api.pointee.ReleaseSessionOptions(sessionOptions)
+            return ["success": false, "error": "SetIntraOpNumThreads failed: \(err)"]
+        }
 
         // Create session
         var session: OpaquePointer? = nil
@@ -153,15 +157,27 @@ import COnnxRuntime
 
         // Get allocator (typed pointer)
         var allocator: UnsafeMutablePointer<OrtAllocator>? = nil
-        _ = api.pointee.GetAllocatorWithDefaultOptions(&allocator)
+        status = api.pointee.GetAllocatorWithDefaultOptions(&allocator)
+        if let err = checkStatus(api, status) {
+            api.pointee.ReleaseSession(session!)
+            return ["success": false, "error": "GetAllocatorWithDefaultOptions failed: \(err)"]
+        }
 
         // Get input names
         var inputCount: Int = 0
-        _ = api.pointee.SessionGetInputCount(session, &inputCount)
+        status = api.pointee.SessionGetInputCount(session, &inputCount)
+        if let err = checkStatus(api, status) {
+            api.pointee.ReleaseSession(session!)
+            return ["success": false, "error": "SessionGetInputCount failed: \(err)"]
+        }
         var inputNames: [String] = []
         for i in 0..<inputCount {
             var name: UnsafeMutablePointer<CChar>? = nil
-            _ = api.pointee.SessionGetInputName(session, i, allocator, &name)
+            status = api.pointee.SessionGetInputName(session, i, allocator, &name)
+            if let err = checkStatus(api, status) {
+                api.pointee.ReleaseSession(session!)
+                return ["success": false, "error": "SessionGetInputName failed: \(err)"]
+            }
             if let name = name {
                 inputNames.append(String(cString: name))
                 _ = allocator?.pointee.Free(allocator, name)
@@ -172,7 +188,11 @@ import COnnxRuntime
         var inputTypes: [String] = []
         for i in 0..<inputCount {
             var typeInfo: OpaquePointer? = nil
-            _ = api.pointee.SessionGetInputTypeInfo(session, i, &typeInfo)
+            status = api.pointee.SessionGetInputTypeInfo(session, i, &typeInfo)
+            if let err = checkStatus(api, status) {
+                api.pointee.ReleaseSession(session!)
+                return ["success": false, "error": "SessionGetInputTypeInfo failed: \(err)"]
+            }
             if let typeInfo = typeInfo {
                 var tensorInfo: OpaquePointer? = nil
                 _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
@@ -187,11 +207,19 @@ import COnnxRuntime
 
         // Get output names
         var outputCount: Int = 0
-        _ = api.pointee.SessionGetOutputCount(session, &outputCount)
+        status = api.pointee.SessionGetOutputCount(session, &outputCount)
+        if let err = checkStatus(api, status) {
+            api.pointee.ReleaseSession(session!)
+            return ["success": false, "error": "SessionGetOutputCount failed: \(err)"]
+        }
         var outputNames: [String] = []
         for i in 0..<outputCount {
             var name: UnsafeMutablePointer<CChar>? = nil
-            _ = api.pointee.SessionGetOutputName(session, i, allocator, &name)
+            status = api.pointee.SessionGetOutputName(session, i, allocator, &name)
+            if let err = checkStatus(api, status) {
+                api.pointee.ReleaseSession(session!)
+                return ["success": false, "error": "SessionGetOutputName failed: \(err)"]
+            }
             if let name = name {
                 outputNames.append(String(cString: name))
                 _ = allocator?.pointee.Free(allocator, name)
@@ -202,7 +230,11 @@ import COnnxRuntime
         var outputTypes: [String] = []
         for i in 0..<outputCount {
             var typeInfo: OpaquePointer? = nil
-            _ = api.pointee.SessionGetOutputTypeInfo(session, i, &typeInfo)
+            status = api.pointee.SessionGetOutputTypeInfo(session, i, &typeInfo)
+            if let err = checkStatus(api, status) {
+                api.pointee.ReleaseSession(session!)
+                return ["success": false, "error": "SessionGetOutputTypeInfo failed: \(err)"]
+            }
             if let typeInfo = typeInfo {
                 var tensorInfo: OpaquePointer? = nil
                 _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
@@ -284,6 +316,11 @@ import COnnxRuntime
             }
 
             let ortType = typeStringToOrt(typeStr)
+            if ortType == ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED {
+                for v in inputValues { if let v = v { api.pointee.ReleaseValue(v) } }
+                for b in inputBuffers { b.deallocate() }
+                return ["success": false, "error": "Unknown tensor type '\(typeStr)' for input: \(inNames[i])"]
+            }
             let dims: [Int64] = dimsStr.split(separator: ",").map { Int64($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
 
             let buffer = UnsafeMutableRawPointer.allocate(byteCount: rawData.count, alignment: 8)
@@ -363,26 +400,56 @@ import COnnxRuntime
             outNames.append(data.outputNames[i])
 
             var typeAndShape: OpaquePointer? = nil
-            _ = api.pointee.GetTensorTypeAndShape(outValue, &typeAndShape)
+            status = api.pointee.GetTensorTypeAndShape(outValue, &typeAndShape)
+            if let err = checkStatus(api, status) {
+                for j in (i+1)..<outputCount {
+                    if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                }
+                return ["success": false, "error": "GetTensorTypeAndShape failed: \(err)"]
+            }
             guard let typeAndShape = typeAndShape else { continue }
             defer { api.pointee.ReleaseTensorTypeAndShapeInfo(typeAndShape) }
 
             var elementType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
-            _ = api.pointee.GetTensorElementType(typeAndShape, &elementType)
+            status = api.pointee.GetTensorElementType(typeAndShape, &elementType)
+            if let err = checkStatus(api, status) {
+                for j in (i+1)..<outputCount {
+                    if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                }
+                return ["success": false, "error": "GetTensorElementType failed: \(err)"]
+            }
             outTypes.append(ortTypeToString(elementType))
 
             var dimCount: Int = 0
-            _ = api.pointee.GetDimensionsCount(typeAndShape, &dimCount)
+            status = api.pointee.GetDimensionsCount(typeAndShape, &dimCount)
+            if let err = checkStatus(api, status) {
+                for j in (i+1)..<outputCount {
+                    if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                }
+                return ["success": false, "error": "GetDimensionsCount failed: \(err)"]
+            }
             var dims = [Int64](repeating: 0, count: dimCount)
             if dimCount > 0 {
-                _ = dims.withUnsafeMutableBufferPointer { ptr in
+                status = dims.withUnsafeMutableBufferPointer { ptr in
                     api.pointee.GetDimensions(typeAndShape, ptr.baseAddress, dimCount)
+                }
+                if let err = checkStatus(api, status) {
+                    for j in (i+1)..<outputCount {
+                        if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                    }
+                    return ["success": false, "error": "GetDimensions failed: \(err)"]
                 }
             }
             outDims.append(dims.map { String($0) }.joined(separator: ","))
 
             var rawPtr: UnsafeMutableRawPointer? = nil
-            _ = api.pointee.GetTensorMutableData(outValue, &rawPtr)
+            status = api.pointee.GetTensorMutableData(outValue, &rawPtr)
+            if let err = checkStatus(api, status) {
+                for j in (i+1)..<outputCount {
+                    if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                }
+                return ["success": false, "error": "GetTensorMutableData failed: \(err)"]
+            }
             guard let dataPtr = rawPtr else {
                 outData.append("")
                 continue
@@ -390,6 +457,12 @@ import COnnxRuntime
 
             let totalElements = dims.reduce(1) { $0 * Int($1) }
             let elSize = elementSize(for: elementType)
+            if elSize == 0 {
+                for j in (i+1)..<outputCount {
+                    if let v = outputValues[j] { api.pointee.ReleaseValue(v) }
+                }
+                return ["success": false, "error": "Unsupported output tensor element type: \(elementType.rawValue)"]
+            }
             let dataSize = totalElements * elSize
             let resultData = Data(bytes: dataPtr, count: dataSize)
             outData.append(resultData.base64EncodedString())
