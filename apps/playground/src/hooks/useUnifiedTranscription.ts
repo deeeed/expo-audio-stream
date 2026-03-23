@@ -82,6 +82,7 @@ export function useUnifiedTranscription({
     })
 
     const audioChunksRef = useRef<string[]>([])
+    const batchSessionIdRef = useRef<string | null>(null)
 
     const initialize = useCallback(async () => {
         try {
@@ -556,7 +557,7 @@ export function useUnifiedTranscription({
             setIsProcessing(true)
             lastProcessedTimeRef.current = now
 
-            const jobId = `BATCH_${now}`
+            const jobId = batchSessionIdRef.current ?? `BATCH_${now}`
 
             // Process the Float32Array
             const { promise, stop: _stop } = await transcriptionContext.transcribe({
@@ -627,7 +628,7 @@ export function useUnifiedTranscription({
 
             logger.debug(`Processing ${recentChunks.length} audio chunks for native`)
 
-            const batchJobId = `BATCH_${now}`
+            const batchJobId = batchSessionIdRef.current ?? `BATCH_${now}`
 
             // Select a suitable chunk - prefer longer chunks
             const selectedChunk = recentChunks.reduce((longest, current) =>
@@ -756,9 +757,10 @@ export function useUnifiedTranscription({
             batchIntervalTimerRef.current = null
         }
 
-        // Reset buffer
+        // Reset buffer and assign a stable session ID for this batch run
         audioBufferRef.current = new Float32Array(0)
         lastProcessedTimeRef.current = 0
+        batchSessionIdRef.current = `BATCH_SESSION_${Date.now()}`
 
         // Default options more suitable for web
         const defaultOptions: BatchTranscriptionOptions = {
@@ -807,6 +809,7 @@ export function useUnifiedTranscription({
         if (audioChunksRef.current) {
             audioChunksRef.current = []
         }
+        batchSessionIdRef.current = null
         setIsProgressiveBatchRunning(false)
     }, [processBatch])
 
@@ -843,6 +846,7 @@ export function useUnifiedTranscription({
         if (audioChunksRef.current) {
             audioChunksRef.current = []
         }
+        batchSessionIdRef.current = null
 
         logger.debug('Stopped all transcription processes')
     }, [])

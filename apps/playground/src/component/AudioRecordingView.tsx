@@ -1,10 +1,10 @@
 // playground/src/component/AudioRecording.tsx
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 
 import { useFont } from '@shopify/react-native-skia'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
-import { StyleSheet, View } from 'react-native'
+import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Text } from 'react-native-paper'
 
 import type {
@@ -22,7 +22,7 @@ import type {
     Chunk,
     DataPoint,
 } from '@siteed/audio-studio'
-import { AudioVisualizer } from '@siteed/audio-ui'
+import { AudioVisualizer, MelSpectrogramVisualizer, useLiveMelSpectrogram } from '@siteed/audio-ui'
 
 import { baseLogger } from '../config'
 import { useAudio } from '../hooks/useAudio'
@@ -201,7 +201,7 @@ export const AudioRecordingView = ({
         chromagram: false,
         tempo: false,
         hnr: false,
-        melSpectrogram: false,
+        melSpectrogram: true,
         spectralContrast: false,
         tonnetz: false,
         pitch: false,
@@ -231,7 +231,15 @@ export const AudioRecordingView = ({
         recording.compression ? 'compressed' : 'wav'
     )
 
+    const [vizMode, setVizMode] = useState<'waveform' | 'melSpectrogram'>('waveform')
+    const [containerWidth, setContainerWidth] = useState(300)
+    const handleMelLayout = useCallback((e: LayoutChangeEvent) => {
+        const w = e.nativeEvent.layout.width
+        if (w > 0) setContainerWidth(w)
+    }, [])
+
     const audioAnalysis = actualAnalysis ?? _audioAnalysis
+    const liveMelData = useLiveMelSpectrogram(audioAnalysis, Infinity)
 
     const styles = useMemo(
         () => getStyles({ isPlaying, theme }),
@@ -529,20 +537,45 @@ export const AudioRecordingView = ({
             {processing && <View style={{ justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}><ActivityIndicator /></View>}
 
             {!processing && audioAnalysis && (
-                <View style={styles.infoSection}>
-                    <AudioVisualizer
-                        {...visualConfig}
-                        playing={isPlaying}
-                        font={font ?? undefined}
-                        onSelection={handleSelection}
-                        currentTime={position / 1000}
-                        resetTrigger={audioAnalysis}
-                        audioData={audioAnalysis}
-                        onSeekEnd={handleOnSeekEnd}
-                        disableTapSelection={false}
-                        enableInertia
-                        theme={visualizerTheme}
-                    />
+                <View style={styles.infoSection} onLayout={handleMelLayout}>
+                    <View style={{ flexDirection: 'row', marginBottom: 8, gap: 8 }}>
+                        <Button
+                            mode={vizMode === 'waveform' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('waveform')}
+                            compact
+                        >
+                            Waveform
+                        </Button>
+                        <Button
+                            mode={vizMode === 'melSpectrogram' ? 'contained' : 'outlined'}
+                            onPress={() => setVizMode('melSpectrogram')}
+                            compact
+                            disabled={!liveMelData}
+                        >
+                            Mel Spectrogram
+                        </Button>
+                    </View>
+                    {vizMode === 'waveform' ? (
+                        <AudioVisualizer
+                            {...visualConfig}
+                            playing={isPlaying}
+                            font={font ?? undefined}
+                            onSelection={handleSelection}
+                            currentTime={position / 1000}
+                            resetTrigger={audioAnalysis}
+                            audioData={audioAnalysis}
+                            onSeekEnd={handleOnSeekEnd}
+                            disableTapSelection={false}
+                            enableInertia
+                            theme={visualizerTheme}
+                        />
+                    ) : (
+                        <MelSpectrogramVisualizer
+                            data={liveMelData}
+                            width={containerWidth}
+                            height={200}
+                        />
+                    )}
                 </View>
             )}
 
