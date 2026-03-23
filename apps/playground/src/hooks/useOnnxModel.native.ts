@@ -69,17 +69,7 @@ const nativeImplementation: PlatformImplementation = {
                 // Convert outputs back to NativeTensor
                 const outputs: Record<string, NativeTensor> = {}
                 for (const [name, tensorData] of Object.entries(result.outputs)) {
-                    const typed = base64ToTypedArray(tensorData.data, tensorData.type)
-                    let data: Float32Array | BigInt64Array
-                    if (tensorData.type === 'float32') {
-                        data = typed as Float32Array
-                    } else if (tensorData.type === 'int64') {
-                        data = typed as BigInt64Array
-                    } else if (tensorData.type === 'int32') {
-                        data = new Float32Array(typed as Int32Array)
-                    } else {
-                        data = new Float32Array(typed as Uint8Array)
-                    }
+                    const data = base64ToTypedArray(tensorData.data, tensorData.type) as Float32Array | BigInt64Array | Int32Array
                     outputs[name] = new NativeTensor(tensorData.type, data, tensorData.dims)
                 }
                 return outputs
