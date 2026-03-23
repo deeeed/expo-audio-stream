@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <atomic>
+#include <memory>
 #include <android/log.h>
 
 #include "onnxruntime/onnxruntime_c_api.h"
@@ -23,9 +24,27 @@ struct SessionData {
     std::vector<std::string> output_names;
     std::vector<ONNXTensorElementDataType> input_types;
     std::vector<ONNXTensorElementDataType> output_types;
+
+    SessionData() = default;
+    SessionData(SessionData&& o) noexcept
+        : session(o.session), session_options(o.session_options),
+          input_names(std::move(o.input_names)), output_names(std::move(o.output_names)),
+          input_types(std::move(o.input_types)), output_types(std::move(o.output_types)) {
+        o.session = nullptr;
+        o.session_options = nullptr;
+    }
+    SessionData(const SessionData&) = delete;
+    SessionData& operator=(const SessionData&) = delete;
+
+    ~SessionData() {
+        if (g_ort) {
+            if (session) g_ort->ReleaseSession(session);
+            if (session_options) g_ort->ReleaseSessionOptions(session_options);
+        }
+    }
 };
 
-static std::unordered_map<std::string, SessionData> g_sessions;
+static std::unordered_map<std::string, std::shared_ptr<SessionData>> g_sessions;
 static std::mutex g_mutex;
 static std::atomic<int> g_session_counter{0};
 
@@ -122,7 +141,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeCreateSession(
 
         {
             std::lock_guard<std::mutex> lock(g_mutex);
-            g_sessions[session_id] = std::move(data);
+            g_sessions[session_id] = std::make_shared<SessionData>(std::move(data));
         }
 
         LOGI("Session created: %s (inputs=%zu, outputs=%zu)", session_id.c_str(), num_inputs, num_outputs);
@@ -150,7 +169,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeGetInputNames(
             throw std::runtime_error("Session not found: " + session_id);
         }
 
-        auto& names = it->second.input_names;
+        auto& names = it->second->input_names;
         jclass str_cls = env->FindClass("java/lang/String");
         jobjectArray result = env->NewObjectArray(names.size(), str_cls, nullptr);
         for (size_t i = 0; i < names.size(); i++) {
@@ -179,7 +198,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeGetOutputNames(
             throw std::runtime_error("Session not found: " + session_id);
         }
 
-        auto& names = it->second.output_names;
+        auto& names = it->second->output_names;
         jclass str_cls = env->FindClass("java/lang/String");
         jobjectArray result = env->NewObjectArray(names.size(), str_cls, nullptr);
         for (size_t i = 0; i < names.size(); i++) {
@@ -208,7 +227,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeGetInputTypes(
             throw std::runtime_error("Session not found: " + session_id);
         }
 
-        auto& types = it->second.input_types;
+        auto& types = it->second->input_types;
         jclass str_cls = env->FindClass("java/lang/String");
         jobjectArray result = env->NewObjectArray(types.size(), str_cls, nullptr);
         for (size_t i = 0; i < types.size(); i++) {
@@ -248,7 +267,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeGetOutputTypes(
             throw std::runtime_error("Session not found: " + session_id);
         }
 
-        auto& types = it->second.output_types;
+        auto& types = it->second->output_types;
         jclass str_cls = env->FindClass("java/lang/String");
         jobjectArray result = env->NewObjectArray(types.size(), str_cls, nullptr);
         for (size_t i = 0; i < types.size(); i++) {
@@ -312,12 +331,15 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
         std::string session_id(sid);
         env->ReleaseStringUTFChars(session_id_j, sid);
 
-        std::lock_guard<std::mutex> lock(g_mutex);
-        auto it = g_sessions.find(session_id);
-        if (it == g_sessions.end()) {
-            throw std::runtime_error("Session not found: " + session_id);
+        std::shared_ptr<SessionData> session_data;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            auto it = g_sessions.find(session_id);
+            if (it == g_sessions.end()) {
+                throw std::runtime_error("Session not found: " + session_id);
+            }
+            session_data = it->second;
         }
-        SessionData* session_data = &it->second;
 
         OrtAllocator* allocator;
         check_ort_status(g_ort, g_ort->GetAllocatorWithDefaultOptions(&allocator));
@@ -503,22 +525,16 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeReleaseSession(
         std::string session_id(sid);
         env->ReleaseStringUTFChars(session_id_j, sid);
 
-        std::lock_guard<std::mutex> lock(g_mutex);
-        auto it = g_sessions.find(session_id);
-        if (it == g_sessions.end()) {
-            LOGI("Session already released or not found: %s", session_id.c_str());
-            return;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            auto it = g_sessions.find(session_id);
+            if (it == g_sessions.end()) {
+                LOGI("Session already released or not found: %s", session_id.c_str());
+                return;
+            }
+            g_sessions.erase(it);
         }
-
-        auto& data = it->second;
-        if (data.session) {
-            g_ort->ReleaseSession(data.session);
-        }
-        if (data.session_options) {
-            g_ort->ReleaseSessionOptions(data.session_options);
-        }
-
-        g_sessions.erase(it);
+        // SessionData destructor releases ORT resources when last shared_ptr drops
         LOGI("Session released: %s", session_id.c_str());
 
     } catch (const std::exception& e) {

@@ -403,7 +403,8 @@ if (__DEV__) {
                         // On web, expo-asset provides an HTTP URI
                         modelPath = asset.localUri ?? asset.uri
                     } else {
-                        const localUri = asset.localUri!
+                        const localUri = asset.localUri ?? asset.uri
+                        if (!localUri) throw new Error('Failed to load model asset')
                         modelPath = localUri.startsWith('file://') ? localUri.substring(7) : localUri
                     }
 

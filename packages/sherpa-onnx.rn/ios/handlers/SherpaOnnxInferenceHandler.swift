@@ -4,10 +4,22 @@ import COnnxRuntime
 @objc public class SherpaOnnxInferenceHandler: NSObject {
     private static let TAG = "[SherpaOnnxInference]"
 
-    private struct SessionData {
+    private class SessionData {
         let session: OpaquePointer
         let inputNames: [String]
         let outputNames: [String]
+        let api: UnsafePointer<OrtApi>
+
+        init(session: OpaquePointer, inputNames: [String], outputNames: [String], api: UnsafePointer<OrtApi>) {
+            self.session = session
+            self.inputNames = inputNames
+            self.outputNames = outputNames
+            self.api = api
+        }
+
+        deinit {
+            api.pointee.ReleaseSession(session)
+        }
     }
 
     private var sessions: [String: SessionData] = [:]
@@ -21,17 +33,11 @@ import COnnxRuntime
 
     deinit {
         lock.lock()
-        let allSessions = sessions
-        sessions.removeAll()
+        sessions.removeAll()  // SessionData.deinit releases ORT sessions via ARC
         lock.unlock()
 
-        if let api = getApi() {
-            for (_, data) in allSessions {
-                api.pointee.ReleaseSession(data.session)
-            }
-            if let env = globalEnv {
-                api.pointee.ReleaseEnv(env)
-            }
+        if let api = getApi(), let env = globalEnv {
+            api.pointee.ReleaseEnv(env)
         }
     }
 
@@ -216,7 +222,8 @@ import COnnxRuntime
         sessions[sessionId] = SessionData(
             session: session!,
             inputNames: inputNames,
-            outputNames: outputNames
+            outputNames: outputNames,
+            api: api
         )
         lock.unlock()
 
@@ -245,7 +252,7 @@ import COnnxRuntime
             lock.unlock()
             return ["success": false, "error": "Session not found: \(sessionId)"]
         }
-        defer { lock.unlock() }
+        lock.unlock()
 
         guard let api = getApi() else {
             return ["success": false, "error": "Failed to get ORT API"]
@@ -406,16 +413,11 @@ import COnnxRuntime
         let data = sessions.removeValue(forKey: sessionId)
         lock.unlock()
 
-        guard let data = data else {
+        guard data != nil else {
             return ["released": false]
         }
 
-        guard let api = getApi() else {
-            return ["released": false]
-        }
-
-        api.pointee.ReleaseSession(data.session)
-
+        // SessionData.deinit releases ORT session via ARC when last reference drops
         NSLog("%@ Session released: %@", SherpaOnnxInferenceHandler.TAG, sessionId)
         return ["released": true]
     }

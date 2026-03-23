@@ -8,11 +8,11 @@ import type { PlatformImplementation } from './useOnnxModel.shared'
 // Lightweight Tensor wrapper compatible with onnxruntime-common's Tensor interface
 class NativeTensor {
     readonly type: string
-    readonly data: Float32Array | BigInt64Array
+    readonly data: Float32Array | BigInt64Array | Int32Array
     readonly dims: readonly number[]
     readonly size: number
 
-    constructor(type: string, data: Float32Array | BigInt64Array, dims: number[]) {
+    constructor(type: string, data: Float32Array | BigInt64Array | Int32Array, dims: number[]) {
         this.type = type
         this.data = data
         this.dims = dims
