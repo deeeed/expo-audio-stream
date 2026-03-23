@@ -168,7 +168,7 @@ import COnnxRuntime
             var typeInfo: OpaquePointer? = nil
             _ = api.pointee.SessionGetInputTypeInfo(session, i, &typeInfo)
             if let typeInfo = typeInfo {
-                var tensorInfo: UnsafePointer<OrtTensorTypeAndShapeInfo>? = nil
+                var tensorInfo: OpaquePointer? = nil
                 _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
                 if let tensorInfo = tensorInfo {
                     var elemType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
@@ -198,7 +198,7 @@ import COnnxRuntime
             var typeInfo: OpaquePointer? = nil
             _ = api.pointee.SessionGetOutputTypeInfo(session, i, &typeInfo)
             if let typeInfo = typeInfo {
-                var tensorInfo: UnsafePointer<OrtTensorTypeAndShapeInfo>? = nil
+                var tensorInfo: OpaquePointer? = nil
                 _ = api.pointee.CastTypeInfoToTensorInfo(typeInfo, &tensorInfo)
                 if let tensorInfo = tensorInfo {
                     var elemType: ONNXTensorElementDataType = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED
