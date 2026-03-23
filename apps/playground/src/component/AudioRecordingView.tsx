@@ -111,7 +111,7 @@ const getStyles = ({
             flexDirection: 'row',
             gap: 8,
         },
-detailText: {
+        detailText: {
             fontSize: 16,
             marginBottom: 5,
         },

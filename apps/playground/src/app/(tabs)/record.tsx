@@ -319,7 +319,6 @@ export default function RecordScreen() {
     const enableVADRef = useRef(true)
     const processAudioSegmentRef = useRef(vadProcessAudioSegment)
     const sampleRateRef = useRef<number>(startRecordingConfig.sampleRate ?? 16000)
-    const setVadResultRef = useRef(setVadResult)
 
     // Completely isolated audio data handler
     const onAudioDataRef = useRef<(event: AudioDataEvent) => Promise<void>>(
@@ -368,7 +367,7 @@ export default function RecordScreen() {
                         if (sr === 8000 || sr === 16000) {
                             processAudioSegmentRef.current(data, sr)
                                 .then((result) => {
-                                    if (result) setVadResultRef.current(result)
+                                    if (result) setVadResult(result)
                                 })
                                 .catch(() => {/* handled in hook */})
                         }
@@ -1040,8 +1039,8 @@ export default function RecordScreen() {
                                 textAlign: 'center',
                                 paddingVertical: 8,
                                 borderRadius: 8,
-                                color: vadResult.isSpeech ? '#00aa00' : colors.onSurfaceVariant,
-                                backgroundColor: vadResult.isSpeech ? '#e0ffe0' : colors.surfaceVariant,
+                                color: vadResult.isSpeech ? colors.success : colors.onSurfaceVariant,
+                                backgroundColor: vadResult.isSpeech ? colors.successContainer : colors.surfaceVariant,
                                 fontWeight: 'bold',
                             }}
                         >
