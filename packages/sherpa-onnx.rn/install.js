@@ -27,9 +27,6 @@ const SCRIPT_DIR = __dirname;
 const PREBUILT_DIR = path.join(SCRIPT_DIR, 'prebuilt');
 const DOWNLOAD_PATH = path.join(SCRIPT_DIR, 'sherpa-onnx-binaries.zip');
 
-// Check if we are in a monorepo
-const isMonorepo = existsSync(path.join(SCRIPT_DIR, '..', '..', 'package.json'));
-
 /**
  * Creates a directory if it doesn't exist
  */
@@ -127,12 +124,12 @@ async function install() {
   
   ensureDirExists(PREBUILT_DIR);
   
-  // Skip installation if running in CI or in monorepo (assuming build scripts will be run manually)
-  if (process.env.CI || isMonorepo) {
-    console.log('Running in CI or monorepo, skipping automatic download.');
+  // Allow explicit opt-out for developers who build locally
+  if (process.env.SKIP_SHERPA_DOWNLOAD === '1') {
+    console.log('SKIP_SHERPA_DOWNLOAD=1, skipping download.');
     return;
   }
-  
+
   // Check if prebuilt libs already exist
   if (prebuiltLibsExist()) {
     console.log('Prebuilt libraries already exist, skipping download.');

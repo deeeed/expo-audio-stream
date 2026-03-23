@@ -3,7 +3,7 @@
     "version": "2.2.0",
     "main": "src/index",
     "scripts": {
-        "eas-build-pre-install": "corepack enable && cd ../.. && yarn install && echo 'Building packages...' && cd packages/audio-studio && yarn build && yarn build:plugin && echo 'Built audio-studio' && cd ../playgroundapi && yarn build && echo 'Built playgroundapi' && cd ../react-native-essentia && yarn prepare || echo 'Warning: react-native-essentia build failed but continuing'",
+        "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
         "postinstall": "patch-package",
         "build:deps": "cd ../../packages/audio-studio && yarn build && yarn build:plugin && cd ../playgroundapi && yarn build && cd ../react-native-essentia && yarn prepare",
         "start": "NODE_ENV=development bash scripts/agentic/start-metro.sh && node scripts/agentic/start-interactive.mjs",

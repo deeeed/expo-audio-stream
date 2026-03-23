@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0-beta.2] - 2026-03-23
+
+### Added
+- Generic ONNX inference support (iOS handler, Kotlin, TS API, web)
+
+### Fixed
+- Add prebuilt .so files for production builds
+- Remove Class.forName() check from isLibraryLoaded init
+- Narrow Commons Compress R8 keep rules, add dontwarn
+- Properly apply R8 keep rules via consumerProguardFiles
+- Keep Apache Commons Compress from R8 minification
+- Prebuilts v1.12.29, fix install.js, WASM path fixes
+
 ## [1.0.0] - 2026-03-20
 
 First stable release — production-proven via the [Sherpa Voice](https://deeeed.github.io/audiolab/sherpa-voice/) app (live on App Store and Google Play).
@@ -37,7 +50,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0-beta.2...HEAD
+[1.1.0-beta.2]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...@siteed/sherpa-onnx.rn@1.1.0-beta.2
 [1.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.2.0...@siteed/sherpa-onnx.rn@1.0.0
 [0.2.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.1.0...@siteed/sherpa-onnx.rn@0.2.0
 [0.1.0]: https://github.com/deeeed/audiolab/releases/tag/@siteed/sherpa-onnx.rn@0.1.0
