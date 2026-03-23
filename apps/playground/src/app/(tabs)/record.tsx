@@ -49,10 +49,11 @@ import { useTranscription } from '../../context/TranscriptionProvider'
 import { useUnifiedTranscription } from '../../hooks/useUnifiedTranscription'
 import { storeAudioFile } from '../../utils/indexedDB'
 import { isWeb } from '../../utils/utils'
+import { useSileroVAD } from '../../hooks/useSileroVAD'
 
 import type { TranscriptionModeSettings } from '../../component/TranscriptionModeConfig'
 
-const CHUNK_DURATION_MS = Platform.OS === 'web' ? 500 : 5000
+const CHUNK_DURATION_MS = Platform.OS === 'web' ? 500 : 200
 const ANALYSIS_INTERVAL_MS = 500 // 500 ms chunks
 const MAX_AUDIO_BUFFER_LENGTH = 48000 * 5 // 5 seconds of audio at 48kHz
 
@@ -133,13 +134,8 @@ const baseRecordingConfig: RecordingConfig = {
 }
 
 
-if (Platform.OS === 'ios') {
-    baseRecordingConfig.sampleRate = 48000
-} else if (Platform.OS === 'android') {
-    baseRecordingConfig.sampleRate = WhisperSampleRate
-} else if (Platform.OS === 'web') {
-    baseRecordingConfig.sampleRate = 44100
-}
+// Default to 16kHz on all platforms: compatible with VAD and transcription
+baseRecordingConfig.sampleRate = WhisperSampleRate
 
 const logoSource = require('@assets/icon.png')
 
@@ -184,6 +180,8 @@ export default function RecordScreen() {
     const [streamConfig, setStreamConfig] =
         useState<StartRecordingResult | null>(null)
     const [enableLiveTranscription, setEnableLiveTranscription] = useState(false)
+    const [enableVAD, setEnableVAD] = useState(true)
+    const [vadResult, setVadResult] = useState<{ probability: number; isSpeech: boolean } | null>(null)
     const [startRecordingConfig, setStartRecordingConfig] =
         useState<RecordingConfig>(() => ({
             ...baseRecordingConfig,
@@ -199,6 +197,7 @@ export default function RecordScreen() {
     const router = useRouter()
     const [liveWebAudio, setLiveWebAudio] = useState<Float32Array | null>(null)
     const validSRTranscription: boolean = startRecordingConfig.sampleRate === WhisperSampleRate
+    const validSRVAD = startRecordingConfig.sampleRate === 16000
     const [stopping, setStopping] = useState(false)
     const { colors } = useTheme()
     const [customFileName, setCustomFileName] = useState<string>('')
@@ -308,6 +307,19 @@ export default function RecordScreen() {
         }
     }, [showPermissionError])
 
+    const {
+        processAudioSegment: vadProcessAudioSegment,
+        isModelLoading: isVADModelLoading,
+    } = useSileroVAD({
+        onError: (error) => {
+            logger.error('VAD error:', error)
+        },
+    })
+
+    const enableVADRef = useRef(true)
+    const processAudioSegmentRef = useRef(vadProcessAudioSegment)
+    const sampleRateRef = useRef<number>(startRecordingConfig.sampleRate ?? 16000)
+
     // Completely isolated audio data handler
     const onAudioDataRef = useRef<(event: AudioDataEvent) => Promise<void>>(
         async (event: AudioDataEvent): Promise<void> => {
@@ -326,9 +338,14 @@ export default function RecordScreen() {
                         const buffer = new Float32Array(newLength)
                         
                         if (webAudioChunks.current.length + data.length > MAX_AUDIO_BUFFER_LENGTH) {
-                            const offset = (webAudioChunks.current.length + data.length) - MAX_AUDIO_BUFFER_LENGTH
-                            buffer.set(webAudioChunks.current.slice(offset), 0)
-                            buffer.set(data, MAX_AUDIO_BUFFER_LENGTH - data.length)
+                            if (data.length >= MAX_AUDIO_BUFFER_LENGTH) {
+                                // Single chunk fills entire buffer — keep only the last MAX samples
+                                buffer.set(data.slice(data.length - MAX_AUDIO_BUFFER_LENGTH), 0)
+                            } else {
+                                const offset = (webAudioChunks.current.length + data.length) - MAX_AUDIO_BUFFER_LENGTH
+                                buffer.set(webAudioChunks.current.slice(offset), 0)
+                                buffer.set(data, MAX_AUDIO_BUFFER_LENGTH - data.length)
+                            }
                         } else {
                             buffer.set(webAudioChunks.current)
                             buffer.set(data, webAudioChunks.current.length)
@@ -343,10 +360,22 @@ export default function RecordScreen() {
                         // This is safe because it's just updating UI
                         setLiveWebAudio(buffer)
                     }
-                    
+
+                    // Process VAD if enabled
+                    if (enableVADRef.current && processAudioSegmentRef.current) {
+                        const sr: number = sampleRateRef.current
+                        if (sr === 8000 || sr === 16000) {
+                            processAudioSegmentRef.current(data, sr)
+                                .then((result) => {
+                                    if (result) setVadResult(result)
+                                })
+                                .catch(() => {/* handled in hook */})
+                        }
+                    }
+
                     // Process if needed
-                    if (isProgressiveBatchRunning && 
-                        enableLiveTranscription && 
+                    if (isProgressiveBatchRunningRef.current &&
+                        enableLiveTranscriptionRef.current &&
                         addAudioData) {
                         addAudioData(data)
                     }
@@ -405,6 +434,10 @@ export default function RecordScreen() {
     useEffect(() => {
         enableLiveTranscriptionRef.current = enableLiveTranscription
     }, [enableLiveTranscription])
+
+    useEffect(() => { enableVADRef.current = enableVAD }, [enableVAD])
+    useEffect(() => { processAudioSegmentRef.current = vadProcessAudioSegment }, [vadProcessAudioSegment])
+    useEffect(() => { sampleRateRef.current = startRecordingConfig.sampleRate ?? 16000 }, [startRecordingConfig.sampleRate])
 
     // Define our transcription settings state
     const [transcriptionSettings, setTranscriptionSettings] = useState<TranscriptionModeSettings>({
@@ -991,6 +1024,36 @@ export default function RecordScreen() {
 
             {isModelLoading && <ProgressItems items={progressItems} />}
 
+            {enableVAD && (
+                <View>
+                    {isVADModelLoading ? (
+                        <ActivityIndicator size="small" />
+                    ) : !validSRVAD ? (
+                        <Text variant="bodySmall" style={{ color: colors.error, textAlign: 'center' }}>
+                            Speech detection requires 16kHz sample rate
+                        </Text>
+                    ) : vadResult ? (
+                        <Text
+                            variant="titleMedium"
+                            style={{
+                                textAlign: 'center',
+                                paddingVertical: 8,
+                                borderRadius: 8,
+                                color: vadResult.isSpeech ? colors.success : colors.onSurfaceVariant,
+                                backgroundColor: vadResult.isSpeech ? colors.successContainer : colors.surfaceVariant,
+                                fontWeight: 'bold',
+                            }}
+                        >
+                            {vadResult.isSpeech ? 'SPEECH' : 'NO SPEECH'}
+                        </Text>
+                    ) : (
+                        <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant, textAlign: 'center' }}>
+                            Waiting for audio...
+                        </Text>
+                    )}
+                </View>
+            )}
+
             {/* Display transcription text */}
             {enableLiveTranscription && (
                 <View
@@ -1264,6 +1327,23 @@ style={{
                     />
                 </View>
 
+                {/* Speech Detection (VAD) Switch */}
+                <View style={{ marginTop: 16 }}>
+                    <LabelSwitch
+                        label="Speech Detection"
+                        value={enableVAD}
+                        onValueChange={(enabled: boolean) => {
+                            setEnableVAD(enabled)
+                            if (!enabled) {
+                                setVadResult(null)
+                            } else if (startRecordingConfig.sampleRate !== WhisperSampleRate) {
+                                setStartRecordingConfig((prev) => ({ ...prev, sampleRate: WhisperSampleRate }))
+                                show({ type: 'info', message: 'Sample rate set to 16kHz for Speech Detection', duration: 2000 })
+                            }
+                        }}
+                    />
+                </View>
+
                 {/* Live Transcription Switch - Always visible */}
                 <View style={{ marginTop: 16 }}>
                     <LabelSwitch
@@ -1271,17 +1351,17 @@ style={{
                         value={enableLiveTranscription}
                         onValueChange={(enabled: boolean) => {
                             setEnableLiveTranscription(enabled)
-                            
-                            // Preload the model if enabled
-                            if (enabled && !ready && !unifiedIsModelLoading && validSRTranscription) {
-                                show({
-                                    type: 'info',
-                                    message: 'Preparing speech recognition model...',
-                                    duration: 2000,
-                                })
-                                initializeTranscription().catch((error) => {
-                                    logger.error('Failed to initialize transcription:', error)
-                                })
+                            if (enabled) {
+                                if (startRecordingConfig.sampleRate !== WhisperSampleRate) {
+                                    setStartRecordingConfig((prev) => ({ ...prev, sampleRate: WhisperSampleRate }))
+                                    show({ type: 'info', message: 'Sample rate set to 16kHz for Live Transcription', duration: 2000 })
+                                }
+                                if (!ready && !unifiedIsModelLoading) {
+                                    show({ type: 'info', message: 'Preparing speech recognition model...', duration: 2000 })
+                                    initializeTranscription().catch((error) => {
+                                        logger.error('Failed to initialize transcription:', error)
+                                    })
+                                }
                             }
                         }}
                     />

@@ -334,11 +334,12 @@ export default function BabyCryScreen() {
       // Calculate averages after adding new result
       calculateAverages([...results, newResult])
     } catch (error) {
-      logger.error('Manual detection error:', error)
+      const errMsg = error instanceof Error ? error.message : String(error)
+      logger.error('Manual detection error:', errMsg)
       show({
         type: 'error',
-        message: 'Error running manual detection',
-        duration: 3000,
+        message: `Detection error: ${errMsg}`,
+        duration: 5000,
       })
     } finally {
       setLoadingStates((prev) => ({ ...prev, prediction: false }))
@@ -744,6 +745,7 @@ style={{
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button
+                testID="run-detection"
                 mode="contained"
                 onPress={runManualDetection}
                 loading={loadingStates.prediction || isProcessing}
@@ -775,6 +777,7 @@ style={{
                 Each button extracts individual features that are later combined for the final prediction.
               </Text>
               <Button
+                testID="run-full-pipeline"
                 mode="contained"
                 onPress={runModelPredictionOnly}
                 loading={Object.values(loadingStates).some(Boolean)}
@@ -1041,6 +1044,7 @@ style={{
                 
                 <View style={{ flexDirection: 'row', marginTop: 16, gap: 8 }}>
                   <Button
+                    testID="generate-synthetic-cry"
                     mode={sampleSource === 'synthetic' ? 'contained' : 'outlined'}
                     onPress={generateSyntheticAudio}
                     icon="waveform"
@@ -1049,8 +1053,9 @@ style={{
                   >
                     Generate Synthetic Cry
                   </Button>
-                  
+
                   <Button
+                    testID="load-sample-cry"
                     mode={sampleSource === 'sample' ? 'contained' : 'outlined'}
                     onPress={loadRealSample}
                     icon="baby-face"

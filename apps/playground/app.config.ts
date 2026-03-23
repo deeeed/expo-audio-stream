@@ -114,7 +114,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             backgroundColor:
                 validatedEnv.APP_VARIANT === 'production' ? '#98c1d9' : '#ffffff',
         },
-        assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx'],
+        assetBundlePatterns: ['**/*', 'assets/audio_samples/*', 'public/audioStorage.worker.js', 'assets/silero_vad.onnx', 'assets/silero_vad_v5.onnx'],
         ios: {
             supportsTablet: true,
             bundleIdentifier: APP_IDENTIFIER,
@@ -150,7 +150,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             checkAutomatically: "ON_LOAD",
             useEmbeddedUpdate: true
         },
-        runtimeVersion: '2.0.0',
+        runtimeVersion: '2.1.0',
         owner: 'deeeed',
         plugins: [
             [
@@ -216,7 +216,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
                     },
                 },
             ],
-            'onnxruntime-react-native',
             ['./plugins/withCustomGradleConfig.cjs', {}],
             ['./plugins/withLibcppFix.cjs', {}],
             [

@@ -114,15 +114,7 @@ gradle.allprojects { project ->
         applyLibcppFix(project)
     }
     
-    // Disable tests for ONNX Runtime
-    if (project.name == 'onnxruntime-react-native') {
-        println "Disabling tests for ONNX Runtime module"
-        project.tasks.configureEach { task ->
-            if (task.name.contains('Test') || task.name.contains('test')) {
-                task.enabled = false
-            }
-        }
-    }
+
 }
 
 // Disable specific problematic tasks

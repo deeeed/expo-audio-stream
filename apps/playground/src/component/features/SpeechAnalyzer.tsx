@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import { Platform, StyleSheet, View } from 'react-native'
+import { type LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 
 import type { AppTheme } from '@siteed/design-system'
@@ -10,6 +10,7 @@ import { useTheme } from '@siteed/design-system'
 import type { AudioAnalysis, ExtractedAudioData, MelSpectrogram, TranscriberData } from '@siteed/audio-studio'
 import { extractMelSpectrogram } from '@siteed/audio-studio'
 
+import { MelSpectrogramVisualizer } from '@siteed/audio-ui'
 import { TranscriptionResults } from '../../components/TranscriptionResults'
 import { baseLogger } from '../../config'
 import { LANGUAGE_NAMES, useLanguageDetection } from '../../hooks/useLanguageDetection'
@@ -59,6 +60,12 @@ export function SpeechAnalyzer({
         essentia: null,
         difference: null,
     })
+
+    const [melContainerWidth, setMelContainerWidth] = useState(300)
+    const handleMelLayout = useCallback((e: LayoutChangeEvent) => {
+        const w = e.nativeEvent.layout.width
+        if (w > 0) setMelContainerWidth(w)
+    }, [])
 
     const { isModelLoading, isProcessing, processAudioSegment } = useSileroVAD({
         onError: (error) => {
@@ -342,7 +349,7 @@ style={[
                             { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error },
                         ]}
                         >
-                            {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
+                            {vadResult.isSpeech ? 'Speech' : 'No Speech'}
                         </Text>
                     </View>
                 )}
@@ -497,9 +504,20 @@ style={[
                                     Lower difference values indicate more similar results
                                 </Text>
                             </View>
+
+                            <View onLayout={handleMelLayout}>
+                                <Text variant="bodySmall" style={[styles.subsectionTitle, { marginTop: theme.margin.m }]}>
+                                    Spectrogram (Current Implementation):
+                                </Text>
+                                <MelSpectrogramVisualizer
+                                    data={melResults.current}
+                                    width={melContainerWidth}
+                                    height={150}
+                                />
+                            </View>
                         </View>
                     )}
-                    
+
                     {melSpectrogramError && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>Error: {melSpectrogramError}</Text>
