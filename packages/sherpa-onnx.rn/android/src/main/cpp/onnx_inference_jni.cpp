@@ -326,6 +326,13 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
     jobjectArray input_names_j, jobjectArray input_types_j,
     jobjectArray input_shapes_j, jobjectArray input_data_j) {
 
+    // Hoisted for exception-safe cleanup in catch block
+    OrtMemoryInfo* memory_info = nullptr;
+    struct InputRef { jbyteArray data_j; jbyte* data_ptr; };
+    std::vector<OrtValue*> input_tensors;
+    std::vector<InputRef> input_refs;
+    std::vector<OrtValue*> output_tensors;
+
     try {
         const char* sid = env->GetStringUTFChars(session_id_j, nullptr);
         std::string session_id(sid);
@@ -344,21 +351,14 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
         OrtAllocator* allocator;
         check_ort_status(g_ort, g_ort->GetAllocatorWithDefaultOptions(&allocator));
 
-        OrtMemoryInfo* memory_info;
         check_ort_status(g_ort, g_ort->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory_info));
 
         int num_inputs = env->GetArrayLength(input_names_j);
 
-        std::vector<OrtValue*> input_tensors(num_inputs);
+        input_tensors.resize(num_inputs, nullptr);
+        input_refs.resize(num_inputs, {nullptr, nullptr});
         std::vector<const char*> input_name_ptrs(num_inputs);
         std::vector<std::string> input_name_strs(num_inputs);
-
-        // Keep references to JNI arrays so we can release them after Run
-        struct InputRef {
-            jbyteArray data_j;
-            jbyte* data_ptr;
-        };
-        std::vector<InputRef> input_refs(num_inputs);
 
         for (int i = 0; i < num_inputs; i++) {
             // Get input name
@@ -398,10 +398,6 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
 
             size_t expected_size = total_elements * element_size_for_type(elem_type);
             if ((size_t)data_len != expected_size) {
-                // Release all held refs before throwing
-                for (int j = 0; j <= i; j++) {
-                    env->ReleaseByteArrayElements(input_refs[j].data_j, input_refs[j].data_ptr, JNI_ABORT);
-                }
                 std::ostringstream oss;
                 oss << "Data size mismatch for input " << input_name_strs[i]
                     << ": expected " << expected_size << " bytes, got " << data_len;
@@ -421,7 +417,7 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
         }
 
         // Run
-        std::vector<OrtValue*> output_tensors(num_outputs, nullptr);
+        output_tensors.resize(num_outputs, nullptr);
         LOGI("Running session %s with %d inputs, %zu outputs", session_id.c_str(), num_inputs, num_outputs);
 
         check_ort_status(g_ort, g_ort->Run(
@@ -429,13 +425,16 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
             input_name_ptrs.data(), (const OrtValue* const*)input_tensors.data(), num_inputs,
             output_name_ptrs.data(), num_outputs, output_tensors.data()));
 
-        // Release input tensors and JNI byte array refs
+        // Release input tensors and JNI byte array refs (nullify to prevent double-free in catch)
         for (int i = 0; i < num_inputs; i++) {
             g_ort->ReleaseValue(input_tensors[i]);
+            input_tensors[i] = nullptr;
             env->ReleaseByteArrayElements(input_refs[i].data_j, input_refs[i].data_ptr, JNI_ABORT);
+            input_refs[i].data_ptr = nullptr;
         }
 
         g_ort->ReleaseMemoryInfo(memory_info);
+        memory_info = nullptr;
 
         // Build result object: RunResult(outputNames, outputTypes, outputShapes, outputData)
         jclass result_cls = env->FindClass("net/siteed/sherpaonnx/handlers/OnnxRunResult");
@@ -504,12 +503,21 @@ Java_net_siteed_sherpaonnx_handlers_OnnxInferenceHandler_nativeRunSession(
             env->SetObjectArrayElement(out_data, i, data_arr);
 
             g_ort->ReleaseValue(output_tensors[i]);
+            output_tensors[i] = nullptr;
         }
 
         LOGI("Session %s run complete", session_id.c_str());
         return env->NewObject(result_cls, ctor, out_names, out_types, out_shapes, out_data);
 
     } catch (const std::exception& e) {
+        // Release any resources not yet cleaned up
+        for (auto* t : input_tensors) { if (t) g_ort->ReleaseValue(t); }
+        for (auto& ref : input_refs) {
+            if (ref.data_ptr) env->ReleaseByteArrayElements(ref.data_j, ref.data_ptr, JNI_ABORT);
+        }
+        if (memory_info) g_ort->ReleaseMemoryInfo(memory_info);
+        for (auto* t : output_tensors) { if (t) g_ort->ReleaseValue(t); }
+
         LOGE("runSession error: %s", e.what());
         throw_jni_exception(env, e.what());
         return nullptr;

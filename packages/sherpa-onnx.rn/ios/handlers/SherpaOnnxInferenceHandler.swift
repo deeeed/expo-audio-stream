@@ -85,7 +85,7 @@ import COnnxRuntime
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64: return 8
         case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:   return 1
         default:
-            NSLog("%@ Unsupported tensor element type: %d, defaulting to 4", SherpaOnnxInferenceHandler.TAG, type.rawValue)
+            NSLog("%@ Unsupported tensor element type: %d", SherpaOnnxInferenceHandler.TAG, type.rawValue)
             return 0
         }
     }
