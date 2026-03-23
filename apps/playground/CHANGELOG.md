@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [2.1.0] - 2026-03-23
+
+### Added
+- 
+
+### Changed
+- 
+
+### Fixed
+- 
+
+
 ## [2.0.0] - 2026-03-20
 
 ### Added
@@ -278,7 +290,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.0.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.1.0...HEAD
+[2.1.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.1.0...audio-playground@2.1.0
 [2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.1...audio-playground@2.0.0
 [1.10.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.0...audio-playground@1.10.1
 [1.9.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.8.1...audio-playground@1.9.0
