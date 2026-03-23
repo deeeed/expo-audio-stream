@@ -22,6 +22,12 @@ import {
     trimAudio,
     AudioDeviceManager,
 } from '@siteed/audio-studio'
+import {
+    OnnxInference,
+    typedArrayToBase64,
+    base64ToTypedArray,
+} from '@siteed/sherpa-onnx.rn'
+import type { OnnxTensorData } from '@siteed/sherpa-onnx.rn'
 
 // State holders updated by AgenticBridgeSync component
 let _audioState: Record<string, unknown> = {}
@@ -382,6 +388,88 @@ if (__DEV__) {
             } catch (e) {
                 return { ok: false, error: String(e) }
             }
+        },
+
+        testOnnxInference: () => {
+            const op = 'onnxInference'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    // Resolve model path via expo-asset (works on all platforms)
+                    const assetModule = require('@assets/silero_vad_v5.onnx')
+                    const [asset] = await Asset.loadAsync(assetModule)
+                    let modelPath: string
+                    if (Platform.OS === 'web') {
+                        // On web, expo-asset provides an HTTP URI
+                        modelPath = asset.localUri ?? asset.uri
+                    } else {
+                        const localUri = asset.localUri ?? asset.uri
+                        if (!localUri) throw new Error('Failed to load model asset')
+                        modelPath = localUri.startsWith('file://') ? localUri.substring(7) : localUri
+                    }
+
+                    // 1. Create session via the OnnxInference service (works on native + web)
+                    const session = await OnnxInference.createSession({ modelPath })
+                    const sessionInfo = {
+                        sessionId: session.sessionId,
+                        inputNames: session.inputNames,
+                        outputNames: session.outputNames,
+                        inputTypes: session.inputTypes,
+                        outputTypes: session.outputTypes,
+                    }
+
+                    // 2. Prepare test inputs based on actual session input names
+                    //    Silero VAD v5 inputs: input(float32 [1,512]), sr(int64 [1]),
+                    //    h(float32 [2,1,64]), c(float32 [2,1,64])
+                    const audioChunk = new Float32Array(512) // silence
+                    const srData = new BigInt64Array([BigInt(16000)])
+                    const h = new Float32Array(2 * 1 * 64) // LSTM hidden state
+                    const c = new Float32Array(2 * 1 * 64) // LSTM cell state
+
+                    const inputs: Record<string, OnnxTensorData> = {
+                        input: { type: 'float32', dims: [1, 512], data: typedArrayToBase64(audioChunk) },
+                        sr: { type: 'int64', dims: [1], data: typedArrayToBase64(srData) },
+                        h: { type: 'float32', dims: [2, 1, 64], data: typedArrayToBase64(h) },
+                        c: { type: 'float32', dims: [2, 1, 64], data: typedArrayToBase64(c) },
+                    }
+
+                    const runResult = await OnnxInference.run(session.sessionId, inputs)
+                    if (!runResult.success || !runResult.outputs) {
+                        await OnnxInference.releaseSession(session.sessionId)
+                        _lastAsyncResult = { op, status: 'error', error: runResult.error || 'run returned no outputs' }
+                        return
+                    }
+
+                    // 3. Inspect outputs
+                    const outputSummary: Record<string, { type: string; dims: number[]; sampleValues: number[] }> = {}
+                    for (const [name, td] of Object.entries(runResult.outputs)) {
+                        const typed = base64ToTypedArray(td.data, td.type)
+                        const sample: number[] = []
+                        for (let i = 0; i < Math.min(5, typed.length); i++) {
+                            const v = typed[i]
+                            sample.push(typeof v === 'bigint' ? Number(v) : (v as number))
+                        }
+                        outputSummary[name] = { type: td.type, dims: td.dims, sampleValues: sample }
+                    }
+
+                    // 4. Release session
+                    const releaseResult = await OnnxInference.releaseSession(session.sessionId)
+
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            platform: Platform.OS,
+                            sessionInfo,
+                            outputSummary,
+                            released: releaseResult.released,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
         },
 
         scrollView: (options: { testId?: string; offset?: number; animated?: boolean } = {}) => {

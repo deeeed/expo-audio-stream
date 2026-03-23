@@ -512,6 +512,37 @@ export interface Spec extends TurboModule {
 
   releaseDenoiser(): Promise<{ released: boolean }>;
 
+  // ONNX Inference methods
+  createOnnxSession(config: {
+    modelPath: string;
+    numThreads?: number;
+  }): Promise<{
+    success: boolean;
+    sessionId: string;
+    inputNames: string[];
+    outputNames: string[];
+    inputTypes?: string[];
+    outputTypes?: string[];
+    error?: string;
+  }>;
+
+  runOnnxSession(
+    sessionId: string,
+    inputNames: string[],
+    inputTypes: string[],
+    inputDims: string[],
+    inputData: string[]
+  ): Promise<{
+    success: boolean;
+    outputNames?: string[];
+    outputTypes?: string[];
+    outputDims?: string[];
+    outputData?: string[];
+    error?: string;
+  }>;
+
+  releaseOnnxSession(sessionId: string): Promise<{ released: boolean }>;
+
   // Archive methods
   extractTarBz2(
     sourcePath: string,

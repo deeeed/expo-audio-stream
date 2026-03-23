@@ -3,9 +3,23 @@ import { useCallback, useState } from 'react'
 
 import { baseLogger } from '../config'
 
-import type { InferenceSession, Tensor } from 'onnxruntime-common'
-
 const logger = baseLogger.extend('useOnnxModel')
+
+// Minimal interfaces covering what callers actually use — avoids coupling to onnxruntime-common
+export interface OnnxModelTensor {
+    readonly type: string;
+    readonly data: Float32Array | BigInt64Array | Int32Array;
+    readonly dims: readonly number[];
+    readonly size: number;
+}
+
+export interface OnnxModelSession {
+    readonly inputNames: readonly string[];
+    readonly outputNames: readonly string[];
+    run(feeds: Record<string, OnnxModelTensor>): Promise<Record<string, OnnxModelTensor>>;
+    release?(): Promise<void>;
+    dispose?(): Promise<void>;
+}
 
 export interface UseOnnxModelProps {
     modelUri: string;
@@ -13,17 +27,17 @@ export interface UseOnnxModelProps {
 }
 
 export interface PlatformImplementation {
-    createModel: (modelUri: string) => Promise<InferenceSession>;
-    Tensor: { new(type: string, data: Float32Array | BigInt64Array, dims: number[]): Tensor };
+    createModel: (modelUri: string) => Promise<OnnxModelSession>;
+    Tensor: { new(type: string, data: Float32Array | BigInt64Array, dims: number[]): OnnxModelTensor };
 }
 
 export function createOnnxModelHook(platform: PlatformImplementation) {
-    const modelCache = new Map<string, InferenceSession>()
+    const modelCache = new Map<string, OnnxModelSession>()
 
     return function useOnnxModel({ modelUri, onError }: UseOnnxModelProps) {
         const [isLoading, setIsLoading] = useState(false)
 
-        const initModel = useCallback(async () => {
+        const initModel = useCallback(async (): Promise<OnnxModelSession> => {
             if (modelCache.has(modelUri)) {
                 return modelCache.get(modelUri)!
             }

@@ -10,21 +10,24 @@ import { DiarizationMixin } from './web/features/diarization';
 import { LanguageIdMixin } from './web/features/languageId';
 import { PunctuationMixin } from './web/features/punctuation';
 import { DenoisingMixin } from './web/features/denoising';
+import { OnnxInferenceMixin } from './web/features/onnxInference';
 
 // Re-export types used by wasmLoader for global window augmentation
 export type {} from './web/wasmTypes';
 
-const WebComposed = TtsMixin(
-  VadMixin(
-    AsrMixin(
-      KwsMixin(
-        AudioTaggingMixin(
-          SpeakerIdMixin(
-            DiarizationMixin(
-              LanguageIdMixin(
-                PunctuationMixin(
-                  DenoisingMixin(
-                    DiagnosticsMixin(class {})
+const WebComposed = OnnxInferenceMixin(
+  TtsMixin(
+    VadMixin(
+      AsrMixin(
+        KwsMixin(
+          AudioTaggingMixin(
+            SpeakerIdMixin(
+              DiarizationMixin(
+                LanguageIdMixin(
+                  PunctuationMixin(
+                    DenoisingMixin(
+                      DiagnosticsMixin(class {})
+                    )
                   )
                 )
               )

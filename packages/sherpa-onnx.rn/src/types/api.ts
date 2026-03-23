@@ -39,6 +39,10 @@ import type {
   DenoiserModelConfig,
   DenoiserInitResult,
   DenoiserResult,
+  OnnxSessionConfig,
+  OnnxSessionInfo,
+  OnnxTensorData,
+  OnnxInferenceResult,
 } from './interfaces';
 
 export interface ArchitectureInfo {
@@ -225,6 +229,11 @@ export interface ApiInterface {
   initDenoiser(config: DenoiserModelConfig): Promise<DenoiserInitResult>;
   denoiseFile(filePath: string): Promise<DenoiserResult>;
   releaseDenoiser(): Promise<{ released: boolean }>;
+
+  // ONNX Inference methods
+  createOnnxSession(config: OnnxSessionConfig): Promise<OnnxSessionInfo>;
+  runOnnxSession(sessionId: string, inputs: Record<string, OnnxTensorData>): Promise<OnnxInferenceResult>;
+  releaseOnnxSession(sessionId: string): Promise<{ released: boolean }>;
 
   // Archive methods
   extractTarBz2(input: ExtractTarBz2Input): Promise<{
