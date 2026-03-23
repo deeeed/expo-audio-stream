@@ -222,6 +222,13 @@ export function RecordingSettings({
                     Only AAC format is supported on iOS devices. Opus will automatically fall back to AAC.
                   </Text>
                 </>
+              ) : isWeb ? (
+                <>
+                  <Text>OPUS</Text>
+                  <Text variant="bodySmall" style={{ marginTop: 4, color: theme.colors.outline }}>
+                    Only Opus format is supported on web. AAC is not available in browsers.
+                  </Text>
+                </>
               ) : (
                 <SegmentedButtons
                   value={config.output?.compressed?.format || 'opus'}

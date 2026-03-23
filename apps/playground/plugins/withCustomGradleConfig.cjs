@@ -129,26 +129,6 @@ ${newConfigurations}
         return config;
     });
 
-    // Patch onnxruntime-react-native CMakeLists.txt for 16KB page alignment
-    config = withDangerousMod(config, [
-        'android',
-        async (config) => {
-            const cmakePath = path.join(
-                config.modRequest.projectRoot,
-                'node_modules/onnxruntime-react-native/android/CMakeLists.txt'
-            );
-            if (!fs.existsSync(cmakePath)) return config;
-
-            let contents = fs.readFileSync(cmakePath, 'utf8');
-            const marker = 'max-page-size=16384';
-            if (contents.includes(marker)) return config; // already patched
-
-            contents += `\n# 16KB page size alignment for Android 15+ (required for Play Store)\ntarget_link_options(onnxruntimejsihelper PRIVATE "-Wl,-z,max-page-size=16384")\n`;
-            fs.writeFileSync(cmakePath, contents);
-            return config;
-        },
-    ]);
-
     return config;
 }
 

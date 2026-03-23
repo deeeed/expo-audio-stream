@@ -1,7 +1,6 @@
 // playground/src/component/AudioRecording.tsx
 import React, { useMemo, useState } from 'react'
 
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFont } from '@shopify/react-native-skia'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
@@ -112,12 +111,7 @@ const getStyles = ({
             flexDirection: 'row',
             gap: 8,
         },
-        iconButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-        },
-        detailText: {
+detailText: {
             fontSize: 16,
             marginBottom: 5,
         },
@@ -423,33 +417,22 @@ export const AudioRecordingView = ({
             />
 
             <View style={styles.playbackContainer}>
-                <Button 
+                <Button
                     mode="contained"
                     onPress={handlePlayPause}
                     style={{ flex: 1 }}
+                    icon={isPlaying ? 'pause' : 'play'}
                 >
-                    <View style={styles.iconButton}>
-                        <MaterialCommunityIcons
-                            name={isPlaying ? 'pause' : 'play'}
-                            size={20}
-                            color={theme.colors.onPrimary}
-                        />
-                        <Text>
-                            {isPlaying ? 'Pause' : (isWeb ? 'Play' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`)}
-                        </Text>
-                    </View>
+                    {isPlaying ? 'Pause' : (isWeb ? 'Play' : `Play ${activeFormat === 'compressed' ? '(Compressed)' : ''}`)}
                 </Button>
                 
                 {recording.compression?.compressedFileUri && !isWeb && (
                     <Button
                         mode="outlined"
                         onPress={() => setActiveFormat(activeFormat === 'wav' ? 'compressed' : 'wav')}
+                        icon="swap-horizontal"
                     >
-                        <MaterialCommunityIcons
-                            name="swap-horizontal"
-                            size={20}
-                            color={theme.colors.primary}
-                        />
+                        {activeFormat === 'wav' ? 'OPUS' : 'WAV'}
                     </Button>
                 )}
             </View>
@@ -457,56 +440,38 @@ export const AudioRecordingView = ({
             <View style={styles.actionButtons}>
                 <View style={styles.primaryActions}>
                     {onActionPress && (
-                        <Button 
+                        <Button
                             mode="contained-tonal"
                             onPress={onActionPress}
                             style={{ flex: 1 }}
+                            icon="waveform"
                         >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="waveform"
-                                    size={20}
-                                    color={theme.colors.onSecondaryContainer}
-                                />
-                                <Text>{actionText ?? 'Visualize'}</Text>
-                            </View>
+                            {actionText ?? 'Visualize'}
                         </Button>
                     )}
                 </View>
 
                 <View style={styles.secondaryActions}>
                     {!isWeb && (
-                        <Button 
+                        <Button
                             mode="outlined"
                             onPress={() => handleShare(activeFormat === 'compressed' ? recording.compression?.compressedFileUri : recording.fileUri)}
+                            icon="share"
                         >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="share"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>Share</Text>
-                            </View>
+                            Share
                         </Button>
                     )}
 
                     {isWeb && (
-                        <Button 
+                        <Button
                             mode="outlined"
                             onPress={() => handleSaveToDisk(
                                 activeFormat === 'compressed' ? recording.compression?.compressedFileUri : recording.fileUri,
                                 activeFormat === 'compressed'
                             )}
+                            icon="download"
                         >
-                            <View style={styles.iconButton}>
-                                <MaterialCommunityIcons
-                                    name="download"
-                                    size={20}
-                                    color={theme.colors.primary}
-                                />
-                                <Text>Save</Text>
-                            </View>
+                            Save
                         </Button>
                     )}
 
@@ -516,12 +481,9 @@ export const AudioRecordingView = ({
                             buttonColor={theme.colors.errorContainer}
                             textColor={theme.colors.error}
                             onPress={onDelete}
+                            icon="delete"
                         >
-                            <MaterialCommunityIcons
-                                name="delete"
-                                size={20}
-                                color={theme.colors.error}
-                            />
+                            {''}
                         </Button>
                     )}
                 </View>
@@ -531,6 +493,7 @@ export const AudioRecordingView = ({
                 <View style={{ marginTop: 20, gap: 10 }}>
                     <Button
                         mode="outlined"
+                        icon="equalizer"
                         onPress={async () => {
                             const newFeatures = await openDrawer<AudioFeaturesOptions>({
                                 initialData: features,
@@ -548,14 +511,7 @@ export const AudioRecordingView = ({
                             }
                         }}
                     >
-                        <View style={styles.iconButton}>
-                            <MaterialCommunityIcons
-                                name="equalizer"
-                                size={20}
-                                color={theme.colors.primary}
-                            />
-                            <Text>Audio Features Extraction</Text>
-                        </View>
+                        Audio Features Extraction
                     </Button>
                     <View style={styles.segmentDurationContainer}>
                         <SegmentDurationSelector

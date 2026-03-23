@@ -334,6 +334,13 @@ deploy_web() {
       return 1
     fi
     cp playstore_policy.html dist/
+    # Override LFS tracking for binary assets: GitHub Pages serves raw git
+    # objects and cannot resolve LFS pointers, so we must store these files
+    # directly in git on the gh-pages branch.
+    cat > dist/.gitattributes <<'GITATTR'
+*.onnx -filter=lfs -diff=lfs -merge=lfs -text
+*.wasm -filter=lfs -diff=lfs -merge=lfs -text
+GITATTR
     echo -e "${CYAN}Publishing to gh-pages...${NC}"
     yarn gh-pages -t -d dist --dest playground
     if [ $? -ne 0 ]; then

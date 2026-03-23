@@ -342,7 +342,7 @@ style={[
                             { color: vadResult.isSpeech ? theme.colors.success : theme.colors.error },
                         ]}
                         >
-                            {vadResult.isSpeech ? 'Speech Detected' : 'No Speech'} ({(vadResult.probability * 100).toFixed(1)}%)
+                            {vadResult.isSpeech ? 'Speech' : 'No Speech'}
                         </Text>
                     </View>
                 )}

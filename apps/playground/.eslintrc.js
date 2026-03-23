@@ -88,8 +88,7 @@ module.exports = {
             'error',
             {
                 ignore: [
-                    '^@siteed/audio-ui',
-                    '^onnxruntime-react-native'
+                    '^@siteed/audio-ui'
                 ]
             }
         ],
