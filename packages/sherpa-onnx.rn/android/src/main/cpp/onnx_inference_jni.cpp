@@ -62,15 +62,15 @@ static void check_ort_status(const OrtApi* api, OrtStatus* status) {
     }
 }
 
+static std::once_flag g_init_flag;
+
 static void init_ort_api() {
-    if (g_ort == nullptr) {
+    std::call_once(g_init_flag, []() {
         g_ort = OrtGetApiBase()->GetApi(ORT_API_VERSION);
         LOGI("ORT API initialized (version %d)", ORT_API_VERSION);
-    }
-    if (g_env == nullptr) {
         check_ort_status(g_ort, g_ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "onnx_inference", &g_env));
         LOGI("Global OrtEnv created");
-    }
+    });
 }
 
 extern "C" {
