@@ -48,6 +48,20 @@ cd ios && pod install
 
 Android integration is handled automatically by the package.
 
+### Web
+
+Web works **zero-config** — the WASM inference engine (~12.6 MB, similar to Android `.so` files) loads automatically from jsDelivr CDN and is browser-cached after first load.
+
+```typescript
+import { configureSherpaOnnx } from '@siteed/sherpa-onnx.rn';
+
+// Zero-config: WASM loads from jsDelivr CDN automatically.
+// No setup needed — just call the APIs.
+
+// Self-hosting (optional): copy files from node_modules/@siteed/sherpa-onnx.rn/wasm/
+configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' });
+```
+
 ## React Native Compatibility
 
 This module is compatible with both the old and new React Native architectures. See [COMPATIBILITY.md](./COMPATIBILITY.md) for details on how this is achieved and considerations when using this module.

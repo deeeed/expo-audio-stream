@@ -1,4 +1,36 @@
 import type { SherpaOnnxNamespace } from './wasmTypes';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: WASM_VERSION } = require('../../../package.json');
+
+// ---------------------------------------------------------------------------
+// Global configuration
+// ---------------------------------------------------------------------------
+
+/** Default CDN for the WASM runtime — jsDelivr serves files from the npm tarball. */
+const DEFAULT_WASM_CDN =
+  `https://cdn.jsdelivr.net/npm/@siteed/sherpa-onnx.rn@${WASM_VERSION}/wasm/`;
+
+export interface SherpaOnnxConfig {
+  /** Base URL for WASM runtime files (JS glue + .wasm binary + feature modules).
+   *  Must end with '/'. Can be a local path or remote URL (e.g. CDN, HuggingFace).
+   *  If not set, auto-detects from the Expo bundle script tag or falls back to jsDelivr CDN. */
+  wasmBasePath?: string;
+}
+
+let _globalConfig: SherpaOnnxConfig = {};
+
+/** Configure global settings for @siteed/sherpa-onnx.rn.
+ *  Call this before any WASM-dependent API (e.g. validateLibraryLoaded, ASR, TTS).
+ *  @example
+ *  configureSherpaOnnx({ wasmBasePath: '/my-local-wasm/' });
+ */
+export function configureSherpaOnnx(config: SherpaOnnxConfig): void {
+  _globalConfig = { ..._globalConfig, ...config };
+}
+
+export function getSherpaOnnxConfig(): Readonly<SherpaOnnxConfig> {
+  return _globalConfig;
+}
 
 // ---------------------------------------------------------------------------
 // Legacy WASM loader (used by main-sherpa-demo.ts to set modulePaths)
@@ -10,20 +42,25 @@ export interface WasmLoadOptions {
   debug?: boolean;
 }
 
-/** Detect the WASM base path from the Expo bundle script tag. */
+/** Detect the WASM base path from global config, Expo bundle script tag, or CDN. */
 function detectWasmBasePath(): string {
-  if (typeof document === 'undefined') return '/wasm/';
-  const scriptEl = document.querySelector<HTMLScriptElement>(
-    'script[src*="_expo/static"]'
-  );
-  if (scriptEl?.src) {
-    try {
-      const url = new URL(scriptEl.src);
-      const idx = url.pathname.indexOf('_expo/static');
-      if (idx > 0) return url.pathname.substring(0, idx) + 'wasm/';
-    } catch { /* fall through */ }
+  // 1. Explicit config takes priority
+  if (_globalConfig.wasmBasePath) return _globalConfig.wasmBasePath;
+  // 2. Auto-detect from Expo bundle (local dev / production with local wasm files)
+  if (typeof document !== 'undefined') {
+    const scriptEl = document.querySelector<HTMLScriptElement>(
+      'script[src*="_expo/static"]'
+    );
+    if (scriptEl?.src) {
+      try {
+        const url = new URL(scriptEl.src);
+        const idx = url.pathname.indexOf('_expo/static');
+        if (idx > 0) return url.pathname.substring(0, idx) + 'wasm/';
+      } catch { /* fall through */ }
+    }
   }
-  return '/wasm/';
+  // 3. Default to CDN — works zero-config for external consumers
+  return DEFAULT_WASM_CDN;
 }
 
 let _legacyLoaded = false;

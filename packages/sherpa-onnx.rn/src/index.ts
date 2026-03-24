@@ -80,4 +80,5 @@ export { OnnxSession } from './services/OnnxInferenceService';
 export type { OnnxSessionRunFeeds, OnnxSessionRunOutputs } from './services/OnnxInferenceService';
 
 // Export web utilities
-export { loadWasmModule } from './web/wasmLoader';
+export { loadWasmModule, configureSherpaOnnx } from './web/wasmLoader';
+export type { SherpaOnnxConfig } from './web/wasmLoader';

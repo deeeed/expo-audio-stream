@@ -1,6 +1,6 @@
 {
   "name": "@siteed/sherpa-onnx.rn",
-  "version": "1.1.0-beta.3",
+  "version": "1.1.0-beta.6",
   "sherpaOnnxVersion": "1.12.29",
   "description": "React Native wrapper for sherpa-onnx TTS and STT capabilities",
   "source": "./src/index.tsx",
@@ -25,6 +25,7 @@
     "android",
     "ios",
     "cpp",
+    "wasm",
     "*.podspec",
     "react-native.config.js",
     "install.js",

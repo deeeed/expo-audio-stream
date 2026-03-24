@@ -2,3 +2,9 @@
 src/**/*.d.ts
 # Keep intentional shims
 !src/types/expo-modules-core-shim.d.ts
+
+# WASM build artifacts (populated by build-sherpa-wasm.sh --combined)
+wasm/
+
+# Local secrets
+.env

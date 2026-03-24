@@ -15,6 +15,12 @@ echo -e "${BLUE}Changed to script directory: $(pwd)${NC}"
 echo -e "${YELLOW}Building...${NC}"
 yarn prepare
 
+# Verify WASM files exist for npm tarball
+if [ ! -f wasm/sherpa-onnx-wasm-combined.wasm ]; then
+  echo -e "${YELLOW}Error: wasm/ directory missing. Run ./build-sherpa-wasm.sh --combined first.${NC}"
+  exit 1
+fi
+
 echo -e "${YELLOW}Starting publication process...${NC}"
 
 # Check for git changes
@@ -35,4 +41,6 @@ fi
 version=$(node -p "require('./package.json').version")
 echo -e "${GREEN}New version: $version${NC}"
 
+# jsDelivr auto-serves WASM files from the npm tarball — no separate upload needed.
 echo -e "${GREEN}Publication process completed successfully!${NC}"
+echo -e "${BLUE}WASM runtime will be available at: https://cdn.jsdelivr.net/npm/@siteed/sherpa-onnx.rn@${version}/wasm/${NC}"

@@ -319,6 +319,15 @@ if [ "$BUILD_TYPE" = "combined" ]; then
       cp "$SHERPA_COMBINED_DIR/sherpa-onnx-wasm-combined.wasm" "$DEMO_WASM_DIR/"
       echo -e "${GREEN}Combined WASM copied to $DEMO_WASM_DIR${NC}"
     fi
+    # Copy combined WASM to package wasm/ dir for npm distribution
+    PKG_WASM_DIR="$SCRIPT_DIR/wasm"
+    mkdir -p "$PKG_WASM_DIR"
+    if [ -d "$SHERPA_COMBINED_DIR" ]; then
+      echo -e "${BLUE}Copying combined WASM to package wasm/ dir for npm...${NC}"
+      cp "$SHERPA_COMBINED_DIR"/sherpa-onnx-*.js "$PKG_WASM_DIR/"
+      cp "$SHERPA_COMBINED_DIR"/sherpa-onnx-*.wasm "$PKG_WASM_DIR/"
+      echo -e "${GREEN}Combined WASM copied to $PKG_WASM_DIR${NC}"
+    fi
   else
     FAILED_MODULES+=("combined")
     OVERALL_SUCCESS=false
