@@ -262,8 +262,9 @@ async function cmdLaunch() {
 // ---------------------------------------------------------------------------
 
 async function connectBrowser() {
-  const { cdpPort } = loadConnection();
-  const browser = await chromium.connectOverCDP(`http://localhost:${cdpPort}`);
+  const cdpUrl = process.env.CDP_URL;
+  const endpoint = cdpUrl || `http://localhost:${loadConnection().cdpPort}`;
+  const browser = await chromium.connectOverCDP(endpoint);
   const contexts = browser.contexts();
   if (contexts.length === 0) {
     throw new Error('No browser contexts found. Browser may have been closed.');
@@ -460,7 +461,9 @@ Environment:
   WATCHER_PORT    Expo web dev server port (default: ${PORT})
   WEB_HEADLESS    Run browser headless (default: false, set to "true" for CI)
   WEB_TIMEOUT     Navigation/wait timeout in ms (default: 30000)
-  CDP_PORT        Chrome remote debugging port (default: 9222)`);
+  CDP_PORT        Chrome remote debugging port (default: 9222)
+  CDP_URL         External Chrome CDP URL (e.g. http://192.168.1.5:9222)
+                  Bypasses .agent/web-browser.json for command mode`);
   process.exit(0);
 }
 
