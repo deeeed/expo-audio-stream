@@ -177,6 +177,7 @@ export interface SherpaOnnxAsrModule {
     decoder?: string;
     joiner?: string;
     tokens?: string;
+    model?: string;
     modelDir?: string;
     debug?: boolean | number;
   }) => Promise<LoadedAsrModel>;
