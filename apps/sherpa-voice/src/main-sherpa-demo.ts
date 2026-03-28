@@ -1,7 +1,7 @@
 import '@expo/metro-runtime'
 import { App as ExpoRouterApp } from 'expo-router/build/qualified-entry'
 
-import { loadWasmModule } from '@siteed/sherpa-onnx.rn'
+import { loadWasmModule, configureSherpaOnnx } from '@siteed/sherpa-onnx.rn'
 import { registerRootComponent } from 'expo'
 import { Platform } from 'react-native'
 
@@ -24,6 +24,9 @@ async function initializeApp() {
     try {
       const wasmBase = getWasmBasePath()
       logger.info(`WASM base path: ${wasmBase}`)
+
+      // Tell the package to use local WASM files (not CDN)
+      configureSherpaOnnx({ wasmBasePath: wasmBase })
 
       // Configure path to espeak-ng-data for TTS
       if (window) {

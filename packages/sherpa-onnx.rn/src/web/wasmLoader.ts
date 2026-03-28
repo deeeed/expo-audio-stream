@@ -1,6 +1,21 @@
 import type { SherpaOnnxNamespace } from './wasmTypes';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { version: WASM_VERSION } = require('../../../package.json');
+
+// Read version from package.json.  Relative path differs between source (src/web/)
+// and compiled output (lib/*/web/), so try both depths.
+let WASM_VERSION = '0.0.0';
+try {
+  // Works from lib/module/web/ and lib/commonjs/web/ (3 dirs up)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  WASM_VERSION = require('../../../package.json').version;
+} catch {
+  try {
+    // Works from src/web/ (2 dirs up) — used by Metro web bundler
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    WASM_VERSION = require('../../package.json').version;
+  } catch {
+    // Fallback — CDN will use "latest" tag equivalent
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Global configuration
@@ -105,6 +120,12 @@ export const loadWasmModule = async (
     if (options?.modulePaths?.length) {
       (window as any).sherpaOnnxModulePaths = options.modulePaths;
     }
+
+    // Load the WASM binary glue first — this creates window.Module
+    // (the Emscripten runtime). Must be loaded before the orchestrator
+    // script which depends on Module being present.
+    const wasmBase = detectWasmBasePath();
+    await loadScriptTag(wasmBase + 'sherpa-onnx-wasm-combined.js');
 
     return new Promise<boolean>((resolve) => {
       (window as any).onSherpaOnnxReady = (loaded: boolean) => {

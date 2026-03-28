@@ -396,6 +396,11 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       // Create offline recognizer directly via the WASM constructor.
       // This bypasses createOfflineRecognizer() which only handles
       // transducer/paraformer/ctc — _initOfflineRecognizerConfig handles all types.
+      if (debug) {
+        console.log('[ASR] offlineConfig:', JSON.stringify(offlineConfig, null, 2));
+        console.log('[ASR] OfflineRecognizer exists:', typeof (window as any).OfflineRecognizer);
+        console.log('[ASR] Module.ccall exists:', typeof window.Module?.ccall);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const recognizer = new (window as any).OfflineRecognizer(
         offlineConfig,
@@ -471,7 +476,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         try {
           stream.acceptWaveform(sampleRate, float32);
           this.asrOfflineRecognizer!.decode(stream);
-          const result = stream.getResult();
+          const result = this.asrOfflineRecognizer!.getResult(stream);
           return { success: true, text: result.text };
         } finally {
           stream.free();

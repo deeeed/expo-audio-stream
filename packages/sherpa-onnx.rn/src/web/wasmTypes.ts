@@ -63,7 +63,6 @@ export interface LoadedVadModel {
 export interface OfflineStream {
   handle: number;
   acceptWaveform: (sampleRate: number, samples: Float32Array) => void;
-  getResult: () => { text: string; tokens?: string[]; timestamps?: number[] };
   free: () => void;
 }
 
@@ -71,6 +70,7 @@ export interface OfflineRecognizer {
   handle: number;
   createStream: () => OfflineStream;
   decode: (stream: OfflineStream) => void;
+  getResult: (stream: OfflineStream) => { text: string; tokens?: string[]; timestamps?: number[] };
   free: () => void;
 }
 
