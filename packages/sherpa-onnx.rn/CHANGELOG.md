@@ -7,18 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0-beta.2] - 2026-03-23
+## [1.1.0] - 2026-03-28
 
 ### Added
+- **Web/WASM**: Zero-config CDN distribution via jsDelivr — all features work in browser
+- `loadWasmModule()` with non-blocking fire-and-forget pattern and `onProgress` callback
+- `configureSherpaOnnx()` API for self-hosting WASM files
+- `isSherpaOnnxReady()` / `waitForReady()` for readiness gating
+- Offline ASR on web (whisper, moonshine, paraformer, sense_voice, etc.)
+- `dolphin` model type support
 - Generic ONNX inference support (iOS handler, Kotlin, TS API, web)
 
 ### Fixed
-- Add prebuilt .so files for production builds
-- Remove Class.forName() check from isLibraryLoaded init
-- Narrow Commons Compress R8 keep rules, add dontwarn
-- Properly apply R8 keep rules via consumerProguardFiles
-- Keep Apache Commons Compress from R8 minification
+- **Android kotlin version mismatch**: `build.gradle` uses `safeExtGet`/`getKotlinVersion` — consumers no longer need `kotlin.jvm.target.validation.mode=WARNING`
+- README rewritten with correct API examples (`TTS.initialize()`, `ASR.initialize()`, etc.)
+- `docs/` directory now shipped in npm package (fixes dead links in README)
+- iOS modulemap onnxruntime header path fix
+- `modelFiles` made optional in `AsrModelConfig`
+- `OFFLINE_ONLY_TYPES` aligned with full model type union
+- Removed stale docs: `COMPATIBILITY.md`, `docs/architecture/`, `docs/integration/`
+- Removed hallucinated API examples and GitHub links from docs
+
+### Changed
 - Prebuilts v1.12.29, fix install.js, WASM path fixes
+- Add prebuilt .so files for production builds
+- Narrow Commons Compress R8 keep rules
 
 ## [1.0.0] - 2026-03-20
 
@@ -50,8 +63,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0-beta.2...HEAD
-[1.1.0-beta.2]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...@siteed/sherpa-onnx.rn@1.1.0-beta.2
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0...HEAD
+[1.1.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...@siteed/sherpa-onnx.rn@1.1.0
 [1.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.2.0...@siteed/sherpa-onnx.rn@1.0.0
 [0.2.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.1.0...@siteed/sherpa-onnx.rn@0.2.0
 [0.1.0]: https://github.com/deeeed/audiolab/releases/tag/@siteed/sherpa-onnx.rn@0.1.0
