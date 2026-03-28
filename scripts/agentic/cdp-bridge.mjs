@@ -31,6 +31,8 @@
  * Environment:
  *   WATCHER_PORT    Metro port (default: 7365)
  *   CDP_TIMEOUT     Connection timeout in ms (default: 5000)
+ *   CDP_URL         External Chrome CDP URL (e.g. http://192.168.1.5:9222)
+ *                   Bypasses .agent/web-browser.json — connects directly
  */
 
 import http from 'node:http';
@@ -165,12 +167,92 @@ async function fetchTargetsSafe(port) {
 }
 
 /**
+ * Fetch targets from a full CDP URL (e.g. http://192.168.1.5:9222).
+ * Calls /json/list on the given URL.
+ */
+function fetchTargetsFromUrl(urlString) {
+  return new Promise((resolve, reject) => {
+    const listUrl = `${urlString.replace(/\/$/, '')}/json/list`;
+    http
+      .get(listUrl, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error(`Failed to parse ${listUrl}: ${e.message}`));
+          }
+        });
+      })
+      .on('error', (err) => {
+        reject(new Error(`Cannot reach CDP at ${urlString}: ${err.message}`));
+      });
+  });
+}
+
+/**
+ * Rewrite the host in a WebSocket URL to match the target CDP host.
+ * Chrome returns ws://localhost:... even when accessed remotely.
+ */
+function rewriteWsHost(wsUrl, targetHost) {
+  if (targetHost === 'localhost' || targetHost === '127.0.0.1') return wsUrl;
+  try {
+    const u = new URL(wsUrl);
+    u.hostname = targetHost;
+    return u.toString();
+  } catch {
+    return wsUrl;
+  }
+}
+
+/**
  * Discover web Chrome targets by reading .agent/web-browser.json and
  * querying Chrome's /json/list on the CDP port.
  * Returns an array of { wsUrl, deviceName } (0 or 1 entries).
+ *
+ * When CDP_URL env var is set, connects directly to that URL instead of
+ * reading .agent/web-browser.json. This supports connecting to any
+ * Chrome/Chromium launched with --remote-debugging-port.
  */
 async function discoverWebTargets(metroPort, WebSocketImpl) {
-  // Read connection file — if missing or stale, skip silently
+  const cdpUrl = process.env.CDP_URL;
+
+  if (cdpUrl) {
+    // External browser mode — connect directly to CDP_URL
+    let targets;
+    try {
+      targets = await fetchTargetsFromUrl(cdpUrl);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(targets) || targets.length === 0) return [];
+
+    // Extract host from CDP_URL for WebSocket URL rewriting
+    let targetHost = 'localhost';
+    try {
+      targetHost = new URL(cdpUrl).hostname;
+    } catch { /* keep localhost */ }
+
+    // Filter to page targets with a WebSocket URL
+    const pageTargets = targets.filter(
+      (t) => t.type === 'page' && t.webSocketDebuggerUrl
+    );
+
+    // Probe each page for __AGENTIC__ (don't filter by metroPort URL
+    // since the app URL may differ on external machines)
+    for (const target of pageTargets) {
+      const wsUrl = rewriteWsHost(target.webSocketDebuggerUrl, targetHost);
+      const hasAgentic = await probeTarget(wsUrl, WebSocketImpl);
+      if (hasAgentic) {
+        return [{ wsUrl, deviceName: 'web (Chrome)' }];
+      }
+    }
+
+    return [];
+  }
+
+  // Standard mode — read connection file
   if (!fs.existsSync(WEB_CONNECTION_FILE)) return [];
 
   let conn;
@@ -815,7 +897,9 @@ Device targeting:
 
 Environment:
   WATCHER_PORT    Metro port (default: ${DEFAULT_PORT})
-  CDP_TIMEOUT     Connection timeout in ms (default: 5000)`);
+  CDP_TIMEOUT     Connection timeout in ms (default: 5000)
+  CDP_URL         External Chrome CDP URL (e.g. http://192.168.1.5:9222)
+                  Bypasses .agent/web-browser.json — connects directly`);
   process.exit(0);
 }
 

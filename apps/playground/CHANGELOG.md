@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [2.2.0] - 2026-03-23
+
+### Added
+- 
+
+### Changed
+- bump version to 1.1.3
+- Merge branch 'main' of https://github.com/deeeed/audiolab
+- auto-release internal track on Play Store submission
+- bump version to 1.1.2
+- bump version to 1.1.1
+- bump version to 1.1.0
+- update api references for v3.0.2
+- release @siteed/audio-studio@3.0.2
+- bump expo-audio-studio shim to 3.0.1 and update lockfile
+- disable conventionalCommits in publisher config, rewrite clean CHANGELOG
+- update api references for v3.0.1
+- release @siteed/audio-studio@3.0.1
+- clean up full CHANGELOG history — remove chores, playground entries, and noise
+- clean up CHANGELOG — add 3.0.1 section, deduplicate 3.0.0, remove commit noise
+- centralize scripts into shared monorepo location (#339)
+- Merge pull request #335 from deeeed/chore/sherpa-onnx-1.0.0
+- bump to 1.0.0 with changelog and publisher config
+- Merge pull request #334 from deeeed/chore/audio-ui-publisher-js
+- release @siteed/audio-ui@1.0.0
+- Merge pull request #333 from deeeed/chore/audio-ui-vector-icons-devdep
+- add @expo/vector-icons as devDependency
+- Merge pull request #332 from deeeed/chore/audio-ui-publisher-config
+- add publisher config and revert manual version bump
+- Merge pull request #331 from deeeed/refactor/rename-audio-ui
+- release @siteed/audio-ui@1.0.0
+- rename packages/expo-audio-ui to packages/audio-ui
+- bump shim to 3.0.0
+- release @siteed/audio-studio@3.0.0
+- consolidate package names and rewrite READMEs for v3.0.0 release
+
+### Fixed
+- fix R8 build failure — narrow Commons Compress keep rules (#343)
+- feat(sherpa-voice): comprehensive logging + fix Android prod model extraction (#342)
+- sherpa-onnx.rn prebuilts v1.12.29 + audio-studio WASM/peerDeps fixes (#341)
+- chore(sherpa-onnx.rn): fix TS errors and add publish script (#337)
+- chore(audio-ui): convert publisher.config to JS to fix TS compilation error
+- chore(audio-studio): fix publisher config for yarn workspace
+- replace npx with yarn across all scripts and package.json
+
+
 ## [2.1.0] - 2026-03-23
 
 ### Added
@@ -291,7 +337,9 @@ All notable changes to this project will be documented in this file.
 
 
 
-[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.1.0...HEAD
+
+[unreleased]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.2.0...HEAD
+[2.2.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.0.0...audio-playground@2.2.0
 [2.1.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@2.1.0...audio-playground@2.1.0
 [2.0.0]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.1...audio-playground@2.0.0
 [1.10.1]: https://github.com/deeeed/expo-audio-stream/compare/audio-playground@1.10.0...audio-playground@1.10.1

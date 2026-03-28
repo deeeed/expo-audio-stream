@@ -63,7 +63,6 @@ export interface LoadedVadModel {
 export interface OfflineStream {
   handle: number;
   acceptWaveform: (sampleRate: number, samples: Float32Array) => void;
-  getResult: () => { text: string; tokens?: string[]; timestamps?: number[] };
   free: () => void;
 }
 
@@ -71,6 +70,7 @@ export interface OfflineRecognizer {
   handle: number;
   createStream: () => OfflineStream;
   decode: (stream: OfflineStream) => void;
+  getResult: (stream: OfflineStream) => { text: string; tokens?: string[]; timestamps?: number[] };
   free: () => void;
 }
 
@@ -177,6 +177,7 @@ export interface SherpaOnnxAsrModule {
     decoder?: string;
     joiner?: string;
     tokens?: string;
+    model?: string;
     modelDir?: string;
     debug?: boolean | number;
   }) => Promise<LoadedAsrModel>;
@@ -476,5 +477,6 @@ declare global {
     onSherpaOnnxReady?: (success: boolean) => void;
     _sherpaOnnxCombinedLoaded?: boolean;
     _sherpaOnnxLoadingPromise?: Promise<void>;
+    _sherpaOnnxProgressCallback?: (event: { phase: string; module?: string; loaded: number; total: number }) => void;
   }
 }

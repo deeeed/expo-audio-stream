@@ -4,19 +4,22 @@ React Native wrapper for [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) pr
 
 **Status: 🚧 In Development**
 
-✅ **Native Integration Testing**: Complete framework with 100% test success rate  
-✅ **Model Management**: Lightweight strategy for CI to production environments  
-✅ **Cross-Platform**: Android support validated, iOS structure in place  
+✅ **Native Integration Testing**: Complete framework with 100% test success rate
+✅ **Model Management**: Lightweight strategy for CI to production environments
+✅ **Cross-Platform**: Android and iOS support validated
+✅ **Web/WASM**: All features work in the browser via WebAssembly
 ⏳ **Architecture Support**: Old/New React Native architecture compatibility planned
 
 ## Features
 
-- Speech-to-text (STT) using Sherpa-ONNX
-- Streaming recognition support
-- Low-level API for direct access to Sherpa-ONNX capabilities
+- Text-to-speech (TTS) — VITS, Kokoro, Matcha models
+- Speech-to-text (STT) — offline and streaming recognition
+- Voice activity detection (VAD), keyword spotting (KWS)
+- Speaker identification, language identification, audio tagging
+- Speaker diarization, punctuation restoration, speech denoising
 - Support for both old and new React Native architectures
 - Pre-built native libraries for Android and iOS
-- **Web/WASM support** — all 10 features work in the browser via a combined WebAssembly build
+- **Web/WASM support** — all features work in the browser via a combined WebAssembly build
 
 ## Installation
 
@@ -48,174 +51,128 @@ cd ios && pod install
 
 Android integration is handled automatically by the package.
 
-## React Native Compatibility
+### Web
 
-This module is compatible with both the old and new React Native architectures. See [COMPATIBILITY.md](./COMPATIBILITY.md) for details on how this is achieved and considerations when using this module.
+Web works **zero-config** — the WASM inference engine (~12.6 MB, similar to Android `.so` files) loads automatically from jsDelivr CDN and is browser-cached after first load.
+
+```typescript
+import { loadWasmModule, isSherpaOnnxReady } from '@siteed/sherpa-onnx.rn';
+import { Platform } from 'react-native';
+
+if (Platform.OS === 'web') {
+  // Fire-and-forget — UI renders immediately, WASM loads in background
+  loadWasmModule({
+    onProgress: (event) => {
+      console.log(`[WASM] ${event.phase} (${event.loaded}/${event.total})`);
+    },
+  });
+}
+
+// Later: await readiness with waitForReady(), or poll with isSherpaOnnxReady()
+// Services like ASR.initialize() internally await WASM — no manual gating needed.
+```
+
+Self-hosting (optional): copy files from `node_modules/@siteed/sherpa-onnx.rn/wasm/` and call `configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' })`.
+
+See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide including `onProgress`, loading indicators, and model configuration.
 
 ## Usage
 
 ### Text-to-Speech (TTS)
 
-This example demonstrates how to use the TTS functionality:
-
 ```typescript
-import SherpaOnnx, { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
-import { Audio } from 'expo-av';
-import { Platform } from 'react-native';
+import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import type { TtsModelConfig } from '@siteed/sherpa-onnx.rn';
 
-// Initialize TTS
-const initTts = async () => {
-  try {
-    // First validate the library is loaded
-    const validateResult = await SherpaOnnx.validateLibraryLoaded();
-    if (!validateResult.loaded) {
-      throw new Error(`Library validation failed: ${validateResult.status}`);
-    }
-    
-    // Configure TTS with your model
-    const modelConfig: TtsModelConfig = {
-      modelDir: 'assets/tts/kokoro-en-v0_19',
-      modelName: 'model.onnx',
-      voices: 'voices.bin',
-      dataDir: 'assets/tts/kokoro-en-v0_19/espeak-ng-data',
-    };
-    
-    // Initialize TTS
-    const initResult = await SherpaOnnx.initTts(modelConfig);
-    console.log(`TTS initialized with ${initResult.numSpeakers} speakers at ${initResult.sampleRate}Hz`);
-    return initResult;
-  } catch (error) {
-    console.error('Failed to initialize TTS:', error);
-    throw error;
-  }
+// Initialize TTS with a Kokoro model
+const config: TtsModelConfig = {
+  modelDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/`,
+  ttsModelType: 'kokoro',
+  modelFile: 'model.onnx',
+  tokensFile: 'tokens.txt',
+  voicesFile: 'voices.bin',
+  dataDir: `${FileSystem.documentDirectory}models/kokoro-en-v0_19/espeak-ng-data`,
 };
+
+const initResult = await SherpaOnnx.TTS.initialize(config);
+console.log(`TTS ready: ${initResult.numSpeakers} speakers, ${initResult.sampleRate}Hz`);
 
 // Generate speech
-const generateSpeech = async (text: string) => {
-  try {
-    // Generate TTS without playing (we'll play with Expo AV)
-    const result = await SherpaOnnx.generateTts(text, {
-      speakerId: 0,
-      speakingRate: 1.0,
-      playAudio: false
-    });
-    
-    // Play with Expo AV
-    const { sound } = await Audio.Sound.createAsync({ 
-      uri: Platform.OS === 'ios' ? result.filePath : `file://${result.filePath}` 
-    });
-    await sound.playAsync();
-    
-    return { sound, result };
-  } catch (error) {
-    console.error('Failed to generate speech:', error);
-    throw error;
-  }
-};
+const result = await SherpaOnnx.TTS.generateSpeech('Hello world', {
+  speakerId: 0,
+  speakingRate: 1.0,
+  playAudio: false,
+});
+console.log('Audio file:', result.filePath);
 
-// Clean up resources
-const cleanup = async () => {
-  await SherpaOnnx.releaseTts();
-};
+// Clean up
+await SherpaOnnx.TTS.release();
 ```
 
-### Basic Speech-to-Text
+### Speech-to-Text (Offline)
 
 ```typescript
-import { SherpaOnnxAPI } from '@siteed/sherpa-onnx.rn';
+import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 
-// Initialize the API
-const sherpaOnnx = new SherpaOnnxAPI({
-  modelPath: '/path/to/models',
-  sampleRate: 16000,
-  channels: 1,
-  language: 'en',
-});
+const config: AsrModelConfig = {
+  modelDir: `${FileSystem.documentDirectory}models/sherpa-onnx-whisper-tiny.en/`,
+  modelType: 'whisper',
+  streaming: false,
+  numThreads: 2,
+  decodingMethod: 'greedy_search',
+  modelFiles: {
+    encoder: 'tiny.en-encoder.int8.onnx',
+    decoder: 'tiny.en-decoder.int8.onnx',
+    tokens: 'tiny.en-tokens.txt',
+  },
+};
 
-// Initialize the recognizer
-await sherpaOnnx.initialize();
+await SherpaOnnx.ASR.initialize(config);
 
-// Convert speech to text from audio buffer
-const audioData = [...]; // Array of audio samples
-const result = await sherpaOnnx.speechToText(audioData);
+const result = await SherpaOnnx.ASR.recognizeFromFile('/path/to/audio.wav');
 console.log('Recognized text:', result.text);
 
-// Or from an audio file
-const fileResult = await sherpaOnnx.speechToText('/path/to/audio.wav');
-console.log('Recognized text from file:', fileResult.text);
-
-// Clean up when done
-await sherpaOnnx.release();
+await SherpaOnnx.ASR.release();
 ```
 
 ### Streaming Recognition
 
 ```typescript
-import { SherpaOnnxAPI } from '@siteed/sherpa-onnx.rn';
+import SherpaOnnx from '@siteed/sherpa-onnx.rn';
+import type { AsrModelConfig } from '@siteed/sherpa-onnx.rn';
 
-const sherpaOnnx = new SherpaOnnxAPI({
-  modelPath: '/path/to/models',
-  sampleRate: 16000,
-});
-
-// Initialize
-await sherpaOnnx.initialize();
-
-// Start streaming
-await sherpaOnnx.startStreaming();
-
-// Feed audio chunks
-const audioChunk = [...]; // Array of audio samples from microphone
-const partialResult = await sherpaOnnx.feedAudioContent(audioChunk);
-console.log('Partial result:', partialResult.text);
-
-// Stop streaming when done
-const finalResult = await sherpaOnnx.stopStreaming();
-console.log('Final result:', finalResult.text);
-
-// Clean up
-await sherpaOnnx.release();
-```
-
-### Low-level API
-
-For advanced usage, you can access the low-level API that maps directly to Sherpa-ONNX functions:
-
-```typescript
-import { NativeModules } from 'react-native';
-const { SherpaOnnx } = NativeModules;
-
-// Create a recognizer
-const config = {
-  sampleRate: 16000,
-  featureDim: 80,
-  modelType: 'transducer',
-  transducer: {
-    encoder: '/path/to/encoder.onnx',
-    decoder: '/path/to/decoder.onnx',
-    joiner: '/path/to/joiner.onnx',
+const config: AsrModelConfig = {
+  modelDir: `${FileSystem.documentDirectory}models/streaming-zipformer/`,
+  modelType: 'zipformer',
+  streaming: true,
+  numThreads: 2,
+  modelFiles: {
+    encoder: 'encoder-epoch-99-avg-1.int8.onnx',
+    decoder: 'decoder-epoch-99-avg-1.onnx',
+    joiner: 'joiner-epoch-99-avg-1.int8.onnx',
+    tokens: 'tokens.txt',
   },
-  tokens: '/path/to/tokens.txt',
-  enableEndpoint: true,
 };
 
-const recognizerId = await SherpaOnnx.createRecognizer(config);
+await SherpaOnnx.ASR.initialize(config);
+await SherpaOnnx.ASR.createOnlineStream();
 
-// Create a stream
-const streamId = await SherpaOnnx.createStream(recognizerId, '');
+// Feed audio chunks from microphone
+const samples = [...]; // Float32 PCM samples
+await SherpaOnnx.ASR.acceptWaveform(16000, samples);
 
-// Process audio
-const samples = [...]; // Float array of audio samples
-await SherpaOnnx.acceptWaveform(streamId, samples, 16000);
-await SherpaOnnx.decode(recognizerId, streamId);
+// Get partial result
+const result = await SherpaOnnx.ASR.getResult();
+console.log('Partial:', result.text);
 
-// Get results
-const result = await SherpaOnnx.getResult(recognizerId, streamId);
-console.log('Text:', result.text);
+// Check for endpoint (sentence boundary)
+const { isEndpoint } = await SherpaOnnx.ASR.isEndpoint();
+if (isEndpoint) {
+  await SherpaOnnx.ASR.resetStream();
+}
 
-// Clean up
-await SherpaOnnx.releaseStream(streamId);
-await SherpaOnnx.releaseRecognizer(recognizerId);
+await SherpaOnnx.ASR.release();
 ```
 
 ## Models
@@ -245,85 +202,41 @@ cd yourrepo/packages/sherpa-onnx.rn
 
 ## API Reference
 
-### Library Validation
+### Services
 
-#### `validateLibraryLoaded()`
+All services are accessed via the `SherpaOnnx` default export:
 
-Validates if the Sherpa ONNX library is properly loaded.
-
-**Returns:** Promise<ValidateResult>
-
-### Text-to-Speech
-
-#### `initTts(config: TtsModelConfig)`
-
-Initializes the TTS engine with the provided model configuration.
-
-**Parameters:**
-- `config`: TTS model configuration
-
-**Returns:** Promise<TtsInitResult>
-
-#### `generateTts(text: string, options?: TtsOptions)`
-
-Generates speech from the given text.
-
-**Parameters:**
-- `text`: Text to synthesize
-- `options`: TTS generation options (optional)
-
-**Returns:** Promise<TtsGenerateResult>
-
-#### `stopTts()`
-
-Stops any ongoing TTS generation.
-
-**Returns:** Promise<{ stopped: boolean; message?: string }>
-
-#### `releaseTts()`
-
-Releases TTS resources.
-
-**Returns:** Promise<{ released: boolean }>
-
-## Model Configuration
+- `SherpaOnnx.TTS` — Text-to-Speech (`initialize`, `generateSpeech`, `stopSpeech`, `release`)
+- `SherpaOnnx.ASR` — Speech-to-Text (`initialize`, `recognizeFromFile`, `recognizeFromSamples`, `createOnlineStream`, `acceptWaveform`, `getResult`, `isEndpoint`, `resetStream`, `release`)
+- `SherpaOnnx.VAD` — Voice Activity Detection
+- `SherpaOnnx.SpeakerId` — Speaker Identification
+- `SherpaOnnx.KWS` — Keyword Spotting
+- `SherpaOnnx.AudioTagging` — Audio Event Classification
+- `SherpaOnnx.LanguageId` — Spoken Language Identification
+- `SherpaOnnx.Punctuation` — Punctuation Restoration
+- `SherpaOnnx.Diarization` — Speaker Diarization
+- `SherpaOnnx.Archive` — Model archive extraction (`extractTarBz2`)
+- `SherpaOnnx.validateLibraryLoaded()` — Check native library status
 
 ### TtsModelConfig
 
 ```typescript
 interface TtsModelConfig {
-  // Directory containing model files
-  modelDir: string;
-  
-  // Model file name for VITS models
-  modelName?: string;
-  
-  // Acoustic model file name for Matcha models
-  acousticModelName?: string;
-  
-  // Vocoder file name for Matcha models
-  vocoder?: string;
-  
-  // Voices file name for Kokoro models
-  voices?: string;
-  
-  // Lexicon file name
-  lexicon?: string;
-  
-  // Data directory path
-  dataDir?: string;
-  
-  // Dictionary directory path
-  dictDir?: string;
-  
-  // Rule FSTs file paths (comma-separated)
-  ruleFsts?: string;
-  
-  // Rule FARs file paths (comma-separated)
-  ruleFars?: string;
-  
-  // Number of threads to use for processing
-  numThreads?: number;
+  modelDir: string;              // Directory containing model files
+  ttsModelType: 'vits' | 'kokoro' | 'matcha';
+  modelFile: string;             // Primary model file (e.g., model.onnx)
+  tokensFile: string;            // Tokens file (e.g., tokens.txt)
+  voicesFile?: string;           // Voices file for Kokoro models
+  vocoderFile?: string;          // Vocoder file for Matcha models
+  lexiconFile?: string;          // Lexicon file
+  dataDir?: string;              // Data directory (espeak-ng-data)
+  dictDir?: string;              // Dictionary directory
+  lang?: string;                 // Language code for multi-lingual Kokoro
+  ruleFstsFile?: string;         // Rule FSTs file paths
+  ruleFarsFile?: string;         // Rule FARs file paths
+  numThreads?: number;           // Default: 1
+  debug?: boolean;               // Default: false
+  provider?: 'cpu' | 'gpu';     // Default: 'cpu'
 }
 ```
 
@@ -348,22 +261,18 @@ For iOS, ensure that:
 - **[Web/WASM Guide](docs/WEB.md)** - How to deploy on web: setup, model customization, feature selection
 - **[WASM Build Guide](docs/WASM_BUILD.md)** - Building the WASM binary from source
 - **[Testing Framework](docs/testing/)** - Native integration testing documentation
-- **[Architecture](docs/architecture/)** - React Native architecture support and planning
-- **[Integration](docs/integration/)** - Platform integration guides
-- **[Compatibility](COMPATIBILITY.md)** - React Native version and platform compatibility
 
 ## Development Status
 
 ### ✅ Completed
 - Native integration testing framework (12 tests, 100% success rate)
 - Model management strategy for testing environments
-- Android native library integration validation
+- Android and iOS native library integration validated
+- Web/WASM support for all features
 - Cross-platform documentation structure
 
 ### ⏳ In Progress / Planned
 - React Native architecture-specific validation (Old vs New Architecture)
-- Real ONNX model functionality testing
-- iOS integration validation
 
 ## Contributing
 

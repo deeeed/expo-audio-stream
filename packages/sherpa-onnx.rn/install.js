@@ -27,9 +27,6 @@ const SCRIPT_DIR = __dirname;
 const PREBUILT_DIR = path.join(SCRIPT_DIR, 'prebuilt');
 const DOWNLOAD_PATH = path.join(SCRIPT_DIR, 'sherpa-onnx-binaries.zip');
 
-// Check if we are in a monorepo
-const isMonorepo = existsSync(path.join(SCRIPT_DIR, '..', '..', 'package.json'));
-
 /**
  * Creates a directory if it doesn't exist
  */
@@ -127,12 +124,12 @@ async function install() {
   
   ensureDirExists(PREBUILT_DIR);
   
-  // Skip installation if running in CI or in monorepo (assuming build scripts will be run manually)
-  if (process.env.CI || isMonorepo) {
-    console.log('Running in CI or monorepo, skipping automatic download.');
+  // Allow explicit opt-out for developers who build locally
+  if (process.env.SKIP_SHERPA_DOWNLOAD === '1') {
+    console.log('SKIP_SHERPA_DOWNLOAD=1, skipping download.');
     return;
   }
-  
+
   // Check if prebuilt libs already exist
   if (prebuiltLibsExist()) {
     console.log('Prebuilt libraries already exist, skipping download.');
@@ -145,7 +142,21 @@ async function install() {
     
     // Extract the zip file
     extractZip(DOWNLOAD_PATH, SCRIPT_DIR);
-    
+
+    // Fix modulemap if the prebuilt zip has the wrong onnxruntime header path
+    const modulemapPath = path.join(PREBUILT_DIR, 'include', 'module.modulemap');
+    if (existsSync(modulemapPath)) {
+      let content = fs.readFileSync(modulemapPath, 'utf8');
+      if (content.includes('onnxruntime/core/session/onnxruntime_c_api.h')) {
+        content = content.replace(
+          'onnxruntime/core/session/onnxruntime_c_api.h',
+          'onnxruntime/onnxruntime_c_api.h'
+        );
+        fs.writeFileSync(modulemapPath, content, 'utf8');
+        console.log('Fixed module.modulemap onnxruntime header path.');
+      }
+    }
+
     // Clean up the zip file
     fs.unlinkSync(DOWNLOAD_PATH);
     

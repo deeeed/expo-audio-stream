@@ -160,6 +160,12 @@ config.resolver = {
                     monorepoRoot + '/packages/audio-studio/src/index.ts',
                 type: 'sourceFile',
             }
+        } else if (moduleName === '@siteed/sherpa-onnx.rn') {
+            return {
+                filePath:
+                    monorepoRoot + '/packages/sherpa-onnx.rn/src/index.ts',
+                type: 'sourceFile',
+            }
             // } else if (moduleName === "react" || moduleName === "react-dom") {
             //     // console.log(
             //     //   `Resolving ${moduleName} to ${path.resolve(projectRoot, `node_modules/${moduleName}`)}`,

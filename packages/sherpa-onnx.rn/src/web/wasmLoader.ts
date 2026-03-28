@@ -1,34 +1,99 @@
 import type { SherpaOnnxNamespace } from './wasmTypes';
 
+// Read version from package.json.  Relative path differs between source (src/web/)
+// and compiled output (lib/*/web/), so try both depths.
+let WASM_VERSION = '0.0.0';
+try {
+  // Works from lib/module/web/ and lib/commonjs/web/ (3 dirs up)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  WASM_VERSION = require('../../../package.json').version;
+} catch {
+  try {
+    // Works from src/web/ (2 dirs up) — used by Metro web bundler
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    WASM_VERSION = require('../../package.json').version;
+  } catch {
+    // Fallback — CDN will use "latest" tag equivalent
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Global configuration
+// ---------------------------------------------------------------------------
+
+/** Default CDN for the WASM runtime — jsDelivr serves files from the npm tarball. */
+const DEFAULT_WASM_CDN =
+  `https://cdn.jsdelivr.net/npm/@siteed/sherpa-onnx.rn@${WASM_VERSION}/wasm/`;
+
+export interface SherpaOnnxConfig {
+  /** Base URL for WASM runtime files (JS glue + .wasm binary + feature modules).
+   *  Must end with '/'. Can be a local path or remote URL (e.g. CDN, HuggingFace).
+   *  If not set, auto-detects from the Expo bundle script tag or falls back to jsDelivr CDN. */
+  wasmBasePath?: string;
+}
+
+let _globalConfig: SherpaOnnxConfig = {};
+
+/** Configure global settings for @siteed/sherpa-onnx.rn.
+ *  Call this before any WASM-dependent API (e.g. validateLibraryLoaded, ASR, TTS).
+ *  @example
+ *  configureSherpaOnnx({ wasmBasePath: '/my-local-wasm/' });
+ */
+export function configureSherpaOnnx(config: SherpaOnnxConfig): void {
+  _globalConfig = { ..._globalConfig, ...config };
+}
+
+export function getSherpaOnnxConfig(): Readonly<SherpaOnnxConfig> {
+  return _globalConfig;
+}
+
 // ---------------------------------------------------------------------------
 // Legacy WASM loader (used by main-sherpa-demo.ts to set modulePaths)
 // ---------------------------------------------------------------------------
+
+export interface WasmLoadProgressEvent {
+  phase: 'wasm-binary' | 'runtime-init' | 'module' | 'ready';
+  /** Only set when phase === 'module'. */
+  module?: string;
+  /** Number of modules loaded so far. */
+  loaded: number;
+  /** Total number of modules. */
+  total: number;
+}
 
 export interface WasmLoadOptions {
   mainScriptUrl?: string;
   modulePaths?: string[];
   debug?: boolean;
+  /** Called during WASM loading to report progress through each phase. */
+  onProgress?: (event: WasmLoadProgressEvent) => void;
 }
 
-/** Detect the WASM base path from the Expo bundle script tag. */
+/** Detect the WASM base path from global config, Expo bundle script tag, or CDN. */
 function detectWasmBasePath(): string {
-  if (typeof document === 'undefined') return '/wasm/';
-  const scriptEl = document.querySelector<HTMLScriptElement>(
-    'script[src*="_expo/static"]'
-  );
-  if (scriptEl?.src) {
-    try {
-      const url = new URL(scriptEl.src);
-      const idx = url.pathname.indexOf('_expo/static');
-      if (idx > 0) return url.pathname.substring(0, idx) + 'wasm/';
-    } catch { /* fall through */ }
+  // 1. Explicit config takes priority
+  if (_globalConfig.wasmBasePath) return _globalConfig.wasmBasePath;
+  // 2. Auto-detect from Expo bundle (local dev / production with local wasm files)
+  if (typeof document !== 'undefined') {
+    const scriptEl = document.querySelector<HTMLScriptElement>(
+      'script[src*="_expo/static"]'
+    );
+    if (scriptEl?.src) {
+      try {
+        const url = new URL(scriptEl.src);
+        const idx = url.pathname.indexOf('_expo/static');
+        if (idx > 0) return url.pathname.substring(0, idx) + 'wasm/';
+      } catch { /* fall through */ }
+    }
   }
-  return '/wasm/';
+  // 3. Default to CDN — works zero-config for external consumers
+  return DEFAULT_WASM_CDN;
 }
 
 let _legacyLoaded = false;
 let _legacyLoading = false;
 let _legacyCallbacks: ((loaded: boolean) => void)[] = [];
+let _readyResolvers: ((loaded: boolean) => void)[] = [];
 
 function notifyLegacyReady(loaded: boolean): void {
   _legacyCallbacks.forEach((cb) => {
@@ -39,6 +104,33 @@ function notifyLegacyReady(loaded: boolean): void {
     }
   });
   _legacyCallbacks = [];
+  // Also resolve any waitForReady() callers
+  _readyResolvers.forEach((cb) => {
+    try {
+      cb(loaded);
+    } catch (_e) {
+      /* ignore */
+    }
+  });
+  _readyResolvers = [];
+}
+
+/**
+ * Returns a promise that resolves when the WASM runtime is fully loaded.
+ * Safe to call at any time — if WASM is already loaded, resolves immediately.
+ * Use this in React components to await readiness without polling.
+ *
+ * @example
+ * ```ts
+ * const loaded = await waitForReady();
+ * if (loaded) { // WASM is ready, show feature UI }
+ * ```
+ */
+export function waitForReady(): Promise<boolean> {
+  if (_legacyLoaded) return Promise.resolve(true);
+  return new Promise<boolean>((resolve) => {
+    _readyResolvers.push(resolve);
+  });
 }
 
 /**
@@ -66,13 +158,33 @@ export const loadWasmModule = async (
     }
 
     if (options?.modulePaths?.length) {
-      (window as any).sherpaOnnxModulePaths = options.modulePaths;
+      const base = detectWasmBasePath();
+      (window as any).sherpaOnnxModulePaths = options.modulePaths.map((p) =>
+        p.startsWith('http') || p.startsWith('/') ? p : base + p
+      );
     }
+
+    const totalModules = (window as any).sherpaOnnxModulePaths?.length ?? 11;
+
+    // Store progress callback on window so sherpa-onnx-combined.js can call it
+    if (options?.onProgress) {
+      (window as any)._sherpaOnnxProgressCallback = options.onProgress;
+    }
+
+    // Load the WASM binary glue first — this creates window.Module
+    // (the Emscripten runtime). Must be loaded before the orchestrator
+    // script which depends on Module being present.
+    options?.onProgress?.({ phase: 'wasm-binary', loaded: 0, total: totalModules });
+    const wasmBase = detectWasmBasePath();
+    await loadScriptTag(wasmBase + 'sherpa-onnx-wasm-combined.js');
+    options?.onProgress?.({ phase: 'runtime-init', loaded: 0, total: totalModules });
 
     return new Promise<boolean>((resolve) => {
       (window as any).onSherpaOnnxReady = (loaded: boolean) => {
         _legacyLoaded = loaded;
         _legacyLoading = false;
+        options?.onProgress?.({ phase: 'ready', loaded: totalModules, total: totalModules });
+        delete (window as any)._sherpaOnnxProgressCallback;
         notifyLegacyReady(loaded);
         resolve(loaded);
       };

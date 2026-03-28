@@ -98,7 +98,7 @@ module CSherpaOnnx {
 }
 
 module COnnxRuntime {
-    header "onnxruntime/core/session/onnxruntime_c_api.h"
+    header "onnxruntime/onnxruntime_c_api.h"
     export *
 }
 EOL
