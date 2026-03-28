@@ -490,6 +490,7 @@ export interface AsrModelConfig {
     | 'fire_red_asr'
     | 'moonshine'
     | 'sense_voice'
+    | 'dolphin'
     | 'zipformer'
     | 'lstm'
     | 'zipformer2';
@@ -512,8 +513,8 @@ export interface AsrModelConfig {
    *
    * IMPORTANT: Some model types only support one mode:
    * - Offline only: 'whisper', 'paraformer', 'nemo_ctc', 'nemo_transducer',
-   *   'moonshine', 'sense_voice', 'fire_red_asr', 'tdnn', 'telespeech_ctc',
-   *   'wenet_ctc', 'zipformer2_ctc', 'lstm'
+   *   'moonshine', 'sense_voice', 'fire_red_asr', 'dolphin', 'tdnn',
+   *   'telespeech_ctc', 'wenet_ctc', 'zipformer2_ctc', 'lstm'
    * - Both modes: 'transducer', 'zipformer', 'zipformer2'
    *
    * Models with "streaming" in their name from the sherpa-onnx model zoo are

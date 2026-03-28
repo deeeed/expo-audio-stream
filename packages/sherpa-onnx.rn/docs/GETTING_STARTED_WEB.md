@@ -148,6 +148,7 @@ These process complete audio in one pass via `recognizeFromSamples()` / `recogni
 | `paraformer` | model.onnx, tokens.txt |
 | `sense_voice` | model.onnx, tokens.txt |
 | `fire_red_asr` | encoder.onnx, decoder.onnx, tokens.txt |
+| `dolphin` | model.onnx, tokens.txt |
 | `nemo_ctc` / `nemo_transducer` | model.onnx, tokens.txt |
 | `tdnn` / `telespeech_ctc` / `wenet_ctc` / `zipformer2_ctc` | model.onnx, tokens.txt |
 | `transducer` variants (with `streaming: false`) | encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt |

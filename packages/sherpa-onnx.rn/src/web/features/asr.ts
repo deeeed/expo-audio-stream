@@ -21,12 +21,18 @@ import { type Constructor, withDownloadProgress } from './mixinUtils';
  */
 const OFFLINE_ONLY_TYPES: ReadonlySet<string> = new Set([
   'whisper',
+  'paraformer',
+  'nemo_ctc',
+  'nemo_transducer',
   'moonshine',
   'sense_voice',
   'fire_red_asr',
   'dolphin',
   'tdnn',
   'telespeech_ctc',
+  'wenet_ctc',
+  'zipformer2_ctc',
+  'lstm',
 ]);
 
 /**
@@ -36,12 +42,7 @@ function toOnlineLoadType(rawType: string): string {
   switch (rawType) {
     case 'zipformer':
     case 'zipformer2':
-    case 'nemo_transducer':
       return 'transducer';
-    case 'nemo_ctc':
-    case 'wenet_ctc':
-    case 'zipformer2_ctc':
-      return 'ctc';
     default:
       return rawType;
   }
