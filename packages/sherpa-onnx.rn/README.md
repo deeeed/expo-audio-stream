@@ -12,12 +12,14 @@ React Native wrapper for [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) pr
 
 ## Features
 
-- Speech-to-text (STT) using Sherpa-ONNX
-- Streaming recognition support
-- Low-level API for direct access to Sherpa-ONNX capabilities
+- Text-to-speech (TTS) — VITS, Kokoro, Matcha models
+- Speech-to-text (STT) — offline and streaming recognition
+- Voice activity detection (VAD), keyword spotting (KWS)
+- Speaker identification, language identification, audio tagging
+- Speaker diarization, punctuation restoration, speech denoising
 - Support for both old and new React Native architectures
 - Pre-built native libraries for Android and iOS
-- **Web/WASM support** — all 10 features work in the browser via a combined WebAssembly build
+- **Web/WASM support** — all features work in the browser via a combined WebAssembly build
 
 ## Installation
 
@@ -73,10 +75,6 @@ if (Platform.OS === 'web') {
 Self-hosting (optional): copy files from `node_modules/@siteed/sherpa-onnx.rn/wasm/` and call `configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' })`.
 
 See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide including `onProgress`, loading indicators, and model configuration.
-
-## React Native Compatibility
-
-This module is compatible with both the old and new React Native architectures. See [COMPATIBILITY.md](./COMPATIBILITY.md) for details on how this is achieved and considerations when using this module.
 
 ## Usage
 
@@ -263,9 +261,6 @@ For iOS, ensure that:
 - **[Web/WASM Guide](docs/WEB.md)** - How to deploy on web: setup, model customization, feature selection
 - **[WASM Build Guide](docs/WASM_BUILD.md)** - Building the WASM binary from source
 - **[Testing Framework](docs/testing/)** - Native integration testing documentation
-- **[Architecture](docs/architecture/)** - React Native architecture support and planning
-- **[Integration](docs/integration/)** - Platform integration guides
-- **[Compatibility](COMPATIBILITY.md)** - React Native version and platform compatibility
 
 ## Development Status
 

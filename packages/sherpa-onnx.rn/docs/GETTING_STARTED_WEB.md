@@ -79,7 +79,11 @@ await ASR.initialize({
   modelBaseUrl: 'https://huggingface.co/deeeed/sherpa-voice-models/resolve/main/asr',
 });
 
-const result = await ASR.recognizeFromFile(fileUri);
+await ASR.createOnlineStream();
+
+// Feed audio chunks (e.g. from microphone)
+await ASR.acceptWaveform(16000, samples);
+const result = await ASR.getResult();
 console.log(result.text);
 
 await ASR.release();
@@ -127,13 +131,11 @@ When `modelBaseUrl` is set, model files are fetched from that URL at init time a
 
 ### Online (streaming) models
 
-These support real-time streaming via `createAsrOnlineStream()`:
+These support real-time streaming via `ASR.createOnlineStream()`:
 
 | `modelType` | Files needed |
 |---|---|
 | `transducer` / `zipformer` / `zipformer2` | encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt |
-| `paraformer` | encoder.onnx, decoder.onnx, tokens.txt |
-| `nemo_ctc` / `wenet_ctc` / `zipformer2_ctc` | model.onnx, tokens.txt |
 
 ### Offline (non-streaming) models
 
@@ -143,12 +145,11 @@ These process complete audio in one pass via `recognizeFromSamples()` / `recogni
 |---|---|
 | `whisper` | encoder.onnx, decoder.onnx, tokens.txt |
 | `moonshine` | preprocessor.onnx, encoder.onnx, uncached_decoder.onnx, cached_decoder.onnx, tokens.txt |
+| `paraformer` | model.onnx, tokens.txt |
 | `sense_voice` | model.onnx, tokens.txt |
 | `fire_red_asr` | encoder.onnx, decoder.onnx, tokens.txt |
-| `dolphin` | model.onnx, tokens.txt |
-| `tdnn` | model.onnx, tokens.txt |
-| `telespeech_ctc` | model.onnx, tokens.txt |
-| `paraformer` (with `streaming: false`) | model.onnx, tokens.txt |
+| `nemo_ctc` / `nemo_transducer` | model.onnx, tokens.txt |
+| `tdnn` / `telespeech_ctc` / `wenet_ctc` / `zipformer2_ctc` | model.onnx, tokens.txt |
 | `transducer` variants (with `streaming: false`) | encoder.onnx, decoder.onnx, joiner.onnx, tokens.txt |
 
 ### Model sources
@@ -175,13 +176,6 @@ modelFiles: {
   decoder: 'decoder-int8.onnx',
 }
 ```
-
-## Full Example
-
-See the [demo-audiolab](https://github.com/nickhitos/demo-audiolab) project for a complete working example:
-
-- `index.ts` — WASM preloading (fire-and-forget with `onProgress`)
-- `app/(tabs)/stt.tsx` — ASR with remote model URL
 
 ## Troubleshooting
 

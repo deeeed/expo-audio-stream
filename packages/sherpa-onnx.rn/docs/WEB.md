@@ -109,7 +109,7 @@ await loadWasmModule({
 import SherpaOnnx from '@siteed/sherpa-onnx.rn';
 
 // Works identically on iOS, Android, and web
-const result = await SherpaOnnx.initVad({
+await SherpaOnnx.VAD.init({
   modelDir: '/wasm/vad',
   modelFile: 'silero_vad.onnx',
 });
@@ -206,7 +206,7 @@ All model IDs are defined in `src/hooks/useModelConfig.ts` (`MODEL_CONFIGS`). He
 If you just want to replace model files without changing the model ID (e.g., a newer version of the same architecture):
 
 1. Replace files in `public/wasm/{feature}/`
-2. No code changes needed — `initAsr()` loads from the same paths
+2. No code changes needed — `ASR.initialize()` loads from the same paths
 
 ### Using `web-models.config.json`
 
@@ -274,9 +274,10 @@ Run `./scripts/download-web-models.sh` to fetch and extract all models, or `./sc
 If you serve models from a different URL structure, pass the path in the init config:
 
 ```typescript
-await SherpaOnnx.initAsr({
+await SherpaOnnx.ASR.initialize({
   modelDir: '/my-custom-path/asr',  // ← your custom path
   modelType: 'transducer',
+  streaming: true,
   // ...
 });
 ```
