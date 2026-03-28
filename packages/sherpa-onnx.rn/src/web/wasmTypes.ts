@@ -477,5 +477,6 @@ declare global {
     onSherpaOnnxReady?: (success: boolean) => void;
     _sherpaOnnxCombinedLoaded?: boolean;
     _sherpaOnnxLoadingPromise?: Promise<void>;
+    _sherpaOnnxProgressCallback?: (event: { phase: string; module?: string; loaded: number; total: number }) => void;
   }
 }

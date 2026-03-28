@@ -53,14 +53,25 @@ Android integration is handled automatically by the package.
 Web works **zero-config** — the WASM inference engine (~12.6 MB, similar to Android `.so` files) loads automatically from jsDelivr CDN and is browser-cached after first load.
 
 ```typescript
-import { configureSherpaOnnx } from '@siteed/sherpa-onnx.rn';
+import { loadWasmModule, isSherpaOnnxReady } from '@siteed/sherpa-onnx.rn';
+import { Platform } from 'react-native';
 
-// Zero-config: WASM loads from jsDelivr CDN automatically.
-// No setup needed — just call the APIs.
+if (Platform.OS === 'web') {
+  // Fire-and-forget — UI renders immediately, WASM loads in background
+  loadWasmModule({
+    onProgress: (event) => {
+      console.log(`[WASM] ${event.phase} (${event.loaded}/${event.total})`);
+    },
+  });
+}
 
-// Self-hosting (optional): copy files from node_modules/@siteed/sherpa-onnx.rn/wasm/
-configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' });
+// Later: await readiness with waitForReady(), or poll with isSherpaOnnxReady()
+// Services like ASR.initialize() internally await WASM — no manual gating needed.
 ```
+
+Self-hosting (optional): copy files from `node_modules/@siteed/sherpa-onnx.rn/wasm/` and call `configureSherpaOnnx({ wasmBasePath: '/your/wasm/path/' })`.
+
+See **[Getting Started: Web](docs/GETTING_STARTED_WEB.md)** for the full guide including `onProgress`, loading indicators, and model configuration.
 
 ## React Native Compatibility
 

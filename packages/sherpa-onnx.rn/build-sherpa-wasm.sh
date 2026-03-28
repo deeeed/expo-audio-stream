@@ -328,6 +328,18 @@ if [ "$BUILD_TYPE" = "combined" ]; then
       cp "$SHERPA_COMBINED_DIR"/sherpa-onnx-*.wasm "$PKG_WASM_DIR/"
       echo -e "${GREEN}Combined WASM copied to $PKG_WASM_DIR${NC}"
     fi
+    # Copy tracked JS orchestrator + feature modules from wasm-src/ into
+    # both wasm/ (npm) and demo app.  These are hand-authored JS files that
+    # wrap the emscripten C bindings and are version-controlled in wasm-src/.
+    WASM_SRC_DIR="$SCRIPT_DIR/wasm-src"
+    if [ -d "$WASM_SRC_DIR" ]; then
+      echo -e "${BLUE}Copying JS modules from wasm-src/ to wasm/ and demo app...${NC}"
+      cp "$WASM_SRC_DIR"/*.js "$PKG_WASM_DIR/"
+      if [ -d "$DEMO_WASM_DIR" ]; then
+        cp "$WASM_SRC_DIR"/*.js "$DEMO_WASM_DIR/"
+      fi
+      echo -e "${GREEN}JS modules copied from wasm-src/${NC}"
+    fi
   else
     FAILED_MODULES+=("combined")
     OVERALL_SUCCESS=false

@@ -12,24 +12,56 @@ yarn add @siteed/sherpa-onnx.rn
 npm install @siteed/sherpa-onnx.rn
 ```
 
-## 1. Load WASM at App Startup
+## 1. Load WASM at App Startup (Non-blocking)
 
-Call `loadWasmModule()` in your app entry point. This fetches the ~12 MB WASM binary from jsDelivr CDN and compiles it. It only needs to run once.
+Call `loadWasmModule()` fire-and-forget in your app entry point — **do not await it**. This fetches the ~12 MB WASM binary from jsDelivr CDN and compiles it in the background while your app renders immediately.
 
 ```typescript
-// index.ts (or App.tsx — before registerRootComponent)
-import { loadWasmModule } from '@siteed/sherpa-onnx.rn';
+// index.ts (or main entry point)
+import { loadWasmModule, isSherpaOnnxReady } from '@siteed/sherpa-onnx.rn';
+import { registerRootComponent } from 'expo';
 import { Platform } from 'react-native';
+import App from './App';
 
-async function initializeApp() {
-  if (Platform.OS === 'web') {
-    await loadWasmModule({ debug: true });
-  }
-  // register your root component...
+if (Platform.OS === 'web') {
+  // Fire-and-forget — UI renders immediately
+  loadWasmModule({
+    debug: true,
+    onProgress: (event) => {
+      // Phases: wasm-binary → runtime-init → module (×N) → ready
+      console.log(`[WASM] ${event.phase} (${event.loaded}/${event.total})`);
+    },
+  }).then((loaded) => {
+    console.log('WASM ready:', loaded);
+  });
 }
+
+// Register immediately — no waiting for WASM
+registerRootComponent(App);
 ```
 
 The WASM runtime is served automatically from jsDelivr (matching your installed package version). No need to copy files to `public/`.
+
+### Loading Indicator Component
+
+Use `waitForReady()` to await WASM readiness in React components — no polling needed:
+
+```typescript
+import { waitForReady } from '@siteed/sherpa-onnx.rn';
+import { useEffect, useState } from 'react';
+
+function useSherpaReady() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    waitForReady().then((loaded) => setReady(loaded));
+  }, []);
+  return ready;
+}
+```
+
+`waitForReady()` resolves immediately if WASM is already loaded, or waits for it to finish. You can also use `isSherpaOnnxReady()` for synchronous polling if preferred.
+
+Services like `ASR.initialize()` internally await the WASM runtime via `loadCombinedWasm()`, so you don't need to gate on readiness before calling them — they will wait automatically.
 
 ## 2. Use ASR (Speech-to-Text)
 
@@ -148,12 +180,14 @@ modelFiles: {
 
 See the [demo-audiolab](https://github.com/nickhitos/demo-audiolab) project for a complete working example:
 
-- `index.ts` — WASM preloading
+- `index.ts` — WASM preloading (fire-and-forget with `onProgress`)
 - `app/(tabs)/stt.tsx` — ASR with remote model URL
 
 ## Troubleshooting
 
-**"Loading WASM..." stays for a long time**: The ~12 MB WASM binary takes time to download and compile on first visit. Subsequent visits use the browser cache.
+**Blank screen on startup**: If you `await loadWasmModule()` before `registerRootComponent()`, the page will be blank until WASM finishes loading. Use the fire-and-forget pattern shown above instead.
+
+**"Loading WASM..." stays for a long time**: The ~12 MB WASM binary takes time to download and compile on first visit. Subsequent visits use the browser cache. Use the `onProgress` callback to show progress in your UI.
 
 **ASR.initialize() hangs**: Check browser console for 404 errors on model files. Verify your `modelBaseUrl` serves the required files for your model type.
 
