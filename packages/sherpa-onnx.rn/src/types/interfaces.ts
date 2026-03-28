@@ -496,7 +496,7 @@ export interface AsrModelConfig {
   numThreads?: number;
   decodingMethod?: 'greedy_search' | 'beam_search';
   maxActivePaths?: number;
-  modelFiles: {
+  modelFiles?: {
     encoder?: string;
     decoder?: string;
     joiner?: string;

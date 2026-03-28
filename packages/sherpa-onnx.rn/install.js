@@ -142,7 +142,21 @@ async function install() {
     
     // Extract the zip file
     extractZip(DOWNLOAD_PATH, SCRIPT_DIR);
-    
+
+    // Fix modulemap if the prebuilt zip has the wrong onnxruntime header path
+    const modulemapPath = path.join(PREBUILT_DIR, 'include', 'module.modulemap');
+    if (existsSync(modulemapPath)) {
+      let content = fs.readFileSync(modulemapPath, 'utf8');
+      if (content.includes('onnxruntime/core/session/onnxruntime_c_api.h')) {
+        content = content.replace(
+          'onnxruntime/core/session/onnxruntime_c_api.h',
+          'onnxruntime/onnxruntime_c_api.h'
+        );
+        fs.writeFileSync(modulemapPath, content, 'utf8');
+        console.log('Fixed module.modulemap onnxruntime header path.');
+      }
+    }
+
     // Clean up the zip file
     fs.unlinkSync(DOWNLOAD_PATH);
     
