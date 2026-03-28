@@ -3,14 +3,22 @@ buildscript {
         rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
     }
 
+    ext.getKotlinVersion = {
+        if (ext.has("kotlinVersion")) {
+            ext.kotlinVersion()
+        } else {
+            ext.safeExtGet("kotlinVersion", "1.8.10")
+        }
+    }
+
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:7.2.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0")
+        classpath("com.android.tools.build:gradle:${safeExtGet('agpVersion', '7.2.1')}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${getKotlinVersion()}")
     }
 }
 
@@ -101,10 +109,10 @@ repositories {
 
 dependencies {
     // Kotlin standard library must come first - this is critical
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.0"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-common:1.8.0"
-    implementation "org.jetbrains.kotlin:kotlin-reflect:1.8.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${getKotlinVersion()}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${getKotlinVersion()}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-common:${getKotlinVersion()}"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:${getKotlinVersion()}"
     
     // React Native dependencies
     implementation "com.facebook.react:react-native:${REACT_NATIVE_VERSION}"

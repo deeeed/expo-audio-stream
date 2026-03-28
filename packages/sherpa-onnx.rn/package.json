@@ -26,6 +26,7 @@
     "ios",
     "cpp",
     "wasm",
+    "docs",
     "*.podspec",
     "react-native.config.js",
     "install.js",
