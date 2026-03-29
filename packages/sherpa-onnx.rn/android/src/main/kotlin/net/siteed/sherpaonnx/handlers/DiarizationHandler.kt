@@ -3,6 +3,7 @@
  */
 package net.siteed.sherpaonnx.handlers
 
+import android.os.Debug
 import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -10,6 +11,7 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReactApplicationContext
 import com.k2fsa.sherpa.onnx.FastClusteringConfig
 import com.k2fsa.sherpa.onnx.OfflineSpeakerDiarization
+import com.k2fsa.sherpa.onnx.OfflineSpeakerDiarizationCallback
 import com.k2fsa.sherpa.onnx.OfflineSpeakerDiarizationConfig
 import com.k2fsa.sherpa.onnx.OfflineSpeakerSegmentationModelConfig
 import com.k2fsa.sherpa.onnx.OfflineSpeakerSegmentationPyannoteModelConfig
@@ -19,6 +21,8 @@ import net.siteed.sherpaonnx.utils.AssetUtils
 import net.siteed.sherpaonnx.utils.AudioExtractor
 import java.io.File
 import java.util.concurrent.Executors
+import java.lang.Integer
+import kotlin.math.max
 
 class DiarizationHandler(private val reactContext: ReactApplicationContext) {
 
@@ -110,11 +114,24 @@ class DiarizationHandler(private val reactContext: ReactApplicationContext) {
 
                 val cleanedFilePath = AssetUtils.cleanFilePath(filePath)
                 Log.i(TAG, "Processing file for diarization: $cleanedFilePath")
+                val expectedSampleRate = sd!!.sampleRate()
+                logMemorySnapshot("before-audio-extract")
 
-                val audioData = AudioExtractor.extractAudioFromFile(File(cleanedFilePath))
+                val audioData = AudioExtractor.extractAudioFromFile(
+                    file = File(cleanedFilePath),
+                    targetSampleRate = expectedSampleRate,
+                )
                     ?: throw Exception("Failed to extract audio from file")
 
-                Log.i(TAG, "Audio extracted: ${audioData.samples.size} samples at ${audioData.sampleRate}Hz")
+                Log.i(
+                    TAG,
+                    "Audio extracted: ${audioData.samples.size} samples at ${audioData.sampleRate}Hz (model expects ${expectedSampleRate}Hz)",
+                )
+                Log.i(
+                    TAG,
+                    "Audio duration prepared for diarization: ${audioData.samples.size.toDouble() / audioData.sampleRate.toDouble()}s",
+                )
+                logMemorySnapshot("after-audio-extract")
 
                 // Update clustering config if non-default values passed
                 if (numClusters != -1 || threshold != 0.5f) {
@@ -125,10 +142,37 @@ class DiarizationHandler(private val reactContext: ReactApplicationContext) {
                 }
 
                 val startTime = System.currentTimeMillis()
-                val segments = sd!!.process(audioData.samples)
+                var lastProgressBucket = -1
+                val progressBucketSize = 5
+                val progressCallback = OfflineSpeakerDiarizationCallback { processedChunks, totalChunks, _ ->
+                    val safeTotalChunks = max(totalChunks, 1)
+                    val progressPercent = ((processedChunks * 100.0f) / safeTotalChunks.toFloat()).toInt()
+                    val currentBucket = progressPercent / progressBucketSize
+                    if (
+                        processedChunks == 1 ||
+                        processedChunks >= safeTotalChunks ||
+                        currentBucket > lastProgressBucket
+                    ) {
+                        lastProgressBucket = currentBucket
+                        val elapsedMs = System.currentTimeMillis() - startTime
+                        Log.i(
+                            TAG,
+                            "Diarization progress: ${processedChunks}/${safeTotalChunks} chunks (${progressPercent}%) after ${elapsedMs}ms",
+                        )
+                        if (progressPercent >= 50 && progressPercent % 25 == 0) {
+                            logMemorySnapshot("progress-${progressPercent}")
+                        }
+                    }
+                    Integer.valueOf(0)
+                }
+                val segments = sd!!.processWithCallback(
+                    samples = audioData.samples,
+                    callback = progressCallback,
+                )
                 val durationMs = System.currentTimeMillis() - startTime
 
                 Log.i(TAG, "Diarization complete: ${segments.size} segments in ${durationMs}ms")
+                logMemorySnapshot("after-diarization")
 
                 val segmentsArray = Arguments.createArray()
                 val speakerSet = mutableSetOf<Int>()
@@ -186,5 +230,16 @@ class DiarizationHandler(private val reactContext: ReactApplicationContext) {
         } catch (e: Exception) {
             Log.e(TAG, "Error in releaseResources: ${e.message}")
         }
+    }
+
+    private fun logMemorySnapshot(stage: String) {
+        val runtime = Runtime.getRuntime()
+        val javaUsedBytes = runtime.totalMemory() - runtime.freeMemory()
+        val javaMaxBytes = runtime.maxMemory()
+        val nativeBytes = Debug.getNativeHeapAllocatedSize()
+        Log.i(
+            TAG,
+            "Memory[$stage]: javaUsedMb=${javaUsedBytes / (1024 * 1024)} javaMaxMb=${javaMaxBytes / (1024 * 1024)} nativeMb=${nativeBytes / (1024 * 1024)}",
+        )
     }
 }

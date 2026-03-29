@@ -65,7 +65,7 @@ class OfflineSpeakerDiarization(
 
     fun processWithCallback(
         samples: FloatArray,
-        callback: (numProcessedChunks: Int, numTotalChunks: Int, arg: Long) -> Int,
+        callback: OfflineSpeakerDiarizationCallback,
         arg: Long = 0,
     ) = processWithCallback(ptr, samples, callback, arg)
 
@@ -92,7 +92,7 @@ class OfflineSpeakerDiarization(
     private external fun processWithCallback(
         ptr: Long,
         samples: FloatArray,
-        callback: (numProcessedChunks: Int, numTotalChunks: Int, arg: Long) -> Int,
+        callback: OfflineSpeakerDiarizationCallback,
         arg: Long,
     ): Array<OfflineSpeakerDiarizationSegment>
 

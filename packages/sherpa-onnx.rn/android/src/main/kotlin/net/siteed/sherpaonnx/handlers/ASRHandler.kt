@@ -9,6 +9,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.WritableMap
 import net.siteed.sherpaonnx.SherpaOnnxImpl
 import net.siteed.sherpaonnx.utils.AssetUtils
 import net.siteed.sherpaonnx.utils.AudioExtractor
@@ -71,6 +72,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         private const val DEFAULT_DECODING_METHOD = "greedy_search"
         private const val DEFAULT_MAX_ACTIVE_PATHS = 4
         private const val DEFAULT_CHUNK_SIZE_MS = 50
+        private const val OFFLINE_WHISPER_MAX_WINDOW_SECONDS = 29
     }
     
     /**
@@ -767,12 +769,17 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         Log.i(TAG, "Starting speech recognition with ${audioBuffer.size()} samples at $sampleRate Hz")
         executor.execute {
             try {
-                if (isStreaming) {
+                val samples = audioBufferToFloatArray(audioBuffer)
+                val resultMap = if (isStreaming) {
                     Log.i(TAG, "Using streaming recognition mode")
-                    recognizeFromSamplesStreaming(sampleRate, audioBuffer, promise)
+                    recognizeFromFloatSamplesStreaming(sampleRate, samples)
                 } else {
                     Log.i(TAG, "Using offline recognition mode")
-                    recognizeFromSamplesOffline(sampleRate, audioBuffer, promise)
+                    recognizeFromFloatSamplesOffline(sampleRate, samples)
+                }
+
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error recognizing from samples: ${e.message}")
@@ -785,21 +792,31 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         }
     }
     
-    /**
-     * Recognize speech from audio samples using offline recognition
-     */
-    private fun recognizeFromSamplesOffline(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+    private fun shouldChunkOfflineWhisper(samplesLength: Int, sampleRate: Int): Boolean {
+        if (isStreaming || sampleRate <= 0) {
+            return false
+        }
+
+        val modelType = asrModelConfig?.getString("modelType") ?: return false
+        if (modelType != "whisper") {
+            return false
+        }
+
+        return samplesLength > sampleRate * OFFLINE_WHISPER_MAX_WINDOW_SECONDS
+    }
+
+    private fun isOfflineWhisperModel(): Boolean {
+        if (isStreaming) {
+            return false
+        }
+        return asrModelConfig?.getString("modelType") == "whisper"
+    }
+
+    private fun recognizeSingleOfflineWindow(sampleRate: Int, samples: FloatArray): WritableMap {
         try {
             if (offlineRecognizer == null) {
                 Log.e(TAG, "Offline ASR is not initialized")
                 throw Exception("Offline ASR is not initialized")
-            }
-            
-            Log.i(TAG, "Converting audio buffer to float array")
-            // Convert ReadableArray to FloatArray
-            val samples = FloatArray(audioBuffer.size())
-            for (i in 0 until audioBuffer.size()) {
-                samples[i] = audioBuffer.getDouble(i).toFloat()
             }
             
             Log.i(TAG, "Creating offline stream")
@@ -839,24 +856,133 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             resultMap.putString("text", result?.text ?: "")
             resultMap.putInt("samplesLength", samples.size)
             resultMap.putInt("sampleRate", sampleRate)
-            
-            reactContext.runOnUiQueueThread {
-                promise.resolve(resultMap)
-            }
+            return resultMap
         } catch (e: Exception) {
             Log.e(TAG, "Error recognizing from samples (offline): ${e.message}")
             e.printStackTrace()
-            
-            reactContext.runOnUiQueueThread {
-                promise.reject("ERR_ASR_RECOGNIZE", "Failed to recognize speech (offline): ${e.message}")
-            }
+            throw e
         }
+    }
+
+    /**
+     * Recognize speech from audio samples using offline recognition.
+     *
+     * Whisper's offline recognizer only handles windows shorter than 30 seconds.
+     * For longer buffers, decode sequential sub-30s windows and join the text.
+     */
+    private fun recognizeFromFloatSamplesOffline(sampleRate: Int, samples: FloatArray): WritableMap {
+        if (!shouldChunkOfflineWhisper(samples.size, sampleRate)) {
+            return recognizeSingleOfflineWindow(sampleRate, samples)
+        }
+
+        val samplesPerWindow = sampleRate * OFFLINE_WHISPER_MAX_WINDOW_SECONDS
+        val totalWindows = (samples.size + samplesPerWindow - 1) / samplesPerWindow
+        Log.i(
+            TAG,
+            "Chunking offline Whisper recognition into $totalWindows windows " +
+                "(${OFFLINE_WHISPER_MAX_WINDOW_SECONDS}s each, ${samples.size} samples total)",
+        )
+
+        val transcriptParts = mutableListOf<String>()
+        var offset = 0
+        var windowIndex = 0
+
+        while (offset < samples.size) {
+            val end = minOf(offset + samplesPerWindow, samples.size)
+            val windowSamples = samples.copyOfRange(offset, end)
+            windowIndex += 1
+
+            Log.i(
+                TAG,
+                "Decoding offline Whisper window $windowIndex/$totalWindows " +
+                    "(samples ${offset + 1}..$end of ${samples.size})",
+            )
+
+            val windowResult = recognizeSingleOfflineWindow(sampleRate, windowSamples)
+            val windowText = windowResult.getString("text")?.trim().orEmpty()
+            if (windowText.isNotEmpty()) {
+                transcriptParts.add(windowText)
+            }
+
+            offset = end
+        }
+
+        val fullText = transcriptParts.joinToString(" ").trim()
+        Log.i(TAG, "Chunked offline Whisper recognition completed with ${fullText.length} characters")
+
+        val resultMap = Arguments.createMap()
+        resultMap.putBoolean("success", true)
+        resultMap.putString("text", fullText)
+        resultMap.putInt("samplesLength", samples.size)
+        resultMap.putInt("sampleRate", sampleRate)
+        resultMap.putInt("chunkCount", totalWindows)
+        return resultMap
+    }
+
+    private fun recognizeOfflineWhisperFileInWindows(
+        file: File,
+        durationUs: Long,
+    ): WritableMap {
+        val windowDurationUs = OFFLINE_WHISPER_MAX_WINDOW_SECONDS * 1_000_000L
+        val totalWindows = ((durationUs + windowDurationUs - 1) / windowDurationUs).toInt()
+        Log.i(
+            TAG,
+            "Chunking offline Whisper file extraction into $totalWindows windows " +
+                "(${OFFLINE_WHISPER_MAX_WINDOW_SECONDS}s each, durationUs=$durationUs)",
+        )
+
+        val transcriptParts = mutableListOf<String>()
+        var offsetUs = 0L
+        var totalSamples = 0
+        var sampleRate = 0
+        var windowIndex = 0
+
+        while (offsetUs < durationUs) {
+            val audioData = AudioExtractor.extractAudioWindowFromFile(
+                file = file,
+                startTimeUs = offsetUs,
+                maxDurationUs = windowDurationUs,
+            ) ?: throw Exception("Failed to extract audio window starting at ${offsetUs}us")
+
+            if (audioData.samples.isEmpty()) {
+                throw Exception("Extracted empty audio window starting at ${offsetUs}us")
+            }
+
+            sampleRate = audioData.sampleRate
+            totalSamples += audioData.samples.size
+            windowIndex += 1
+
+            Log.i(
+                TAG,
+                "Decoding extracted offline Whisper window $windowIndex/$totalWindows " +
+                    "(offsetUs=$offsetUs, samples=${audioData.samples.size})",
+            )
+
+            val windowResult = recognizeSingleOfflineWindow(audioData.sampleRate, audioData.samples)
+            val windowText = windowResult.getString("text")?.trim().orEmpty()
+            if (windowText.isNotEmpty()) {
+                transcriptParts.add(windowText)
+            }
+
+            offsetUs += windowDurationUs
+        }
+
+        val fullText = transcriptParts.joinToString(" ").trim()
+        Log.i(TAG, "Chunked offline Whisper file recognition completed with ${fullText.length} characters")
+
+        val resultMap = Arguments.createMap()
+        resultMap.putBoolean("success", true)
+        resultMap.putString("text", fullText)
+        resultMap.putInt("samplesLength", totalSamples)
+        resultMap.putInt("sampleRate", sampleRate)
+        resultMap.putInt("chunkCount", totalWindows)
+        return resultMap
     }
     
     /**
      * Recognize speech from audio samples using streaming recognition
      */
-    private fun recognizeFromSamplesStreaming(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+    private fun recognizeFromFloatSamplesStreaming(sampleRate: Int, samples: FloatArray): WritableMap {
         try {
             if (onlineRecognizer == null) {
                 Log.e(TAG, "Streaming ASR is not initialized")
@@ -870,13 +996,6 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             if (onlineStream == null) {
                 Log.e(TAG, "Failed to create stream")
                 throw Exception("Failed to create stream")
-            }
-            
-            Log.i(TAG, "Converting audio buffer to float array")
-            // Convert ReadableArray to FloatArray
-            val samples = FloatArray(audioBuffer.size())
-            for (i in 0 until audioBuffer.size()) {
-                samples[i] = audioBuffer.getDouble(i).toFloat()
             }
             
             // Calculate samples per chunk using the default chunk size
@@ -934,6 +1053,7 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             // Release stream so the next file recognition gets a fresh one
             onlineStream?.release()
             onlineStream = null
+            isRecognizing = false
 
             // Return results
             val resultMap = Arguments.createMap()
@@ -941,7 +1061,49 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             resultMap.putString("text", fullText)
             resultMap.putInt("samplesLength", samples.size)
             resultMap.putInt("sampleRate", sampleRate)
+            return resultMap
+        } catch (e: Exception) {
+            Log.e(TAG, "Error recognizing from samples (streaming): ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
 
+    private fun audioBufferToFloatArray(audioBuffer: ReadableArray): FloatArray {
+        val samples = FloatArray(audioBuffer.size())
+        for (i in 0 until audioBuffer.size()) {
+            samples[i] = audioBuffer.getDouble(i).toFloat()
+        }
+        return samples
+    }
+
+    /**
+     * Recognize speech from audio samples using offline recognition
+     */
+    private fun recognizeFromSamplesOffline(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        try {
+            val samples = audioBufferToFloatArray(audioBuffer)
+            val resultMap = recognizeFromFloatSamplesOffline(sampleRate, samples)
+            reactContext.runOnUiQueueThread {
+                promise.resolve(resultMap)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error recognizing from samples (offline): ${e.message}")
+            e.printStackTrace()
+            
+            reactContext.runOnUiQueueThread {
+                promise.reject("ERR_ASR_RECOGNIZE", "Failed to recognize speech (offline): ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Recognize speech from audio samples using streaming recognition
+     */
+    private fun recognizeFromSamplesStreaming(sampleRate: Int, audioBuffer: ReadableArray, promise: Promise) {
+        try {
+            val samples = audioBufferToFloatArray(audioBuffer)
+            val resultMap = recognizeFromFloatSamplesStreaming(sampleRate, samples)
             reactContext.runOnUiQueueThread {
                 promise.resolve(resultMap)
             }
@@ -965,31 +1127,41 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 // Create File object from path
                 val fileObj = File(AssetUtils.cleanFilePath(filePath))
                 Log.i(TAG, "Using file: ${fileObj.absolutePath}")
-                
-                // Extract audio from file
-                Log.i(TAG, "Extracting audio from file")
-                val audioData = AudioExtractor.extractAudioFromFile(fileObj)
-                
-                // Handle potential null audio data safely
-                if (audioData == null) {
-                    Log.e(TAG, "Failed to extract audio from file")
-                    throw Exception("Failed to extract audio from file")
+
+                val durationUs = if (isOfflineWhisperModel()) {
+                    AudioExtractor.getAudioDurationUs(fileObj)
+                } else {
+                    null
                 }
-                
-                // Use safe calls to get samples and sample rate
-                val samples = audioData.samples
-                val sampleRate = audioData.sampleRate
-                Log.i(TAG, "Extracted ${samples.size} samples at $sampleRate Hz")
-                
-                // Create ReadableArray from samples for compatibility with recognizeFromSamples
-                val buffer = Arguments.createArray()
-                for (sample in samples) {
-                    buffer.pushDouble(sample.toDouble())
+
+                val windowDurationUs = OFFLINE_WHISPER_MAX_WINDOW_SECONDS * 1_000_000L
+                val resultMap = if (durationUs != null && durationUs > windowDurationUs) {
+                    recognizeOfflineWhisperFileInWindows(fileObj, durationUs)
+                } else {
+                    Log.i(TAG, "Extracting audio from file")
+                    val audioData = AudioExtractor.extractAudioFromFile(fileObj)
+
+                    if (audioData == null) {
+                        Log.e(TAG, "Failed to extract audio from file")
+                        throw Exception("Failed to extract audio from file")
+                    }
+
+                    val samples = audioData.samples
+                    val sampleRate = audioData.sampleRate
+                    Log.i(TAG, "Extracted ${samples.size} samples at $sampleRate Hz")
+
+                    if (isStreaming) {
+                        Log.i(TAG, "Recognizing extracted samples with streaming mode")
+                        recognizeFromFloatSamplesStreaming(sampleRate, samples)
+                    } else {
+                        Log.i(TAG, "Recognizing extracted samples with offline mode")
+                        recognizeFromFloatSamplesOffline(sampleRate, samples)
+                    }
                 }
-                
-                // Recognize using the existing method
-                Log.i(TAG, "Forwarding to recognizeFromSamples")
-                recognizeFromSamples(sampleRate, buffer, promise)
+
+                reactContext.runOnUiQueueThread {
+                    promise.resolve(resultMap)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error recognizing from file: ${e.message}")
                 e.printStackTrace()

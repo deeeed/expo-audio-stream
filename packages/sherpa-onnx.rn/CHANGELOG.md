@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-03-30
+
+### Fixed
+- **Android**: Offline Whisper now chunks long files into 29-second windows instead of truncating after ~30 seconds
+- **Android**: File-window extraction (`extractAudioWindowFromFile`) prevents OOM on long-file ASR by decoding only the needed segment
+- **Android**: Diarization extraction resamples to the model's native sample rate (e.g. 48 kHz -> 16 kHz), avoiding 3x oversized float buffers
+- **Android**: Skip redundant buffer copy when extracted audio is already at exact final size, eliminating a hidden ~115 MB allocation on long files
+- **Android**: JNI callback interface (`OfflineSpeakerDiarizationCallback.java`) matches the native `invoke(IIJ)Ljava/lang/Integer;` signature, fixing SIGABRT on first diarization progress callback
+
 ## [1.1.0] - 2026-03-28
 
 ### Added
@@ -63,7 +72,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.1...HEAD
+[1.1.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0...@siteed/sherpa-onnx.rn@1.1.1
 [1.1.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...@siteed/sherpa-onnx.rn@1.1.0
 [1.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.2.0...@siteed/sherpa-onnx.rn@1.0.0
 [0.2.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.1.0...@siteed/sherpa-onnx.rn@0.2.0

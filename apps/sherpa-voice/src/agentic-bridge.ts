@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import SherpaOnnx, {
     ASR,
     AudioTagging,
+    Diarization,
     KWS,
     LanguageId,
     Punctuation,
@@ -24,6 +25,8 @@ import { router, type Href } from 'expo-router'
 import { AudioStudioModule } from '@siteed/audio-studio'
 import { LegacyEventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
+import { getWasmBasePath } from './config/webFeatures'
+import { getWebModelBaseUrl } from './utils/webModelUtils'
 import {
     DEFAULT_LIVE_SAMPLE_RATE,
     MODEL_STATES_STORAGE_KEY,
@@ -348,6 +351,92 @@ if (__DEV__) {
                     _lastAsyncResult = { op, status: 'success', result }
                 } catch (e) {
                     _lastAsyncResult = { op, status: 'error', error: String(e) }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testDiarizationFile: (filePath?: string, numClusters = -1) => {
+            const op = 'diarizationFile'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                const timing: Record<string, number> = {}
+                try {
+                    if (!filePath) {
+                        throw new Error(
+                            'testDiarizationFile requires a filePath. Pass a browser-reachable audio URL.'
+                        )
+                    }
+
+                    const threshold = 0.5
+
+                    if (Platform.OS === 'web') {
+                        const wasmBase = getWasmBasePath()
+                        const t0 = Date.now()
+                        const initResult = await Diarization.init({
+                            segmentationModelDir: `${wasmBase}speakers`,
+                            embeddingModelFile: `${wasmBase}speaker-id/model.onnx`,
+                            modelBaseUrl: getWebModelBaseUrl('diarization'),
+                            numThreads: 1,
+                            numClusters,
+                            threshold,
+                        })
+                        timing.initMs = Date.now() - t0
+                        if (!initResult.success) {
+                            throw new Error(
+                                initResult.error ||
+                                    'Failed to initialize diarization'
+                            )
+                        }
+                    } else {
+                        throw new Error(
+                            'testDiarizationFile is currently intended for web validation only'
+                        )
+                    }
+
+                    const t1 = Date.now()
+                    const result = await Diarization.processFile(
+                        filePath,
+                        numClusters,
+                        threshold
+                    )
+                    timing.processMs = Date.now() - t1
+                    if (!result.success) {
+                        throw new Error(
+                            result.error || 'Diarization processing failed'
+                        )
+                    }
+
+                    const t2 = Date.now()
+                    await Diarization.release()
+                    timing.releaseMs = Date.now() - t2
+
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            filePath,
+                            numClusters,
+                            threshold,
+                            timing,
+                            numSpeakers: result.numSpeakers,
+                            segmentCount: result.segments.length,
+                            durationMs: result.durationMs,
+                            segments: result.segments.slice(0, 10),
+                        },
+                    }
+                } catch (e) {
+                    try {
+                        await Diarization.release()
+                    } catch {
+                        // ignore cleanup errors in agentic helper
+                    }
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { timing, filePath, numClusters },
+                    }
                 }
             })()
             return { op, status: 'pending' }
