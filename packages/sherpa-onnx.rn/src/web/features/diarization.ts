@@ -1,12 +1,14 @@
-import { loadCombinedWasm } from '../wasmLoader';
+import { loadCombinedWasm, detectWasmBasePath } from '../wasmLoader';
 import { fetchAndDecodeAudio } from '../audioUtils';
 import type { OfflineSpeakerDiarizationInstance } from '../wasmTypes';
 import type { DiarizationFileInput } from '../../types/api';
 import { type Constructor, withDownloadProgress } from './mixinUtils';
+import { WasmWorkerManager } from '../workers/WasmWorkerManager';
 
 export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     public diarization: OfflineSpeakerDiarizationInstance | null = null;
+    public diarizationWorker: WasmWorkerManager | null = null;
 
     async initDiarization(config: any): Promise<{
       success: boolean;
@@ -14,6 +16,33 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       error?: string;
     }> {
       try {
+        const debug = config?.debug ? 1 : 0;
+        const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
+        const fetchBase = config?.modelBaseUrl || modelDir;
+
+        // Try worker path first for non-blocking inference
+        if (WasmWorkerManager.shouldUse()) {
+          try {
+            const mgr = new WasmWorkerManager('diarization');
+            const result = await mgr.init(detectWasmBasePath(), {
+              modelDir,
+              fetchBase,
+              debug,
+              segmentationFile: `${fetchBase}/segmentation.onnx`,
+              embeddingFile: `${fetchBase}/embedding.onnx`,
+              numClusters: config?.numClusters ?? -1,
+              threshold: config?.threshold ?? 0.5,
+              minDurationOn: config?.minDurationOn,
+              minDurationOff: config?.minDurationOff,
+            });
+            this.diarizationWorker = mgr;
+            console.log(`[Diarization] Worker initialized: sampleRate=${result.sampleRate}`);
+            return { success: true, sampleRate: result.sampleRate };
+          } catch (e) {
+            console.warn('[Diarization] Worker init failed, falling back to main thread:', e);
+          }
+        }
+
         await loadCombinedWasm();
 
         if (!window.SherpaOnnx.SpeakerDiarization) {
@@ -24,17 +53,11 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
           };
         }
 
-        const debug = config?.debug ? 1 : 0;
         const numThreads = 1; // WASM is single-threaded
 
         console.log(
           `[Diarization] Loading models (threads=${numThreads}, debug=${debug})...`
         );
-        // Web-only: config.modelDir is set to '/wasm/speakers' by ModelManagement
-        // (createWebDiarizationModelState in constants.ts), pointing to model files
-        // pre-served by download-web-models.sh. Native Diarization uses the TurboModule.
-        const modelDir = config?.modelDir || config?.segmentationModelDir || '/wasm/speakers';
-        const fetchBase = config?.modelBaseUrl || modelDir;
 
         const loadedModel = await withDownloadProgress(config?.onProgress, () =>
           window.SherpaOnnx.SpeakerDiarization!.loadModel({
@@ -84,7 +107,7 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       durationMs: number;
       error?: string;
     }> {
-      if (!this.diarization) {
+      if (!this.diarization && !this.diarizationWorker) {
         return {
           success: false,
           segments: [],
@@ -96,17 +119,36 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
       try {
         const startMs = performance.now();
 
+        // On web, filePath is a URL — fetch and decode
+        const { samples } = await fetchAndDecodeAudio(filePath);
+
+        // Worker path — non-blocking inference
+        if (this.diarizationWorker) {
+          const result = await this.diarizationWorker.process(
+            { samples, numClusters, threshold },
+            [samples.buffer]
+          );
+          const durationMs = performance.now() - startMs;
+          const speakerSet = new Set(
+            result.segments.map((s: { speaker: number }) => s.speaker)
+          );
+          return {
+            success: true,
+            segments: result.segments,
+            numSpeakers: speakerSet.size,
+            durationMs,
+          };
+        }
+
+        // Main-thread fallback
         // Update clustering config if params changed
         if (numClusters !== -1 || threshold !== 0.5) {
-          this.diarization.setConfig({
+          this.diarization!.setConfig({
             clustering: { numClusters, threshold },
           });
         }
 
-        // On web, filePath is a URL — fetch and decode
-        const { samples } = await fetchAndDecodeAudio(filePath);
-
-        const segments = this.diarization.process(samples);
+        const segments = this.diarization!.process(samples);
         const durationMs = performance.now() - startMs;
 
         // Count unique speakers
@@ -131,6 +173,10 @@ export function DiarizationMixin<TBase extends Constructor>(Base: TBase) {
     }
 
     async releaseDiarization(): Promise<{ released: boolean }> {
+      if (this.diarizationWorker) {
+        await this.diarizationWorker.release();
+        this.diarizationWorker = null;
+      }
       if (this.diarization) {
         try {
           this.diarization.free();

@@ -21,6 +21,7 @@ public/wasm/
   sherpa-onnx-wasm-combined.wasm  # Compiled C++ (~12 MB)
   sherpa-onnx-combined.js         # Module orchestrator
   sherpa-onnx-core.js             # Filesystem utilities
+  sherpa-worker.js                # Web Worker for off-thread inference
 ```
 
 **Feature JS modules** (one per feature you use):
@@ -311,9 +312,9 @@ You don't need all 10 features. To reduce deployment size and load time:
 
 ## Web-Specific Constraints
 
-- **Single-threaded**: WASM runs on the main thread. Set `numThreads: 1` in all configs (the web implementation does this automatically).
-- **Memory**: The WASM binary uses `INITIAL_MEMORY=512MB` with `ALLOW_MEMORY_GROWTH=1`. This is browser memory, not a download.
-- **No background processing**: Unlike native, there are no worker threads for inference. Long operations (TTS generation, large file ASR) will block the UI briefly.
+- **Single-threaded WASM**: Each WASM instance is single-threaded (`numThreads: 1`). The web implementation sets this automatically.
+- **Web Worker offloading**: Batch operations (diarization, offline ASR, denoising) automatically use a Web Worker when available, keeping the UI responsive. If Workers are unavailable, inference falls back to the main thread silently. Streaming operations (live ASR, VAD, KWS) still run on the main thread.
+- **Memory**: The WASM binary uses `INITIAL_MEMORY=512MB` with `ALLOW_MEMORY_GROWTH=1`. This is browser memory, not a download. When a Web Worker is used, it loads its own WASM instance (separate memory).
 - **Model download on first visit**: Users download model files on their first visit. Consider showing progress indicators. Models are cached by the browser's HTTP cache.
 - **Live microphone**: Uses the Web Audio API via `expo-audio-studio`. Audio data arrives as `Int16Array` (not base64 string like native). The library handles this automatically, but if you process raw audio yourself, be aware of the format difference.
 

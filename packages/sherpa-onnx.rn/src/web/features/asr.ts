@@ -1,4 +1,4 @@
-import { loadCombinedWasm } from '../wasmLoader';
+import { loadCombinedWasm, detectWasmBasePath } from '../wasmLoader';
 import { decodeWav } from '../audioUtils';
 import type {
   OnlineRecognizer,
@@ -12,6 +12,7 @@ import type {
 } from '../../types/interfaces';
 import type { WaveformInput } from '../../types/api';
 import { type Constructor, withDownloadProgress } from './mixinUtils';
+import { WasmWorkerManager } from '../workers/WasmWorkerManager';
 
 /**
  * Model types that only support offline (non-streaming) recognition on web.
@@ -86,16 +87,95 @@ function furl(
   return `${fetchBase}/${mf?.[key] || defaultName}`;
 }
 
+interface OfflineAsrFile { url: string; fsPath: string }
+
+/**
+ * Pre-compute the file list and recognizer config for offline ASR without
+ * actually loading any files.  Used by the worker path so that all
+ * model-type-specific logic stays in TypeScript on the main thread.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildOfflineAsrPlan(
+  fetchBase: string,
+  modelDir: string,
+  rawType: string,
+  mf: AsrModelConfig['modelFiles'] | undefined,
+  opts: { debug: number; numThreads: number; sampleRate: number; decodingMethod: string; maxActivePaths: number }
+): { files: OfflineAsrFile[]; recognizerConfig: Record<string, any> } {
+  const files: OfflineAsrFile[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mc: Record<string, any> = {
+    numThreads: opts.numThreads,
+    debug: opts.debug,
+    provider: 'cpu',
+  };
+
+  // Helper to register a file and return its FS path
+  const f = (key: keyof NonNullable<AsrModelConfig['modelFiles']>, defaultName: string): string => {
+    const url = furl(fetchBase, mf, key, defaultName);
+    const fsPath = `${modelDir}/${mf?.[key] || defaultName}`;
+    files.push({ url, fsPath });
+    return fsPath;
+  };
+
+  mc.tokens = f('tokens', 'tokens.txt');
+
+  switch (rawType) {
+    case 'whisper':
+      mc.whisper = { encoder: f('encoder', 'encoder.onnx'), decoder: f('decoder', 'decoder.onnx'), language: '', task: 'transcribe' };
+      break;
+    case 'moonshine':
+      mc.moonshine = { preprocessor: f('preprocessor', 'preprocessor.onnx'), encoder: f('encoder', 'encoder.onnx'), uncachedDecoder: f('uncachedDecoder', 'uncached_decoder.onnx'), cachedDecoder: f('cachedDecoder', 'cached_decoder.onnx') };
+      break;
+    case 'sense_voice':
+      mc.senseVoice = { model: f('model', 'model.onnx'), language: '', useItn: false };
+      break;
+    case 'fire_red_asr':
+      mc.fireRedAsr = { encoder: f('encoder', 'encoder.onnx'), decoder: f('decoder', 'decoder.onnx') };
+      break;
+    case 'dolphin':
+      mc.dolphin = { model: f('model', 'model.onnx') };
+      break;
+    case 'tdnn':
+      mc.tdnn = { model: f('model', 'model.onnx') };
+      break;
+    case 'telespeech_ctc':
+      mc.telespeechCtc = f('model', 'model.onnx');
+      break;
+    case 'transducer': case 'zipformer': case 'zipformer2': case 'nemo_transducer':
+      mc.transducer = { encoder: f('encoder', 'encoder.onnx'), decoder: f('decoder', 'decoder.onnx'), joiner: f('joiner', 'joiner.onnx') };
+      break;
+    case 'paraformer':
+      mc.paraformer = { model: f('model', 'model.onnx') };
+      break;
+    case 'nemo_ctc': case 'wenet_ctc': case 'zipformer2_ctc':
+      mc.nemoCtc = { model: f('model', 'model.onnx') };
+      break;
+    default:
+      throw new Error(`Unsupported offline model type on web: ${rawType}`);
+  }
+
+  return {
+    files,
+    recognizerConfig: {
+      featConfig: { sampleRate: opts.sampleRate, featureDim: 80 },
+      modelConfig: mc,
+      lmConfig: { model: '', scale: 0 },
+      decodingMethod: opts.decodingMethod,
+      maxActivePaths: opts.maxActivePaths,
+    },
+  };
+}
+
 export function AsrMixin<TBase extends Constructor>(Base: TBase) {
   return class extends Base {
     public asrOnlineRecognizer: OnlineRecognizer | null = null;
     public asrOnlineStream: OnlineStream | null = null;
     public asrOfflineRecognizer: OfflineRecognizer | null = null;
+    public asrWorkerManager: WasmWorkerManager | null = null;
 
     async initAsr(config: AsrModelConfig): Promise<AsrInitResult> {
       try {
-        await loadCombinedWasm();
-
         const debug = config.debug ? 1 : 0;
         const numThreads = 1;
         const sampleRate = 16000;
@@ -117,6 +197,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
             rawType,
           });
         }
+        await loadCombinedWasm();
         return await this._initOnlineAsr(config, {
           debug,
           numThreads,
@@ -204,193 +285,47 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
         opts;
       const mf = config.modelFiles;
 
+      // Try worker path first for non-blocking offline inference
+      if (WasmWorkerManager.shouldUse()) {
+        try {
+          const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, mf, {
+            debug, numThreads, sampleRate,
+            decodingMethod: config.decodingMethod ?? 'greedy_search',
+            maxActivePaths: config.maxActivePaths ?? 4,
+          });
+          const mgr = new WasmWorkerManager('asr-offline');
+          await mgr.init(detectWasmBasePath(), {
+            modelDir,
+            debug,
+            files: plan.files,
+            recognizerConfig: plan.recognizerConfig,
+          });
+          this.asrWorkerManager = mgr;
+          console.log(`[ASR] Worker initialized for offline ${rawType}`);
+          return { success: true, sampleRate, modelType: rawType };
+        } catch (e) {
+          console.warn('[ASR] Worker init failed, falling back to main thread:', e);
+        }
+      }
+
+      await loadCombinedWasm();
       ensureDir(modelDir);
+
+      const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, mf, {
+        debug,
+        numThreads,
+        sampleRate,
+        decodingMethod: config.decodingMethod ?? 'greedy_search',
+        maxActivePaths: config.maxActivePaths ?? 4,
+      });
 
       const offlineConfig = await withDownloadProgress(
         config.onProgress,
         async () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const mc: Record<string, any> = {
-            numThreads,
-            debug,
-            provider: 'cpu',
-          };
-
-          // All model types need tokens
-          mc.tokens = await loadFile(
-            furl(fetchBase, mf, 'tokens', 'tokens.txt'),
-            `${modelDir}/tokens.txt`,
-            debug
-          );
-
-          // Load type-specific model files and populate config fields
-          // matching _initOfflineRecognizerConfig struct in sherpa-onnx-asr.js
-          switch (rawType) {
-            case 'whisper': {
-              const [enc, dec] = await Promise.all([
-                loadFile(
-                  furl(fetchBase, mf, 'encoder', 'encoder.onnx'),
-                  `${modelDir}/encoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'decoder', 'decoder.onnx'),
-                  `${modelDir}/decoder.onnx`,
-                  debug
-                ),
-              ]);
-              mc.whisper = {
-                encoder: enc,
-                decoder: dec,
-                language: '',
-                task: 'transcribe',
-              };
-              break;
-            }
-            case 'moonshine': {
-              const [prep, enc, uncDec, cDec] = await Promise.all([
-                loadFile(
-                  furl(fetchBase, mf, 'preprocessor', 'preprocessor.onnx'),
-                  `${modelDir}/preprocessor.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'encoder', 'encoder.onnx'),
-                  `${modelDir}/encoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'uncachedDecoder', 'uncached_decoder.onnx'),
-                  `${modelDir}/uncached_decoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'cachedDecoder', 'cached_decoder.onnx'),
-                  `${modelDir}/cached_decoder.onnx`,
-                  debug
-                ),
-              ]);
-              mc.moonshine = {
-                preprocessor: prep,
-                encoder: enc,
-                uncachedDecoder: uncDec,
-                cachedDecoder: cDec,
-              };
-              break;
-            }
-            case 'sense_voice': {
-              const model = await loadFile(
-                furl(fetchBase, mf, 'model', 'model.onnx'),
-                `${modelDir}/model.onnx`,
-                debug
-              );
-              mc.senseVoice = { model, language: '', useItn: false };
-              break;
-            }
-            case 'fire_red_asr': {
-              const [enc, dec] = await Promise.all([
-                loadFile(
-                  furl(fetchBase, mf, 'encoder', 'encoder.onnx'),
-                  `${modelDir}/encoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'decoder', 'decoder.onnx'),
-                  `${modelDir}/decoder.onnx`,
-                  debug
-                ),
-              ]);
-              mc.fireRedAsr = { encoder: enc, decoder: dec };
-              break;
-            }
-            case 'dolphin': {
-              const model = await loadFile(
-                furl(fetchBase, mf, 'model', 'model.onnx'),
-                `${modelDir}/model.onnx`,
-                debug
-              );
-              mc.dolphin = { model };
-              break;
-            }
-            case 'tdnn': {
-              const model = await loadFile(
-                furl(fetchBase, mf, 'model', 'model.onnx'),
-                `${modelDir}/model.onnx`,
-                debug
-              );
-              mc.tdnn = { model };
-              break;
-            }
-            case 'telespeech_ctc': {
-              mc.telespeechCtc = await loadFile(
-                furl(fetchBase, mf, 'model', 'model.onnx'),
-                `${modelDir}/model.onnx`,
-                debug
-              );
-              break;
-            }
-            // Transducer variants (offline mode)
-            case 'transducer':
-            case 'zipformer':
-            case 'zipformer2':
-            case 'nemo_transducer': {
-              const [enc, dec, join] = await Promise.all([
-                loadFile(
-                  furl(fetchBase, mf, 'encoder', 'encoder.onnx'),
-                  `${modelDir}/encoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'decoder', 'decoder.onnx'),
-                  `${modelDir}/decoder.onnx`,
-                  debug
-                ),
-                loadFile(
-                  furl(fetchBase, mf, 'joiner', 'joiner.onnx'),
-                  `${modelDir}/joiner.onnx`,
-                  debug
-                ),
-              ]);
-              mc.transducer = { encoder: enc, decoder: dec, joiner: join };
-              break;
-            }
-            // Paraformer (offline uses single model file, not encoder+decoder)
-            case 'paraformer': {
-              mc.paraformer = {
-                model: await loadFile(
-                  furl(fetchBase, mf, 'model', 'model.onnx'),
-                  `${modelDir}/model.onnx`,
-                  debug
-                ),
-              };
-              break;
-            }
-            // CTC variants
-            case 'nemo_ctc':
-            case 'wenet_ctc':
-            case 'zipformer2_ctc': {
-              mc.nemoCtc = {
-                model: await loadFile(
-                  furl(fetchBase, mf, 'model', 'model.onnx'),
-                  `${modelDir}/model.onnx`,
-                  debug
-                ),
-              };
-              break;
-            }
-            default:
-              throw new Error(
-                `Unsupported offline model type on web: ${rawType}`
-              );
+          for (const f of plan.files) {
+            await loadFile(f.url, f.fsPath, debug);
           }
-
-          return {
-            featConfig: { sampleRate, featureDim: 80 },
-            modelConfig: mc,
-            lmConfig: { model: '', scale: 0 },
-            decodingMethod: config.decodingMethod ?? 'greedy_search',
-            maxActivePaths: config.maxActivePaths ?? 4,
-          };
+          return plan.recognizerConfig;
         }
       );
 
@@ -430,17 +365,25 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       sampleRate,
       samples,
     }: WaveformInput): Promise<AsrRecognizeResult> {
+      const float32 = new Float32Array(samples);
+      if (this.asrWorkerManager) {
+        return this._recognizeWorker(sampleRate, float32);
+      }
       if (this.asrOfflineRecognizer) {
-        return this._recognizeOffline(sampleRate, new Float32Array(samples));
+        return this._recognizeOffline(sampleRate, float32);
       }
       if (!this.asrOnlineRecognizer) {
         return { success: false, text: '', error: 'ASR not initialized' };
       }
-      return this._recognizeOnline(sampleRate, new Float32Array(samples));
+      return this._recognizeOnline(sampleRate, float32);
     }
 
     async recognizeFromFile(filePath: string): Promise<AsrRecognizeResult> {
-      if (!this.asrOfflineRecognizer && !this.asrOnlineRecognizer) {
+      if (
+        !this.asrOfflineRecognizer &&
+        !this.asrOnlineRecognizer &&
+        !this.asrWorkerManager
+      ) {
         return { success: false, text: '', error: 'ASR not initialized' };
       }
       try {
@@ -455,6 +398,9 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
             'Unsupported audio format — only 16-bit PCM WAV is supported on web'
           );
         }
+        if (this.asrWorkerManager) {
+          return this._recognizeWorker(decoded.sampleRate, decoded.samples);
+        }
         if (this.asrOfflineRecognizer) {
           return this._recognizeOffline(decoded.sampleRate, decoded.samples);
         }
@@ -465,6 +411,21 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
           text: '',
           error: (error as Error).message,
         };
+      }
+    }
+
+    async _recognizeWorker(
+      sampleRate: number,
+      float32: Float32Array
+    ): Promise<AsrRecognizeResult> {
+      try {
+        const result = await this.asrWorkerManager!.process(
+          { samples: float32, sampleRate },
+          [float32.buffer]
+        );
+        return { success: true, text: result.text };
+      } catch (error) {
+        return { success: false, text: '', error: (error as Error).message };
       }
     }
 
@@ -510,6 +471,10 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
     }
 
     async releaseAsr(): Promise<{ released: boolean }> {
+      if (this.asrWorkerManager) {
+        await this.asrWorkerManager.release();
+        this.asrWorkerManager = null;
+      }
       if (this.asrOnlineStream) {
         try {
           this.asrOnlineStream.free();

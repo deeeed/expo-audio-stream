@@ -30,6 +30,8 @@ export interface SherpaOnnxConfig {
    *  Must end with '/'. Can be a local path or remote URL (e.g. CDN, HuggingFace).
    *  If not set, auto-detects from the Expo bundle script tag or falls back to jsDelivr CDN. */
   wasmBasePath?: string;
+  /** Set to false to disable Web Workers for inference (useful for debugging). Default: true. */
+  useWorker?: boolean;
 }
 
 let _globalConfig: SherpaOnnxConfig = {};
@@ -70,7 +72,7 @@ export interface WasmLoadOptions {
 }
 
 /** Detect the WASM base path from global config, Expo bundle script tag, or CDN. */
-function detectWasmBasePath(): string {
+export function detectWasmBasePath(): string {
   // 1. Explicit config takes priority
   if (_globalConfig.wasmBasePath) return _globalConfig.wasmBasePath;
   // 2. Auto-detect from Expo bundle (local dev / production with local wasm files)
