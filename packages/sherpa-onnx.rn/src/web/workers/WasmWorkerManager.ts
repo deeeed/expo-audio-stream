@@ -21,11 +21,13 @@ interface PendingRequest {
 
 let sharedWorker: Worker | null = null;
 let sharedRefCount = 0;
+let sharedWasmBasePath: string | null = null;
 const featureListeners = new Map<string, (msg: any) => void>();
 
 function acquireWorker(wasmBasePath: string): Worker {
   if (!sharedWorker) {
     sharedWorker = new Worker(wasmBasePath + 'sherpa-worker.js');
+    sharedWasmBasePath = wasmBasePath;
     sharedWorker.addEventListener('message', (e: MessageEvent) => {
       const feature = e.data?.feature;
       if (feature) featureListeners.get(feature)?.(e.data);
@@ -39,6 +41,10 @@ function acquireWorker(wasmBasePath: string): Worker {
         fn(errorMsg);
       }
     });
+  } else if (sharedWasmBasePath && wasmBasePath !== sharedWasmBasePath) {
+    console.warn(
+      `[WasmWorkerManager] wasmBasePath mismatch: existing="${sharedWasmBasePath}", requested="${wasmBasePath}". Reusing existing worker.`
+    );
   }
   sharedRefCount++;
   return sharedWorker;
@@ -51,6 +57,7 @@ function releaseWorker(feature: string): void {
     sharedWorker?.terminate();
     sharedWorker = null;
     sharedRefCount = 0;
+    sharedWasmBasePath = null;
   }
 }
 
@@ -63,6 +70,7 @@ export class WasmWorkerManager {
   private feature: string;
   private nextId = 0;
   private initialized = false;
+  private _cleaned = false;
   private _initResolve: ((result: any) => void) | null = null;
   private _initReject: ((error: Error) => void) | null = null;
   private _releaseResolve: (() => void) | null = null;
@@ -103,6 +111,7 @@ export class WasmWorkerManager {
         this._initResolve = null;
         this._initReject = null;
         this.initialized = true;
+        this._cleaned = false;
         resolve(result);
       };
 
@@ -127,7 +136,8 @@ export class WasmWorkerManager {
 
   async process(
     payload: Record<string, unknown>,
-    transferables?: Transferable[]
+    transferables?: Transferable[],
+    timeoutMs = 120_000
   ): Promise<any> {
     if (!sharedWorker || !this.initialized) {
       throw new Error(`Worker not initialized for ${this.feature}`);
@@ -136,7 +146,26 @@ export class WasmWorkerManager {
     const requestId = String(this.nextId++);
 
     return new Promise<any>((resolve, reject) => {
-      this.pending.set(requestId, { resolve, reject });
+      const timer = setTimeout(() => {
+        const pending = this.pending.get(requestId);
+        if (pending) {
+          this.pending.delete(requestId);
+          pending.reject(
+            new Error(`Worker process timeout for ${this.feature} (${timeoutMs}ms)`)
+          );
+        }
+      }, timeoutMs);
+
+      this.pending.set(requestId, {
+        resolve: (value: any) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (reason: any) => {
+          clearTimeout(timer);
+          reject(reason);
+        },
+      });
 
       sharedWorker!.postMessage(
         {
@@ -176,6 +205,8 @@ export class WasmWorkerManager {
   }
 
   private _cleanup(): void {
+    if (this._cleaned) return;
+    this._cleaned = true;
     for (const [, { reject }] of this.pending) {
       reject(new Error('Worker disposed'));
     }
