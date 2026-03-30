@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-03-30
+
+### Changed
+- **Web Worker**: Shared singleton worker — all features (ASR, TTS, VAD, diarization, denoising) share one Web Worker thread
+- **Web Worker**: `configureSherpaOnnx({ useWorker: false })` disables worker offloading for debugging
+- **Web Worker**: Lazy WASM load — WASM binary is fetched only on first feature use, not at import time
+- **Web Worker**: Configurable model filenames via worker init options
+- **Web Worker**: Clean transferable handling for Float32Array buffers across worker boundary
+- **Web Worker**: Bootstrap blob pattern — worker is always loaded via a tiny blob that `importScripts()` the real script, avoiding cross-origin restrictions without try/catch fallbacks
+
 ## [1.1.1] - 2026-03-30
 
 ### Fixed
@@ -72,7 +82,8 @@ First stable release — production-proven via the [Sherpa Voice](https://deeeed
 ## [0.1.0] - 2025-03-04
 - Initial development release
 
-[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.1...HEAD
+[unreleased]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.2...HEAD
+[1.1.2]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.1...@siteed/sherpa-onnx.rn@1.1.2
 [1.1.1]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.1.0...@siteed/sherpa-onnx.rn@1.1.1
 [1.1.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@1.0.0...@siteed/sherpa-onnx.rn@1.1.0
 [1.0.0]: https://github.com/deeeed/audiolab/compare/@siteed/sherpa-onnx.rn@0.2.0...@siteed/sherpa-onnx.rn@1.0.0

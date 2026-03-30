@@ -2,8 +2,8 @@
  * sherpa-worker.js
  *
  * Generic Web Worker for offloading WASM inference (diarization, denoising,
- * offline ASR) off the main thread.  Loaded at runtime via
- *   new Worker(wasmBasePath + 'sherpa-worker.js')
+ * offline ASR) off the main thread.  Loaded at runtime via a bootstrap
+ * blob worker that calls importScripts(wasmBasePath + 'sherpa-worker.js').
  *
  * Message protocol:
  *   Main -> Worker:
@@ -35,6 +35,14 @@ const instances = {}; // { featureName: featureInstance }
 async function ensureWasm(basePath) {
   if (wasmReady) return;
   wasmBasePath = basePath;
+
+  // The worker always runs from a blob: URL (bootstrap pattern), so Emscripten
+  // can't resolve relative paths like "sherpa-onnx-wasm-combined.wasm".
+  // Set locateFile so all file references use the absolute base path.
+  self.Module = self.Module || {};
+  self.Module.locateFile = function (file) {
+    return basePath + file;
+  };
 
   importScripts(basePath + 'sherpa-onnx-wasm-combined.js');
 

@@ -26,7 +26,14 @@ const featureListeners = new Map<string, (msg: any) => void>();
 
 function acquireWorker(wasmBasePath: string): Worker {
   if (!sharedWorker) {
-    sharedWorker = new Worker(wasmBasePath + 'sherpa-worker.js');
+    // Always use a bootstrap blob worker. This avoids cross-origin restrictions
+    // because: (1) blob: Workers are same-origin by construction, and
+    // (2) importScripts() inside Workers is exempt from same-origin policy,
+    // so it can load the real worker script from any CDN.
+    const workerUrl = JSON.stringify(wasmBasePath + 'sherpa-worker.js');
+    const bootstrap = `importScripts(${workerUrl});`;
+    const blob = new Blob([bootstrap], { type: 'application/javascript' });
+    sharedWorker = new Worker(URL.createObjectURL(blob));
     sharedWasmBasePath = wasmBasePath;
     sharedWorker.addEventListener('message', (e: MessageEvent) => {
       const feature = e.data?.feature;
