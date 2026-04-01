@@ -20,6 +20,9 @@ scripts/agentic/app-state.sh route|state|eval|can-go-back|go-back|press|scroll
 scripts/agentic/screenshot.sh <label>
 scripts/agentic/reload-metro.sh
 scripts/agentic/native-logs.sh android|ios [N|follow|clear]
+bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/playground/recipes/record-screen-validation.json
+bash scripts/agentic/validate-flow-schema.sh
+bash scripts/agentic/validate-pre-conditions.sh
 ```
 
 All accept `--device <name>` for multi-device targeting.

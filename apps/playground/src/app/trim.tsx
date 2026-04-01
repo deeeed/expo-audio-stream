@@ -547,6 +547,8 @@ export default function TrimScreen() {
                     theme={{
                         container: {
                             backgroundColor: colors.surfaceVariant,
+                            height: 48,
+                            borderRadius: 8,
                         },
                         selectedRange: {
                             backgroundColor: colors.primary,
@@ -554,6 +556,7 @@ export default function TrimScreen() {
                         },
                         handle: {
                             backgroundColor: colors.primary,
+                            width: 20,
                         },
                     }}
                 />
@@ -616,6 +619,8 @@ export default function TrimScreen() {
                     theme={{
                         container: {
                             backgroundColor: colors.surfaceVariant,
+                            height: 48,
+                            borderRadius: 8,
                         },
                         selectedRange: {
                             backgroundColor: colors.primary,
@@ -623,6 +628,7 @@ export default function TrimScreen() {
                         },
                         handle: {
                             backgroundColor: colors.primary,
+                            width: 20,
                         },
                     }}
                 />

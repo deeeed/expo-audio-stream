@@ -1,0 +1,42 @@
+{
+  "title": "Sherpa voice ASR screen smoke validation",
+  "validate": {
+    "workflow": {
+      "entry": "nav-asr",
+      "pre_conditions": [
+        "sherpa.agentic_ready"
+      ],
+      "nodes": {
+        "nav-asr": {
+          "action": "navigate",
+          "target": "/feature/asr",
+          "next": "wait-init-button"
+        },
+        "wait-init-button": {
+          "action": "wait_for",
+          "test_id": "btn-init-asr",
+          "next": "wait-recognize-button"
+        },
+        "wait-recognize-button": {
+          "action": "wait_for",
+          "test_id": "btn-recognize",
+          "next": "assert-asr-ui"
+        },
+        "assert-asr-ui": {
+          "action": "eval_ref",
+          "ref": "asr-ui",
+          "assert": {
+            "operator": "eq",
+            "field": "recognizeVisible",
+            "value": true
+          },
+          "next": "done"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}

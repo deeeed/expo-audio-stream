@@ -6,9 +6,10 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UIProvider, useTheme, useThemePreferences } from '@siteed/design-system';
-import type { ThemePreferences } from '@siteed/design-system';
+import type { SavedUserPreferences } from '@siteed/design-system';
 import { ModelManagementProvider } from '../contexts/ModelManagement';
 import { AgenticBridgeSync } from '../components/AgenticBridgeSync';
+import { AgentStepHud } from '../components/AgentStepHud';
 import { WebAppBanner } from '../components/WebAppBanner';
 import { setLoggerConfig } from '@siteed/react-native-logger';
 import '../agentic-bridge';
@@ -38,6 +39,7 @@ function AppContent() {
       <StatusBar style={darkMode ? 'light' : 'dark'} />
       <WebAppBanner />
       <AgenticBridgeSync />
+      <AgentStepHud />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.background },
@@ -54,7 +56,7 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const [preferences, setPreferences] = useState<ThemePreferences | undefined>(undefined);
+  const [preferences, setPreferences] = useState<SavedUserPreferences | undefined>(undefined);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function RootLayout() {
     }).catch(() => setReady(true));
   }, []);
 
-  const savePreferences = useCallback(async (newPreferences: ThemePreferences) => {
+  const savePreferences = useCallback(async (newPreferences: SavedUserPreferences) => {
     setPreferences(newPreferences);
     await AsyncStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newPreferences));
   }, []);

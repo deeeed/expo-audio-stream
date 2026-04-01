@@ -8570,6 +8570,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@siteed/agentic-dev@workspace:^, @siteed/agentic-dev@workspace:packages/agentic-dev":
+  version: 0.0.0-use.local
+  resolution: "@siteed/agentic-dev@workspace:packages/agentic-dev"
+  dependencies:
+    "@types/react": "npm:~19.2.10"
+    react: "npm:19.2.0"
+    react-native: "npm:0.83.2"
+    react-native-safe-area-context: "npm:~5.6.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-safe-area-context: "*"
+  languageName: unknown
+  linkType: soft
+
 "@siteed/audio-studio@npm:*, @siteed/audio-studio@workspace:^, @siteed/audio-studio@workspace:packages/audio-studio":
   version: 0.0.0-use.local
   resolution: "@siteed/audio-studio@workspace:packages/audio-studio"
@@ -8745,6 +8760,7 @@ __metadata:
     globals: "npm:^15.8.0"
     lefthook: "npm:^1.7.2"
     null-loader: "npm:^4.0.1"
+    pngjs: "npm:^7.0.0"
     prettier: "npm:^3.3.3"
     storybook: "npm:^10.2.10"
     typescript: "npm:^5.4.3"
@@ -8951,6 +8967,7 @@ __metadata:
     "@react-navigation/bottom-tabs": "npm:^7.2.0"
     "@react-navigation/native": "npm:^7.0.14"
     "@react-navigation/native-stack": "npm:^7.3.10"
+    "@siteed/agentic-dev": "workspace:^"
     "@siteed/audio-studio": "workspace:^"
     "@siteed/design-system": "npm:^0.51.3"
     "@siteed/react-native-logger": "npm:^0.11.0"
@@ -13000,6 +13017,7 @@ __metadata:
     "@react-navigation/native-stack": "npm:^7.3.10"
     "@reduxjs/toolkit": "npm:^2.5.0"
     "@shopify/react-native-skia": "npm:2.4.18"
+    "@siteed/agentic-dev": "workspace:^"
     "@siteed/audio-studio": "workspace:^"
     "@siteed/audio-ui": "workspace:^"
     "@siteed/design-system": "npm:^0.51.3"

@@ -12,6 +12,15 @@
       "@siteed/sherpa-onnx.rn/*": [
         "../../packages/sherpa-onnx.rn/src/*"
       ],
+      "@siteed/agentic-dev": [
+        "../../packages/agentic-dev/src/index"
+      ],
+      "@siteed/agentic-dev/*": [
+        "../../packages/agentic-dev/src/*"
+      ],
+      "expo-modules-core": [
+        "./node_modules/expo-modules-core/build/index"
+      ],
     }
   },
   "include": [

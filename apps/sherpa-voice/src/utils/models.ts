@@ -224,6 +224,7 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     type: 'vad',
     size: 2.5 * 1024 * 1024, // ~2.5 MB estimated
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/ten-vad.onnx',
+    version: '1.0',
     language: 'universal',
   },
 
@@ -405,4 +406,3 @@ export function getModelsByType(type: ModelType): ModelMetadata[] {
 export function getModelById(id: string): ModelMetadata | undefined {
   return AVAILABLE_MODELS.find((model) => model.id === id);
 }
-

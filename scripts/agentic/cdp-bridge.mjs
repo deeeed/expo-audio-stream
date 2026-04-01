@@ -39,10 +39,21 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const { checkAssert } = require('./lib/assert');
+const {
+  listEvalRefs,
+  listTeamNames,
+  loadPreConditionRegistry,
+  parsePreConditionSpec,
+  renderTemplate,
+  resolveEvalRef,
+} = require('./lib/catalog');
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -57,9 +68,29 @@ const APP_ROOT = process.env.APP_ROOT || path.resolve(__dirname, '../..');
 const AGENT_DIR = path.join(APP_ROOT, '.agent');
 const WEB_CONNECTION_FILE = path.join(AGENT_DIR, 'web-browser.json');
 const SCREENSHOT_DIR = path.join(AGENT_DIR, 'screenshots');
+const AGENTIC_CONF_FILE = path.join(APP_ROOT, 'scripts', 'agentic', 'agentic.conf');
+const PRE_CONDITIONS = loadPreConditionRegistry(APP_ROOT);
+
+function loadConfiguredPort() {
+  if (!fs.existsSync(AGENTIC_CONF_FILE)) {
+    return null;
+  }
+
+  const conf = fs.readFileSync(AGENTIC_CONF_FILE, 'utf8');
+  const match = conf.match(/^\s*AGENTIC_PORT=(\d+)\s*$/m);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
 
 function loadPort() {
-  return Number.parseInt(process.env.WATCHER_PORT || String(DEFAULT_PORT), 10);
+  return Number.parseInt(
+    process.env.WATCHER_PORT || String(loadConfiguredPort() || DEFAULT_PORT),
+    10
+  );
+}
+
+function getDefaultTeam() {
+  const teams = listTeamNames(APP_ROOT);
+  return teams.length === 1 ? teams[0] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +603,144 @@ async function cdpEval(client, expression, evalTimeout) {
   return result.result?.value;
 }
 
+/**
+ * Evaluate a JS expression that returns a Promise.
+ * Hermes CDP does not support awaitPromise, so the result is stored on
+ * globalThis and polled until it resolves or rejects.
+ */
+async function cdpEvalAsync(client, expression, timeoutMs = 30000) {
+  const key = `__cdp_async_${Date.now()}_${Math.random().toString(36).slice(2)}__`;
+  const kickoff = `(function() {
+    globalThis['${key}'] = { status: 'pending' };
+    try {
+      Promise.resolve(${expression})
+        .then(function(value) {
+          globalThis['${key}'] = { status: 'resolved', value: value };
+        })
+        .catch(function(error) {
+          globalThis['${key}'] = { status: 'rejected', error: String(error) };
+        });
+    } catch (error) {
+      globalThis['${key}'] = { status: 'rejected', error: String(error) };
+    }
+    return 'started';
+  })()`;
+
+  const kickoffResult = await client.send(
+    'Runtime.evaluate',
+    {
+      expression: kickoff,
+      returnByValue: true,
+      awaitPromise: false,
+      generatePreview: false,
+    },
+    timeoutMs
+  );
+
+  if (kickoffResult.exceptionDetails) {
+    const desc =
+      kickoffResult.exceptionDetails.exception?.description ||
+      kickoffResult.exceptionDetails.text ||
+      JSON.stringify(kickoffResult.exceptionDetails);
+    throw new Error(`Async evaluation error: ${desc}`);
+  }
+
+  const cleanup = () =>
+    client
+      .send(
+        'Runtime.evaluate',
+        {
+          expression: `delete globalThis['${key}']`,
+          returnByValue: true,
+          awaitPromise: false,
+          generatePreview: false,
+        },
+        2000
+      )
+      .catch(() => {});
+
+  const deadline = Date.now() + timeoutMs;
+  try {
+    while (Date.now() < deadline) {
+      await sleep(200);
+      const check = await client.send(
+        'Runtime.evaluate',
+        {
+          expression: `(function() { return globalThis['${key}']; })()`,
+          returnByValue: true,
+          awaitPromise: false,
+          generatePreview: false,
+        },
+        timeoutMs
+      );
+
+      const value = check.result?.value;
+      if (value?.status === 'resolved') {
+        return value.value;
+      }
+      if (value?.status === 'rejected') {
+        throw new Error(`Async evaluation error: ${value.error}`);
+      }
+    }
+
+    throw new Error(`Async evaluation timed out after ${timeoutMs}ms`);
+  } finally {
+    await cleanup();
+  }
+}
+
+function normalizeRawResult(raw) {
+  if (raw == null) {
+    return 'null';
+  }
+
+  if (typeof raw === 'string') {
+    return raw;
+  }
+
+  return JSON.stringify(raw);
+}
+
+async function evalSpec(client, entry, params = {}) {
+  const expression =
+    typeof entry.expression === 'function'
+      ? entry.expression(params)
+      : renderTemplate(entry.expression, params);
+  return entry.async ? cdpEvalAsync(client, expression) : cdpEval(client, expression);
+}
+
+async function evaluatePreCondition(client, rawSpec) {
+  const parsedSpec = parsePreConditionSpec(rawSpec);
+  const name = typeof parsedSpec === 'string' ? parsedSpec : parsedSpec?.name;
+  const params =
+    typeof parsedSpec === 'string'
+      ? {}
+      : Object.fromEntries(
+          Object.entries(parsedSpec).filter(([key]) => key !== 'name')
+        );
+
+  const entry = PRE_CONDITIONS[name];
+  if (!entry) {
+    return {
+      ok: false,
+      name,
+      error: `Unknown pre-condition "${name}"`,
+    };
+  }
+
+  const raw = normalizeRawResult(await evalSpec(client, entry, params));
+  const assertSpec = renderTemplate(entry.assert, params);
+  const ok = checkAssert(raw, assertSpec);
+
+  return {
+    ok,
+    name,
+    description: entry.description || '',
+    hint: entry.hint || '',
+    raw,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Commands — adapted for Expo Router (URL-based navigation)
 // ---------------------------------------------------------------------------
@@ -611,6 +780,33 @@ const COMMANDS = {
     return await cdpEval(client, expression);
   },
 
+  async 'eval-async'(client, args) {
+    const expression = args.join(' ');
+    if (!expression) {
+      throw new Error('Usage: eval-async <expression>');
+    }
+    return await cdpEvalAsync(client, expression);
+  },
+
+  async 'eval-ref'(client, args) {
+    if (args[0] === '--list') {
+      return {
+        refs: listEvalRefs(APP_ROOT),
+      };
+    }
+
+    const ref = args[0];
+    if (!ref) {
+      throw new Error('Usage: eval-ref <team/ref> or eval-ref --list');
+    }
+
+    const resolved = resolveEvalRef(ref, {
+      appRoot: APP_ROOT,
+      defaultTeam: getDefaultTeam(),
+    });
+    return await evalSpec(client, resolved.entry);
+  },
+
   async 'can-go-back'(client) {
     return await cdpEval(client, 'globalThis.__AGENTIC__?.canGoBack()');
   },
@@ -630,6 +826,52 @@ const COMMANDS = {
     const expr = `globalThis.__AGENTIC__?.pressTestId(${JSON.stringify(testId)})`;
     const result = await cdpEval(client, expr);
     return { ...result, testId, deviceName };
+  },
+
+  async 'set-input'(client, args, { deviceName } = {}) {
+    const testId = args[0];
+    const value = args[1] ?? '';
+    if (!testId) {
+      throw new Error('Usage: set-input <testId> <value>');
+    }
+
+    const expr = `globalThis.__AGENTIC__?.setInputByTestId?.(${JSON.stringify(
+      testId
+    )}, ${JSON.stringify(value)})`;
+    const result = await cdpEval(client, expr);
+    return { ...result, testId, value, deviceName };
+  },
+
+  async 'set-step-hud'(client, args, { deviceName } = {}) {
+    const payload = args.join(' ');
+    if (!payload) {
+      throw new Error('Usage: set-step-hud <json-step>');
+    }
+
+    let step;
+    try {
+      step = JSON.parse(payload);
+    } catch (error) {
+      throw new Error(`Invalid HUD payload: ${error.message}`);
+    }
+
+    const expr = `globalThis.__AGENTIC__?.setStepHud?.(${JSON.stringify(step)}) ?? ${JSON.stringify(
+      {
+        ok: false,
+        supported: false,
+      }
+    )}`;
+    const result = await cdpEval(client, expr);
+    return { ...result, deviceName };
+  },
+
+  async 'clear-step-hud'(client, _args, { deviceName } = {}) {
+    const expr = `globalThis.__AGENTIC__?.clearStepHud?.() ?? ${JSON.stringify({
+      ok: false,
+      supported: false,
+    })}`;
+    const result = await cdpEval(client, expr);
+    return { ...result, deviceName };
   },
 
   async 'scroll-view'(client, args, { deviceName } = {}) {
@@ -652,6 +894,42 @@ const COMMANDS = {
     const expr = `globalThis.__AGENTIC__?.scrollView(${optsJson})`;
     const result = await cdpEval(client, expr);
     return { ...result, deviceName };
+  },
+
+  async 'check-pre-conditions'(client, args) {
+    const payload = args.join(' ');
+    if (!payload) {
+      throw new Error('Usage: check-pre-conditions <json-array>');
+    }
+
+    let specs;
+    try {
+      specs = JSON.parse(payload);
+    } catch (error) {
+      throw new Error(`Invalid pre-condition JSON: ${error.message}`);
+    }
+
+    if (!Array.isArray(specs)) {
+      throw new Error('check-pre-conditions expects a JSON array');
+    }
+
+    const failures = [];
+    const passed = [];
+
+    for (const spec of specs) {
+      const result = await evaluatePreCondition(client, spec);
+      if (result.ok) {
+        passed.push(result.name);
+      } else {
+        failures.push(result);
+      }
+    }
+
+    return {
+      ok: failures.length === 0,
+      passed,
+      failures,
+    };
   },
 
   async reload(client, _args, { deviceName } = {}) {
@@ -753,7 +1031,7 @@ const COMMANDS = {
  * The deviceName from Metro typically looks like "Pixel 6a - 16 - API 36".
  * We match against `adb devices -l` model names.
  */
-function resolveAndroidSerial(deviceName) {
+function resolveAndroidDeviceRecord(deviceName) {
   if (!deviceName) return null;
   let output;
   try {
@@ -765,16 +1043,31 @@ function resolveAndroidSerial(deviceName) {
   if (lines.length === 0) return null;
   if (lines.length === 1) {
     // Only one device — use it
-    return lines[0].split(/\s+/)[0];
+    const serial = lines[0].split(/\s+/)[0];
+    return {
+      serial,
+      targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
+    };
   }
   // Multiple devices — try to match by model name
   const filter = deviceName.toLowerCase();
   for (const line of lines) {
     const modelMatch = line.match(/model:(\S+)/);
     if (modelMatch) {
-      const model = modelMatch[1].toLowerCase().replaceAll(/_/g, ' ');
-      if (filter.includes(model) || model.includes(filter.split(' ')[0].toLowerCase())) {
-        return line.split(/\s+/)[0];
+      const rawModel = modelMatch[1].toLowerCase();
+      const normalizedModel = rawModel.replaceAll(/_/g, ' ');
+      const firstToken = filter.split(' ')[0].toLowerCase();
+      if (
+        filter.includes(rawModel) ||
+        rawModel.includes(firstToken) ||
+        filter.includes(normalizedModel) ||
+        normalizedModel.includes(firstToken)
+      ) {
+        const serial = line.split(/\s+/)[0];
+        return {
+          serial,
+          targetType: serial.startsWith('emulator-') ? 'emulator' : 'physical',
+        };
       }
     }
   }
@@ -790,6 +1083,10 @@ function resolveAndroidSerial(deviceName) {
     `No Android device matching "${deviceName}".\n` +
     `Available devices:\n  - ${available}`
   );
+}
+
+function resolveAndroidSerial(deviceName) {
+  return resolveAndroidDeviceRecord(deviceName)?.serial || null;
 }
 
 /**
@@ -844,6 +1141,30 @@ function resolveIOSDevice(deviceName) {
   return { type: 'physical' };
 }
 
+function inferTargetType(platform, deviceName) {
+  if (platform === 'web') {
+    return 'browser';
+  }
+
+  if (platform === 'ios') {
+    try {
+      return resolveIOSDevice(deviceName).type;
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  if (platform === 'android') {
+    try {
+      return resolveAndroidDeviceRecord(deviceName)?.targetType || 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  return 'unknown';
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -862,11 +1183,18 @@ Commands:
   get-route                          Get current route path
   get-state                          Get audio recorder state (isRecording, isPaused, durationMs, etc.)
   eval <expression>                  Evaluate arbitrary JS in app context
+  eval-async <expression>            Evaluate a Promise-returning expression in app context
+  eval-ref <team/ref>                Evaluate a named ref from scripts/agentic/teams/*/evals*.json
+  eval-ref --list                    List named eval refs for the current app
   can-go-back                        Check if navigation can go back
   go-back                            Navigate back
   press-test-id <testId>             Press a component by testID (walks React fiber tree)
+  set-input <testId> <value>         Set a text input by testID via the agentic bridge
+  set-step-hud <json-step>           Publish the current recipe step to the in-app HUD overlay
+  clear-step-hud                     Clear the in-app HUD overlay
   scroll-view [--test-id <id>] [--offset <n>] [--animated|--no-animated]
                                      Scroll a ScrollView/FlatList/FlashList (default: offset=300, no-animated)
+  check-pre-conditions <json-array>  Evaluate registered pre-conditions for the current app
   reload                             Reload the JS bundle via Page.reload
   screenshot [label]                 Take a screenshot (dispatches per-platform)
   list-devices                       List all connected agentic devices
@@ -915,15 +1243,22 @@ if (command === 'list-devices') {
   const devices = [];
   for (const target of allTargets) {
     let state = null;
+    let platform = '';
     try {
       const client = await createWSClient(target.wsUrl, 2000, WebSocketImpl);
       try {
+        platform = await cdpEval(client, 'globalThis.__AGENTIC__?.platform', 2000).catch(() => '') || '';
         state = await cdpEval(client, 'globalThis.__AGENTIC__?.getState()', 2000);
       } finally {
         client.close();
       }
     } catch { /* state unavailable */ }
-    devices.push({ name: target.deviceName, ...state });
+    devices.push({
+      name: target.deviceName,
+      platform,
+      targetType: inferTargetType(platform, target.deviceName),
+      ...(state && typeof state === 'object' ? state : {}),
+    });
   }
   console.log(JSON.stringify({ devices, count: devices.length }, null, 2));
   process.exit(0);

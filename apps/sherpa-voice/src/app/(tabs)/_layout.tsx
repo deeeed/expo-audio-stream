@@ -88,7 +88,6 @@ export default function TabLayout() {
         tintColor={colors.primary}
         backgroundColor={colors.background}
         labelVisibilityMode="labeled"
-        initialRouteName="features"
       >
         <NativeTabs.Trigger name="features">
           <NativeTabs.Trigger.Label>Features</NativeTabs.Trigger.Label>

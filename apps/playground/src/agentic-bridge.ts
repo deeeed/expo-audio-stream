@@ -12,6 +12,14 @@ import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import { Asset } from 'expo-asset'
 import * as FileSystem from 'expo-file-system/legacy'
+import {
+    createAgenticHudStore,
+    getFiberRoots,
+    findFiberByTestId,
+    setInputByTestId,
+    type AgenticHudCallback,
+    type AgenticHudStep,
+} from '@siteed/agentic-dev'
 
 import type { UseAudioRecorderState } from '@siteed/audio-studio'
 import {
@@ -35,6 +43,7 @@ let _routeInfo: { pathname: string; segments: string[] } = {
     pathname: '',
     segments: [],
 }
+const stepHudStore = createAgenticHudStore()
 
 // Recorder instance wired by AgenticBridgeSync
 let _recorder: UseAudioRecorderState | null = null
@@ -45,6 +54,14 @@ export function setAgenticAudioState(state: Record<string, unknown>) {
 
 export function setAgenticRouteInfo(pathname: string, segments: string[]) {
     _routeInfo = { pathname, segments }
+}
+
+export function setAgenticStepHud(step: AgenticHudStep | null) {
+    stepHudStore.setStep(step)
+}
+
+export function registerAgenticStepHudCallback(fn: AgenticHudCallback) {
+    stepHudStore.register(fn)
 }
 
 export function setAgenticRecorder(recorder: UseAudioRecorderState) {
@@ -99,6 +116,20 @@ if (__DEV__) {
 
         getState: () => {
             return _audioState
+        },
+
+        getStepHud: () => {
+            return stepHudStore.getStep()
+        },
+
+        setStepHud: (step: AgenticHudStep | null) => {
+            setAgenticStepHud(step)
+            return { ok: true, supported: true, step }
+        },
+
+        clearStepHud: () => {
+            setAgenticStepHud(null)
+            return { ok: true, supported: true }
         },
 
         canGoBack: () => {
@@ -346,49 +377,34 @@ if (__DEV__) {
             return { op, status: 'pending' }
         },
 
+        findFiberByTestId,
+
         pressTestId: (testId: string) => {
             try {
-                const hook = (globalThis as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__ as Record<string, unknown> | undefined
-                if (!hook) return { ok: false, error: '__REACT_DEVTOOLS_GLOBAL_HOOK__ not found' }
-
-                const renderers = hook.renderers as Map<number, unknown> | undefined
-                if (!renderers) return { ok: false, error: 'No renderers found' }
-
-                // hook.getFiberRoots(rendererId) is the correct API in React 18+
-                const getFiberRoots = hook.getFiberRoots as ((id: number) => Set<Record<string, unknown>>) | undefined
-
-                const walkFiber = (fiber: Record<string, unknown> | null): boolean => {
-                    if (!fiber) return false
-                    const props = fiber.memoizedProps as Record<string, unknown> | null
-                    if (props?.testID === testId) {
-                        const onPress = props?.onPress as ((...args: unknown[]) => unknown) | undefined
-                        if (typeof onPress === 'function') {
-                            onPress()
-                            return true
-                        }
-                    }
-                    if (walkFiber(fiber.child as Record<string, unknown> | null)) return true
-                    if (walkFiber(fiber.sibling as Record<string, unknown> | null)) return true
-                    return false
+                const fiber = findFiberByTestId(testId)
+                if (!fiber) {
+                    return { ok: false, error: `No component with testID="${testId}" found` }
                 }
 
-                for (let id = 1; id <= 3; id++) {
-                    if (!renderers.get(id)) continue
-                    const fiberRoots = getFiberRoots ? getFiberRoots(id) : undefined
-                    if (!fiberRoots) continue
-                    let found = false
-                    fiberRoots.forEach((root) => {
-                        if (!found) {
-                            found = walkFiber(root.current as Record<string, unknown> | null)
-                        }
-                    })
-                    if (found) return { ok: true, testId }
+                const props = fiber.memoizedProps as Record<string, unknown> | null
+                const onPress = props?.onPress as ((...args: unknown[]) => unknown) | undefined
+                const click = (fiber.stateNode as { click?: () => void } | null)?.click
+                if (typeof onPress !== 'function' && typeof click !== 'function') {
+                    return { ok: false, error: `Component with testID="${testId}" has no onPress prop` }
                 }
-                return { ok: false, error: `No component with testID="${testId}" found or no onPress prop` }
+
+                if (typeof onPress === 'function') {
+                    onPress()
+                } else {
+                    click?.()
+                }
+                return { ok: true, testId }
             } catch (e) {
                 return { ok: false, error: String(e) }
             }
         },
+
+        setInputByTestId,
 
         testOnnxInference: () => {
             const op = 'onnxInference'
@@ -475,14 +491,6 @@ if (__DEV__) {
         scrollView: (options: { testId?: string; offset?: number; animated?: boolean } = {}) => {
             const { testId, offset = 300, animated = false } = options
             try {
-                const hook = (globalThis as Record<string, unknown>).__REACT_DEVTOOLS_GLOBAL_HOOK__ as Record<string, unknown> | undefined
-                if (!hook) return { ok: false, error: '__REACT_DEVTOOLS_GLOBAL_HOOK__ not found' }
-
-                const renderers = hook.renderers as Map<number, unknown> | undefined
-                if (!renderers) return { ok: false, error: 'No renderers found' }
-
-                const getFiberRoots = hook.getFiberRoots as ((id: number) => Set<Record<string, unknown>>) | undefined
-
                 const tryScroll = (fiber: Record<string, unknown> | null): boolean => {
                     if (!fiber) return false
                     const stateNode = fiber.stateNode as Record<string, unknown> | null
@@ -503,26 +511,13 @@ if (__DEV__) {
                     return false
                 }
 
-                const walkForTestId = (fiber: Record<string, unknown> | null): Record<string, unknown> | null => {
-                    if (!fiber) return null
-                    const props = fiber.memoizedProps as Record<string, unknown> | null
-                    if (props?.testID === testId) return fiber
-                    const found = walkForTestId(fiber.child as Record<string, unknown> | null)
-                    if (found) return found
-                    return walkForTestId(fiber.sibling as Record<string, unknown> | null)
-                }
-
-                for (let id = 1; id <= 3; id++) {
-                    if (!renderers.get(id)) continue
-                    const fiberRoots = getFiberRoots ? getFiberRoots(id) : undefined
-                    if (!fiberRoots) continue
-
+                for (const fiberRoots of getFiberRoots()) {
                     let scrolled = false
                     fiberRoots.forEach((root) => {
                         if (scrolled) return
                         const rootFiber = root.current as Record<string, unknown> | null
                         if (testId) {
-                            const anchor = walkForTestId(rootFiber)
+                            const anchor = findFiberByTestId(testId)
                             if (anchor) {
                                 scrolled =
                                     tryScroll(anchor) ||

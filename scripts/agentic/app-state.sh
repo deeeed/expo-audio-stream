@@ -5,6 +5,8 @@
 #   app-state.sh route                    # Current route path
 #   app-state.sh state                    # App state
 #   app-state.sh eval "1+1"               # Arbitrary JS
+#   app-state.sh eval-async "Promise.resolve(1+1)"
+#   app-state.sh eval-ref playground/route
 #   app-state.sh can-go-back              # Can navigate back?
 #   app-state.sh go-back                  # Navigate back
 #   app-state.sh --device "Pixel 6a" state  # Target specific device
@@ -47,6 +49,12 @@ case "$COMMAND" in
   eval)
     "${BRIDGE_CMD[@]}" eval "${EXTRA_ARGS[@]}"
     ;;
+  eval-async)
+    "${BRIDGE_CMD[@]}" eval-async "${EXTRA_ARGS[@]}"
+    ;;
+  eval-ref)
+    "${BRIDGE_CMD[@]}" eval-ref "${EXTRA_ARGS[@]}"
+    ;;
   can-go-back)
     "${BRIDGE_CMD[@]}" can-go-back
     ;;
@@ -55,6 +63,9 @@ case "$COMMAND" in
     ;;
   press)
     "${BRIDGE_CMD[@]}" press-test-id "${EXTRA_ARGS[@]}"
+    ;;
+  set-input)
+    "${BRIDGE_CMD[@]}" set-input "${EXTRA_ARGS[@]}"
     ;;
   scroll)
     "${BRIDGE_CMD[@]}" scroll-view "${EXTRA_ARGS[@]}"
@@ -66,9 +77,12 @@ case "$COMMAND" in
     echo "  route                          Current route path"
     echo "  state                          App state"
     echo "  eval <expression>              Evaluate arbitrary JS in app context"
+    echo "  eval-async <expression>        Evaluate a Promise-returning expression"
+    echo "  eval-ref <team/ref>            Evaluate a named eval ref"
     echo "  can-go-back                    Check if navigation can go back"
     echo "  go-back                        Navigate back"
     echo "  press <testId>                 Press a component by testID"
+    echo "  set-input <testId> <value>     Set a text input by testID"
     echo "  scroll [--test-id <id>] [--offset <n>] [--no-animated]"
     echo "                                 Scroll a ScrollView/FlatList by testID or globally"
     echo ""

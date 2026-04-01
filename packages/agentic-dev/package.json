@@ -1,0 +1,19 @@
+{
+  "name": "@siteed/agentic-dev",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "source": "./src/index.tsx",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-safe-area-context": "*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.10",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-safe-area-context": "~5.6.0"
+  }
+}

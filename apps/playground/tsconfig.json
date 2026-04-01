@@ -21,6 +21,8 @@
             ],
             "@siteed/audio-ui": ["../../packages/audio-ui/src/index"],
             "@siteed/audio-ui/*": ["../../packages/audio-ui/src/*"],
+            "@siteed/agentic-dev": ["../../packages/agentic-dev/src/index"],
+            "@siteed/agentic-dev/*": ["../../packages/agentic-dev/src/*"],
             "whisper.rn": ["./node_modules/whisper.rn/lib/typescript/index.d.ts"]
         },
         "module": "esnext"

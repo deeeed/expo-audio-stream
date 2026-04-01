@@ -28,6 +28,11 @@ scripts/agentic/app-navigate.sh "/feature/kws"
 # Screenshot
 scripts/agentic/screenshot.sh my-label
 
+# Recipes
+bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-screen-validation.json
+bash scripts/agentic/validate-flow-schema.sh
+bash scripts/agentic/validate-pre-conditions.sh
+
 # Native logs
 scripts/agentic/native-logs.sh android
 scripts/agentic/native-logs.sh android follow

@@ -283,6 +283,8 @@ export default function MelSpectrogramScreen() {
                                     theme={{
                                         container: {
                                             backgroundColor: theme.colors.surfaceVariant,
+                                            height: 48,
+                                            borderRadius: 8,
                                         },
                                         selectedRange: {
                                             backgroundColor: theme.colors.primary,
@@ -290,6 +292,7 @@ export default function MelSpectrogramScreen() {
                                         },
                                         handle: {
                                             backgroundColor: theme.colors.primary,
+                                            width: 20,
                                         },
                                     }}
                                 />

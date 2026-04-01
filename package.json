@@ -21,6 +21,7 @@
         "globals": "^15.8.0",
         "lefthook": "^1.7.2",
         "null-loader": "^4.0.1",
+        "pngjs": "^7.0.0",
         "prettier": "^3.3.3",
         "storybook": "^10.2.10",
         "typescript": "^5.4.3",

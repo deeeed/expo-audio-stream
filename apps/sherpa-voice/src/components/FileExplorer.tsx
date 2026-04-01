@@ -126,7 +126,7 @@ export function FileExplorer({
         // --- Filesystem operations ---
         let pathInfo: FileSystem.FileInfo | null = null;
          try {
-           pathInfo = await FileSystem.getInfoAsync(pathForFetch, { size: true });
+           pathInfo = await FileSystem.getInfoAsync(pathForFetch);
 
            if (!pathInfo.exists) throw new Error(`Path does not exist.`);
            if (!pathInfo.isDirectory) throw new Error(`Path is a file, not a directory.`);
@@ -155,7 +155,7 @@ export function FileExplorer({
          const itemsWithInfoPromises = fileList.map(async (name) => {
            const itemPath = `${pathForFetch}/${name}`;
            try {
-             const info = await FileSystem.getInfoAsync(itemPath, { size: true });
+             const info = await FileSystem.getInfoAsync(itemPath);
              if (!info.exists) {
                  logger.warn(`fetchItems (${prefix}): Item ${name} reported but doesn't exist at ${itemPath}`);
                  return { name, path: itemPath, displayPath: itemPath.replace(/^file:\/\//, ''), isDirectory: false, exists: false, error: 'Reported but doesn\'t exist' };
@@ -261,7 +261,7 @@ export function FileExplorer({
 
       if (pathType === 'real') {
         // Check path exists
-        const pathInfo = await FileSystem.getInfoAsync(currentPath, { size: true });
+        const pathInfo = await FileSystem.getInfoAsync(currentPath);
         if (!pathInfo.exists || !pathInfo.isDirectory) {
           throw new Error(`Path ${currentPath} does not exist or is not a directory`);
         }
@@ -274,7 +274,7 @@ export function FileExplorer({
         const itemsWithInfoPromises = fileList.map(async (name) => {
           const itemPath = `${currentPath}/${name}`;
           try {
-            const info = await FileSystem.getInfoAsync(itemPath, { size: true });
+            const info = await FileSystem.getInfoAsync(itemPath);
             return {
               name,
               path: itemPath,

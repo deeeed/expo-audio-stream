@@ -322,6 +322,8 @@ export default function AudioAnalysisScreen() {
                                     theme={{
                                         container: {
                                             backgroundColor: theme.colors.surfaceVariant,
+                                            height: 48,
+                                            borderRadius: 8,
                                         },
                                         selectedRange: {
                                             backgroundColor: theme.colors.primary,
@@ -329,6 +331,7 @@ export default function AudioAnalysisScreen() {
                                         },
                                         handle: {
                                             backgroundColor: theme.colors.primary,
+                                            width: 20,
                                         },
                                     }}
                                 />

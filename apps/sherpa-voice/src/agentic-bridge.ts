@@ -25,6 +25,14 @@ import { router, type Href } from 'expo-router'
 import { AudioStudioModule } from '@siteed/audio-studio'
 import { LegacyEventEmitter } from 'expo-modules-core'
 import { Platform } from 'react-native'
+import {
+    createAgenticHudStore,
+    findFiberByTestId,
+    getFiberRoots,
+    setInputByTestId,
+    type AgenticHudCallback,
+    type AgenticHudStep,
+} from '@siteed/agentic-dev'
 import { getWasmBasePath } from './config/webFeatures'
 import { getWebModelBaseUrl } from './utils/webModelUtils'
 import {
@@ -45,6 +53,7 @@ let _routeInfo: { pathname: string; segments: string[] } = {
 }
 let _modelState: Record<string, unknown> = {}
 let _pageState: Record<string, unknown> = {}
+const stepHudStore = createAgenticHudStore()
 
 export function setAgenticRouteInfo(pathname: string, segments: string[]) {
     _routeInfo = { pathname, segments }
@@ -60,6 +69,14 @@ export function setAgenticModelState(state: Record<string, unknown>) {
  */
 export function setAgenticPageState(state: Record<string, unknown>) {
     _pageState = state
+}
+
+export function setAgenticStepHud(step: AgenticHudStep | null) {
+    stepHudStore.setStep(step)
+}
+
+export function registerAgenticStepHudCallback(fn: AgenticHudCallback) {
+    stepHudStore.register(fn)
 }
 
 // --- Async result store for fire-and-store pattern (CDP awaitPromise:false) ---
@@ -95,6 +112,20 @@ if (__DEV__) {
                 pageState: _pageState,
                 models: _modelState,
             }
+        },
+
+        getStepHud: () => {
+            return stepHudStore.getStep()
+        },
+
+        setStepHud: (step: AgenticHudStep | null) => {
+            setAgenticStepHud(step)
+            return { ok: true, supported: true, step }
+        },
+
+        clearStepHud: () => {
+            setAgenticStepHud(null)
+            return { ok: true, supported: true }
         },
 
         getPageState: () => {
@@ -185,77 +216,96 @@ if (__DEV__) {
             return { op, status: 'pending' }
         },
 
+        findFiberByTestId,
+
         pressTestId: (testId: string) => {
             try {
-                const hook = (globalThis as Record<string, unknown>)
-                    .__REACT_DEVTOOLS_GLOBAL_HOOK__ as
-                    | Record<string, unknown>
-                    | undefined
-                if (!hook)
+                const fiber = findFiberByTestId(testId)
+                if (!fiber) {
                     return {
                         ok: false,
-                        error: '__REACT_DEVTOOLS_GLOBAL_HOOK__ not found',
+                        error: `No component with testID="${testId}" found`,
                     }
+                }
 
-                const renderers = hook.renderers as
-                    | Map<number, unknown>
+                const props = fiber.memoizedProps as Record<string, unknown> | null
+                const onPress = props?.onPress as
+                    | ((...args: unknown[]) => unknown)
                     | undefined
-                if (!renderers)
-                    return { ok: false, error: 'No renderers found' }
+                const click = (fiber.stateNode as { click?: () => void } | null)?.click
+                if (typeof onPress !== 'function' && typeof click !== 'function') {
+                    return {
+                        ok: false,
+                        error: `Component with testID="${testId}" has no onPress prop`,
+                    }
+                }
 
-                const getFiberRoots = hook.getFiberRoots as
-                    | ((id: number) => Set<Record<string, unknown>>)
-                    | undefined
+                if (typeof onPress === 'function') {
+                    onPress()
+                } else {
+                    click?.()
+                }
+                return { ok: true, testId }
+            } catch (e) {
+                return { ok: false, error: String(e) }
+            }
+        },
 
-                const walkFiber = (
-                    fiber: Record<string, unknown> | null
-                ): boolean => {
+        setInputByTestId,
+
+        scrollView: (
+            options: { testId?: string; offset?: number; animated?: boolean } = {}
+        ) => {
+            const { testId, offset = 300, animated = false } = options
+            try {
+                const tryScroll = (fiber: Record<string, unknown> | null): boolean => {
                     if (!fiber) return false
-                    const props = fiber.memoizedProps as Record<
-                        string,
-                        unknown
-                    > | null
-                    if (props?.testID === testId) {
-                        const onPress = props?.onPress as
-                            | ((...args: unknown[]) => unknown)
-                            | undefined
-                        if (typeof onPress === 'function') {
-                            onPress()
+                    const stateNode = fiber.stateNode as Record<string, unknown> | null
+                    if (stateNode) {
+                        if (typeof stateNode.scrollTo === 'function') {
+                            const node = stateNode as {
+                                scrollTo: (opts: { y: number; animated: boolean }) => void
+                            }
+                            node.scrollTo({ y: offset, animated })
+                            return true
+                        }
+                        if (typeof stateNode.scrollToOffset === 'function') {
+                            const node = stateNode as {
+                                scrollToOffset: (opts: { offset: number; animated: boolean }) => void
+                            }
+                            node.scrollToOffset({ offset, animated })
                             return true
                         }
                     }
-                    if (
-                        walkFiber(fiber.child as Record<string, unknown> | null)
-                    )
-                        return true
-                    if (
-                        walkFiber(
-                            fiber.sibling as Record<string, unknown> | null
-                        )
-                    )
-                        return true
+                    if (tryScroll(fiber.child as Record<string, unknown> | null)) return true
+                    if (tryScroll(fiber.sibling as Record<string, unknown> | null)) return true
                     return false
                 }
 
-                for (let id = 1; id <= 3; id++) {
-                    if (!renderers.get(id)) continue
-                    const fiberRoots = getFiberRoots
-                        ? getFiberRoots(id)
-                        : undefined
-                    if (!fiberRoots) continue
-                    let found = false
+                for (const fiberRoots of getFiberRoots()) {
+                    let scrolled = false
                     fiberRoots.forEach((root) => {
-                        if (!found) {
-                            found = walkFiber(
-                                root.current as Record<string, unknown> | null
-                            )
+                        if (scrolled) return
+                        const rootFiber = root.current as Record<string, unknown> | null
+                        if (testId) {
+                            const anchor = findFiberByTestId(testId)
+                            if (anchor) {
+                                scrolled =
+                                    tryScroll(anchor) ||
+                                    tryScroll(anchor.child as Record<string, unknown> | null) ||
+                                    tryScroll(anchor.sibling as Record<string, unknown> | null)
+                            }
+                        } else {
+                            scrolled = tryScroll(rootFiber)
                         }
                     })
-                    if (found) return { ok: true, testId }
+                    if (scrolled) return { ok: true, testId, offset, animated }
                 }
                 return {
                     ok: false,
-                    error: `No component with testID="${testId}" found or no onPress prop`,
+                    error: testId
+                        ? `No scrollable found near testID="${testId}"`
+                        : 'No scrollable found in fiber tree',
                 }
             } catch (e) {
                 return { ok: false, error: String(e) }
