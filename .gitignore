@@ -95,3 +95,4 @@ apps/sherpa-voice/public/wasm/
 **/fastlane/detox/**
 # But keep organized screenshots
 !**/screenshots/
+CLAUDE.local.md
