@@ -68,6 +68,17 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
   },
   {
+    id: 'streaming-zipformer-ctc-small-2024-03-18',
+    name: 'Streaming Zipformer CTC (Small)',
+    description:
+      'Upstream streaming English CTC model included as a serious live candidate, not just a demo baseline.',
+    type: 'asr',
+    size: 64 * 1024 * 1024, // approximate compressed archive size
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-ctc-small-2024-03-18.tar.bz2',
+    version: '2024-03-18',
+    language: 'en',
+  },
+  {
     id: 'streaming-zipformer-en-kroko-2025-08-06',
     name: 'Streaming Zipformer (Kroko 2025)',
     description:
@@ -87,6 +98,17 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     size: 488 * 1024 * 1024, // 488 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2',
     version: '2023-02-20',
+    language: 'zh-en',
+  },
+  {
+    id: 'streaming-paraformer-bilingual-zh-en',
+    name: 'Streaming Paraformer (Chinese + English)',
+    description:
+      'Large streaming bilingual Paraformer candidate from the upstream online model zoo. Included because it is one of the few non-Zipformer live paths Sherpa currently publishes.',
+    type: 'asr',
+    size: 1047319737,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2',
+    version: 'bilingual-zh-en',
     language: 'zh-en',
   },
 

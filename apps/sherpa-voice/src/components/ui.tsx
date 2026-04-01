@@ -165,9 +165,10 @@ interface ModelSelectorProps {
   disabled?: boolean;
   accentColor?: string;
   emptyMessage?: string;
+  testIdPrefix?: string;
 }
 
-export function ModelSelector({ models, selectedId, onSelect, disabled, accentColor, emptyMessage }: ModelSelectorProps) {
+export function ModelSelector({ models, selectedId, onSelect, disabled, accentColor, emptyMessage, testIdPrefix }: ModelSelectorProps) {
   const theme = useTheme();
   const accent = accentColor || theme.colors.primary;
 
@@ -186,6 +187,7 @@ export function ModelSelector({ models, selectedId, onSelect, disabled, accentCo
         return (
           <TouchableOpacity
             key={model.metadata.id}
+            testID={testIdPrefix ? `${testIdPrefix}-${model.metadata.id}` : undefined}
             style={[
               {
                 paddingHorizontal: 12,

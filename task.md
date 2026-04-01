@@ -19,6 +19,9 @@ Create a separate `sherpa-voice` benchmark page for recorder-like transcription 
 ## Initial Model Matrix
 - `streaming-zipformer-en-20m-mobile`
 - `streaming-zipformer-en-general`
+- `streaming-zipformer-ctc-small-2024-03-18`
+- `streaming-zipformer-bilingual-zh-en-2023-02-20`
+- `streaming-paraformer-bilingual-zh-en`
 - `streaming-zipformer-en-kroko-2025-08-06`
 - `whisper-tiny-en`
 - `whisper-small-multilingual`
@@ -41,3 +44,4 @@ Create a separate `sherpa-voice` benchmark page for recorder-like transcription 
 - Upstream Sherpa freshness should be tracked separately from any claim about rebuilt native binaries.
 - The benchmark matrix intentionally includes non-winner baselines so recommendations are based on tradeoffs, not only on the strongest model.
 - `packages/sherpa-onnx.rn` is part of the scope: package-level hardcoded ASR defaults were removed where needed for fair benchmarking, and remaining bridge/runtime gaps are documented in `docs/ASR_BENCHMARK.md`.
+- Current benchmark decision: `streaming-zipformer-bilingual-zh-en-2023-02-20` is the best live model in the tested Sherpa set on the Pixel 6a, but it is still far from Google Recorder-like performance.

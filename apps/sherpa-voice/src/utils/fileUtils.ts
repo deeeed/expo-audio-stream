@@ -87,16 +87,38 @@ export async function resolveModelDir(rawPath: string): Promise<string> {
   try {
     const dirContents = await FileSystem.readDirectoryAsync(rawPath);
     logger.info(`resolveModelDir: ${rawPath} contents: [${dirContents.join(', ')}]`);
-    const sherpaDir = dirContents.find((item) => item.includes('sherpa-onnx'));
-    if (sherpaDir) {
-      const subPath = `${rawPath}/${sherpaDir}`;
+
+    for (const entry of dirContents) {
+      const subPath = `${rawPath}/${entry}`;
       const subInfo = await FileSystem.getInfoAsync(subPath);
+      if (!subInfo.exists || !subInfo.isDirectory) continue;
+      if (!entry.includes('sherpa-onnx')) continue;
+
+      const subContents = await FileSystem.readDirectoryAsync(subPath);
+      if (subContents.some((f) => f.endsWith('.onnx') || f === 'tokens.txt')) {
+        cleanPath = `${cleanPath}/${entry}`;
+        logger.info(`resolveModelDir: descending into subdirectory → ${cleanPath}`);
+        return cleanPath;
+      }
+    }
+
+    // Some model directories contain one extracted subdirectory plus the original
+    // archive. Descend into the extracted folder when it is the only directory
+    // and it already exposes model files.
+    const directories: string[] = [];
+    for (const entry of dirContents) {
+      const subInfo = await FileSystem.getInfoAsync(`${rawPath}/${entry}`);
       if (subInfo.exists && subInfo.isDirectory) {
-        const subContents = await FileSystem.readDirectoryAsync(subPath);
-        if (subContents.some((f) => f.endsWith('.onnx') || f === 'tokens.txt')) {
-          cleanPath = cleanPath + '/' + sherpaDir;
-          logger.info(`resolveModelDir: descending into subdirectory → ${cleanPath}`);
-        }
+        directories.push(entry);
+      }
+    }
+    if (directories.length === 1) {
+      const onlyDir = directories[0];
+      const subPath = `${rawPath}/${onlyDir}`;
+      const subContents = await FileSystem.readDirectoryAsync(subPath);
+      if (subContents.some((f) => f.endsWith('.onnx') || f === 'tokens.txt')) {
+        cleanPath = `${cleanPath}/${onlyDir}`;
+        logger.info(`resolveModelDir: descending into only subdirectory → ${cleanPath}`);
       }
     }
   } catch (e) {

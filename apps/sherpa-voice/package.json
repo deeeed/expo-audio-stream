@@ -22,6 +22,7 @@
         "recipe:run": "bash scripts/agentic/validate-recipe.sh",
         "recipe:asr-benchmark": "bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-benchmark-screen-validation.json",
         "asr:live-mic": "bash scripts/agentic/asr-benchmark-live-say.sh",
+        "asr:matrix-report": "node scripts/agentic/asr-benchmark-matrix-report.mjs",
         "recipe:matrix": "bash scripts/agentic/validate-recipe.sh --matrix",
         "recipe:schema": "bash scripts/agentic/validate-flow-schema.sh",
         "recipe:preconditions": "bash scripts/agentic/validate-pre-conditions.sh",

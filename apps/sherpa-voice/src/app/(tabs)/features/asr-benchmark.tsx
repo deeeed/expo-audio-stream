@@ -327,6 +327,7 @@ export default function AsrBenchmarkScreen() {
               selectedId={selectedModelId}
               onSelect={setSelectedModelId}
               disabled={processing || isRecording}
+              testIdPrefix="asr-benchmark-model"
             />
             {selectedModel && selectedEntry ? (
               <ResultsBox>
@@ -378,6 +379,7 @@ export default function AsrBenchmarkScreen() {
               selectedId={selectedSampleId}
               onSelect={setSelectedSampleId}
               disabled={processing}
+              testIdPrefix="asr-benchmark-sample"
             />
             {selectedSample ? (
               <ResultsBox>

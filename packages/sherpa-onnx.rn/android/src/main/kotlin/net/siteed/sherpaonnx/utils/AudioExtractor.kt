@@ -6,6 +6,7 @@ import android.media.MediaFormat
 import android.util.Log
 import net.siteed.sherpaonnx.AudioData
 import java.io.File
+import java.io.FileInputStream
 
 /**
  * Utility class for audio file extraction
@@ -16,6 +17,21 @@ import java.io.File
 object AudioExtractor {
     private const val TAG = "AudioExtractor"
     private const val DEFAULT_INITIAL_DURATION_SECONDS = 30
+
+    private fun setDataSource(extractor: MediaExtractor, file: File): FileInputStream? {
+        return try {
+            extractor.setDataSource(file.absolutePath)
+            null
+        } catch (pathError: Exception) {
+            Log.w(
+                TAG,
+                "Path-based extractor setup failed for ${file.absolutePath}: ${pathError.message}. Falling back to FileDescriptor.",
+            )
+            val stream = FileInputStream(file)
+            extractor.setDataSource(stream.fd)
+            stream
+        }
+    }
 
     /**
      * Extract audio data from a file
@@ -37,9 +53,10 @@ object AudioExtractor {
     ): AudioData? {
         var extractor: MediaExtractor? = null
         var decoder: MediaCodec? = null
+        var inputStream: FileInputStream? = null
         try {
             extractor = MediaExtractor()
-            extractor.setDataSource(file.absolutePath)
+            inputStream = setDataSource(extractor, file)
 
             val trackInfo = findAudioTrack(extractor)
             if (trackInfo == null) {
@@ -197,14 +214,20 @@ object AudioExtractor {
             } catch (_: Exception) {
                 // Best-effort cleanup.
             }
+            try {
+                inputStream?.close()
+            } catch (_: Exception) {
+                // Best-effort cleanup.
+            }
         }
     }
 
     fun getAudioDurationUs(file: File): Long? {
         var extractor: MediaExtractor? = null
+        var inputStream: FileInputStream? = null
         return try {
             extractor = MediaExtractor()
-            extractor.setDataSource(file.absolutePath)
+            inputStream = setDataSource(extractor, file)
             val trackInfo = findAudioTrack(extractor) ?: return null
             val (_, audioFormat) = trackInfo
             if (audioFormat.containsKey(MediaFormat.KEY_DURATION)) {
@@ -218,6 +241,11 @@ object AudioExtractor {
         } finally {
             try {
                 extractor?.release()
+            } catch (_: Exception) {
+                // Best-effort cleanup.
+            }
+            try {
+                inputStream?.close()
             } catch (_: Exception) {
                 // Best-effort cleanup.
             }

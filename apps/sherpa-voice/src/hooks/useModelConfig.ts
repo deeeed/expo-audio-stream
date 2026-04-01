@@ -138,6 +138,23 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
             },
         },
     },
+    'streaming-zipformer-ctc-small-2024-03-18': {
+        id: 'streaming-zipformer-ctc-small-2024-03-18',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'zipformer2_ctc',
+            numThreads: DEFAULT_NUM_THREADS,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: true,
+            debug: true,
+            provider: 'cpu',
+            modelFiles: {
+                model: 'ctc-epoch-30-avg-3-chunk-16-left-128.int8.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
     'streaming-zipformer-en-kroko-2025-08-06': {
         id: 'streaming-zipformer-en-kroko-2025-08-06',
         modelType: 'asr',
@@ -191,6 +208,24 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
                 encoder: 'encoder-epoch-99-avg-1.onnx',
                 decoder: 'decoder-epoch-99-avg-1.onnx',
                 joiner: 'joiner-epoch-99-avg-1.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
+    'streaming-paraformer-bilingual-zh-en': {
+        id: 'streaming-paraformer-bilingual-zh-en',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'paraformer',
+            numThreads: DEFAULT_NUM_THREADS,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: true,
+            debug: true,
+            provider: 'cpu',
+            modelFiles: {
+                encoder: 'encoder.int8.onnx',
+                decoder: 'decoder.int8.onnx',
                 tokens: 'tokens.txt',
             },
         },

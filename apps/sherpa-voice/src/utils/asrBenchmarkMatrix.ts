@@ -30,6 +30,24 @@ export const ASR_BENCHMARK_MATRIX: AsrBenchmarkMatrixEntry[] = [
         rationale: 'Current practical live baseline already in the repo.',
     },
     {
+        id: 'streaming-zipformer-ctc-small-2024-03-18',
+        tier: 'live-general',
+        liveCapable: true,
+        rationale: 'Upstream streaming CTC candidate added because the transducer-only live matrix was too narrow.',
+    },
+    {
+        id: 'streaming-zipformer-bilingual-zh-en-2023-02-20',
+        tier: 'live-general',
+        liveCapable: true,
+        rationale: 'Older bilingual streaming model included to check whether English-only assumptions hide a better live fallback.',
+    },
+    {
+        id: 'streaming-paraformer-bilingual-zh-en',
+        tier: 'live-general',
+        liveCapable: true,
+        rationale: 'Large upstream streaming Paraformer candidate added because the live Sherpa matrix should not stop at Zipformer variants.',
+    },
+    {
         id: 'streaming-zipformer-en-kroko-2025-08-06',
         tier: 'live-recent',
         liveCapable: true,
@@ -52,6 +70,12 @@ export const ASR_BENCHMARK_MATRIX: AsrBenchmarkMatrixEntry[] = [
         tier: 'offline-reference',
         liveCapable: false,
         rationale: 'Broader multilingual ASR reference to compare practical live models against.',
+    },
+    {
+        id: 'zipformer-en-general',
+        tier: 'offline-reference',
+        liveCapable: false,
+        rationale: 'Non-streaming Zipformer reference to separate streaming limitations from Sherpa runtime quality on-device.',
     },
     {
         id: 'nemo-canary-180m-flash-en-es-de-fr',

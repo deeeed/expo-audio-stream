@@ -18,6 +18,7 @@ import {
     getAsrBenchmarkEntry,
     isAsrBenchmarkEntrySupportedOnPlatform,
 } from '../utils/asrBenchmarkMatrix'
+import { readMonoPcm16Wav } from '../utils/wav'
 import { getWebModelBaseUrl, makeWebProgressHandler } from '../utils/webModelUtils'
 import { getAsrModelConfigById } from './useModelConfig'
 import { useAsrModels } from './useModelWithConfig'
@@ -299,7 +300,15 @@ export function useAsrBenchmark() {
 
                 setStatusMessage(`Running ${model.metadata.name} on ${sample.name}...`)
                 const recognizeStartedAt = nowMs()
-                const recognizeResult = await ASR.recognizeFromFile(sample.localUri)
+                const recognizeResult = config.streaming
+                    ? await (async () => {
+                          const wav = await readMonoPcm16Wav(sample.localUri)
+                          return ASR.recognizeFromSamples(
+                              wav.sampleRate,
+                              wav.samples
+                          )
+                      })()
+                    : await ASR.recognizeFromFile(sample.localUri)
                 if (!recognizeResult.success) {
                     throw new Error(recognizeResult.error || 'Recognition failed')
                 }
