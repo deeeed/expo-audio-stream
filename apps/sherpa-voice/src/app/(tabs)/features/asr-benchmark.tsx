@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard'
-import { useRouter } from 'expo-router'
+import { Redirect, useRouter } from 'expo-router'
 import React, { useEffect, useMemo } from 'react'
 import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { useToast } from '@siteed/design-system'
@@ -116,6 +116,10 @@ function ResultCard({ result }: { result: AsrBenchmarkResult }) {
 }
 
 export default function AsrBenchmarkScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/(tabs)/features" />
+  }
+
   const router = useRouter()
   const theme = useTheme()
   const { show } = useToast()
