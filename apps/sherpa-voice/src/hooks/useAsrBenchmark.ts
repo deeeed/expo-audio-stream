@@ -96,6 +96,8 @@ export function useAsrBenchmark() {
     const [statusMessage, setStatusMessage] = useState('')
     const [processing, setProcessing] = useState(false)
     const liveSessionRef = useRef<LiveBenchmarkSession | null>(null)
+    const liveAsrRef = useRef<ReturnType<typeof useLiveAsr> | null>(null)
+    const recorderRef = useRef(recorder)
 
     const liveAsr = useLiveAsr({
         onCommit: (text) => {
@@ -120,6 +122,14 @@ export function useAsrBenchmark() {
             }
         },
     })
+
+    useEffect(() => {
+        liveAsrRef.current = liveAsr
+    }, [liveAsr])
+
+    useEffect(() => {
+        recorderRef.current = recorder
+    }, [recorder])
 
     const supportedBenchmarkEntries = useMemo(
         () =>
@@ -426,7 +436,7 @@ export function useAsrBenchmark() {
             }
 
             liveAsr.start()
-            setStatusMessage(`Recording with ${selectedModel.metadata.name}...`)
+            setStatusMessage(`Starting recorder for ${selectedModel.metadata.name}...`)
             await recorder.startRecording({
                 sampleRate: DEFAULT_LIVE_SAMPLE_RATE,
                 channels: 1,
@@ -440,6 +450,7 @@ export function useAsrBenchmark() {
                     liveAsr.feedAudio(samples, DEFAULT_LIVE_SAMPLE_RATE)
                 },
             })
+            setStatusMessage(`Recording with ${selectedModel.metadata.name}...`)
         } catch (startError) {
             await ASR.release().catch(() => {})
             liveSessionRef.current = null
@@ -515,13 +526,15 @@ export function useAsrBenchmark() {
 
     useEffect(() => {
         return () => {
-            if (recorder.isRecording) {
-                recorder.stopRecording().catch(() => {})
+            const currentRecorder = recorderRef.current
+            const currentLiveAsr = liveAsrRef.current
+            if (currentRecorder?.isRecording) {
+                currentRecorder.stopRecording().catch(() => {})
             }
-            liveAsr.stop()
+            currentLiveAsr?.stop()
             ASR.release().catch(() => {})
         }
-    }, [liveAsr, recorder])
+    }, [])
 
     return {
         benchmarkModels,
@@ -532,6 +545,8 @@ export function useAsrBenchmark() {
         missingBenchmarkEntries,
         mode,
         processing,
+        recorderDurationMs: recorder.durationMs,
+        recorderIsRecording: recorder.isRecording,
         results,
         samples,
         selectedModel,

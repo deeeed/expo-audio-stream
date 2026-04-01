@@ -51,6 +51,10 @@ export function useLiveAsr(options: UseLiveAsrOptions = {}): UseLiveAsrResult {
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
+      if (!listeningRef.current) {
+        logger.debug(`Ignoring post-stop live ASR error: ${errorMessage}`);
+        return;
+      }
       logger.warn(`feedAudio error: ${errorMessage}`);
       options.onError?.(errorMessage);
     } finally {

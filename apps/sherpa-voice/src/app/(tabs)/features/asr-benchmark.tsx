@@ -128,6 +128,8 @@ export default function AsrBenchmarkScreen() {
     missingBenchmarkEntries,
     mode,
     processing,
+    recorderDurationMs,
+    recorderIsRecording,
     results,
     samples,
     selectedModel,
@@ -149,7 +151,11 @@ export default function AsrBenchmarkScreen() {
     ? getAsrBenchmarkEntry(selectedModel.metadata.id)
     : null
   const latestResult = results[0] ?? null
-  const isRecording = liveAsr.isListening
+  const isRecording = recorderIsRecording
+  const visibleStatusMessage =
+    !statusMessage || (statusMessage.startsWith('Recording with') && !recorderIsRecording)
+      ? null
+      : statusMessage
 
   const exportPayload = useMemo(
     () =>
@@ -169,6 +175,9 @@ export default function AsrBenchmarkScreen() {
       mode,
       processing,
       isRecording,
+      liveAsrListening: liveAsr.isListening,
+      recorderDurationMs,
+      recorderIsRecording,
       selectedModelId,
       selectedModelName: selectedModel?.metadata.name ?? null,
       selectedSampleId,
@@ -178,15 +187,26 @@ export default function AsrBenchmarkScreen() {
       visibleModelCount: visibleModels.length,
       resultsCount: results.length,
       missingBenchmarkEntryCount: missingBenchmarkEntries.length,
-      statusMessage: statusMessage || null,
+      statusMessage: visibleStatusMessage,
       error: error || null,
       interimText: liveAsr.interimText || null,
       committedText: liveAsr.committedText || null,
       latestResult: latestResult
         ? {
+            commitCount: latestResult.commitCount ?? null,
+            createdAt: latestResult.createdAt,
+            firstCommitMs: latestResult.firstCommitMs ?? null,
+            firstPartialMs: latestResult.firstPartialMs ?? null,
+            initMs: latestResult.initMs ?? null,
             modelId: latestResult.modelId,
+            modelName: latestResult.modelName,
             mode: latestResult.mode,
+            notes: latestResult.notes ?? null,
+            partialCount: latestResult.partialCount ?? null,
+            recognizeMs: latestResult.recognizeMs ?? null,
             runtime: latestResult.runtime,
+            sampleName: latestResult.sampleName ?? null,
+            sessionMs: latestResult.sessionMs ?? null,
             error: latestResult.error || null,
             transcript: latestResult.transcript || null,
           }
@@ -199,16 +219,20 @@ export default function AsrBenchmarkScreen() {
     latestResult,
     liveAsr.committedText,
     liveAsr.interimText,
+    liveAsr.isListening,
     liveBenchmarkModels.length,
     missingBenchmarkEntries.length,
     mode,
     processing,
+    recorderDurationMs,
+    recorderIsRecording,
     results.length,
     selectedModel?.metadata.name,
     selectedModelId,
     selectedSample?.name,
     selectedSampleId,
     statusMessage,
+    visibleStatusMessage,
     visibleModels.length,
   ])
 
@@ -232,7 +256,7 @@ export default function AsrBenchmarkScreen() {
       <LoadingOverlay
         visible={processing && !isRecording}
         message={mode === 'sample' ? 'Running benchmark...' : 'Preparing live benchmark...'}
-        subMessage={statusMessage}
+        subMessage={visibleStatusMessage || undefined}
       />
 
       <Section title="Recorder Benchmark">
@@ -272,8 +296,8 @@ export default function AsrBenchmarkScreen() {
         error={error}
         status={
           isRecording
-            ? `Recording with ${selectedModel?.metadata.name || 'selected model'}`
-            : statusMessage
+            ? `Recording with ${selectedModel?.metadata.name || 'selected model'} • ${(recorderDurationMs / 1000).toFixed(1)}s`
+            : visibleStatusMessage
         }
       />
 
@@ -409,6 +433,19 @@ export default function AsrBenchmarkScreen() {
               style={styles.flexButton}
             />
           </View>
+          <ResultsBox>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 6 }}>
+              Recorder state
+            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              {recorderIsRecording
+                ? `Mic recording • ${(recorderDurationMs / 1000).toFixed(1)}s`
+                : 'Recorder idle'}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+              ASR listener: {liveAsr.isListening ? 'active' : 'idle'}
+            </Text>
+          </ResultsBox>
           <ResultsBox>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 6 }}>
               Interim
