@@ -20,6 +20,7 @@
         "devices": "node scripts/agentic/cdp-bridge.mjs list-devices",
         "status": "node scripts/agentic/cdp-bridge.mjs list-devices",
         "recipe:run": "bash scripts/agentic/validate-recipe.sh",
+        "recipe:asr-benchmark": "bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-benchmark-screen-validation.json",
         "recipe:matrix": "bash scripts/agentic/validate-recipe.sh --matrix",
         "recipe:schema": "bash scripts/agentic/validate-flow-schema.sh",
         "recipe:preconditions": "bash scripts/agentic/validate-pre-conditions.sh",

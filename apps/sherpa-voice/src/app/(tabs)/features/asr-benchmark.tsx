@@ -1,8 +1,9 @@
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { useToast } from '@siteed/design-system'
+import { setAgenticPageState } from '../../../agentic-bridge'
 import { InlineModelDownloader } from '../../../components/InlineModelDownloader'
 import {
   AudioPlayButton,
@@ -147,6 +148,8 @@ export default function AsrBenchmarkScreen() {
   const selectedEntry = selectedModel
     ? getAsrBenchmarkEntry(selectedModel.metadata.id)
     : null
+  const latestResult = results[0] ?? null
+  const isRecording = liveAsr.isListening
 
   const exportPayload = useMemo(
     () =>
@@ -160,6 +163,54 @@ export default function AsrBenchmarkScreen() {
       ),
     [results]
   )
+
+  useEffect(() => {
+    setAgenticPageState({
+      mode,
+      processing,
+      isRecording,
+      selectedModelId,
+      selectedModelName: selectedModel?.metadata.name ?? null,
+      selectedSampleId,
+      selectedSampleName: selectedSample?.name ?? null,
+      benchmarkModelCount: benchmarkModels.length,
+      liveBenchmarkModelCount: liveBenchmarkModels.length,
+      visibleModelCount: visibleModels.length,
+      resultsCount: results.length,
+      missingBenchmarkEntryCount: missingBenchmarkEntries.length,
+      statusMessage: statusMessage || null,
+      error: error || null,
+      interimText: liveAsr.interimText || null,
+      committedText: liveAsr.committedText || null,
+      latestResult: latestResult
+        ? {
+            modelId: latestResult.modelId,
+            mode: latestResult.mode,
+            runtime: latestResult.runtime,
+            error: latestResult.error || null,
+            transcript: latestResult.transcript || null,
+          }
+        : null,
+    })
+  }, [
+    benchmarkModels.length,
+    error,
+    isRecording,
+    latestResult,
+    liveAsr.committedText,
+    liveAsr.interimText,
+    liveBenchmarkModels.length,
+    missingBenchmarkEntries.length,
+    mode,
+    processing,
+    results.length,
+    selectedModel?.metadata.name,
+    selectedModelId,
+    selectedSample?.name,
+    selectedSampleId,
+    statusMessage,
+    visibleModels.length,
+  ])
 
   const handleCopyResults = async () => {
     try {
@@ -175,8 +226,6 @@ export default function AsrBenchmarkScreen() {
     if (nextMode === mode) return
     setMode(nextMode)
   }
-
-  const isRecording = liveAsr.isListening
 
   return (
     <PageContainer>
@@ -200,6 +249,7 @@ export default function AsrBenchmarkScreen() {
 
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.margin.m }}>
         <TouchableOpacity
+          testID="asr-benchmark-mode-sample"
           style={modeTabStyle(mode === 'sample', theme.colors.primary, theme.colors.surfaceVariant)}
           onPress={() => handleSetMode('sample')}
         >
@@ -208,6 +258,7 @@ export default function AsrBenchmarkScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
+          testID="asr-benchmark-mode-live"
           style={modeTabStyle(mode === 'live', theme.colors.primary, theme.colors.surfaceVariant)}
           onPress={() => handleSetMode('live')}
         >
@@ -321,6 +372,7 @@ export default function AsrBenchmarkScreen() {
                 variant="primary"
                 onPress={runSelectedSampleBenchmark}
                 disabled={processing || !selectedModel || !selectedSample}
+                testID="asr-benchmark-run-selected"
                 style={styles.flexButton}
               />
               <ThemedButton
@@ -328,6 +380,7 @@ export default function AsrBenchmarkScreen() {
                 variant="secondary"
                 onPress={runAllSampleBenchmarks}
                 disabled={processing || benchmarkModels.length === 0 || !selectedSample}
+                testID="asr-benchmark-run-all"
                 style={styles.flexButton}
               />
             </View>
@@ -344,6 +397,7 @@ export default function AsrBenchmarkScreen() {
               variant="primary"
               onPress={startLiveBenchmark}
               disabled={processing || isRecording || !selectedModel}
+              testID="asr-benchmark-start-live"
               style={styles.flexButton}
             />
             <ThemedButton
@@ -351,6 +405,7 @@ export default function AsrBenchmarkScreen() {
               variant="danger"
               onPress={stopLiveBenchmark}
               disabled={!isRecording}
+              testID="asr-benchmark-stop-live"
               style={styles.flexButton}
             />
           </View>
@@ -378,6 +433,7 @@ export default function AsrBenchmarkScreen() {
             variant="secondary"
             onPress={handleCopyResults}
             disabled={results.length === 0}
+            testID="asr-benchmark-copy-json"
             style={styles.flexButton}
           />
           <ThemedButton
@@ -385,6 +441,7 @@ export default function AsrBenchmarkScreen() {
             variant="danger"
             onPress={clearResults}
             disabled={results.length === 0}
+            testID="asr-benchmark-clear-results"
             style={styles.flexButton}
           />
         </View>

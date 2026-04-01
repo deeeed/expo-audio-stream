@@ -8,5 +8,10 @@
     "description": "Visibility of the main ASR screen controls",
     "expression": "JSON.stringify((function(){ return { initVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-init-asr'), recognizeVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('btn-recognize') }; })())",
     "async": false
+  },
+  "asr-benchmark-ui": {
+    "description": "Route, mode, and control visibility for the ASR benchmark screen",
+    "expression": "JSON.stringify((function(){ const page = globalThis.__AGENTIC__?.getPageState?.() || {}; return { route: page.route || null, mode: page.mode || null, selectedModelId: page.selectedModelId || null, resultsCount: page.resultsCount ?? 0, sampleTabVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('asr-benchmark-mode-sample'), liveTabVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('asr-benchmark-mode-live'), runSelectedVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('asr-benchmark-run-selected'), startLiveVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('asr-benchmark-start-live'), stopLiveVisible: !!globalThis.__AGENTIC__?.findFiberByTestId?.('asr-benchmark-stop-live') }; })())",
+    "async": false
   }
 }
