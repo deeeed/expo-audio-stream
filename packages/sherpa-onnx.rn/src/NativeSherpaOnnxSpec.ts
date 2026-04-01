@@ -145,6 +145,12 @@ export interface Spec extends TurboModule {
     decodingMethod?: string;
     maxActivePaths?: number;
     provider?: string;
+    language?: string;
+    task?: string;
+    useItn?: boolean;
+    srcLang?: string;
+    tgtLang?: string;
+    usePnc?: boolean;
     // modelFiles fields flattened for TurboModule compat
     modelFileEncoder?: string;
     modelFileDecoder?: string;

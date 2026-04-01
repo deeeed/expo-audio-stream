@@ -6,6 +6,8 @@ import {
 } from '@siteed/audio-studio'
 import { baseLogger } from '../config'
 import { resolveModelDir } from '../utils/fileUtils'
+import { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
+export { SAMPLE_AUDIO_FILES } from '../utils/asrSamples'
 
 const logger = baseLogger.extend('ASR')
 import { makeWebProgressHandler, getWebModelBaseUrl } from '../utils/webModelUtils'
@@ -33,19 +35,6 @@ export const GREEDY_ONLY_TYPES = [
     'sense_voice',
     'moonshine',
     'fire_red_asr',
-]
-
-export const SAMPLE_AUDIO_FILES = [
-    {
-        id: '1',
-        name: 'JFK Speech Extract',
-        module: require('@assets/audio/jfk.wav'),
-    },
-    {
-        id: '2',
-        name: 'Random English Voice',
-        module: require('@assets/audio/en.wav'),
-    },
 ]
 
 export type LoadedAudioFile = {

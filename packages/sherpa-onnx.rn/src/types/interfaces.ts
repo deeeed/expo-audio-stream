@@ -481,6 +481,7 @@ export interface AsrModelConfig {
     | 'transducer'
     | 'nemo_transducer'
     | 'paraformer'
+    | 'canary'
     | 'nemo_ctc'
     | 'whisper'
     | 'tdnn'
@@ -512,7 +513,7 @@ export interface AsrModelConfig {
    * Default: false (offline/batch mode).
    *
    * IMPORTANT: Some model types only support one mode:
-   * - Offline only: 'whisper', 'paraformer', 'nemo_ctc', 'nemo_transducer',
+   * - Offline only: 'whisper', 'paraformer', 'canary', 'nemo_ctc', 'nemo_transducer',
    *   'moonshine', 'sense_voice', 'fire_red_asr', 'dolphin', 'tdnn',
    *   'telespeech_ctc', 'wenet_ctc', 'zipformer2_ctc', 'lstm'
    * - Both modes: 'transducer', 'zipformer', 'zipformer2'
@@ -522,6 +523,40 @@ export interface AsrModelConfig {
    * causes a cryptic native dimension mismatch error.
    */
   streaming?: boolean;
+
+  /**
+   * Spoken/source language hint for multilingual offline models such as Whisper
+   * and SenseVoice. Empty string lets the model auto-detect when supported.
+   */
+  language?: string;
+
+  /**
+   * Whisper task mode. Use `translate` only with multilingual Whisper models.
+   * Default: `transcribe`
+   */
+  task?: 'transcribe' | 'translate';
+
+  /**
+   * SenseVoice inverse text normalization toggle.
+   * Default: true
+   */
+  useItn?: boolean;
+
+  /**
+   * Canary source language code.
+   */
+  srcLang?: string;
+
+  /**
+   * Canary target language code.
+   */
+  tgtLang?: string;
+
+  /**
+   * Canary punctuation/capitalization toggle.
+   * Default: true
+   */
+  usePnc?: boolean;
 
   /**
    * Enable debug mode for detailed logs

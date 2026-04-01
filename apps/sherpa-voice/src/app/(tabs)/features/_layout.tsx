@@ -14,6 +14,7 @@ export default function FeaturesLayout() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="asr" options={{ title: 'Speech Recognition', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="asr-benchmark" options={{ title: 'ASR Benchmark', headerBackTitle: 'Back' }} />
       <Stack.Screen name="tts" options={{ title: 'Text-to-Speech', headerBackTitle: 'Back' }} />
       <Stack.Screen name="audio-tagging" options={{ title: 'Audio Tagging', headerBackTitle: 'Back' }} />
       <Stack.Screen name="speaker-id" options={{ title: 'Speaker ID', headerBackTitle: 'Back' }} />

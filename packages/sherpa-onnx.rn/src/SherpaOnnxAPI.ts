@@ -135,6 +135,12 @@ const nativeAdapter: ApiInterface = {
       decodingMethod: config.decodingMethod,
       maxActivePaths: config.maxActivePaths,
       provider: config.provider,
+      language: config.language,
+      task: config.task,
+      useItn: config.useItn,
+      srcLang: config.srcLang,
+      tgtLang: config.tgtLang,
+      usePnc: config.usePnc,
     };
     if (config.modelFiles) {
       nativeConfig.modelFileEncoder = config.modelFiles.encoder;

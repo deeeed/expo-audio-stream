@@ -29,6 +29,7 @@ import com.k2fsa.sherpa.onnx.OfflineNemoEncDecCtcModelConfig
 import com.k2fsa.sherpa.onnx.OfflineMoonshineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
 import com.k2fsa.sherpa.onnx.OfflineFireRedAsrModelConfig
+import com.k2fsa.sherpa.onnx.OfflineCanaryModelConfig
 
 // Import Sherpa ONNX classes for online recognition
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -356,6 +357,20 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
         modelFiles: Map<String, String>
     ): OfflineModelConfig {
         val modelConfig = OfflineModelConfig()
+        val language = asrModelConfig?.getString("language") ?: ""
+        val task = asrModelConfig?.getString("task") ?: "transcribe"
+        val useItn = if (asrModelConfig?.hasKey("useItn") == true) {
+            asrModelConfig?.getBoolean("useItn") ?: true
+        } else {
+            true
+        }
+        val srcLang = asrModelConfig?.getString("srcLang") ?: "en"
+        val tgtLang = asrModelConfig?.getString("tgtLang") ?: "en"
+        val usePnc = if (asrModelConfig?.hasKey("usePnc") == true) {
+            asrModelConfig?.getBoolean("usePnc") ?: true
+        } else {
+            true
+        }
         
         // Get tokens file path
         val tokensFile = modelFiles["tokens"] ?: "tokens.txt"
@@ -410,10 +425,30 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 val whisperConfig = OfflineWhisperModelConfig()
                 whisperConfig.encoder = encoderPath
                 whisperConfig.decoder = decoderPath
-                whisperConfig.language = "en"
-                whisperConfig.task = "transcribe"
+                whisperConfig.language = language
+                whisperConfig.task = task
                 
                 modelConfig.whisper = whisperConfig
+            }
+            "canary" -> {
+                Log.i(TAG, "Setting up Canary model")
+                val encoderFile = modelFiles["encoder"] ?: "encoder.int8.onnx"
+                val decoderFile = modelFiles["decoder"] ?: "decoder.int8.onnx"
+
+                val encoderPath = File(modelDir, encoderFile).absolutePath
+                val decoderPath = File(modelDir, decoderFile).absolutePath
+
+                Log.i(TAG, "Using encoder: $encoderPath")
+                Log.i(TAG, "Using decoder: $decoderPath")
+
+                val canaryConfig = OfflineCanaryModelConfig()
+                canaryConfig.encoder = encoderPath
+                canaryConfig.decoder = decoderPath
+                canaryConfig.srcLang = srcLang
+                canaryConfig.tgtLang = tgtLang
+                canaryConfig.usePnc = usePnc
+
+                modelConfig.canary = canaryConfig
             }
             "nemo_ctc", "nemo_transducer" -> {
                 Log.i(TAG, "Setting up Nemo CTC/Transducer model")
@@ -461,8 +496,8 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
                 
                 val senseVoiceConfig = OfflineSenseVoiceModelConfig()
                 senseVoiceConfig.model = modelPath
-                senseVoiceConfig.language = "" // Default to auto-detect
-                senseVoiceConfig.useInverseTextNormalization = true
+                senseVoiceConfig.language = language
+                senseVoiceConfig.useInverseTextNormalization = useItn
                 
                 modelConfig.senseVoice = senseVoiceConfig
             }
@@ -511,6 +546,10 @@ class ASRHandler(private val reactContext: ReactApplicationContext) {
             "whisper" -> {
                 files.add(modelConfig.whisper.encoder)
                 files.add(modelConfig.whisper.decoder)
+            }
+            "canary" -> {
+                files.add(modelConfig.canary.encoder)
+                files.add(modelConfig.canary.decoder)
             }
             "nemo_ctc", "nemo_transducer" -> {
                 files.add(modelConfig.nemo.model)

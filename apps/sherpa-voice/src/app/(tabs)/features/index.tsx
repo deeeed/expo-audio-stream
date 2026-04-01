@@ -30,6 +30,13 @@ const FEATURES: FeatureCardProps[] = [
     color: '#4CAF50',
   },
   {
+    title: 'ASR Benchmark',
+    description: 'Compare live and offline ASR models on repeatable benchmark inputs',
+    icon: 'speedometer',
+    route: '/(tabs)/features/asr-benchmark',
+    color: '#00695C',
+  },
+  {
     title: 'Text-to-Speech',
     description: 'Convert text to natural-sounding speech',
     icon: 'chatbox-ellipses',

@@ -4,6 +4,12 @@ import { baseLogger } from '../config';
 
 const logger = baseLogger.extend('LiveAsr');
 
+interface UseLiveAsrOptions {
+  onCommit?: (text: string) => void;
+  onError?: (error: string) => void;
+  onInterimUpdate?: (text: string) => void;
+}
+
 export interface UseLiveAsrResult {
   committedText: string;
   interimText: string;
@@ -14,7 +20,7 @@ export interface UseLiveAsrResult {
   feedAudio: (samples: number[], sampleRate: number) => void;
 }
 
-export function useLiveAsr(): UseLiveAsrResult {
+export function useLiveAsr(options: UseLiveAsrOptions = {}): UseLiveAsrResult {
   const [committedText, setCommittedText] = useState('');
   const [interimText, setInterimText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -37,12 +43,16 @@ export function useLiveAsr(): UseLiveAsrResult {
         logger.info(`Committed text (${text.length} chars): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
         setCommittedText((prev) => prev ? `${prev} ${text}` : text);
         setInterimText('');
+        options.onCommit?.(text);
         await ASR.resetStream();
       } else {
         setInterimText(text);
+        options.onInterimUpdate?.(text);
       }
     } catch (e) {
-      logger.warn(`feedAudio error: ${e instanceof Error ? e.message : String(e)}`);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      logger.warn(`feedAudio error: ${errorMessage}`);
+      options.onError?.(errorMessage);
     } finally {
       processingRef.current = false;
       // Process next queued chunk
