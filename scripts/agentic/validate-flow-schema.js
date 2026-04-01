@@ -45,7 +45,7 @@ function validateActionShape(node, issues) {
     case 'set_input':
       requireFields(node, ['test_id', 'value'], issues);
       break;
-    case 'flow_ref':
+    case 'call':
     case 'eval_ref':
       requireFields(node, ['ref'], issues);
       break;
@@ -154,7 +154,7 @@ function validatePreConditions(preConditions, registry, issues) {
 }
 
 function validateReference(node, appRoot, defaultTeam, issues) {
-  if (node.action === 'flow_ref' && node.ref) {
+  if (node.action === 'call' && node.ref) {
     try {
       resolveFlowRef(node.ref, { appRoot, defaultTeam });
     } catch (error) {

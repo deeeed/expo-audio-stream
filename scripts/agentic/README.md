@@ -1,6 +1,6 @@
-# Agentic Recipe System
+# Agentic Workflow System
 
-The shared recipe runner lives in [`scripts/agentic`](./). App-specific recipe data lives with each app under:
+The shared workflow runner lives in [`scripts/agentic`](./). App-specific workflow data lives with each app under:
 
 Implementation status is tracked in [`RECIPE_STATUS.md`](./RECIPE_STATUS.md).
 
@@ -12,6 +12,20 @@ apps/<app>/scripts/agentic/teams/<team>/
   evals.json
   pre-conditions.js
 ```
+
+## Vocabulary
+
+Use these terms consistently:
+
+- `workflow`: the canonical authoring format under `validate.workflow`
+- `recipe`: a colloquial name for a workflow file executed by `validate-recipe.sh`
+- `subflow`: a reusable workflow invoked by the `call` action
+- `node`: one executable or control unit inside `workflow.nodes`
+- `transition`: an edge selected by `next`, a `switch` case, or `default`
+- `guard`: a condition that chooses a transition, usually via `switch.cases[].when`
+- `trace`: the execution record emitted to `trace.json`
+
+The important boundary is: the public model is a workflow graph; `recipe` is just a convenient operator-facing label.
 
 The shared validator and runner are repo-root scripts:
 
@@ -34,20 +48,20 @@ Useful flags:
 - `--update-baselines` refreshes screenshot baseline files for `screenshot` steps that declare `baseline`.
 - `--artifacts-dir <path>` overrides the default `.agent/recipe-runs/...` artifact location.
 
-Recipe conventions:
+Workflow conventions:
 
-- Flows and recipes use `validate.workflow`. It is a graph/state-machine format with `entry`, `nodes`, explicit `next` transitions, `switch` nodes, and `end` nodes.
+- Flows and recipes use `validate.workflow`. It is a workflow graph with `entry`, `nodes`, explicit `next` transitions, `switch` nodes, and `end` nodes.
 - Optional `setup`, `teardown`, and `pre_conditions` hooks live under `validate.workflow.setup`, `validate.workflow.teardown`, and `validate.workflow.pre_conditions`.
 - `eval_sync`, `eval_async`, and `eval_ref` steps must assert.
-- `flow_ref` is the main composition primitive. Use it to call reusable subflows from larger workflows.
-- `flow_ref` and `eval_ref` can omit the team prefix when the current file already lives inside `teams/<team>/...`.
+- `call` is the action name for a subflow call. Use it to compose reusable workflows into larger ones.
+- `call` and `eval_ref` can omit the team prefix when the current file already lives inside `teams/<team>/...`.
 - Pre-condition entries should include `fixtures.pass` and `fixtures.fail` so they can be validated offline.
 
-Failure behavior:
+Run artifacts:
 
 - Any failed live step captures a screenshot, current route, current app state, recent eval refs, and recent `.agent` logs into a per-run artifact directory.
 - Successful runs also write `summary.json`, `trace.json`, `workflow.json`, and `workflow.mmd`, and matrix runs additionally write `matrix-summary.json`.
-- `workflow.mmd` is Mermaid output so a future viewer can render the exact workflow graph taken by the runner.
+- `workflow.mmd` is Mermaid output so a future viewer can render the workflow graph.
 
 Screenshot assertions:
 
@@ -74,7 +88,7 @@ Example:
           "default": "open-record"
         },
         "open-record": {
-          "action": "flow_ref",
+          "action": "call",
           "ref": "record-screen-smoke",
           "next": "assert-route"
         },

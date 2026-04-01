@@ -10,7 +10,7 @@ const EXECUTABLE_ACTIONS = new Set([
   'scroll',
   'set_input',
   'screenshot',
-  'flow_ref',
+  'call',
   'eval_ref',
   'eval_sync',
   'eval_async',
@@ -371,7 +371,7 @@ function mermaidNodeShape(nodeId, node, mermaidId) {
     return `${mermaidId}(["${escapeMermaidLabel(`${nodeId}<br/>${status}`)}"])`;
   }
 
-  if (action === 'flow_ref') {
+  if (action === 'call') {
     return `${mermaidId}[["${label}"]]`;
   }
 

@@ -124,7 +124,7 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log(`Usage:
-  validate-recipe.sh <recipe-folder-or-json>
+  validate-recipe.sh <workflow-folder-or-json>
     [--device <name>]
     [--matrix [ios,android,web]]
     [--step <id>]
@@ -134,7 +134,7 @@ function printHelp() {
     [--artifacts-dir <path>]
     [--dry-run]
 
-The runner executes app-local scenarios stored under:
+The runner executes app-local workflow files stored under:
   <app>/scripts/agentic/teams/<team>/{flows,recipes,evals,pre-conditions.js}
 
 Runtime features:
@@ -355,8 +355,8 @@ function describeStep(step) {
       return `set ${step.test_id}`;
     case 'screenshot':
       return `capture screenshot ${step.id || step.filename || ''}`.trim();
-    case 'flow_ref':
-      return `flow ${step.ref}`;
+    case 'call':
+      return `call ${step.ref}`;
     case 'eval_ref':
       return `eval ref ${step.ref}`;
     case 'eval_sync':
@@ -1277,7 +1277,7 @@ async function runExecutableNode(node, context, options = {}) {
     return { next: node.next || '' };
   }
 
-  if (node.action === 'flow_ref') {
+  if (node.action === 'call') {
     const flow = resolveFlowRef(node.ref, {
       appRoot,
       defaultTeam,

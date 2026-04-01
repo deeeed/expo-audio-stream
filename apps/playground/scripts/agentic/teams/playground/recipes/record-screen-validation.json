@@ -39,17 +39,17 @@
           "default": "record-screen-smoke-web"
         },
         "record-screen-smoke-ios": {
-          "action": "flow_ref",
+          "action": "call",
           "ref": "record-screen-smoke",
           "next": "assert-route"
         },
         "record-screen-smoke-android": {
-          "action": "flow_ref",
+          "action": "call",
           "ref": "record-screen-smoke",
           "next": "assert-route"
         },
         "record-screen-smoke-web": {
-          "action": "flow_ref",
+          "action": "call",
           "ref": "record-screen-smoke",
           "next": "assert-route"
         },

@@ -6,7 +6,7 @@
       "setup": [
         {
           "id": "open-record-screen",
-          "action": "flow_ref",
+          "action": "call",
           "ref": "record-screen-smoke"
         }
       ],
