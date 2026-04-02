@@ -1,9 +1,12 @@
 import * as FileSystem from 'expo-file-system/legacy'
+import { Platform } from 'react-native'
 
 import { toNativePath } from './fileUtils'
 
 const moonshineIntentModelRoot =
     `${FileSystem.documentDirectory ?? ''}moonshine-intent-models/`
+const moonshineIntentWebModelBaseUrl =
+    'https://download.moonshine.ai/model/embeddinggemma-300m'
 
 export interface MoonshineIntentModelStatus {
     downloaded: boolean
@@ -44,6 +47,14 @@ async function downloadToFile(
 export async function getMoonshineIntentModelStatus(
     variant = 'q4'
 ): Promise<MoonshineIntentModelStatus> {
+    if (Platform.OS === 'web') {
+        return {
+            downloaded: true,
+            localPath: moonshineIntentWebModelBaseUrl,
+            variant,
+        }
+    }
+
     const dirUri = getModelDirectoryUri(variant)
     const files = getIntentFiles(variant)
     const statuses = await Promise.all(
@@ -61,6 +72,15 @@ export async function prepareMoonshineIntentModel(
     options: MoonshineIntentDownloadOptions = {}
 ): Promise<MoonshineIntentModelStatus> {
     const variant = options.variant ?? 'q4'
+    if (Platform.OS === 'web') {
+        options.onStatus?.('Using Moonshine web intent model from CDN...')
+        return {
+            downloaded: true,
+            localPath: moonshineIntentWebModelBaseUrl,
+            variant,
+        }
+    }
+
     const dirUri = getModelDirectoryUri(variant)
     await FileSystem.makeDirectoryAsync(dirUri, {
         intermediates: true,

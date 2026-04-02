@@ -155,8 +155,11 @@ Current web status:
   backend currently uses the first two blobs to create temporary ONNX object
   URLs and ignores the tokenizer bytes because decoding is handled by
   `llama-tokenizer-js`.
-- Web intent recognition is still not implemented in this package-owned
-  backend and currently fails explicitly with a runtime error.
+- Web intent recognition is supported through the same
+  `createIntentRecognizer()` / `processUtterance()` API. The package-owned web
+  backend loads Moonshine's `embeddinggemma-300m` ONNX model, mounts its
+  external `.onnx_data` sidecar into `onnxruntime-web`, and uses a package-
+  owned tokenizer implementation for trigger phrase and utterance embeddings.
 - Web does not expose native-style speaker clustering / diarization metadata
   yet. Transcript lines are emitted, but speaker hints remain native-only.
 - Use `configureMoonshineWeb()` if you want to override the default model asset

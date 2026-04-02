@@ -17,6 +17,7 @@ import {
   resolveMoonshineWebModelBasePath,
   getMoonshineWebRuntimeVersion,
 } from '../web/config';
+import { MoonshineWebIntentRecognizerModel } from '../web/MoonshineWebIntentRecognizer';
 import { MoonshineWebModel } from '../web/MoonshineWebModel';
 
 type MoonshineListener = (event: MoonshineTranscriptEvent) => void;
@@ -56,11 +57,12 @@ type WebStreamState = {
   transcriberId: string;
 };
 
-function unsupportedOnWeb(operation: string): never {
-  throw new Error(
-    `Moonshine ${operation} is not implemented on web yet. The current package-owned web backend supports transcription, including in-memory loading, but not web intent recognition.`
-  );
-}
+type WebIntentRecognizerState = {
+  id: string;
+  intents: Map<string, Float32Array>;
+  model: MoonshineWebIntentRecognizerModel;
+  threshold: number;
+};
 
 function createResult(
   transcriberId: string,
@@ -247,47 +249,53 @@ export class MoonshineTranscriber {
 }
 
 export class MoonshineIntentRecognizer {
-  public constructor(public readonly intentRecognizerId: string) {}
+  public constructor(
+    private readonly service: MoonshineService,
+    public readonly intentRecognizerId: string
+  ) {}
 
   public clearIntents(): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('clearIntents()');
+    return this.service.clearIntents(this.intentRecognizerId);
   }
 
   public getIntentCount(): Promise<number> {
-    return unsupportedOnWeb('getIntentCount()');
+    return this.service.getIntentCount(this.intentRecognizerId);
   }
 
   public getIntentThreshold(): Promise<number> {
-    return unsupportedOnWeb('getIntentThreshold()');
+    return this.service.getIntentThreshold(this.intentRecognizerId);
   }
 
   public processUtterance(
-    _utterance: string
+    utterance: string
   ): Promise<MoonshineProcessUtteranceResult> {
-    return unsupportedOnWeb('processUtterance()');
+    return this.service.processUtterance(this.intentRecognizerId, utterance);
   }
 
-  public registerIntent(_triggerPhrase: string): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('registerIntent()');
+  public registerIntent(triggerPhrase: string): Promise<{ success: boolean }> {
+    return this.service.registerIntent(this.intentRecognizerId, triggerPhrase);
   }
 
   public release(): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('releaseIntentRecognizer()');
+    return this.service.releaseIntentRecognizer(this.intentRecognizerId);
   }
 
-  public setIntentThreshold(_threshold: number): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('setIntentThreshold()');
+  public setIntentThreshold(threshold: number): Promise<{ success: boolean }> {
+    return this.service.setIntentThreshold(this.intentRecognizerId, threshold);
   }
 
   public unregisterIntent(
-    _triggerPhrase: string
+    triggerPhrase: string
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('unregisterIntent()');
+    return this.service.unregisterIntent(this.intentRecognizerId, triggerPhrase);
   }
 }
 
 export class MoonshineService {
   private defaultTranscriber: MoonshineTranscriber | null = null;
+  private intentModelCache = new Map<string, MoonshineWebIntentRecognizerModel>();
+  private nextIntentRecognizerId = 1;
+  private readonly intentRecognizers = new Map<string, WebIntentRecognizerState>();
   private listeners = new Set<MoonshineListener>();
   private modelCache = new Map<string, MoonshineWebModel>();
   private nextTranscriberId = 1;
@@ -349,15 +357,45 @@ export class MoonshineService {
   }
 
   public clearIntents(
-    _intentRecognizerId: string
+    intentRecognizerId: string
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('clearIntents()');
+    const state = this.getIntentRecognizerState(intentRecognizerId);
+    state.intents.clear();
+    return Promise.resolve({ success: true });
   }
 
   public async createIntentRecognizer(
-    _config: MoonshineCreateIntentRecognizerConfig
+    config: MoonshineCreateIntentRecognizerConfig
   ): Promise<MoonshineIntentRecognizer> {
-    return unsupportedOnWeb('createIntentRecognizer()');
+    const modelPath = config.modelPath?.trim();
+    if (!modelPath) {
+      throw new Error('Moonshine intent modelPath is required');
+    }
+
+    const modelArch = config.modelArch ?? 'gemma-300m';
+    if (!(modelArch === 'gemma-300m' || modelArch === 0)) {
+      throw new Error(
+        `Unsupported Moonshine web intent modelArch: ${String(modelArch)}`
+      );
+    }
+
+    const modelVariant = config.modelVariant?.trim() || 'q4';
+    const cacheKey = `${modelPath}::${modelVariant}`;
+    let model = this.intentModelCache.get(cacheKey);
+    if (!model) {
+      model = new MoonshineWebIntentRecognizerModel(modelPath, modelVariant);
+      this.intentModelCache.set(cacheKey, model);
+    }
+    await model.load();
+
+    const intentRecognizerId = `web-intent-${this.nextIntentRecognizerId++}`;
+    this.intentRecognizers.set(intentRecognizerId, {
+      id: intentRecognizerId,
+      intents: new Map(),
+      model,
+      threshold: config.threshold ?? 0.7,
+    });
+    return new MoonshineIntentRecognizer(this, intentRecognizerId);
   }
 
   public async createStream(): Promise<string> {
@@ -403,13 +441,13 @@ export class MoonshineService {
   }
 
   public async getIntentCount(_intentRecognizerId: string): Promise<number> {
-    return unsupportedOnWeb('getIntentCount()');
+    return this.getIntentRecognizerState(_intentRecognizerId).intents.size;
   }
 
   public async getIntentThreshold(
     _intentRecognizerId: string
   ): Promise<number> {
-    return unsupportedOnWeb('getIntentThreshold()');
+    return this.getIntentRecognizerState(_intentRecognizerId).threshold;
   }
 
   public getPlatformStatus(): MoonshinePlatformStatus {
@@ -488,7 +526,8 @@ export class MoonshineService {
   public releaseIntentRecognizer(
     _intentRecognizerId: string
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('releaseIntentRecognizer()');
+    this.intentRecognizers.delete(_intentRecognizerId);
+    return Promise.resolve({ success: true });
   }
 
   public removeAllListeners(): void {
@@ -518,21 +557,23 @@ export class MoonshineService {
     _intentRecognizerId: string,
     _utterance: string
   ): Promise<MoonshineProcessUtteranceResult> {
-    return unsupportedOnWeb('processUtterance()');
+    return this.processUtteranceInternal(_intentRecognizerId, _utterance);
   }
 
   public registerIntent(
     _intentRecognizerId: string,
     _triggerPhrase: string
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('registerIntent()');
+    return this.registerIntentInternal(_intentRecognizerId, _triggerPhrase);
   }
 
   public setIntentThreshold(
     _intentRecognizerId: string,
     _threshold: number
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('setIntentThreshold()');
+    const state = this.getIntentRecognizerState(_intentRecognizerId);
+    state.threshold = _threshold;
+    return Promise.resolve({ success: true });
   }
 
   public async start(): Promise<{ success: boolean }> {
@@ -628,7 +669,9 @@ export class MoonshineService {
     _intentRecognizerId: string,
     _triggerPhrase: string
   ): Promise<{ success: boolean }> {
-    return unsupportedOnWeb('unregisterIntent()');
+    const state = this.getIntentRecognizerState(_intentRecognizerId);
+    state.intents.delete(_triggerPhrase);
+    return Promise.resolve({ success: true });
   }
 
   private createTranscriberFromResult(
@@ -762,6 +805,18 @@ export class MoonshineService {
     }
   }
 
+  private getIntentRecognizerState(
+    intentRecognizerId: string
+  ): WebIntentRecognizerState {
+    const state = this.intentRecognizers.get(intentRecognizerId);
+    if (!state) {
+      throw new Error(
+        `Moonshine web intent recognizer "${intentRecognizerId}" does not exist`
+      );
+    }
+    return state;
+  }
+
   private ensureDefaultTranscriber(): MoonshineTranscriber {
     if (!this.defaultTranscriber) {
       throw new Error(
@@ -777,6 +832,62 @@ export class MoonshineService {
       throw new Error(`Moonshine web transcriber "${transcriberId}" does not exist`);
     }
     return state;
+  }
+
+  private async processUtteranceInternal(
+    intentRecognizerId: string,
+    utterance: string
+  ): Promise<MoonshineProcessUtteranceResult> {
+    const normalizedUtterance = utterance.trim();
+    if (!normalizedUtterance) {
+      throw new Error('Moonshine utterance is required');
+    }
+
+    const state = this.getIntentRecognizerState(intentRecognizerId);
+    if (state.intents.size === 0) {
+      return { matched: false, success: true };
+    }
+
+    const utteranceEmbedding = await state.model.getEmbedding(normalizedUtterance);
+    let bestTriggerPhrase: string | null = null;
+    let bestSimilarity = Number.NEGATIVE_INFINITY;
+
+    for (const [triggerPhrase, intentEmbedding] of state.intents.entries()) {
+      const similarity = state.model.similarity(utteranceEmbedding, intentEmbedding);
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestTriggerPhrase = triggerPhrase;
+      }
+    }
+
+    if (bestTriggerPhrase && bestSimilarity >= state.threshold) {
+      return {
+        match: {
+          similarity: bestSimilarity,
+          triggerPhrase: bestTriggerPhrase,
+          utterance: normalizedUtterance,
+        },
+        matched: true,
+        success: true,
+      };
+    }
+
+    return { matched: false, success: true };
+  }
+
+  private async registerIntentInternal(
+    intentRecognizerId: string,
+    triggerPhrase: string
+  ): Promise<{ success: boolean }> {
+    const normalizedTriggerPhrase = triggerPhrase.trim();
+    if (!normalizedTriggerPhrase) {
+      throw new Error('Moonshine intent triggerPhrase is required');
+    }
+
+    const state = this.getIntentRecognizerState(intentRecognizerId);
+    const embedding = await state.model.getEmbedding(normalizedTriggerPhrase);
+    state.intents.set(normalizedTriggerPhrase, embedding);
+    return { success: true };
   }
 
   private loadDefaultTranscriberFromResult(
