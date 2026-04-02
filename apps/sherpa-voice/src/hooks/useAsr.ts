@@ -296,7 +296,10 @@ export function useAsr() {
                 setError('Microphone permission denied')
                 return
             }
-            await ASR.createOnlineStream()
+            const streamResult = await ASR.createOnlineStream()
+            if (!streamResult.success) {
+                throw new Error('Failed to create live ASR stream for selected model')
+            }
             streamCreatedRef.current = true
             liveAsr.start()
             addLog(`Recording at ${DEFAULT_LIVE_SAMPLE_RATE}Hz...`)
@@ -323,6 +326,8 @@ export function useAsr() {
             })
             addLog('Listening...')
         } catch (e) {
+            await recorder.stopRecording().catch(() => {})
+            liveAsr.stop()
             setError(e instanceof Error ? e.message : String(e))
             streamCreatedRef.current = false
         }
@@ -356,7 +361,12 @@ export function useAsr() {
                 const assetUri = asset.localUri || asset.uri
                 if (!assetUri) throw new Error('Failed to load audio asset')
                 addLog('Creating online stream...')
-                await ASR.createOnlineStream()
+                const streamResult = await ASR.createOnlineStream()
+                if (!streamResult.success) {
+                    throw new Error(
+                        'Failed to create live ASR stream for selected model'
+                    )
+                }
                 const result = await ASR.recognizeFromFile(assetUri)
                 if (result.success && result.text) {
                     addLog(`Result: "${result.text}"`)

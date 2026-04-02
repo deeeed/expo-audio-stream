@@ -431,7 +431,14 @@ export function useAsrBenchmark() {
             if (!initResult.success) {
                 throw new Error(initResult.error || 'ASR init failed')
             }
-            await ASR.createOnlineStream()
+            const streamResult = await ASR.createOnlineStream()
+            if (!streamResult.success) {
+                throw new Error(
+                    Platform.OS === 'web'
+                        ? `Failed to create a live ASR stream for ${selectedModel.metadata.name} on web`
+                        : `Failed to create a live ASR stream for ${selectedModel.metadata.name}`
+                )
+            }
             const initMs = nowMs() - initStartedAt
 
             liveSessionRef.current = {
@@ -461,6 +468,7 @@ export function useAsrBenchmark() {
             })
             setStatusMessage(`Recording with ${selectedModel.metadata.name}...`)
         } catch (startError) {
+            await recorder.stopRecording().catch(() => {})
             await ASR.release().catch(() => {})
             liveSessionRef.current = null
             liveAsr.stop()

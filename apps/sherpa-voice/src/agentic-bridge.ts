@@ -1491,6 +1491,9 @@ if (__DEV__) {
                     // 2. Create online stream
                     const streamResult = await ASR.createOnlineStream()
                     steps.createStream = streamResult.success ? 'PASS' : 'FAIL'
+                    if (!streamResult.success) {
+                        throw new Error('createOnlineStream failed')
+                    }
 
                     // 3. Get empty result (stream just created, no audio fed)
                     const emptyResult = await ASR.getResult()

@@ -156,6 +156,7 @@ export default function AsrBenchmarkScreen() {
     : null
   const latestResult = results[0] ?? null
   const isRecording = recorderIsRecording
+  const modeSwitchDisabled = processing || isRecording
   const visibleStatusMessage =
     !statusMessage || (statusMessage.startsWith('Recording with') && !recorderIsRecording)
       ? null
@@ -250,7 +251,7 @@ export default function AsrBenchmarkScreen() {
   }
 
   const handleSetMode = (nextMode: BenchmarkMode) => {
-    if (processing) return
+    if (modeSwitchDisabled) return
     if (nextMode === mode) return
     setMode(nextMode)
   }
@@ -278,7 +279,12 @@ export default function AsrBenchmarkScreen() {
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: theme.margin.m }}>
         <TouchableOpacity
           testID="asr-benchmark-mode-sample"
-          style={modeTabStyle(mode === 'sample', theme.colors.primary, theme.colors.surfaceVariant)}
+          disabled={modeSwitchDisabled}
+          activeOpacity={modeSwitchDisabled ? 1 : 0.7}
+          style={[
+            modeTabStyle(mode === 'sample', theme.colors.primary, theme.colors.surfaceVariant),
+            modeSwitchDisabled ? styles.disabledTab : null,
+          ]}
           onPress={() => handleSetMode('sample')}
         >
           <Text variant="labelLarge" style={{ color: mode === 'sample' ? theme.colors.onPrimary : theme.colors.onSurface }}>
@@ -287,7 +293,12 @@ export default function AsrBenchmarkScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           testID="asr-benchmark-mode-live"
-          style={modeTabStyle(mode === 'live', theme.colors.primary, theme.colors.surfaceVariant)}
+          disabled={modeSwitchDisabled}
+          activeOpacity={modeSwitchDisabled ? 1 : 0.7}
+          style={[
+            modeTabStyle(mode === 'live', theme.colors.primary, theme.colors.surfaceVariant),
+            modeSwitchDisabled ? styles.disabledTab : null,
+          ]}
           onPress={() => handleSetMode('live')}
         >
           <Text variant="labelLarge" style={{ color: mode === 'live' ? theme.colors.onPrimary : theme.colors.onSurface }}>
@@ -512,6 +523,9 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  disabledTab: {
+    opacity: 0.6,
   },
   flexButton: {
     flex: 1,
