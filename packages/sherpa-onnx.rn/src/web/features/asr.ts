@@ -25,6 +25,7 @@ const OFFLINE_ONLY_TYPES: ReadonlySet<string> = new Set([
   'paraformer',
   'nemo_ctc',
   'nemo_transducer',
+  'canary',
   'moonshine',
   'sense_voice',
   'fire_red_asr',
@@ -99,6 +100,7 @@ function buildOfflineAsrPlan(
   fetchBase: string,
   modelDir: string,
   rawType: string,
+  config: AsrModelConfig,
   mf: AsrModelConfig['modelFiles'] | undefined,
   opts: { debug: number; numThreads: number; sampleRate: number; decodingMethod: string; maxActivePaths: number }
 ): { files: OfflineAsrFile[]; recognizerConfig: Record<string, any> } {
@@ -122,13 +124,31 @@ function buildOfflineAsrPlan(
 
   switch (rawType) {
     case 'whisper':
-      mc.whisper = { encoder: f('encoder', 'encoder.onnx'), decoder: f('decoder', 'decoder.onnx'), language: '', task: 'transcribe' };
+      mc.whisper = {
+        encoder: f('encoder', 'encoder.onnx'),
+        decoder: f('decoder', 'decoder.onnx'),
+        language: config.language ?? '',
+        task: config.task ?? 'transcribe',
+      };
+      break;
+    case 'canary':
+      mc.canary = {
+        encoder: f('encoder', 'encoder.onnx'),
+        decoder: f('decoder', 'decoder.onnx'),
+        srcLang: config.srcLang ?? 'en',
+        tgtLang: config.tgtLang ?? 'en',
+        usePnc: config.usePnc ?? true,
+      };
       break;
     case 'moonshine':
       mc.moonshine = { preprocessor: f('preprocessor', 'preprocessor.onnx'), encoder: f('encoder', 'encoder.onnx'), uncachedDecoder: f('uncachedDecoder', 'uncached_decoder.onnx'), cachedDecoder: f('cachedDecoder', 'cached_decoder.onnx') };
       break;
     case 'sense_voice':
-      mc.senseVoice = { model: f('model', 'model.onnx'), language: '', useItn: false };
+      mc.senseVoice = {
+        model: f('model', 'model.onnx'),
+        language: config.language ?? '',
+        useInverseTextNormalization: config.useItn ?? true,
+      };
       break;
     case 'fire_red_asr':
       mc.fireRedAsr = { encoder: f('encoder', 'encoder.onnx'), decoder: f('decoder', 'decoder.onnx') };
@@ -288,7 +308,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       // Try worker path first for non-blocking offline inference
       if (WasmWorkerManager.shouldUse()) {
         try {
-          const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, mf, {
+          const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, config, mf, {
             debug, numThreads, sampleRate,
             decodingMethod: config.decodingMethod ?? 'greedy_search',
             maxActivePaths: config.maxActivePaths ?? 4,
@@ -311,7 +331,7 @@ export function AsrMixin<TBase extends Constructor>(Base: TBase) {
       await loadCombinedWasm();
       ensureDir(modelDir);
 
-      const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, mf, {
+      const plan = buildOfflineAsrPlan(fetchBase, modelDir, rawType, config, mf, {
         debug,
         numThreads,
         sampleRate,

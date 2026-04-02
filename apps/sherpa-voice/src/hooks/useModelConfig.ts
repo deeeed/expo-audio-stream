@@ -138,6 +138,42 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
             },
         },
     },
+    'streaming-zipformer-ctc-small-2024-03-18': {
+        id: 'streaming-zipformer-ctc-small-2024-03-18',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'zipformer2_ctc',
+            numThreads: DEFAULT_NUM_THREADS,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: true,
+            debug: true,
+            provider: 'cpu',
+            modelFiles: {
+                model: 'ctc-epoch-30-avg-3-chunk-16-left-128.int8.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
+    'streaming-zipformer-en-kroko-2025-08-06': {
+        id: 'streaming-zipformer-en-kroko-2025-08-06',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'zipformer',
+            numThreads: DEFAULT_NUM_THREADS,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: true,
+            debug: false,
+            provider: 'cpu',
+            modelFiles: {
+                encoder: 'encoder.onnx',
+                decoder: 'decoder.onnx',
+                joiner: 'joiner.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
     'streaming-zipformer-bilingual-zh-en': {
         id: 'streaming-zipformer-bilingual-zh-en',
         modelType: 'asr',
@@ -176,6 +212,24 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
             },
         },
     },
+    'streaming-paraformer-bilingual-zh-en': {
+        id: 'streaming-paraformer-bilingual-zh-en',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'paraformer',
+            numThreads: DEFAULT_NUM_THREADS,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: true,
+            debug: true,
+            provider: 'cpu',
+            modelFiles: {
+                encoder: 'encoder.int8.onnx',
+                decoder: 'decoder.int8.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
     'whisper-tiny-en': {
         id: 'whisper-tiny-en',
         modelType: 'asr',
@@ -209,6 +263,48 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
                 encoder: 'small-encoder.onnx',
                 decoder: 'small-decoder.onnx',
                 tokens: 'small-tokens.txt',
+            },
+            language: 'en',
+            task: 'transcribe',
+        },
+    },
+    'sense-voice-zh-en-ja-ko-yue-int8-2025-09-09': {
+        id: 'sense-voice-zh-en-ja-ko-yue-int8-2025-09-09',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'sense_voice',
+            numThreads: 1,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: false,
+            debug: false,
+            provider: 'cpu',
+            language: 'en',
+            useItn: true,
+            modelFiles: {
+                model: 'model.int8.onnx',
+                tokens: 'tokens.txt',
+            },
+        },
+    },
+    'nemo-canary-180m-flash-en-es-de-fr': {
+        id: 'nemo-canary-180m-flash-en-es-de-fr',
+        modelType: 'asr',
+        asrConfig: {
+            modelType: 'canary',
+            numThreads: 1,
+            decodingMethod: 'greedy_search',
+            maxActivePaths: DEFAULT_MAX_ACTIVE_PATHS,
+            streaming: false,
+            debug: false,
+            provider: 'cpu',
+            srcLang: 'en',
+            tgtLang: 'en',
+            usePnc: true,
+            modelFiles: {
+                encoder: 'encoder.int8.onnx',
+                decoder: 'decoder.int8.onnx',
+                tokens: 'tokens.txt',
             },
         },
     },
@@ -417,6 +513,19 @@ const MODEL_CONFIGS: Record<string, PredefinedModelConfig> = {
     },
 }
 
+export function getModelConfigById(
+    modelId: string | null
+): PredefinedModelConfig | undefined {
+    if (!modelId) return undefined
+    return MODEL_CONFIGS[modelId]
+}
+
+export function getAsrModelConfigById(
+    modelId: string | null
+): Partial<AsrModelConfig> | undefined {
+    return getModelConfigById(modelId)?.asrConfig
+}
+
 /**
  * Get configuration for a specific model
  */
@@ -426,8 +535,7 @@ export function useModelConfig({
     modelId: string | null
 }): PredefinedModelConfig | undefined {
     return useMemo(() => {
-        if (!modelId) return undefined
-        return MODEL_CONFIGS[modelId]
+        return getModelConfigById(modelId)
     }, [modelId])
 }
 

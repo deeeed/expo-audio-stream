@@ -18,6 +18,7 @@ scripts/agentic/app-state.sh eval "<JS expression>"
 # Navigate
 scripts/agentic/app-navigate.sh "/(tabs)/home"
 scripts/agentic/app-navigate.sh "/(tabs)/features"
+scripts/agentic/app-navigate.sh "/(tabs)/features/asr-benchmark"
 scripts/agentic/app-navigate.sh "/(tabs)/models"
 scripts/agentic/app-navigate.sh "/feature/tts"
 scripts/agentic/app-navigate.sh "/feature/asr"
@@ -30,6 +31,8 @@ scripts/agentic/screenshot.sh my-label
 
 # Recipes
 bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-screen-validation.json
+bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-benchmark-screen-validation.json
+yarn recipe:asr-benchmark
 bash scripts/agentic/validate-flow-schema.sh
 bash scripts/agentic/validate-pre-conditions.sh
 

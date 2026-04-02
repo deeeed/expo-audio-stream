@@ -39,6 +39,9 @@ import {
     DEFAULT_LIVE_SAMPLE_RATE,
     MODEL_STATES_STORAGE_KEY,
 } from './utils/constants'
+import { resolveModelDir } from './utils/fileUtils'
+import { getAsrModelConfigById } from './hooks/useModelConfig'
+import { readMonoPcm16Wav } from './utils/wav'
 
 // Platform-aware model base directory
 const MODELS_BASE =
@@ -53,6 +56,11 @@ let _routeInfo: { pathname: string; segments: string[] } = {
 }
 let _modelState: Record<string, unknown> = {}
 let _pageState: Record<string, unknown> = {}
+let _modelActions: {
+    cancelDownload?: (modelId: string) => Promise<void>
+    downloadModel?: (modelId: string) => Promise<void>
+    refreshModelStatus?: (modelId: string) => Promise<void>
+} = {}
 const stepHudStore = createAgenticHudStore()
 
 export function setAgenticRouteInfo(pathname: string, segments: string[]) {
@@ -61,6 +69,14 @@ export function setAgenticRouteInfo(pathname: string, segments: string[]) {
 
 export function setAgenticModelState(state: Record<string, unknown>) {
     _modelState = state
+}
+
+export function setAgenticModelActions(actions: {
+    cancelDownload?: (modelId: string) => Promise<void>
+    downloadModel?: (modelId: string) => Promise<void>
+    refreshModelStatus?: (modelId: string) => Promise<void>
+}) {
+    _modelActions = actions
 }
 
 /**
@@ -180,6 +196,81 @@ if (__DEV__) {
                 })
             _lastAsyncResult = { op: 'resetModelState', status: 'pending' }
             return { op: 'resetModelState', status: 'pending' }
+        },
+
+        downloadModel: (modelId: string) => {
+            const op = 'downloadModel'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!_modelActions.downloadModel) {
+                        throw new Error('Model download action is not registered')
+                    }
+                    await _modelActions.downloadModel(modelId)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: { modelId, status: 'started' },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                    }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        cancelModelDownload: (modelId: string) => {
+            const op = 'cancelModelDownload'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!_modelActions.cancelDownload) {
+                        throw new Error('Model cancel action is not registered')
+                    }
+                    await _modelActions.cancelDownload(modelId)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: { modelId, status: 'cancelled' },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                    }
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        refreshModelStatus: (modelId: string) => {
+            const op = 'refreshModelStatus'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!_modelActions.refreshModelStatus) {
+                        throw new Error('Model refresh action is not registered')
+                    }
+                    await _modelActions.refreshModelStatus(modelId)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: { modelId, status: 'refreshed' },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                    }
+                }
+            })()
+            return { op, status: 'pending' }
         },
 
         canGoBack: () => {
@@ -811,6 +902,115 @@ if (__DEV__) {
             return { op, status: 'pending' }
         },
 
+        benchmarkAsrFile: (modelId: string, wavPath: string) => {
+            const op = 'benchmarkAsrFile'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                const timing: Record<string, number> = {}
+                try {
+                    if (!modelId) {
+                        throw new Error('benchmarkAsrFile requires a modelId')
+                    }
+                    if (!wavPath) {
+                        throw new Error('benchmarkAsrFile requires a wavPath')
+                    }
+
+                    const statuses =
+                        (_modelState.statuses as
+                            | Record<
+                                  string,
+                                  { localPath?: string | null; name?: string | null }
+                              >
+                            | undefined) ?? {}
+                    const status = statuses[modelId]
+                    const localPath = status?.localPath
+                    if (!localPath) {
+                        throw new Error(`Model ${modelId} is not downloaded`)
+                    }
+
+                    const baseConfig = getAsrModelConfigById(modelId)
+                    if (!baseConfig) {
+                        throw new Error(`Missing ASR config for ${modelId}`)
+                    }
+
+                    const modelDir = await resolveModelDir(localPath)
+                    const initConfig = {
+                        modelDir,
+                        modelBaseUrl:
+                            Platform.OS === 'web'
+                                ? getWebModelBaseUrl('asr')
+                                : undefined,
+                        modelType: baseConfig.modelType ?? 'transducer',
+                        numThreads: baseConfig.numThreads,
+                        decodingMethod:
+                            baseConfig.decodingMethod ?? 'greedy_search',
+                        maxActivePaths: baseConfig.maxActivePaths,
+                        streaming: baseConfig.streaming ?? false,
+                        debug: baseConfig.debug ?? false,
+                        provider: baseConfig.provider ?? 'cpu',
+                        modelFiles: baseConfig.modelFiles,
+                        language: baseConfig.language,
+                        task: baseConfig.task,
+                        useItn: baseConfig.useItn,
+                        srcLang: baseConfig.srcLang,
+                        tgtLang: baseConfig.tgtLang,
+                        usePnc: baseConfig.usePnc,
+                    }
+
+                    await ASR.release().catch(() => {})
+
+                    const initStartedAt = Date.now()
+                    const initResult = await ASR.initialize(initConfig)
+                    timing.initMs = Date.now() - initStartedAt
+                    if (!initResult.success) {
+                        throw new Error(
+                            initResult.error || 'ASR init failed for benchmark'
+                        )
+                    }
+
+                    const recognizeStartedAt = Date.now()
+                    const result = initConfig.streaming
+                        ? await (async () => {
+                              const wav = await readMonoPcm16Wav(wavPath)
+                              return ASR.recognizeFromSamples(
+                                  wav.sampleRate,
+                                  wav.samples
+                              )
+                          })()
+                        : await ASR.recognizeFromFile(wavPath)
+                    timing.recognizeMs = Date.now() - recognizeStartedAt
+                    if (!result.success) {
+                        throw new Error(
+                            result.error || 'Recognition failed for benchmark'
+                        )
+                    }
+
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            filePath: wavPath,
+                            initMs: timing.initMs ?? null,
+                            modelId,
+                            modelName: status?.name ?? modelId,
+                            recognizeMs: timing.recognizeMs ?? null,
+                            transcript: (result.text || '').trim(),
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { modelId, timing, wavPath },
+                    }
+                } finally {
+                    await ASR.release().catch(() => {})
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
         // Full end-to-end Speaker ID: download model → init → extract embedding → register → identify → release
         testSpeakerIdFull: (wavPath?: string) => {
             const op = 'speakerIdFull'
@@ -1291,6 +1491,9 @@ if (__DEV__) {
                     // 2. Create online stream
                     const streamResult = await ASR.createOnlineStream()
                     steps.createStream = streamResult.success ? 'PASS' : 'FAIL'
+                    if (!streamResult.success) {
+                        throw new Error('createOnlineStream failed')
+                    }
 
                     // 3. Get empty result (stream just created, no audio fed)
                     const emptyResult = await ASR.getResult()

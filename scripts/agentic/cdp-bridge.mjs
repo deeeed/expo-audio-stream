@@ -1264,7 +1264,7 @@ if (command === 'list-devices') {
   process.exit(0);
 }
 
-try {
+async function main() {
   // Discover all agentic targets (no filtering yet)
   const allTargets = await discoverAllTargets(port, WebSocketImpl, deviceFilter);
 
@@ -1321,7 +1321,9 @@ try {
   } else {
     console.log(JSON.stringify({ devices: results }, null, 2));
   }
-} catch (err) {
+}
+
+main().catch((err) => {
   console.error(`ERROR: ${err.message}`);
   process.exit(1);
-}
+});

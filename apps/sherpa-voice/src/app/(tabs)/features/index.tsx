@@ -19,6 +19,7 @@ interface FeatureCardProps {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   route: string;
   color: string;
+  devOnly?: boolean;
 }
 
 const FEATURES: FeatureCardProps[] = [
@@ -28,6 +29,14 @@ const FEATURES: FeatureCardProps[] = [
     icon: 'mic',
     route: '/(tabs)/features/asr',
     color: '#4CAF50',
+  },
+  {
+    title: 'ASR Benchmark',
+    description: 'Compare live and offline ASR models on repeatable benchmark inputs',
+    icon: 'speedometer',
+    route: '/(tabs)/features/asr-benchmark',
+    color: '#00695C',
+    devOnly: true,
   },
   {
     title: 'Text-to-Speech',
@@ -123,10 +132,11 @@ export default function FeaturesScreen() {
   const theme = useTheme();
   const { bottom } = useSafeAreaInsets();
 
-  // On web, only show features that are enabled in webFeatures config
-  const visibleFeatures = Platform.OS === 'web'
-    ? FEATURES.filter(f => isWebFeatureRouteEnabled(f.route))
-    : FEATURES;
+  const visibleFeatures = FEATURES.filter((feature) => {
+    if (feature.devOnly && !__DEV__) return false
+    if (Platform.OS === 'web' && !isWebFeatureRouteEnabled(feature.route)) return false
+    return true
+  })
 
   return (
     <ScreenWrapper useInsets={false} contentContainerStyle={{ padding: theme.padding.m, paddingBottom: bottom || 16 }}>

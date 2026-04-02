@@ -68,6 +68,28 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     language: 'en',
   },
   {
+    id: 'streaming-zipformer-ctc-small-2024-03-18',
+    name: 'Streaming Zipformer CTC (Small)',
+    description:
+      'Upstream streaming English CTC model included as a serious live candidate, not just a demo baseline.',
+    type: 'asr',
+    size: 64 * 1024 * 1024, // approximate compressed archive size
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-ctc-small-2024-03-18.tar.bz2',
+    version: '2024-03-18',
+    language: 'en',
+  },
+  {
+    id: 'streaming-zipformer-en-kroko-2025-08-06',
+    name: 'Streaming Zipformer (Kroko 2025)',
+    description:
+      'Newer English streaming Zipformer model to test whether recent upstream releases improve live latency and transcript quality.',
+    type: 'asr',
+    size: 57267600,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06.tar.bz2',
+    version: '2025-08-06',
+    language: 'en',
+  },
+  {
     id: 'streaming-zipformer-bilingual-zh-en-2023-02-20',
     name: 'Bilingual Zipformer (Chinese + English)',
     description:
@@ -76,6 +98,17 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     size: 488 * 1024 * 1024, // 488 MB
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2',
     version: '2023-02-20',
+    language: 'zh-en',
+  },
+  {
+    id: 'streaming-paraformer-bilingual-zh-en',
+    name: 'Streaming Paraformer (Chinese + English)',
+    description:
+      'Large streaming bilingual Paraformer candidate from the upstream online model zoo. Included because it is one of the few non-Zipformer live paths Sherpa currently publishes.',
+    type: 'asr',
+    size: 1047319737,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2',
+    version: 'bilingual-zh-en',
     language: 'zh-en',
   },
 
@@ -101,6 +134,28 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2',
     version: 'small',
     language: 'multilingual',
+  },
+  {
+    id: 'sense-voice-zh-en-ja-ko-yue-int8-2025-09-09',
+    name: 'SenseVoice INT8 (Multilingual)',
+    description:
+      'Offline multilingual ASR reference model for broader quality comparison beyond English-only streaming baselines.',
+    type: 'asr',
+    size: 165783878,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2',
+    version: '2025-09-09',
+    language: 'zh-en-ja-ko-yue',
+  },
+  {
+    id: 'nemo-canary-180m-flash-en-es-de-fr',
+    name: 'NeMo Canary 180M Flash',
+    description:
+      'Offline multilingual transcription and translation reference model for benchmarking quality ceilings against the live transcription path.',
+    type: 'asr',
+    size: 153692328,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8.tar.bz2',
+    version: '180m-flash-int8',
+    language: 'en-es-de-fr',
   },
 
   {
