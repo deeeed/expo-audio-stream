@@ -1,0 +1,130 @@
+{
+  "name": "@siteed/moonshine.rn",
+  "version": "0.1.0",
+  "description": "React Native wrapper for Moonshine Voice on-device transcription",
+  "source": "./src/index.ts",
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/module/index.js",
+  "types": "./lib/typescript/module/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/typescript/module/index.d.ts",
+        "default": "./lib/module/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/index.d.ts",
+        "default": "./lib/commonjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "prebuilt",
+    "patches",
+    "*.podspec",
+    "apply-upstream-patches.sh",
+    "build-moonshine-android.sh",
+    "react-native.config.js",
+    "setup.sh",
+    "!ios/build",
+    "!android/build",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "clean": "del-cli android/build lib",
+    "setup:upstream": "bash ./setup.sh",
+    "build:android:source": "bash ./build-moonshine-android.sh",
+    "prepare": "bob build"
+  },
+  "keywords": [
+    "react-native",
+    "android",
+    "moonshine",
+    "speech-to-text",
+    "stt"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deeeed/audiolab/.git"
+  },
+  "author": "Arthur Breton <abreton@siteed.net> (https://github.com/deeeed)",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "nativePackage": true,
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "@react-native/eslint-config": "^0.73.1",
+    "@types/react": "^19.2.0",
+    "del-cli": "^5.1.0",
+    "eslint": "^8.51.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "prettier": "^3.0.3",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-builder-bob": "^0.37.0",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "packageManager": "yarn@4.2.2",
+  "moonshineVersion": "v0.0.51",
+  "eslintConfig": {
+    "root": true,
+    "extends": [
+      "@react-native",
+      "prettier"
+    ]
+  },
+  "prettier": {
+    "quoteProps": "consistent",
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "useTabs": false
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "commonjs",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json",
+          "esm": true
+        }
+      ]
+    ]
+  },
+  "create-react-native-library": {
+    "type": "legacy-module",
+    "languages": "kotlin-swift",
+    "version": "0.48.3"
+  }
+}

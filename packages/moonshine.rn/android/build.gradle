@@ -1,0 +1,118 @@
+buildscript {
+  ext.getExtOrDefault = { name, fallback ->
+    rootProject.ext.has(name) ? rootProject.ext.get(name) : fallback
+  }
+
+  ext.getEnvOrProp = { envName, propName, fallback = null ->
+    def envValue = System.getenv(envName)
+    if (envValue != null && envValue.toString().trim()) {
+      return envValue.toString().trim()
+    }
+
+    def propValue = findProperty(propName)
+    if (propValue != null && propValue.toString().trim()) {
+      return propValue.toString().trim()
+    }
+
+    return fallback
+  }
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:${getExtOrDefault('agpVersion', '8.7.2')}"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion', '2.0.21')}"
+  }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+def moonshineAndroidUseSource = getEnvOrProp(
+  'SITEED_MOONSHINE_ANDROID_USE_SOURCE',
+  'siteedMoonshineAndroidUseSource',
+  '0'
+) == '1'
+def moonshineAndroidAar = getEnvOrProp('SITEED_MOONSHINE_ANDROID_AAR', 'siteedMoonshineAndroidAar', null)
+def moonshineAndroidSourceAar = getEnvOrProp(
+  'SITEED_MOONSHINE_ANDROID_SOURCE_AAR',
+  'siteedMoonshineAndroidSourceAar',
+  new File(projectDir, '../prebuilt/android/moonshine-voice-source-release.aar').absolutePath
+)
+def moonshineAndroidMavenCoord = getEnvOrProp(
+  'SITEED_MOONSHINE_ANDROID_MAVEN_COORD',
+  'siteedMoonshineAndroidMavenCoord',
+  'ai.moonshine:moonshine-voice:0.0.51'
+)
+def moonshineAndroidMavenRepo = getEnvOrProp(
+  'SITEED_MOONSHINE_ANDROID_MAVEN_REPO',
+  'siteedMoonshineAndroidMavenRepo',
+  null
+)
+
+android {
+  namespace "net.siteed.moonshine"
+  compileSdkVersion getExtOrDefault('compileSdkVersion', 36)
+
+  defaultConfig {
+    minSdkVersion Math.max((getExtOrDefault('minSdkVersion', 35) as Integer), 35)
+    targetSdkVersion getExtOrDefault('targetSdkVersion', 36)
+    versionCode 1
+    versionName "0.1.0"
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+}
+
+repositories {
+  google()
+  mavenCentral()
+  mavenLocal()
+  if (moonshineAndroidMavenRepo != null) {
+    maven { url uri(moonshineAndroidMavenRepo) }
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:${getExtOrDefault('kotlinVersion', '2.0.21')}"
+  implementation "androidx.core:core-ktx:1.13.1"
+
+  if (moonshineAndroidAar != null) {
+    println("Using Moonshine Android AAR override: ${moonshineAndroidAar}")
+    implementation files(moonshineAndroidAar)
+  } else if (moonshineAndroidUseSource) {
+    def sourceAarFile = file(moonshineAndroidSourceAar)
+    if (!sourceAarFile.exists()) {
+      throw new GradleException(
+        "Moonshine source-built AAR is missing: ${sourceAarFile}. " +
+        "Run `bash packages/moonshine.rn/setup.sh && bash packages/moonshine.rn/build-moonshine-android.sh` " +
+        "or set SITEED_MOONSHINE_ANDROID_SOURCE_AAR / SITEED_MOONSHINE_ANDROID_AAR."
+      )
+    }
+    println("Using Moonshine Android source-built AAR: ${sourceAarFile}")
+    implementation files(sourceAarFile)
+  } else {
+    if (moonshineAndroidMavenRepo != null) {
+      println("Using Moonshine Android Maven repo override: ${moonshineAndroidMavenRepo}")
+    }
+    println("Using Moonshine Android dependency: ${moonshineAndroidMavenCoord}")
+    implementation moonshineAndroidMavenCoord
+  }
+}
