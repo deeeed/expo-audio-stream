@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Android**: Refresh vendored sherpa-onnx baseline to upstream `v1.12.34`
+- **Android**: `build-sherpa-android.sh` now syncs rebuilt prebuilts into the shipped `android/src/main/jniLibs`
+- **Android**: local Kotlin wrappers are now resynced from vendored upstream files through `android/scripts/sync-kotlin-api.sh` and `patches/KotlinApiOverrides.patch`
+- **iOS**: `build-sherpa-ios.sh` now discovers the built ONNX Runtime directory instead of hardcoding `1.17.1`
+
+### Validation
+- **Android**: Refreshed arm64 Sherpa runtime now links against ONNX Runtime `VERS_1.23.0`
+- **Android**: Mixed Sherpa + Moonshine builds now pass the ORT compatibility check and the mixed-engine sample validation recipe when both are aligned to `VERS_1.23.0`
+
 ## [1.1.2] - 2026-03-30
 
 ### Changed

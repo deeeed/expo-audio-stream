@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, afterAll } from '@jest/globals'
 import { by, element, device, waitFor } from 'detox'
+import { getAgentValidationUrl } from './deeplink'
 
 describe('File Size Validation', () => {
   // Fixed 60-second duration for all tests
@@ -55,7 +56,7 @@ describe('File Size Validation', () => {
     
     // Step 3: Configure via deep link with base64 config
     await device.openURL({ 
-      url: `audioplayground://agent-validation?config=${base64Config}` 
+      url: getAgentValidationUrl(`config=${base64Config}`)
     });
 
     // Step 4: Validate configuration loaded

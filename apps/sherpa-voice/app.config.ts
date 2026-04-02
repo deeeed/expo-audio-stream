@@ -8,8 +8,12 @@ import { version as packageVersion } from './package.json';
 
 dotenvConfig({
     silent: true,
-    node_env: process.env.APP_VARIANT || "production",
+    node_env:
+        process.env.APP_VARIANT ||
+        (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
 });
+
+const defaultAppVariant = process.env.NODE_ENV === 'production' ? 'production' : 'development';
 
 // Define a schema for the environment variables
 const envSchema = Joi.object({
@@ -17,7 +21,7 @@ const envSchema = Joi.object({
     APPLE_TEAM_ID: Joi.string().optional(),
     APP_VARIANT: Joi.string()
         .valid('development', 'production')
-        .default('production'),
+        .default(defaultAppVariant),
 }).unknown();
 
 // Validate and get environment variables
@@ -52,11 +56,18 @@ const getAppIdentifier = (base: string, variant: string): string => {
     return `${base}.${variant}`;
 };
 
+const getAppScheme = (base: string, variant: string): string => {
+    if (variant === 'production') return base;
+    return `${base}-${variant}`;
+};
+
 const APP_IDENTIFIER = getAppIdentifier('net.siteed.sherpavoice', validatedEnv.APP_VARIANT);
+const APP_SCHEME = getAppScheme('sherpa-voice', validatedEnv.APP_VARIANT);
 
 logConfig({
     'App Variant': validatedEnv.APP_VARIANT,
     'App Identifier': APP_IDENTIFIER,
+    'App Scheme': APP_SCHEME,
     'App Version': packageVersion,
     'EAS Project ID': validatedEnv.EAS_PROJECT_ID,
     'Environment': process.env.NODE_ENV || 'development',
@@ -73,7 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         orientation: "portrait",
         icon: IS_PRODUCTION ? "./assets/icon.png" : "./assets/icon-dev.png",
         userInterfaceStyle: "light",
-        scheme: "sherpa-voice",
+        scheme: APP_SCHEME,
         splash: {
             image: "./assets/splash-icon.png",
             resizeMode: "contain",
@@ -138,6 +149,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             ["@config-plugins/detox", { skipProguard: false, subdomains: IS_PRODUCTION ?  [
                 '10.0.2.2',
                 'localhost',
+                '127.0.0.1',
                 '192.168.50.10',
                 '192.168.50.11',
                 '192.168.11.1',

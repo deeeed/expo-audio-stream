@@ -1,5 +1,6 @@
 import { beforeAll, describe, it } from '@jest/globals'
 import { by, element, expect as detoxExpect, device, waitFor } from 'detox'
+import { getAgentValidationUrl } from './deeplink'
 import { waitForElementWhileScrolling, scrollUntilVisible } from './test-utils'
 
 describe('Audio Timing Investigation', () => {
@@ -44,7 +45,9 @@ describe('Audio Timing Investigation', () => {
       console.log(`   interval: ${config.interval}ms`);
       
       // Use dual timing configuration
-      const url = `audioplayground://agent-validation?intervalAnalysis=${config.intervalAnalysis}&interval=${config.interval}&measurePrecision=true&enableProcessing=true`;
+      const url = getAgentValidationUrl(
+        `intervalAnalysis=${config.intervalAnalysis}&interval=${config.interval}&measurePrecision=true&enableProcessing=true`
+      );
       await device.openURL({ url });
       
       // Wait for agent validation wrapper to load

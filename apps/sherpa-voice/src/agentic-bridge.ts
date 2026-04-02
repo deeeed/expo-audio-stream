@@ -928,12 +928,14 @@ if (__DEV__) {
                         throw new Error(`Model ${modelId} is not downloaded`)
                     }
 
+                    const modelDir = await resolveModelDir(localPath)
+                    await ASR.release().catch(() => {})
+
+                    const initStartedAt = Date.now()
                     const baseConfig = getAsrModelConfigById(modelId)
                     if (!baseConfig) {
                         throw new Error(`Missing ASR config for ${modelId}`)
                     }
-
-                    const modelDir = await resolveModelDir(localPath)
                     const initConfig = {
                         modelDir,
                         modelBaseUrl:
@@ -956,10 +958,6 @@ if (__DEV__) {
                         tgtLang: baseConfig.tgtLang,
                         usePnc: baseConfig.usePnc,
                     }
-
-                    await ASR.release().catch(() => {})
-
-                    const initStartedAt = Date.now()
                     const initResult = await ASR.initialize(initConfig)
                     timing.initMs = Date.now() - initStartedAt
                     if (!initResult.success) {
@@ -967,7 +965,6 @@ if (__DEV__) {
                             initResult.error || 'ASR init failed for benchmark'
                         )
                     }
-
                     const recognizeStartedAt = Date.now()
                     const result = initConfig.streaming
                         ? await (async () => {

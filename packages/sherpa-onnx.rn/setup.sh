@@ -28,7 +28,7 @@ mkdir -p prebuilt
 
 # Use the official upstream k2-fsa/sherpa-onnx, pinned to a known stable release.
 
-SHERPA_VERSION="v1.12.29"
+SHERPA_VERSION="v1.12.34"
 
 # Clone sherpa-onnx repository if not already present
 if [ ! -d "third_party/sherpa-onnx" ]; then
@@ -43,8 +43,11 @@ else
   cd "$SCRIPT_DIR"
 fi
 
+./apply-upstream-patches.sh
+./android/scripts/sync-kotlin-api.sh
+
 echo -e "${GREEN}Setup completed successfully!${NC}"
 echo -e "${YELLOW}You can now build the libraries:${NC}"
 echo -e "${YELLOW}  - For iOS: ./build-sherpa-ios.sh${NC}"
 echo -e "${YELLOW}  - For Android: ./build-sherpa-android.sh${NC}"
-echo -e "${YELLOW}  - For both: ./build-all.sh${NC}" 
+echo -e "${YELLOW}  - For both: ./build-all.sh${NC}"

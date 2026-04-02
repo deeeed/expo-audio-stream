@@ -393,6 +393,7 @@ function buildWaitForSpec(step) {
     return {
       expression: 'JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)',
       assert: { operator: 'eq', field: 'pathname', value: step.route },
+      failWhen: step.fail_when || null,
       label: `route=${step.route}`,
       async: false,
     };
@@ -402,6 +403,7 @@ function buildWaitForSpec(step) {
     return {
       expression: 'JSON.stringify(globalThis.__AGENTIC__?.getRoute() || null)',
       assert: { operator: 'neq', field: 'pathname', value: step.not_route },
+      failWhen: step.fail_when || null,
       label: `not_route=${step.not_route}`,
       async: false,
     };
@@ -417,6 +419,7 @@ function buildWaitForSpec(step) {
         field: 'visible',
         value: step.visible !== false,
       },
+      failWhen: step.fail_when || null,
       label: `test_id=${step.test_id}`,
       async: false,
     };
@@ -425,6 +428,7 @@ function buildWaitForSpec(step) {
   return {
     expression: step.expression || '',
     assert: step.assert || null,
+    failWhen: step.fail_when || null,
     label: 'expression',
     async: step.async === true || String(step.expression || '').includes('.then('),
   };
@@ -445,6 +449,14 @@ async function waitForCondition(step, appRoot, options) {
         { device: options.device }
       );
       lastResult = rawResultString(bridgeResult);
+      if (waitSpec.failWhen && checkAssert(lastResult, waitSpec.failWhen)) {
+        return {
+          ok: false,
+          immediateFailure: true,
+          result: bridgeResult,
+          label: waitSpec.label,
+        };
+      }
       if (checkAssert(lastResult, waitSpec.assert)) {
         return {
           ok: true,
@@ -1240,6 +1252,13 @@ async function runExecutableNode(node, context, options = {}) {
   if (node.action === 'wait_for') {
     const waitResult = await waitForCondition(node, appRoot, runOptions);
     if (!waitResult.ok) {
+      if (waitResult.immediateFailure) {
+        throw new Error(
+          `wait_for failed early (${waitResult.label})\n  result: ${formatResultPreview(
+            waitResult.result
+          )}`
+        );
+      }
       throw new Error(
         `wait_for timed out after ${node.timeout_ms || 10000}ms (${waitResult.label})\n  last result: ${formatResultPreview(
           waitResult.result

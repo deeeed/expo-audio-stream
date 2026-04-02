@@ -21,7 +21,6 @@ source "$_CONF"
 
 # Resolve runtime values (env overrides config)
 PORT="${WATCHER_PORT:-$AGENTIC_PORT}"
-SCHEME="${AGENTIC_SCHEME}"
 BUNDLE_BASE="${AGENTIC_BUNDLE_BASE}"
 
 # Load .env.development if present (only sets vars not already in env)
@@ -38,6 +37,12 @@ fi
 
 # Compute bundle IDs from variant
 _VARIANT="${APP_VARIANT:-development}"
+if [ "$_VARIANT" = "production" ]; then
+  SCHEME="${AGENTIC_SCHEME}"
+else
+  SCHEME="${AGENTIC_SCHEME}-${_VARIANT}"
+fi
+
 if [ "$_VARIANT" = "production" ]; then
   BUNDLE_ID_IOS="${BUNDLE_BASE}"
   BUNDLE_ID_ANDROID="${BUNDLE_BASE}"

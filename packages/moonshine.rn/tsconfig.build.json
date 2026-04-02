@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@siteed/moonshine.rn": ["./src/index"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "lib", "src/__tests__"]
+}

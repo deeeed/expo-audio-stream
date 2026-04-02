@@ -12,7 +12,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const AdmZip = require('adm-zip');
 const { existsSync, mkdirSync } = require('fs');
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 const ProgressBar = require('progress');
 
 // Configuration
@@ -116,6 +116,15 @@ function prebuiltLibsExist() {
   return iosLibsExist && androidLibsExist;
 }
 
+function runLocalAndroidRebuild() {
+  console.log('SITEED_SHERPA_ONNX_REBUILD_ANDROID=1, rebuilding Android prebuilts locally.');
+  execSync('./setup.sh && ./build-sherpa-android.sh', {
+    cwd: SCRIPT_DIR,
+    stdio: 'inherit',
+    env: process.env,
+  });
+}
+
 /**
  * Main installation function
  */
@@ -127,6 +136,11 @@ async function install() {
   // Allow explicit opt-out for developers who build locally
   if (process.env.SKIP_SHERPA_DOWNLOAD === '1') {
     console.log('SKIP_SHERPA_DOWNLOAD=1, skipping download.');
+    return;
+  }
+
+  if (process.env.SITEED_SHERPA_ONNX_REBUILD_ANDROID === '1') {
+    runLocalAndroidRebuild();
     return;
   }
 
@@ -172,4 +186,4 @@ async function install() {
 }
 
 // Run the installation
-install(); 
+install();

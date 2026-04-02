@@ -54,7 +54,7 @@ describe('Sherpa Voice Screenshots', () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
     // Send deep link to connect dev-client to Metro
     await device.openURL({
-      url: 'exp+sherpa-voice://expo-development-client/?url=http%3A%2F%2Flocalhost%3A7500',
+      url: 'exp+sherpa-voice-development://expo-development-client/?url=http%3A%2F%2Flocalhost%3A7500',
     });
     // Wait for JS bundle to load
     await new Promise(resolve => setTimeout(resolve, 10000));

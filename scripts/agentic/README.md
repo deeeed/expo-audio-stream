@@ -55,6 +55,7 @@ Workflow conventions:
 - `eval_sync`, `eval_async`, and `eval_ref` steps must assert.
 - `call` is the action name for a subflow call. Use it to compose reusable workflows into larger ones.
 - `call` and `eval_ref` can omit the team prefix when the current file already lives inside `teams/<team>/...`.
+- `wait_for` can declare `fail_when` to abort early when a terminal error state appears.
 - Pre-condition entries should include `fixtures.pass` and `fixtures.fail` so they can be validated offline.
 
 Run artifacts:

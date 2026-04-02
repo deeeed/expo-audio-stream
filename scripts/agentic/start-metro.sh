@@ -46,9 +46,17 @@ fi
 
 echo "Starting Metro on port $PORT..."
 if [ "$AGENTIC_METRO_LOG_MODE" = "tee" ]; then
-  EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development yarn expo start --dev-client --port "$PORT" 2>&1 | tee -a "$LOGFILE" &
+  nohup bash -lc '
+    cd "$1"
+    EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development \
+      yarn expo start --dev-client --port "$2" 2>&1 | tee -a "$3"
+  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" >/dev/null 2>&1 &
 else
-  EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development yarn expo start --dev-client --port "$PORT" >> "$LOGFILE" 2>&1 &
+  nohup bash -lc '
+    cd "$1"
+    EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development \
+      yarn expo start --dev-client --port "$2" >> "$3" 2>&1
+  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" >/dev/null 2>&1 &
 fi
 METRO_PID=$!
 echo "$METRO_PID" > "$PIDFILE"

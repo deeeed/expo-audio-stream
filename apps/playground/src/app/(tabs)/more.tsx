@@ -360,6 +360,39 @@ export const MoreScreen = () => {
                                     ...styles.listItemContainer,
                                     backgroundColor: theme.colors.errorContainer,
                                 }}
+                                label="Moonshine Live Demo"
+                                subLabel="Small live streaming with medium finalize-on-stop"
+                                onPress={() => {
+                                    router.navigate('/moonshine-live')
+                                }}
+                            />
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="Moonshine Intent Demo"
+                                subLabel="Download embedding model and validate command matching"
+                                onPress={() => {
+                                    router.navigate('/moonshine-intent')
+                                }}
+                            />
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
+                                label="ASR Benchmark"
+                                subLabel="Moonshine vs Whisper device benchmark"
+                                onPress={() => {
+                                    router.navigate('/asr-benchmark')
+                                }}
+                            />
+                            <ListItem
+                                contentContainerStyle={{
+                                    ...styles.listItemContainer,
+                                    backgroundColor: theme.colors.errorContainer,
+                                }}
                                 label="Baby Cry"
                                 subLabel="Baby Cry"
                                 onPress={() => {

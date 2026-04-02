@@ -105,6 +105,18 @@ data class OfflineFunAsrNanoModelConfig(
     var seed: Int = 0,
 )
 
+data class OfflineQwen3AsrModelConfig(
+    var convFrontend: String = "",
+    var encoder: String = "",
+    var decoder: String = "",
+    var tokenizer: String = "",
+    var maxTotalLen: Int = 512,
+    var maxNewTokens: Int = 128,
+    var temperature: Float = 1e-6f,
+    var topP: Float = 0.8f,
+    var seed: Int = 42,
+)
+
 data class OfflineFireRedAsrCtcModelConfig(
     var model: String = "",
 )
@@ -133,6 +145,7 @@ data class OfflineModelConfig(
     var omnilingual: OfflineOmnilingualAsrCtcModelConfig = OfflineOmnilingualAsrCtcModelConfig(),
     var medasr: OfflineMedAsrCtcModelConfig = OfflineMedAsrCtcModelConfig(),
     var funasrNano: OfflineFunAsrNanoModelConfig = OfflineFunAsrNanoModelConfig(),
+    var qwen3Asr: OfflineQwen3AsrModelConfig = OfflineQwen3AsrModelConfig(),
     var fireRedAsrCtc: OfflineFireRedAsrCtcModelConfig = OfflineFireRedAsrCtcModelConfig(),
     var canary: OfflineCanaryModelConfig = OfflineCanaryModelConfig(),
     var teleSpeech: String = "",
