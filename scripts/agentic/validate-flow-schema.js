@@ -74,6 +74,9 @@ function validateActionShape(node, issues) {
       if (!node.route && !node.not_route && !node.test_id && !node.expression) {
         issues.push(`  [${node.id || '?'}] action="wait_for" requires a condition`);
       }
+      if ('fail_when' in node && !node.fail_when) {
+        issues.push(`  [${node.id || '?'}] wait_for fail_when must be a non-empty assert block`);
+      }
       break;
     case 'screenshot':
       if (

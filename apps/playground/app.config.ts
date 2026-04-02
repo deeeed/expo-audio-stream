@@ -75,12 +75,13 @@ const getAppIdentifier = (base: string, variant: string): string => {
     return `${base}.${variant}`
 }
 
-const getAppScheme = (): string => {
-    return `audioplayground`
+const getAppScheme = (variant: string): string => {
+    if (variant === 'production') return 'audioplayground'
+    return `audioplayground-${variant}`
 }
 
 const APP_IDENTIFIER = getAppIdentifier('net.siteed.audioplayground', validatedEnv.APP_VARIANT)
-const APP_SCHEME = getAppScheme()
+const APP_SCHEME = getAppScheme(validatedEnv.APP_VARIANT)
 
 // Log the important configuration values
 logConfig({

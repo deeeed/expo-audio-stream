@@ -13,5 +13,10 @@
     "description": "Current value of the filename input on the record screen",
     "expression": "JSON.stringify((function(){ var fiber = globalThis.__AGENTIC__?.findFiberByTestId?.('filename-input'); var props = fiber && fiber.memoizedProps ? fiber.memoizedProps : null; return { value: props && props.value != null ? String(props.value) : null }; })())",
     "async": false
+  },
+  "asr-benchmark-state": {
+    "description": "Current state of the ASR benchmark page",
+    "expression": "JSON.stringify(globalThis.__AGENTIC__?.getPageState?.() || null)",
+    "async": false
   }
 }

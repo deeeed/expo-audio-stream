@@ -36,6 +36,13 @@ import {
     base64ToTypedArray,
 } from '@siteed/sherpa-onnx.rn'
 import type { OnnxTensorData } from '@siteed/sherpa-onnx.rn'
+import {
+    getBenchmarkModelOrThrow,
+    runBenchmarkFile,
+    runBenchmarkSimulatedLive,
+    runMoonshineSpeakerTurnValidation,
+    safeReleaseMoonshine,
+} from './utils/asrBenchmarkRuntime'
 
 // State holders updated by AgenticBridgeSync component
 let _audioState: Record<string, unknown> = {}
@@ -43,6 +50,7 @@ let _routeInfo: { pathname: string; segments: string[] } = {
     pathname: '',
     segments: [],
 }
+let _pageState: Record<string, unknown> = {}
 const stepHudStore = createAgenticHudStore()
 
 // Recorder instance wired by AgenticBridgeSync
@@ -50,6 +58,10 @@ let _recorder: UseAudioRecorderState | null = null
 
 export function setAgenticAudioState(state: Record<string, unknown>) {
     _audioState = state
+}
+
+export function setAgenticPageState(state: Record<string, unknown>) {
+    _pageState = state
 }
 
 export function setAgenticRouteInfo(pathname: string, segments: string[]) {
@@ -115,7 +127,19 @@ if (__DEV__) {
         },
 
         getState: () => {
-            return _audioState
+            return {
+                ..._audioState,
+                pageState: _pageState,
+                route: _routeInfo.pathname,
+                segments: _routeInfo.segments,
+            }
+        },
+
+        getPageState: () => {
+            return {
+                route: _routeInfo.pathname,
+                ..._pageState,
+            }
         },
 
         getStepHud: () => {
@@ -209,6 +233,146 @@ if (__DEV__) {
 
         getLastResult: () => {
             return _lastAsyncResult
+        },
+
+        benchmarkAsrFile: (modelId: string, audioUri: string) => {
+            const op = 'benchmarkAsrFile'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!modelId) {
+                        throw new Error('benchmarkAsrFile requires a modelId')
+                    }
+                    if (!audioUri) {
+                        throw new Error('benchmarkAsrFile requires an audioUri')
+                    }
+
+                    const model = getBenchmarkModelOrThrow(modelId)
+                    const result = await runBenchmarkFile(modelId, audioUri)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            audioUri,
+                            engine: model.engine,
+                            initMs: result.initMs,
+                            modelId,
+                            modelName: model.name,
+                            recognizeMs: result.recognizeMs,
+                            transcript: result.transcript,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { audioUri, modelId },
+                    }
+                } finally {
+                    await safeReleaseMoonshine()
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        benchmarkAsrSimulatedLive: (modelId: string, audioUri: string) => {
+            const op = 'benchmarkAsrSimulatedLive'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!modelId) {
+                        throw new Error('benchmarkAsrSimulatedLive requires a modelId')
+                    }
+                    if (!audioUri) {
+                        throw new Error('benchmarkAsrSimulatedLive requires an audioUri')
+                    }
+
+                    const model = getBenchmarkModelOrThrow(modelId)
+                    const result = await runBenchmarkSimulatedLive(modelId, audioUri)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            audioUri,
+                            commitCount: result.commitCount,
+                            engine: model.engine,
+                            firstCommitMs: result.firstCommitMs,
+                            firstPartialMs: result.firstPartialMs,
+                            initMs: result.initMs,
+                            modelId,
+                            modelName: model.name,
+                            partialCount: result.partialCount,
+                            runtime: 'streaming',
+                            sessionMs: result.sessionMs,
+                            transcript: result.transcript,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { audioUri, modelId },
+                    }
+                } finally {
+                    await safeReleaseMoonshine()
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        benchmarkMoonshineSpeakerTurns: (modelId: string, audioUri: string) => {
+            const op = 'benchmarkMoonshineSpeakerTurns'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!modelId) {
+                        throw new Error('benchmarkMoonshineSpeakerTurns requires a modelId')
+                    }
+                    if (!audioUri) {
+                        throw new Error('benchmarkMoonshineSpeakerTurns requires an audioUri')
+                    }
+
+                    const model = getBenchmarkModelOrThrow(modelId)
+                    if (model.engine !== 'moonshine') {
+                        throw new Error('benchmarkMoonshineSpeakerTurns only supports Moonshine models')
+                    }
+
+                    const result = await runMoonshineSpeakerTurnValidation(
+                        modelId,
+                        audioUri
+                    )
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            audioUri,
+                            commitCount: result.commitCount,
+                            firstCommitMs: result.firstCommitMs,
+                            firstPartialMs: result.firstPartialMs,
+                            initMs: result.initMs,
+                            lines: result.lines,
+                            modelId,
+                            modelName: model.name,
+                            partialCount: result.partialCount,
+                            runtime: 'streaming',
+                            sessionMs: result.sessionMs,
+                            transcript: result.transcript,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { audioUri, modelId },
+                    }
+                } finally {
+                    await safeReleaseMoonshine()
+                }
+            })()
+            return { op, status: 'pending' }
         },
 
         testExtractPreview: () => {
