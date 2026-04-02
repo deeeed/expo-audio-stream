@@ -19,6 +19,7 @@ import {
 } from '../web/config';
 import { MoonshineWebIntentRecognizerModel } from '../web/MoonshineWebIntentRecognizer';
 import { MoonshineWebModel } from '../web/MoonshineWebModel';
+import { MoonshineWebSpeakerClusterer } from '../web/MoonshineWebSpeakerClusterer';
 
 type MoonshineListener = (event: MoonshineTranscriptEvent) => void;
 
@@ -31,6 +32,7 @@ type WebTranscriberState = {
   model: MoonshineWebModel;
   modelBasePath: string;
   nextStreamId: number;
+  speakerClusterer: MoonshineWebSpeakerClusterer | null;
   streams: Map<string, WebStreamState>;
 };
 
@@ -67,7 +69,12 @@ type WebIntentRecognizerState = {
 function createResult(
   transcriberId: string,
   text: string,
-  latencyMs?: number
+  latencyMs?: number,
+  speakerMetadata?: {
+    hasSpeakerId?: boolean;
+    speakerId?: string;
+    speakerIndex?: number;
+  }
 ): MoonshineTranscriptionResult {
   const normalizedText = text.trim();
   return {
@@ -79,6 +86,7 @@ function createResult(
             isFinal: true,
             lastTranscriptionLatencyMs: latencyMs,
             lineId: `${transcriberId}:line:1`,
+            ...speakerMetadata,
             text: normalizedText,
           },
         ]
@@ -92,6 +100,7 @@ const DEFAULT_VAD_THRESHOLD = 0.008;
 const DEFAULT_END_SILENCE_MS = 500;
 const DEFAULT_LOOK_BEHIND_SAMPLES = 1600;
 const DEFAULT_MAX_SEGMENT_DURATION_MS = 15000;
+const DEFAULT_SPEAKER_HINT_MAX_SEGMENT_DURATION_MS = 4000;
 const MIN_TRANSCRIBE_SAMPLES = 1600;
 
 function createStreamState(
@@ -713,6 +722,11 @@ export class MoonshineService {
         model,
         modelBasePath,
         nextStreamId: 1,
+        speakerClusterer: config.options?.identifySpeakers
+          ? new MoonshineWebSpeakerClusterer(
+              config.options.speakerIdClusterThreshold
+            )
+          : null,
         streams: new Map([
           [defaultStreamId, createStreamState(stateId, defaultStreamId)],
         ]),
@@ -781,6 +795,11 @@ export class MoonshineService {
         model,
         modelBasePath: '[memory]',
         nextStreamId: 1,
+        speakerClusterer: config.options?.identifySpeakers
+          ? new MoonshineWebSpeakerClusterer(
+              config.options.speakerIdClusterThreshold
+            )
+          : null,
         streams: new Map([
           [defaultStreamId, createStreamState(stateId, defaultStreamId)],
         ]),
@@ -913,7 +932,16 @@ export class MoonshineService {
 
     const state = this.getTranscriberState(transcriberId);
     const text = await state.model.transcribe(Float32Array.from(samples));
-    const result = createResult(transcriberId, text, state.model.getLatency());
+    const speakerMetadata =
+      text && state.speakerClusterer
+        ? state.speakerClusterer.assign(samples, sampleRate)
+        : undefined;
+    const result = createResult(
+      transcriberId,
+      text,
+      state.model.getLatency(),
+      speakerMetadata
+    );
 
     if (result.lines[0]) {
       this.emit({
@@ -970,9 +998,14 @@ export class MoonshineService {
       0,
       options?.vadLookBehindSampleCount ?? DEFAULT_LOOK_BEHIND_SAMPLES
     );
+    // Shorter segments give the experimental web speaker clusterer more
+    // speaker-pure audio to work with than the normal long streaming turns.
+    const defaultMaxSegmentDurationMs = options?.identifySpeakers
+      ? DEFAULT_SPEAKER_HINT_MAX_SEGMENT_DURATION_MS
+      : DEFAULT_MAX_SEGMENT_DURATION_MS;
     const maxSegmentDurationMs = Math.max(
       1000,
-      options?.vadMaxSegmentDurationMs ?? DEFAULT_MAX_SEGMENT_DURATION_MS
+      options?.vadMaxSegmentDurationMs ?? defaultMaxSegmentDurationMs
     );
     const isSpeechChunk =
       rms >= vadThreshold || (stream.currentLineId != null && rms >= vadThreshold * 0.5);
@@ -1087,6 +1120,10 @@ export class MoonshineService {
           startedAtMs,
           startedAtMs + durationMs
         );
+        const speakerMetadata =
+          shouldFinalize && text && transcriber.speakerClusterer
+            ? transcriber.speakerClusterer.assign(snapshotSamples, sampleRate)
+            : undefined;
         const baseLine = {
           audioData:
             shouldFinalize && transcriber.config.includeAudioData
@@ -1097,6 +1134,7 @@ export class MoonshineService {
           isFinal: shouldFinalize,
           lastTranscriptionLatencyMs: latencyMs,
           lineId,
+          ...speakerMetadata,
           startedAtMs,
           text,
         };

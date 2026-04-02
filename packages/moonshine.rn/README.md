@@ -160,8 +160,11 @@ Current web status:
   backend loads Moonshine's `embeddinggemma-300m` ONNX model, mounts its
   external `.onnx_data` sidecar into `onnxruntime-web`, and uses a package-
   owned tokenizer implementation for trigger phrase and utterance embeddings.
-- Web does not expose native-style speaker clustering / diarization metadata
-  yet. Transcript lines are emitted, but speaker hints remain native-only.
+- Web exposes experimental speaker-turn hints when `identifySpeakers` is
+  enabled. This is implemented with a package-owned audio-feature clusterer on
+  finalized segments, not Moonshine's native speaker embedding pipeline, so it
+  should be treated as tentative turn segmentation rather than reliable
+  diarization.
 - Use `configureMoonshineWeb()` if you want to override the default model asset
   CDN or the `onnxruntime-web` wasm base path.
 
