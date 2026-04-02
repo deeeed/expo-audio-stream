@@ -150,8 +150,13 @@ Current web status:
   `small-streaming -> tiny` and `medium-streaming -> base`.
 - Web requires `window.ort` to be loaded before creating a transcriber. In
   playground this is done from `src/index.web.tsx` before the app mounts.
-- Web `loadFromMemory()` and intent recognition are still not implemented in
-  this package-owned backend and currently fail explicitly with runtime errors.
+- Web `loadFromMemory()` is supported for the same three-part
+  `encoder + decoder + tokenizer` contract that native uses. The browser
+  backend currently uses the first two blobs to create temporary ONNX object
+  URLs and ignores the tokenizer bytes because decoding is handled by
+  `llama-tokenizer-js`.
+- Web intent recognition is still not implemented in this package-owned
+  backend and currently fails explicitly with a runtime error.
 - Web does not expose native-style speaker clustering / diarization metadata
   yet. Transcript lines are emitted, but speaker hints remain native-only.
 - Use `configureMoonshineWeb()` if you want to override the default model asset

@@ -25,6 +25,7 @@ type WebTranscriberState = {
   activeStreamHandles: Set<string>;
   config: MoonshineLoadConfigBase;
   defaultStreamId: string;
+  dispose?: () => void;
   id: string;
   model: MoonshineWebModel;
   modelBasePath: string;
@@ -57,7 +58,7 @@ type WebStreamState = {
 
 function unsupportedOnWeb(operation: string): never {
   throw new Error(
-    `Moonshine ${operation} is not implemented on web yet. The current package-owned web backend supports transcription but not web intent recognition or in-memory model loading.`
+    `Moonshine ${operation} is not implemented on web yet. The current package-owned web backend supports transcription, including in-memory loading, but not web intent recognition.`
   );
 }
 
@@ -137,6 +138,21 @@ function trimToLastSamples(samples: number[], maxLength: number): number[] {
     return samples;
   }
   return samples.slice(samples.length - maxLength);
+}
+
+function bytesFromModelPart(part: number[]): Uint8Array {
+  const bytes = new Uint8Array(part.length);
+  for (let index = 0; index < part.length; index += 1) {
+    bytes[index] = part[index] ?? 0;
+  }
+  return bytes;
+}
+
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
 }
 
 export class MoonshineTranscriber {
@@ -375,9 +391,11 @@ export class MoonshineService {
   }
 
   public async createTranscriberFromMemory(
-    _config: MoonshineMemoryModelConfig
+    config: MoonshineMemoryModelConfig
   ): Promise<MoonshineTranscriber> {
-    return unsupportedOnWeb('createTranscriberFromMemory()');
+    return this.createTranscriberFromResult(
+      await this.createWebTranscriberFromMemory(config)
+    );
   }
 
   public async errorToString(code: number): Promise<string> {
@@ -432,9 +450,11 @@ export class MoonshineService {
   }
 
   public async loadFromMemory(
-    _config: MoonshineMemoryModelConfig
+    config: MoonshineMemoryModelConfig
   ): Promise<MoonshineInitializeResult> {
-    return unsupportedOnWeb('loadFromMemory()');
+    return this.loadDefaultTranscriberFromResult(
+      await this.createWebTranscriberFromMemory(config)
+    );
   }
 
   public async release(): Promise<{ released: boolean }> {
@@ -456,6 +476,7 @@ export class MoonshineService {
         stream.pendingFinalize = false;
         stream.pendingRun = false;
       }
+      state.dispose?.();
       this.transcribers.delete(transcriberId);
     }
     if (this.defaultTranscriber?.transcriberId === transcriberId) {
@@ -633,7 +654,10 @@ export class MoonshineService {
       const cacheKey = `${normalizedArch}::${modelBasePath}`;
       let model = this.modelCache.get(cacheKey);
       if (!model) {
-        model = new MoonshineWebModel(normalizedArch, modelBasePath);
+        model = new MoonshineWebModel(normalizedArch, {
+          kind: 'path',
+          modelBasePath,
+        });
         this.modelCache.set(cacheKey, model);
       }
       await model.load();
@@ -655,6 +679,76 @@ export class MoonshineService {
         transcriberId: stateId,
       };
     } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : String(error),
+        success: false,
+      };
+    }
+  }
+
+  private async createWebTranscriberFromMemory(
+    config: MoonshineMemoryModelConfig
+  ): Promise<MoonshineInitializeResult> {
+    let encoderUrl: string | null = null;
+    let decoderUrl: string | null = null;
+
+    try {
+      if (config.modelData.length !== 3) {
+        throw new Error(
+          'Moonshine web modelData must contain exactly 3 binary parts'
+        );
+      }
+
+      const normalizedArch = normalizeMoonshineWebModelArch(config.modelArch);
+      const encoderBytes = bytesFromModelPart(config.modelData[0]);
+      const decoderBytes = bytesFromModelPart(config.modelData[1]);
+
+      encoderUrl = URL.createObjectURL(
+        new Blob([arrayBufferFromBytes(encoderBytes)], {
+          type: 'application/octet-stream',
+        })
+      );
+      decoderUrl = URL.createObjectURL(
+        new Blob([arrayBufferFromBytes(decoderBytes)], {
+          type: 'application/octet-stream',
+        })
+      );
+
+      const stateId = `web-transcriber-${this.nextTranscriberId++}`;
+      const model = new MoonshineWebModel(normalizedArch, {
+        decoderUrl,
+        encoderUrl,
+        kind: 'urls',
+      });
+      await model.load();
+
+      // The native in-memory API includes tokenizer bytes as the third part.
+      // The current browser backend uses llama-tokenizer-js and does not need
+      // that blob, but we still validate the same 3-part contract for parity.
+      const defaultStreamId = `${stateId}:default`;
+      this.transcribers.set(stateId, {
+        activeStreamHandles: new Set([defaultStreamId]),
+        config,
+        defaultStreamId,
+        dispose: () => {
+          if (encoderUrl) URL.revokeObjectURL(encoderUrl);
+          if (decoderUrl) URL.revokeObjectURL(decoderUrl);
+        },
+        id: stateId,
+        model,
+        modelBasePath: '[memory]',
+        nextStreamId: 1,
+        streams: new Map([
+          [defaultStreamId, createStreamState(stateId, defaultStreamId)],
+        ]),
+      });
+      return {
+        success: true,
+        transcriberId: stateId,
+      };
+    } catch (error) {
+      if (encoderUrl) URL.revokeObjectURL(encoderUrl);
+      if (decoderUrl) URL.revokeObjectURL(decoderUrl);
       return {
         error: error instanceof Error ? error.message : String(error),
         success: false,

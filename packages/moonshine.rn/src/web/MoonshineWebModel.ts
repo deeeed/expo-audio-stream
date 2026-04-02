@@ -41,6 +41,19 @@ type LoadedSessions = {
   encoderSession: WebOrtSession;
 };
 
+type ModelPathSource = {
+  kind: 'path';
+  modelBasePath: string;
+};
+
+type ModelUrlSource = {
+  kind: 'urls';
+  decoderUrl: string;
+  encoderUrl: string;
+};
+
+type WebModelSource = ModelPathSource | ModelUrlSource;
+
 const MODEL_SHAPES: Record<'tiny' | 'base', WebModelShape> = {
   tiny: {
     numLayers: 6,
@@ -106,7 +119,7 @@ export class MoonshineWebModel {
 
   public constructor(
     private readonly modelArch: 'tiny' | 'base',
-    private readonly modelBasePath: string
+    private readonly source: WebModelSource
   ) {}
 
   public getLatency(): number | undefined {
@@ -121,31 +134,47 @@ export class MoonshineWebModel {
     const runtime = requireOrtRuntime();
     runtime.env.wasm.wasmPaths = detectMoonshineOnnxRuntimeWasmBasePath();
 
-    const quantizedBasePath = this.modelBasePath.endsWith('/quantized')
-      ? this.modelBasePath
-      : `${this.modelBasePath}/quantized`;
-    const cacheKey = `${this.modelArch}::${quantizedBasePath}`;
+    const sessionOptions = {
+      executionProviders: ['wasm'],
+    };
 
-    let sessionsPromise = SESSION_CACHE.get(cacheKey);
-    if (!sessionsPromise) {
-      sessionsPromise = (async () => {
-        const sessionOptions = {
-          executionProviders: ['wasm'],
-        };
-        const encoderSession = await runtime.InferenceSession.create(
-          `${quantizedBasePath}/encoder_model.onnx`,
+    let loadedSessions: LoadedSessions;
+    if (this.source.kind === 'urls') {
+      loadedSessions = {
+        decoderSession: await runtime.InferenceSession.create(
+          this.source.decoderUrl,
           sessionOptions
-        );
-        const decoderSession = await runtime.InferenceSession.create(
-          `${quantizedBasePath}/decoder_model_merged.onnx`,
+        ),
+        encoderSession: await runtime.InferenceSession.create(
+          this.source.encoderUrl,
           sessionOptions
-        );
-        return { decoderSession, encoderSession };
-      })();
-      SESSION_CACHE.set(cacheKey, sessionsPromise);
+        ),
+      };
+    } else {
+      const quantizedBasePath = this.source.modelBasePath.endsWith('/quantized')
+        ? this.source.modelBasePath
+        : `${this.source.modelBasePath}/quantized`;
+      const cacheKey = `${this.modelArch}::${quantizedBasePath}`;
+
+      let sessionsPromise = SESSION_CACHE.get(cacheKey);
+      if (!sessionsPromise) {
+        sessionsPromise = (async () => {
+          const encoderSession = await runtime.InferenceSession.create(
+            `${quantizedBasePath}/encoder_model.onnx`,
+            sessionOptions
+          );
+          const decoderSession = await runtime.InferenceSession.create(
+            `${quantizedBasePath}/decoder_model_merged.onnx`,
+            sessionOptions
+          );
+          return { decoderSession, encoderSession };
+        })();
+        SESSION_CACHE.set(cacheKey, sessionsPromise);
+      }
+
+      loadedSessions = await sessionsPromise;
     }
 
-    const loadedSessions = await sessionsPromise;
     this.encoderSession = loadedSessions.encoderSession;
     this.decoderSession = loadedSessions.decoderSession;
   }
