@@ -122,6 +122,8 @@ export interface NativeMoonshineModule {
   ): Promise<{ success: boolean }>;
 }
 
+// Deliberately uses legacy NativeModules for old-architecture / Expo dev-client
+// compatibility. This package does not expose a TurboModule spec yet.
 const NativeMoonshine = NativeModules.Moonshine as
   | NativeMoonshineModule
   | undefined;

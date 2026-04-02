@@ -1,9 +1,11 @@
 package net.siteed.moonshine
 
+import android.util.Log
 import ai.moonshine.voice.JNI
 import ai.moonshine.voice.Transcript
 import ai.moonshine.voice.TranscriberOption
 import java.lang.reflect.InvocationTargetException
+import java.util.concurrent.ConcurrentHashMap
 
 internal data class MoonshineIntentMatchNative(
   val triggerPhrase: String,
@@ -12,7 +14,9 @@ internal data class MoonshineIntentMatchNative(
 )
 
 internal object MoonshineDirectJni {
+  private const val TAG = "MoonshineDirectJni"
   private val jniClass: Class<*> = JNI::class.java
+  private val missingOptionalApiWarnings = ConcurrentHashMap.newKeySet<String>()
 
   fun addAudioToStream(
     transcriberHandle: Int,
@@ -30,6 +34,8 @@ internal object MoonshineDirectJni {
   }
 
   fun clearIntents(intentRecognizerHandle: Int): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineClearIntents",
       arrayOf(Int::class.javaPrimitiveType!!),
@@ -43,6 +49,8 @@ internal object MoonshineDirectJni {
     modelVariant: String?,
     threshold: Float
   ): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineCreateIntentRecognizer",
       arrayOf(
@@ -66,6 +74,8 @@ internal object MoonshineDirectJni {
   }
 
   fun freeIntentRecognizer(intentRecognizerHandle: Int) {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     invokeOptionalVoid(
       "moonshineFreeIntentRecognizer",
       arrayOf(Int::class.javaPrimitiveType!!),
@@ -84,6 +94,8 @@ internal object MoonshineDirectJni {
   }
 
   fun getIntentCount(intentRecognizerHandle: Int): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineGetIntentCount",
       arrayOf(Int::class.javaPrimitiveType!!),
@@ -92,6 +104,8 @@ internal object MoonshineDirectJni {
   }
 
   fun getIntentThreshold(intentRecognizerHandle: Int): Float {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalFloat(
       "moonshineGetIntentThreshold",
       arrayOf(Int::class.javaPrimitiveType!!),
@@ -131,6 +145,8 @@ internal object MoonshineDirectJni {
   }
 
   fun processUtterance(intentRecognizerHandle: Int, utterance: String): MoonshineIntentMatchNative? {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     val result = invokeOptional(
       "moonshineProcessUtteranceDetailed",
       arrayOf(Int::class.javaPrimitiveType!!, String::class.java),
@@ -147,6 +163,8 @@ internal object MoonshineDirectJni {
   }
 
   fun registerIntent(intentRecognizerHandle: Int, triggerPhrase: String): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineRegisterIntent",
       arrayOf(Int::class.javaPrimitiveType!!, String::class.java),
@@ -155,6 +173,8 @@ internal object MoonshineDirectJni {
   }
 
   fun setIntentThreshold(intentRecognizerHandle: Int, threshold: Float): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineSetIntentThreshold",
       arrayOf(Int::class.javaPrimitiveType!!, Float::class.javaPrimitiveType!!),
@@ -193,6 +213,8 @@ internal object MoonshineDirectJni {
   }
 
   fun unregisterIntent(intentRecognizerHandle: Int, triggerPhrase: String): Int {
+    // Requires the source-built artifact extension; missing JNI entry points
+    // raise UnsupportedOperationException after a one-time warning.
     return invokeOptionalInt(
       "moonshineUnregisterIntent",
       arrayOf(Int::class.javaPrimitiveType!!, String::class.java),
@@ -213,6 +235,13 @@ internal object MoonshineDirectJni {
     val method = try {
       jniClass.getMethod(methodName, *parameterTypes)
     } catch (_: NoSuchMethodException) {
+      if (missingOptionalApiWarnings.add(methodName)) {
+        Log.w(
+          TAG,
+          "$methodName is unavailable in the loaded Moonshine Android artifact; " +
+            "use the source-built artifact from packages/moonshine.rn/build-moonshine-android.sh."
+        )
+      }
       throw UnsupportedOperationException(
         "$methodName is unavailable in the loaded Moonshine Android artifact. " +
           "Use the source-built artifact from packages/moonshine.rn/build-moonshine-android.sh."

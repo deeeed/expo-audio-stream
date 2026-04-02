@@ -16,8 +16,8 @@ node scripts/agentic/cdp-bridge.mjs list-devices
 | Android fresh install | `yarn android` |
 | iOS fresh install | `yarn setup:ios-simulator && yarn ios` |
 | Web | `node scripts/agentic/web-browser.mjs launch & && scripts/agentic/start-metro.sh` |
-| Android physical | `adb devices` → `adb disconnect <wifi-ip>:5555` → `start-metro.sh` → deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
-| iOS physical | `start-metro.sh` → `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground://expo-development-client/?url=http%3A%2F%2F<LAN_IP>%3A7365" <bundle-id>` |
+| Android physical | `adb devices` → `adb disconnect <wifi-ip>:5555` → `start-metro.sh` → deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground-development://expo-development-client/?url=http://<LAN_IP>:7365"` |
+| iOS physical | `start-metro.sh` → `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground-development://expo-development-client/?url=http%3A%2F%2F<LAN_IP>%3A7365" <bundle-id>` |
 
 Physical devices: always use Mac LAN IP (`ipconfig getifaddr en0`), never `localhost`.
 

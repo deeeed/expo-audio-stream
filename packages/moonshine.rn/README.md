@@ -120,6 +120,9 @@ Current Android limitation:
   recipe passes on a physical Pixel 6a.
 - If either side moves to a different ORT ABI, mixed-engine loading will break
   again until both artifacts are realigned.
+- Streaming audio currently crosses the React Native bridge as `number[]` PCM
+  chunks. Keep live chunks in the ~100-250ms range for now; a JSI/ArrayBuffer
+  transport would be the future optimization path for heavier streaming loads.
 
 Android artifact override:
 

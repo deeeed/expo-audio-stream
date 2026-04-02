@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect, afterAll } from '@jest/globals'
 import { by, element, device, waitFor } from 'detox'
+import { getAgentValidationUrl } from './deeplink'
 
 describe('Stop Recording Performance Validation', () => {
   // Get custom duration from environment variable if set
@@ -23,7 +24,9 @@ describe('Stop Recording Performance Validation', () => {
     
     // Step 1: Configure via deep link
     await device.openURL({
-      url: `audioplayground://agent-validation?sampleRate=44100&channels=1&encoding=pcm_16bit&keepAwake=true`
+      url: getAgentValidationUrl(
+        'sampleRate=44100&channels=1&encoding=pcm_16bit&keepAwake=true'
+      )
     });
 
     // Step 2: Validate configuration loaded

@@ -20,6 +20,26 @@ MOONSHINE_VERSION="$(node -p "require('$SCRIPT_DIR/package.json').moonshineVersi
 LFS_INCLUDE_PATHS="core/third-party/onnxruntime/lib/android/**,core/speaker-embedding-model-data.cpp"
 SPEAKER_EMBEDDING_DATA_CPP_OVERRIDE="${SITEED_MOONSHINE_SPEAKER_EMBEDDING_DATA_CPP:-}"
 
+sanitize_metadata_path() {
+  local raw_path="$1"
+  if [ -z "$raw_path" ]; then
+    echo ""
+    return
+  fi
+
+  if [[ "$raw_path" == "$SCRIPT_DIR/"* ]]; then
+    echo "${raw_path#$SCRIPT_DIR/}"
+    return
+  fi
+
+  if [[ "$raw_path" == "$UPSTREAM_DIR/"* ]]; then
+    echo "third_party/moonshine/${raw_path#$UPSTREAM_DIR/}"
+    return
+  fi
+
+  echo "[external override]"
+}
+
 extract_ort_symbol_version() {
   local library_path="$1"
   if ! command -v llvm-readobj >/dev/null 2>&1; then
@@ -178,8 +198,8 @@ cat > "$METADATA_PATH" <<EOF
   "moonshineVersion": "${MOONSHINE_VERSION}",
   "androidAbis": "${ABI_LIST}",
   "onnxRuntimeVersionHint": "${ORT_VERSION}",
-  "onnxRuntimeLibPathOverride": "${ORT_LIB_PATH}",
-  "onnxRuntimeIncludeDirOverride": "${ORT_INCLUDE_DIR}",
+  "onnxRuntimeLibPathOverride": "$(sanitize_metadata_path "$ORT_LIB_PATH")",
+  "onnxRuntimeIncludeDirOverride": "$(sanitize_metadata_path "$ORT_INCLUDE_DIR")",
   "arm64ImportedOrtSymbolVersion": "${MOONSHINE_IMPORTED_ORT_VERSION}",
   "arm64PackagedOrtSymbolVersion": "${MOONSHINE_PACKAGED_ORT_VERSION}"
 }

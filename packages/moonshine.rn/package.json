@@ -38,6 +38,7 @@
     "!**/.*"
   ],
   "scripts": {
+    "test": "jest --runInBand",
     "typecheck": "tsc --noEmit",
     "clean": "del-cli android/build lib",
     "setup:upstream": "bash ./setup.sh",
@@ -66,15 +67,18 @@
     "@babel/core": "^7.26.10",
     "@babel/preset-env": "^7.26.9",
     "@react-native/eslint-config": "^0.73.1",
+    "@types/jest": "^29.5.5",
     "@types/react": "^19.2.0",
     "del-cli": "^5.1.0",
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^29.7.0",
     "prettier": "^3.0.3",
     "react": "19.2.0",
     "react-native": "0.83.2",
     "react-native-builder-bob": "^0.37.0",
+    "ts-jest": "^29.2.6",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
@@ -96,6 +100,25 @@
     "tabWidth": 2,
     "trailingComma": "es5",
     "useTabs": false
+  },
+  "jest": {
+    "modulePathIgnorePatterns": [
+      "<rootDir>/lib/"
+    ],
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.(ts|tsx)$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "esModuleInterop": true,
+            "jsx": "react",
+            "module": "commonjs",
+            "target": "es2019"
+          }
+        }
+      ]
+    }
   },
   "react-native-builder-bob": {
     "source": "src",

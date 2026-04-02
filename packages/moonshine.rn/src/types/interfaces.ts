@@ -54,6 +54,8 @@ export interface MoonshineAssetModelConfig extends MoonshineLoadConfigBase {
 }
 
 export interface MoonshineMemoryModelConfig extends MoonshineLoadConfigBase {
+  // Mirrors the upstream 3-part in-memory loader. This is a low-level path and
+  // currently matches the non-streaming memory layout exposed by Moonshine.
   modelData: [number[], number[], number[]];
 }
 
@@ -126,6 +128,9 @@ export interface MoonshineTranscriptionResult {
 }
 
 export interface MoonshineTranscribeOptions {
+  // The current React Native path streams PCM as number[] over the bridge.
+  // Keep chunks reasonably small (roughly 100-250ms) until a JSI/ArrayBuffer
+  // transport exists.
   chunkDurationMs?: number;
 }
 

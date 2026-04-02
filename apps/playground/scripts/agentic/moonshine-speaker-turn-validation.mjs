@@ -3,13 +3,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = '/Users/deeeed/dev/audiolab';
-const APP_ROOT = path.join(REPO_ROOT, 'apps/playground');
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const APP_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
+const REPO_ROOT = path.resolve(APP_ROOT, '..', '..');
 const BRIDGE = path.join(APP_ROOT, 'scripts/agentic/cdp-bridge.mjs');
 const REPORT_DIR = path.join(APP_ROOT, '.agent', 'reports');
-const DEVICE = 'Pixel 6a';
-const SERIAL = '29071JEGR20638';
+const DEVICE = process.env.BENCHMARK_DEVICE || process.env.AGENTIC_DEVICE || '';
+const SERIAL = process.env.ANDROID_SERIAL || process.env.ADB_SERIAL || '';
 const APP_VARIANT = process.env.APP_VARIANT || 'development';
 const BUNDLE_BASE = 'net.siteed.audioplayground';
 const SCHEME_BASE = 'audioplayground';
@@ -68,7 +70,7 @@ function run(command, args, { cwd = REPO_ROOT, parseJson = false, maxBuffer = 50
 }
 
 function adb(args) {
-  return run('adb', ['-s', SERIAL, ...args]);
+  return run('adb', SERIAL ? ['-s', SERIAL, ...args] : args);
 }
 
 function adbShell(command) {
@@ -76,7 +78,11 @@ function adbShell(command) {
 }
 
 function bridge(args, parseJson = true) {
-  return run('node', [BRIDGE, '--device', DEVICE, ...args], { parseJson });
+  return run(
+    'node',
+    DEVICE ? [BRIDGE, '--device', DEVICE, ...args] : [BRIDGE, ...args],
+    { parseJson }
+  );
 }
 
 function shellQuote(value) {
@@ -210,7 +216,9 @@ async function ensureDeviceClip(clip) {
   );
   run('bash', [
     '-lc',
-    `cat ${shellQuote(clip.hostClip)} | adb -s ${SERIAL} shell "run-as ${PKG} sh -c 'cat > ${clip.deviceClip}'"`,
+    `cat ${shellQuote(clip.hostClip)} | ${
+      SERIAL ? `adb -s ${SERIAL}` : 'adb'
+    } shell "run-as ${PKG} sh -c 'cat > ${clip.deviceClip}'"`,
   ]);
   const stagedSize = Number(
     adbShell(`run-as ${PKG} sh -c "wc -c < ${clip.deviceClip} 2>/dev/null || echo 0"`).trim() ||

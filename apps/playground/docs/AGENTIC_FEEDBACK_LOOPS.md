@@ -82,7 +82,7 @@ Uses React fiber tree (`__REACT_DEVTOOLS_GLOBAL_HOOK__`) — dev mode only. No d
 | `No debug targets` | App not running; retry with deep link |
 | `__AGENTIC__ undefined` | Not dev mode, or bridge not loaded in `_layout.tsx` |
 | `{ ok: false }` on press/scroll | Wrong testID or component not on current screen |
-| Android stuck on dev launcher | `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<LAN_IP>:7365"` |
+| Android stuck on dev launcher | `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground-development://expo-development-client/?url=http://<LAN_IP>:7365"` |
 | `expo run:android` resets ADB reverse | Re-run `adb reverse tcp:7365 tcp:7365` |
 | Multiple ADB devices / hangs | `adb disconnect <wifi-ip>:5555` |
 | iOS physical: "no dev servers found" | Use `--payload-url` with `xcrun devicectl device process launch` |

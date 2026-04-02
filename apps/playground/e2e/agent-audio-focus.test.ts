@@ -1,5 +1,6 @@
 import { beforeAll, describe, it } from '@jest/globals'
 import { by, element, expect as detoxExpect, device, waitFor } from 'detox'
+import { getAgentValidationUrl } from './deeplink'
 
 describe('Audio Focus Strategy Validation', () => {
   beforeAll(async () => {
@@ -14,7 +15,9 @@ describe('Audio Focus Strategy Validation', () => {
     it('should configure background audio focus strategy', async () => {
       // Navigate with background audio focus strategy
       await device.openURL({
-        url: 'audioplayground://agent-validation?sampleRate=44100&channels=1&encoding=pcm_16bit&keepAwake=true&android.audioFocusStrategy=background'
+        url: getAgentValidationUrl(
+          'sampleRate=44100&channels=1&encoding=pcm_16bit&keepAwake=true&android.audioFocusStrategy=background'
+        )
       });
 
       // Wait for the start button to be visible (simpler check)
@@ -52,7 +55,9 @@ describe('Audio Focus Strategy Validation', () => {
     it('should not pause on audio focus loss with background strategy', async () => {
       // Navigate with background audio focus strategy
       await device.openURL({
-        url: 'audioplayground://agent-validation?keepAwake=true&android.audioFocusStrategy=background&interval=100'
+        url: getAgentValidationUrl(
+          'keepAwake=true&android.audioFocusStrategy=background&interval=100'
+        )
       });
 
       await waitFor(element(by.id('start-recording-button')))
@@ -85,7 +90,9 @@ describe('Audio Focus Strategy Validation', () => {
     it('should configure interactive audio focus strategy', async () => {
       // Navigate with interactive audio focus strategy
       await device.openURL({
-        url: 'audioplayground://agent-validation?keepAwake=false&android.audioFocusStrategy=interactive'
+        url: getAgentValidationUrl(
+          'keepAwake=false&android.audioFocusStrategy=interactive'
+        )
       });
 
       await waitFor(element(by.id('agent-config')))
@@ -130,7 +137,7 @@ describe('Audio Focus Strategy Validation', () => {
       
       // Navigate with base64 config
       await device.openURL({
-        url: `audioplayground://agent-validation?config=${base64Config}`
+        url: getAgentValidationUrl(`config=${base64Config}`)
       });
 
       await waitFor(element(by.id('start-recording-button')))
@@ -158,7 +165,7 @@ describe('Audio Focus Strategy Validation', () => {
     it('should use background strategy when keepAwake is true', async () => {
       // Navigate with keepAwake=true but no explicit audioFocusStrategy
       await device.openURL({
-        url: 'audioplayground://agent-validation?keepAwake=true'
+        url: getAgentValidationUrl('keepAwake=true')
       });
 
       await waitFor(element(by.id('agent-config')))

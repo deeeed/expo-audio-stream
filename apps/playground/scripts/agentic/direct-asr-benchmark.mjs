@@ -3,14 +3,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import asrEvalManifest from './asr-eval-manifest.mjs';
 
-const REPO_ROOT = '/Users/deeeed/dev/audiolab';
-const APP_ROOT = path.join(REPO_ROOT, 'apps/playground');
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const APP_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
+const REPO_ROOT = path.resolve(APP_ROOT, '..', '..');
 const BRIDGE = path.join(APP_ROOT, 'scripts/agentic/cdp-bridge.mjs');
 const REPORT_DIR = path.join(APP_ROOT, '.agent', 'reports');
-const DEVICE = 'Pixel 6a';
-const SERIAL = '29071JEGR20638';
+const DEVICE = process.env.BENCHMARK_DEVICE || process.env.AGENTIC_DEVICE || '';
+const SERIAL = process.env.ANDROID_SERIAL || process.env.ADB_SERIAL || '';
 const APP_VARIANT = process.env.APP_VARIANT || 'development';
 const BUNDLE_BASE = 'net.siteed.audioplayground';
 const SCHEME_BASE = 'audioplayground';
@@ -23,20 +25,46 @@ const OFFLINE_TIMEOUT_MS = 10 * 60 * 1000;
 const SIMULATED_TIMEOUT_MS = 10 * 60 * 1000;
 const STATE_TIMEOUT_MS = 90 * 1000;
 const POLL_INTERVAL_MS = 1000;
+const PRESETS = {
+  'moonshine-longform': {
+    clipIds: [
+      'ami-is1001a-150-170',
+      'jfk-public-quote',
+      'recorder-jre-lex-watch',
+      'osr-us-000-0010-8k',
+    ],
+    modelIds: ['moonshine-small-streaming-en', 'moonshine-medium-streaming-en'],
+  },
+};
 
 const ALL_MODELS = [
   { id: 'moonshine-small-streaming-en', live: true },
   { id: 'moonshine-medium-streaming-en', live: true },
   { id: 'whisper-small', live: true },
 ];
+const configuredPreset = String(process.env.BENCHMARK_PRESET || '').trim();
+const presetConfig = configuredPreset ? PRESETS[configuredPreset] : null;
+if (configuredPreset && !presetConfig) {
+  throw new Error(
+    `Unknown BENCHMARK_PRESET=${configuredPreset}. Available presets: ${Object.keys(PRESETS).join(', ')}`
+  );
+}
 const configuredModelIds = new Set(
-  String(process.env.BENCHMARK_MODELS || '')
+  String(
+    process.env.BENCHMARK_MODELS ||
+      presetConfig?.modelIds?.join(',') ||
+      ''
+  )
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean)
 );
 const configuredClipIds = new Set(
-  String(process.env.BENCHMARK_CLIPS || '')
+  String(
+    process.env.BENCHMARK_CLIPS ||
+      presetConfig?.clipIds?.join(',') ||
+      ''
+  )
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean)
@@ -79,7 +107,8 @@ function run(command, args, { cwd = REPO_ROOT, parseJson = false, maxBuffer = 50
 }
 
 function adb(args) {
-  return run('adb', ['-s', SERIAL, ...args], { parseJson: false });
+  const adbArgs = SERIAL ? ['-s', SERIAL, ...args] : args;
+  return run('adb', adbArgs, { parseJson: false });
 }
 
 function adbShell(command) {
@@ -91,7 +120,8 @@ function shellQuote(value) {
 }
 
 function bridge(args, parseJson = true) {
-  return run('node', [BRIDGE, '--device', DEVICE, ...args], { parseJson });
+  const bridgeArgs = DEVICE ? ['--device', DEVICE, ...args] : args;
+  return run('node', [BRIDGE, ...bridgeArgs], { parseJson });
 }
 
 function resolveHostPath(clip) {
@@ -99,6 +129,11 @@ function resolveHostPath(clip) {
 }
 
 function getDeviceClipPath(clip) {
+  if (!clip.deviceFileName) {
+    throw new Error(
+      `Clip ${clip.id} is missing deviceFileName; set it in asr-eval-manifest.mjs before staging benchmark audio.`
+    );
+  }
   return `/data/user/0/${PKG}/files/benchmarks/${clip.deviceFileName}`;
 }
 
@@ -154,7 +189,9 @@ async function ensureDeviceClip(clip) {
   );
   run('bash', [
     '-lc',
-    `cat ${shellQuote(hostPath)} | adb -s ${SERIAL} shell "run-as ${PKG} sh -c 'cat > ${devicePath}'"`,
+    `cat ${shellQuote(hostPath)} | ${
+      SERIAL ? `adb -s ${SERIAL}` : 'adb'
+    } shell "run-as ${PKG} sh -c 'cat > ${devicePath}'"`,
   ]);
 
   const stagedSize = Number(
@@ -504,7 +541,7 @@ function renderMarkdown(report) {
   lines.push('# Playground Direct ASR Benchmark Report');
   lines.push('');
   lines.push(`- Generated: ${report.generatedAt}`);
-  lines.push(`- Device: ${DEVICE}`);
+  lines.push(`- Device: ${DEVICE || '(auto-selected by CDP / adb)'}`);
   lines.push(`- Route: ${ROUTE}`);
   if (OFFLINE_MODELS.length > 0) {
     lines.push(`- Models: ${OFFLINE_MODELS.map((model) => model.id).join(', ')}`);

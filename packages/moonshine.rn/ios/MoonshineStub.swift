@@ -1,4 +1,4 @@
 import Foundation
 
-@objc(MoonshineStub)
-public class MoonshineStub: NSObject {}
+@objc(Moonshine)
+public class Moonshine: NSObject {}

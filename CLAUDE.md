@@ -126,7 +126,7 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ❌ `adb reverse tcp:8081 tcp:7365` — conflicts with other RN apps; also `expo run:android` resets this mapping
 - ❌ Rely on ADB reverse for Metro connectivity — tunneling is unreliable for HTTP/WebSocket
 - ✅ `adb reverse tcp:7365 tcp:7365` — but prefer LAN IP approach below
-- ✅ Connect via LAN IP deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground://expo-development-client/?url=http://<MAC_LAN_IP>:7365"`
+- ✅ Connect via LAN IP deep link for the dev build: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground-development://expo-development-client/?url=http://<MAC_LAN_IP>:7365"`
 - ✅ After `expo run:android`, re-run `adb reverse` (it resets port mappings)
 - ✅ Disconnect WiFi ADB before commands: `adb disconnect <ip>:5555` (auto-reconnects and causes device selection hangs)
 - ✅ After clearing app data: `adb shell pm grant <pkg> android.permission.RECORD_AUDIO`
@@ -136,7 +136,7 @@ Standard: **iPhone 16 Pro Max** — use `yarn setup:ios-simulator` for consisten
 - ❌ Patch `RCTDefines.h` / `setPort.sh` — React-Core is prebuilt binary in Expo 54+, header patches have zero effect
 - ❌ Use `localhost` for physical devices — that's the phone's own loopback, not the Mac
 - ✅ Config plugin `withMetroPortIOS.cjs` injects `RCTBundleURLProvider.sharedSettings().jsLocation` with LAN IP
-- ✅ Launch with `--payload-url`: `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground://expo-development-client/?url=http%3A%2F%2F<MAC_LAN_IP>%3A7365" <bundle-id>`
+- ✅ Launch with `--payload-url`: `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground-development://expo-development-client/?url=http%3A%2F%2F<MAC_LAN_IP>%3A7365" <bundle-id>`
 - ✅ Verify after prebuild: check `ios/<Scheme>/AppDelegate.swift` contains `jsLocation` with correct IP
 
 **Metro port resource override (Android)**

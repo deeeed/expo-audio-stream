@@ -17,6 +17,7 @@ import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -219,14 +220,7 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
       if (assetPath.isNullOrBlank()) {
         throw IllegalArgumentException("Moonshine assetPath is required")
       }
-      val assetManager = reactApplicationContext.assets
-      MoonshineDirectJni.loadTranscriberFromMemory(
-        assetManager.open("$assetPath/encoder_model.ort").use { it.readBytes() },
-        assetManager.open("$assetPath/decoder_model_merged.ort").use { it.readBytes() },
-        assetManager.open("$assetPath/tokenizer.bin").use { it.readBytes() },
-        modelArch,
-        options
-      )
+      loadTranscriberFromAssets(assetPath, modelArch, options)
     }
   }
 
@@ -318,14 +312,7 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
       if (assetPath.isNullOrBlank()) {
         throw IllegalArgumentException("Moonshine assetPath is required")
       }
-      val assetManager = reactApplicationContext.assets
-      MoonshineDirectJni.loadTranscriberFromMemory(
-        assetManager.open("$assetPath/encoder_model.ort").use { it.readBytes() },
-        assetManager.open("$assetPath/decoder_model_merged.ort").use { it.readBytes() },
-        assetManager.open("$assetPath/tokenizer.bin").use { it.readBytes() },
-        modelArch,
-        options
-      )
+      loadTranscriberFromAssets(assetPath, modelArch, options)
     }
   }
 
@@ -965,9 +952,10 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
   }
 
   private fun parseIntentRecognizerId(intentRecognizerId: String): Int {
-    intentRecognizerHandles[intentRecognizerId]?.let { return it }
-    return intentRecognizerId.removePrefix("intent-").toIntOrNull()
-      ?: throw IllegalArgumentException("Invalid Moonshine intent recognizer id: $intentRecognizerId")
+    return intentRecognizerHandles[intentRecognizerId]
+      ?: throw IllegalArgumentException(
+        "Moonshine intent recognizer is not active: $intentRecognizerId"
+      )
   }
 
   private fun parseStreamHandleForTranscriber(transcriberId: String, streamId: String): Int {
@@ -976,6 +964,16 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
       throw IllegalArgumentException(
         "Moonshine stream $streamId does not belong to transcriber $transcriberId"
       )
+    }
+    val state = transcriberStates[transcriberId]
+      ?: throw IllegalArgumentException(
+        "Moonshine transcriber is not initialized: $transcriberId"
+      )
+    val isKnownStream =
+      parsedStreamId.handle == state.defaultStreamHandle ||
+        state.activeStreamHandles.contains(parsedStreamId.handle)
+    if (!isKnownStream) {
+      throw IllegalArgumentException("Moonshine stream is not active: $streamId")
     }
     return parsedStreamId.handle
   }
@@ -1012,6 +1010,51 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
       result[index] = samples.getDouble(index).toFloat()
     }
     return result
+  }
+
+  private fun copyAssetTree(assetPath: String, destination: File) {
+    val assetManager = reactApplicationContext.assets
+    val entries = assetManager.list(assetPath)?.filter { it.isNotBlank() }.orEmpty()
+
+    if (entries.isEmpty()) {
+      destination.parentFile?.mkdirs()
+      assetManager.open(assetPath).use { input ->
+        FileOutputStream(destination).use { output ->
+          input.copyTo(output)
+        }
+      }
+      return
+    }
+
+    if (destination.exists() && !destination.isDirectory) {
+      destination.delete()
+    }
+    destination.mkdirs()
+    entries.forEach { child ->
+      copyAssetTree("$assetPath/$child", File(destination, child))
+    }
+  }
+
+  private fun loadTranscriberFromAssets(
+    assetPath: String,
+    modelArch: Int,
+    options: Array<TranscriberOption>
+  ): Int {
+    val trimmedAssetPath = assetPath.trim().trim('/')
+    if (trimmedAssetPath.isBlank()) {
+      throw IllegalArgumentException("Moonshine assetPath is required")
+    }
+
+    // Materialize the whole asset directory so streaming bundles with multiple
+    // .ort files and configs can use the same file-based JNI loader path.
+    val cacheKey = trimmedAssetPath.replace(Regex("[^A-Za-z0-9._-]+"), "_")
+    val targetDir = File(reactApplicationContext.cacheDir, "moonshine-assets/$cacheKey")
+    copyAssetTree(trimmedAssetPath, targetDir)
+    return MoonshineDirectJni.loadTranscriberFromFiles(
+      targetDir.absolutePath,
+      modelArch,
+      options
+    )
   }
 
   private fun registerStreamState(state: TranscriberState, streamHandle: Int) {

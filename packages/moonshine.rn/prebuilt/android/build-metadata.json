@@ -2,8 +2,8 @@
   "moonshineVersion": "v0.0.51",
   "androidAbis": "arm64-v8a",
   "onnxRuntimeVersionHint": "1.23.0",
-  "onnxRuntimeLibPathOverride": "/tmp/moonshine-ort/libonnxruntime.so",
-  "onnxRuntimeIncludeDirOverride": "/Users/deeeed/dev/audiolab/packages/moonshine.rn/third_party/moonshine/core/third-party/onnxruntime/include",
+  "onnxRuntimeLibPathOverride": "[external override]",
+  "onnxRuntimeIncludeDirOverride": "third_party/moonshine/core/third-party/onnxruntime/include",
   "arm64ImportedOrtSymbolVersion": "1.23.0",
   "arm64PackagedOrtSymbolVersion": "1.23.0"
 }

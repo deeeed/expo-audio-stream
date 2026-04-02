@@ -1,5 +1,6 @@
 import { beforeAll, describe, it, expect as jestExpected } from '@jest/globals'
 import { by, element, expect as detoxExpect, device, waitFor } from 'detox'
+import { getAgentValidationUrl } from './deeplink'
 
 describe('Agent Core Workflow Validation', () => {
   beforeAll(async () => {
@@ -15,7 +16,7 @@ describe('Agent Core Workflow Validation', () => {
   it('should complete core audio workflow: start → stop → read result', async () => {
     // Get test parameters from environment (set by validation script)
     const testUrl = process.env.AGENT_TEST_URL || 
-      'audioplayground://agent-validation?sampleRate=44100&channels=1&encoding=pcm_16bit&interval=100';
+      getAgentValidationUrl('sampleRate=44100&channels=1&encoding=pcm_16bit&interval=100');
     
     console.log(`Testing with configuration: ${testUrl}`);
 
@@ -88,7 +89,9 @@ describe('Agent Core Workflow Validation', () => {
     const channels = process.env.AGENT_TEST_CHANNELS || '1';
     
     // Launch with specific config - use complete URL pattern like the working first test
-    const testUrl = `audioplayground://agent-validation?sampleRate=${sampleRate}&channels=${channels}&encoding=pcm_16bit&interval=100`;
+    const testUrl = getAgentValidationUrl(
+      `sampleRate=${sampleRate}&channels=${channels}&encoding=pcm_16bit&interval=100`
+    );
     console.log(`Testing parameter configuration: ${testUrl}`);
     
     await device.openURL({ url: testUrl });
