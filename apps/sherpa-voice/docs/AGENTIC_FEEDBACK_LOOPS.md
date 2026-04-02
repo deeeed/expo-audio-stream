@@ -18,7 +18,6 @@ scripts/agentic/app-state.sh eval "<JS expression>"
 # Navigate
 scripts/agentic/app-navigate.sh "/(tabs)/home"
 scripts/agentic/app-navigate.sh "/(tabs)/features"
-scripts/agentic/app-navigate.sh "/(tabs)/features/asr-benchmark"
 scripts/agentic/app-navigate.sh "/(tabs)/models"
 scripts/agentic/app-navigate.sh "/feature/tts"
 scripts/agentic/app-navigate.sh "/feature/asr"
@@ -31,8 +30,6 @@ scripts/agentic/screenshot.sh my-label
 
 # Recipes
 bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-screen-validation.json
-bash scripts/agentic/validate-recipe.sh scripts/agentic/teams/sherpa/recipes/asr-benchmark-screen-validation.json
-yarn recipe:asr-benchmark
 bash scripts/agentic/validate-flow-schema.sh
 bash scripts/agentic/validate-pre-conditions.sh
 
@@ -85,3 +82,69 @@ Pass `--device <name>` to target a specific device:
 scripts/agentic/app-state.sh --device "Pixel 6a" route
 scripts/agentic/native-logs.sh --device "Pixel 6a" android
 ```
+
+## Real Device Pitfalls
+
+On a physical Android device, Expo's error screen often says `localhost:8081` even when the real issue is not literally "use 8081". The recurring failure modes are:
+
+- Metro is still running for the wrong `APP_VARIANT`
+- the device is attached to the wrong installed package
+- `adb reverse` was not refreshed after reconnecting USB
+- the generated Android config still reflects a different `APP_VARIANT`
+
+Before assuming the port is wrong, verify the active Metro identity:
+
+```bash
+tail -n 30 .agent/metro.log
+yarn android:doctor
+```
+
+The lines to check are:
+
+- `App Variant: development` or `production`
+- `App Identifier: net.siteed.sherpavoice.development` or `net.siteed.sherpavoice`
+
+If `logcat` shows `ReconnectingWebSocket` failures to `127.0.0.1:7500` or
+`Unable to load script`, resync the generated Android config before rebuilding:
+
+```bash
+APP_VARIANT=development bash scripts/sync-android-dev-config.sh
+yarn android:doctor
+```
+
+For the normal agentic workflow, the expected real-device target is the development dev client:
+
+- package: `net.siteed.sherpavoice.development`
+- Metro: `localhost:7500`
+
+Recovery sequence for the "wrong port / unable to load script" screen:
+
+```bash
+# 1. Stop stale Metro
+APP_ROOT=$(pwd) bash scripts/agentic/stop-metro.sh
+
+# 2. Start Metro for the matching app variant
+APP_VARIANT=development APP_ROOT=$(pwd) bash scripts/agentic/start-metro.sh
+
+# 3. Resync generated Android dev config
+APP_VARIANT=development bash scripts/sync-android-dev-config.sh
+yarn android:doctor
+
+# 4. Recreate adb reverse after reconnecting the phone
+adb -s <serial> reverse --remove-all
+adb -s <serial> reverse tcp:7500 tcp:7500
+adb -s <serial> reverse tcp:8081 tcp:7500
+
+# 5. Relaunch the dev client
+adb -s <serial> shell am force-stop net.siteed.sherpavoice.development
+adb -s <serial> shell am start -a android.intent.action.VIEW -d "exp+sherpa-voice-development://expo-development-client/?url=http%3A%2F%2Flocalhost%3A7500"
+```
+
+If the app still shows Expo's load error, check whether the wrong package was launched:
+
+```bash
+adb -s <serial> shell pm list packages | rg 'net\\.siteed\\.sherpavoice'
+adb -s <serial> shell dumpsys activity activities | sed -n '1,120p'
+```
+
+The top activity should match the package you intended to validate.

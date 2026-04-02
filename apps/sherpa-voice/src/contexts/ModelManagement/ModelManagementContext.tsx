@@ -28,6 +28,7 @@ import {
   isWebModelEnabled,
 } from '../../utils/constants';
 import { AVAILABLE_MODELS, ModelType, type ModelMetadata } from '../../utils/models';
+import { isModelAvailableInCurrentApp } from '../../utils/modelSupport';
 import type { ModelManagementContextType, ModelManagementProviderProps, ModelState, ModelStatus } from './types';
 import { baseLogger } from '../../config';
 
@@ -56,6 +57,36 @@ const getPersistentStorageDirectory = (): string => {
 // Helper functions for path handling
 const getModelDirectoryPath = (modelId: string): string => {
   return `${getPersistentStorageDirectory()}models/${modelId}`;
+};
+
+const getDirectDownloadFileNames = (model: ModelMetadata): string[] => {
+  if (model.url.endsWith('.tar.bz2')) {
+    return [];
+  }
+
+  const primaryFile = model.url.split('/').pop();
+  const dependencyFiles =
+    model.dependencies?.map((dependency) => dependency.url.split('/').pop()) ?? [];
+
+  return Array.from(
+    new Set(
+      [primaryFile, ...dependencyFiles].filter(
+        (value): value is string => !!value && value.length > 0
+      )
+    )
+  );
+};
+
+const hasCompleteModelFiles = (
+  model: ModelMetadata,
+  filesList: string[]
+): boolean => {
+  const requiredFiles = getDirectDownloadFileNames(model);
+  if (requiredFiles.length === 0) {
+    return filesList.length > 0;
+  }
+
+  return requiredFiles.every((fileName) => filesList.includes(fileName));
 };
 
 // Convert absolute path to current path
@@ -124,7 +155,39 @@ export function ModelManagementProvider({
             const reconciledStates: Record<string, ModelState> = {};
             for (const [id, state] of Object.entries(migratedStates)) {
               if (catalogIds.has(id)) {
-                reconciledStates[id] = state as ModelState;
+                const metadata = AVAILABLE_MODELS.find(m => m.id === id) ?? (state as ModelState).metadata;
+                const modelDir = getModelDirectoryPath(id);
+                let hasCompleteFiles = false;
+
+                try {
+                  const info = await FileSystem.getInfoAsync(modelDir);
+                  if (info.exists && info.isDirectory && metadata) {
+                    const contents = await FileSystem.readDirectoryAsync(modelDir);
+                    hasCompleteFiles = hasCompleteModelFiles(metadata, contents);
+                  }
+                } catch (fsErr) {
+                  logger.warn(`Filesystem revalidation failed for ${id} at ${modelDir}: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`);
+                }
+
+                const nextState = {
+                  ...(state as ModelState),
+                  metadata,
+                };
+
+                if ((state as ModelState).status === 'downloaded' && !hasCompleteFiles) {
+                  logger.warn(`Resetting incomplete downloaded state for ${id} to pending`);
+                  reconciledStates[id] = {
+                    ...nextState,
+                    status: 'pending',
+                    progress: 0,
+                    localPath: undefined,
+                    files: undefined,
+                    extractedFiles: undefined,
+                    error: undefined,
+                  };
+                } else {
+                  reconciledStates[id] = nextState;
+                }
               } else {
                 logger.info(`Removing stale model state: ${id} (not in catalog)`);
               }
@@ -138,7 +201,7 @@ export function ModelManagementProvider({
                   const info = await FileSystem.getInfoAsync(modelDir);
                   if (info.exists && info.isDirectory) {
                     const contents = await FileSystem.readDirectoryAsync(modelDir);
-                    isOnDisk = contents.length > 0;
+                    isOnDisk = hasCompleteModelFiles(meta, contents);
                   }
                 } catch (fsErr) {
                   logger.warn(`Filesystem check failed for new catalog entry ${meta.id} at ${modelDir}: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`);
@@ -190,8 +253,7 @@ export function ModelManagementProvider({
             const info = await FileSystem.getInfoAsync(modelDir);
             if (info.exists && info.isDirectory) {
               const contents = await FileSystem.readDirectoryAsync(modelDir);
-              // Consider downloaded if directory has files (not just empty)
-              isOnDisk = contents.length > 0;
+              isOnDisk = hasCompleteModelFiles(meta, contents);
             }
           } catch (fsErr) {
             logger.warn(`Filesystem check failed for ${meta.id} at ${modelDir}: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`);
@@ -398,7 +460,10 @@ export function ModelManagementProvider({
 
     // For non-web platforms, get models from state that are marked as downloaded
     return Object.values(modelStates).filter(state =>
-      state.status === 'downloaded' && !!state.localPath && !!state.metadata
+      state.status === 'downloaded' &&
+      !!state.localPath &&
+      !!state.metadata &&
+      isModelAvailableInCurrentApp(state.metadata)
     );
   }, [modelStates]);
 
@@ -444,9 +509,9 @@ export function ModelManagementProvider({
     filePath: string,
     isArchive: boolean,
     fileName: string
-  ) => {
+  ): Promise<void> => {
     // Ensure the model directory exists before starting download
-    FileSystem.getInfoAsync(modelDir)
+    return FileSystem.getInfoAsync(modelDir)
       .then(dirInfo => {
         if (!dirInfo.exists) {
           logger.info(`Model directory does not exist yet, creating: ${modelDir}`);
@@ -553,6 +618,8 @@ export function ModelManagementProvider({
         FileSystem.deleteAsync(modelDir, { idempotent: true }).catch(e => {
           logger.warn(`Error cleaning up model dir after failure: ${e}`);
         });
+
+        throw error instanceof Error ? error : new Error('Unknown processing error');
       });
   }, [updateModelState, modelStates, setActiveDownloads, downloadDependency]);
 
@@ -633,9 +700,7 @@ export function ModelManagementProvider({
       // Store in active downloads
       setActiveDownloads(prev => ({ ...prev, [modelId]: downloadResumable }));
 
-      startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
-
-      // Return immediately
+      await startDownloadProcess(modelId, model, downloadResumable, modelDir, filePath, isArchive, fileName);
       return;
     } catch (initError) {
       logger.error(`Error initializing download for ${modelId}: ${initError}`);
@@ -644,6 +709,7 @@ export function ModelManagementProvider({
         progress: 0,
         error: initError instanceof Error ? initError.message : 'Failed to start download',
       });
+      throw initError instanceof Error ? initError : new Error('Failed to start download');
     }
   }, [modelStates, updateModelState, startDownloadProcess]);
 
@@ -731,9 +797,9 @@ export function ModelManagementProvider({
   // Original getAvailableModels (returns ModelMetadata[])
   const getAvailableModels = useCallback((): ModelMetadata[] => {
     if (Platform.OS === 'web') {
-      return AVAILABLE_MODELS.filter(m => m.webPreloaded === true);
+      return AVAILABLE_MODELS.filter(m => isModelAvailableInCurrentApp(m));
     }
-    return AVAILABLE_MODELS;
+    return AVAILABLE_MODELS.filter(m => isModelAvailableInCurrentApp(m));
   }, []);
 
   // Original refreshModelStatus - simplified
@@ -797,6 +863,24 @@ export function ModelManagementProvider({
           };
         })
       );
+
+      const isComplete = hasCompleteModelFiles(modelMetadata, filesList);
+      if (!isComplete) {
+        const requiredFiles = getDirectDownloadFileNames(modelMetadata);
+        const missingFiles = requiredFiles.filter((file) => !filesList.includes(file));
+        logger.warn(
+          `Status refresh incomplete for ${modelId}: found ${filesList.length} file(s), missing ${missingFiles.join(', ')}`
+        );
+        updateModelState(modelId, {
+          status: state.status === 'downloading' ? 'downloading' as ModelStatus : 'pending' as ModelStatus,
+          localPath: modelDir,
+          files: fileInfos,
+          extractedFiles: filesList,
+          progress: state.status === 'downloading' ? state.progress : 0,
+          error: undefined
+        });
+        return;
+      }
 
       // Update state with consistent path
       updateModelState(modelId, {

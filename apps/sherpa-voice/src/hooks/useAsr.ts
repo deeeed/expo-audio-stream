@@ -33,7 +33,6 @@ export const GREEDY_ONLY_TYPES = [
     'paraformer',
     'tdnn',
     'sense_voice',
-    'moonshine',
     'fire_red_asr',
 ]
 

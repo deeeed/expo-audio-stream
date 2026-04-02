@@ -89,3 +89,41 @@ scripts/agentic/native-logs.sh ios             # iOS simulator
 **TTS/ASR fails with "not initialized"**: Load a model in the app UI first before running test commands.
 
 **Android connectivity**: If using physical device, run `adb reverse tcp:7500 tcp:7500` after connecting.
+
+**Real Android device shows Expo "Unable to load script" / `8081`**:
+That screen is often misleading. The recurring root causes are a stale Metro instance for the wrong `APP_VARIANT`, the wrong installed package, or stale USB port forwarding.
+
+Check the active Metro identity first:
+
+```bash
+tail -n 30 .agent/metro.log
+```
+
+Expected for the standard agentic path:
+
+- `App Variant: development`
+- `App Identifier: net.siteed.sherpavoice.development`
+
+Recovery sequence:
+
+```bash
+APP_ROOT=$(pwd) bash scripts/agentic/stop-metro.sh
+APP_VARIANT=development APP_ROOT=$(pwd) bash scripts/agentic/start-metro.sh
+APP_VARIANT=development bash scripts/sync-android-dev-config.sh
+yarn android:doctor
+adb -s <serial> reverse --remove-all
+adb -s <serial> reverse tcp:7500 tcp:7500
+adb -s <serial> reverse tcp:8081 tcp:7500
+adb -s <serial> shell am force-stop net.siteed.sherpavoice.development
+adb -s <serial> shell am start -a android.intent.action.VIEW -d "exp+sherpa-voice-development://expo-development-client/?url=http%3A%2F%2Flocalhost%3A7500"
+```
+
+If that still fails, confirm the top activity belongs to the package you intended to validate:
+
+```bash
+adb -s <serial> shell pm list packages | rg 'net\\.siteed\\.sherpavoice'
+adb -s <serial> shell dumpsys activity activities | sed -n '1,120p'
+```
+
+If `logcat` reports `ReconnectingWebSocket` to `127.0.0.1:7500` or `Unable to load script`,
+the usual cause is a development APK built from stale production-generated Android config.

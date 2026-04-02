@@ -2,6 +2,9 @@ import { Asset } from 'expo-asset';
 /**
  * Type of model supported by Sherpa-onnx
  */
+export type ModelEngine = 'sherpa';
+export type ModelPlatform = 'android' | 'ios' | 'web';
+
 export type ModelType =
   | 'asr'
   | 'tts'
@@ -31,6 +34,8 @@ export interface ModelMetadata {
   name: string;
   description: string;
   type: ModelType;
+  engine?: ModelEngine;
+  platforms?: ModelPlatform[];
   size: number;
   url: string;
   version: string;
@@ -111,7 +116,6 @@ export const AVAILABLE_MODELS: ModelMetadata[] = [
     version: 'bilingual-zh-en',
     language: 'zh-en',
   },
-
   {
     id: 'whisper-tiny-en',
     name: 'Whisper Tiny (English)',

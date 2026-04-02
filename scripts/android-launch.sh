@@ -16,6 +16,8 @@ set -euo pipefail
 DEVICE_NAME="${ANDROID_DEVICE:-}"
 APP_SCHEME="${APP_SCHEME:-}"
 METRO_PORT="${METRO_PORT:-}"
+ANDROID_PACKAGE="${ANDROID_PACKAGE:-}"
+ANDROID_ACTIVITY="${ANDROID_ACTIVITY:-.MainActivity}"
 SELECT_MODE=false
 SKIP_METRO_CHECK=false
 
@@ -37,6 +39,8 @@ while [[ $# -gt 0 ]]; do
         --device|-d)    DEVICE_NAME="$2"; shift 2 ;;
         --scheme)       APP_SCHEME="$2"; shift 2 ;;
         --port|-p)      METRO_PORT="$2"; shift 2 ;;
+        --package)      ANDROID_PACKAGE="$2"; shift 2 ;;
+        --activity)     ANDROID_ACTIVITY="$2"; shift 2 ;;
         --select)       SELECT_MODE=true; shift ;;
         --skip-metro)   SKIP_METRO_CHECK=true; shift ;;
         *) error "Unknown option: $1"; exit 1 ;;
@@ -140,7 +144,13 @@ DEEP_LINK="exp+${APP_SCHEME}://expo-development-client/?url=http%3A%2F%2Flocalho
 info "Sending deep link to $DEVICE_NAME"
 info "  -> $DEEP_LINK"
 
-adb -s "$DEVICE_NAME" shell am start -a android.intent.action.VIEW -d "$DEEP_LINK" 2>/dev/null
+if [ -n "$ANDROID_PACKAGE" ]; then
+    COMPONENT="$ANDROID_PACKAGE/$ANDROID_ACTIVITY"
+    info "Using explicit component: $COMPONENT"
+    adb -s "$DEVICE_NAME" shell am start -a android.intent.action.VIEW -n "$COMPONENT" -d "$DEEP_LINK" 2>/dev/null
+else
+    adb -s "$DEVICE_NAME" shell am start -a android.intent.action.VIEW -d "$DEEP_LINK" 2>/dev/null
+fi
 
 success "Launched $APP_SCHEME on $DEVICE_NAME"
 echo ""
@@ -148,3 +158,6 @@ info "Summary:"
 echo "  Device:  $DEVICE_NAME"
 echo "  Scheme:  $APP_SCHEME"
 echo "  Metro:   http://localhost:$METRO_PORT"
+if [ -n "$ANDROID_PACKAGE" ]; then
+    echo "  Package: $ANDROID_PACKAGE"
+fi
