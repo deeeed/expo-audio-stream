@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build-sherpa-ios.sh
-# Build Sherpa-onnx for iOS platforms from k2-fsa/sherpa-onnx v1.12.28
+# Build Sherpa-onnx for iOS platforms from k2-fsa/sherpa-onnx v1.12.34
 # Run ./setup.sh first to clone the upstream repository.
 
 set -e
@@ -46,6 +46,13 @@ cd third_party/sherpa-onnx
 ./build-ios.sh
 cd "$SCRIPT_DIR"
 
+ORT_IOS_DIR="$(find third_party/sherpa-onnx/build-ios/ios-onnxruntime -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+
+if [ -z "$ORT_IOS_DIR" ] || [ ! -d "$ORT_IOS_DIR/onnxruntime.xcframework" ]; then
+  echo -e "${RED}Error: Unable to locate built iOS ONNX Runtime artifacts.${NC}"
+  exit 1
+fi
+
 # Copy the built libraries for device (arm64)
 mkdir -p prebuilt/ios/device
 cp third_party/sherpa-onnx/build-ios/build/os64/lib/*.a prebuilt/ios/device/
@@ -58,13 +65,13 @@ cp third_party/sherpa-onnx/build-ios/build/simulator/lib/*.dylib prebuilt/ios/si
 
 # Copy OnnxRuntime libraries - device
 echo -e "${BLUE}Copying ONNX Runtime libraries...${NC}"
-cp third_party/sherpa-onnx/build-ios/ios-onnxruntime/1.17.1/onnxruntime.xcframework/ios-arm64/libonnxruntime.a prebuilt/ios/device/
-cp -f third_party/sherpa-onnx/build-ios/ios-onnxruntime/1.17.1/onnxruntime.xcframework/ios-arm64/onnxruntime.a prebuilt/ios/device/
+cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/libonnxruntime.a" prebuilt/ios/device/
+cp -f "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64/onnxruntime.a" prebuilt/ios/device/
 
 # Copy OnnxRuntime libraries - simulator
 echo -e "${BLUE}Copying ONNX Runtime libraries for simulator...${NC}"
-cp third_party/sherpa-onnx/build-ios/ios-onnxruntime/1.17.1/onnxruntime.xcframework/ios-arm64_x86_64-simulator/libonnxruntime.a prebuilt/ios/simulator/
-cp -f third_party/sherpa-onnx/build-ios/ios-onnxruntime/1.17.1/onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.a prebuilt/ios/simulator/
+cp "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64_x86_64-simulator/libonnxruntime.a" prebuilt/ios/simulator/
+cp -f "$ORT_IOS_DIR/onnxruntime.xcframework/ios-arm64_x86_64-simulator/onnxruntime.a" prebuilt/ios/simulator/
 
 # Also copy the combined sherpa-onnx.a files
 echo -e "${BLUE}Copying combined sherpa-onnx libraries...${NC}"
@@ -78,7 +85,7 @@ cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/sherpa-onnx/c-
 # Copy ONNX Runtime headers
 echo -e "${BLUE}Copying ONNX Runtime headers...${NC}"
 mkdir -p prebuilt/include/onnxruntime
-cp -R third_party/sherpa-onnx/build-ios/ios-onnxruntime/1.17.1/onnxruntime.xcframework/Headers/* prebuilt/include/onnxruntime/
+cp -R "$ORT_IOS_DIR/onnxruntime.xcframework/Headers/"* prebuilt/include/onnxruntime/
 
 # Copy Swift API files
 echo -e "${BLUE}Copying Swift API files...${NC}"

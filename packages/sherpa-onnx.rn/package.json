@@ -1,7 +1,7 @@
 {
   "name": "@siteed/sherpa-onnx.rn",
   "version": "1.1.2",
-  "sherpaOnnxVersion": "1.12.29",
+  "sherpaOnnxVersion": "1.12.34",
   "description": "React Native wrapper for sherpa-onnx TTS and STT capabilities",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",

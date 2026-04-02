@@ -200,6 +200,44 @@ cd yourrepo/packages/sherpa-onnx.rn
 ./build-all.sh
 ```
 
+### Android ORT Override
+
+Android Sherpa builds now support a build-time ONNX Runtime override.
+
+Useful inputs:
+
+- `SITEED_SHERPA_ONNX_ORT_VERSION`
+- `SITEED_SHERPA_ONNX_ORT_ROOT`
+- `SITEED_SHERPA_ONNX_ORT_LIB_DIR`
+- `SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR`
+
+The override is applied reproducibly through a tracked upstream patch during
+`./setup.sh` and `./build-sherpa-android.sh`, so it survives a clean clone of
+the pinned sherpa-onnx checkout.
+
+The shipped Android Kotlin bindings are also resynced from the vendored upstream
+Kotlin API during `./setup.sh` and `./build-sherpa-android.sh`, then the repo's
+tracked wrapper overrides are reapplied from
+`patches/KotlinApiOverrides.patch`.
+
+Example:
+
+```bash
+SITEED_SHERPA_ONNX_ORT_VERSION=1.23.0 \
+yarn workspace @siteed/sherpa-onnx.rn build:android
+```
+
+Optional install-time rebuild:
+
+```bash
+SITEED_SHERPA_ONNX_REBUILD_ANDROID=1 \
+SITEED_SHERPA_ONNX_ORT_VERSION=1.23.0 \
+yarn install
+```
+
+See [`docs/ANDROID_ORT_ALIGNMENT.md`](../../docs/ANDROID_ORT_ALIGNMENT.md) for
+the full mixed-engine alignment workflow with Moonshine.
+
 ## API Reference
 
 ### Services
@@ -280,4 +318,4 @@ See the testing framework in [`docs/testing/`](docs/testing/) for validation met
 
 ## License
 
-MIT 
+MIT

@@ -1,0 +1,69 @@
+diff --git a/build-android-arm64-v8a.sh b/build-android-arm64-v8a.sh
+index df5c805f..3cea17cd 100755
+--- a/build-android-arm64-v8a.sh
++++ b/build-android-arm64-v8a.sh
+@@ -68,9 +68,15 @@ fi
+ 
+ echo "ANDROID_NDK: $ANDROID_NDK"
+ sleep 1
+-onnxruntime_version=1.23.2
+-
+-if [ $BUILD_SHARED_LIBS == ON ]; then
++onnxruntime_version=${SITEED_SHERPA_ONNX_ORT_VERSION:-1.23.2}
++
++if [ -n "${SITEED_SHERPA_ONNX_ORT_LIB_DIR:-}" ] && [ -n "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}" ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_LIB_DIR
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR
++elif [ -n "${SITEED_SHERPA_ONNX_ORT_ROOT:-}" ] && [ $BUILD_SHARED_LIBS == ON ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/jni/arm64-v8a/
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/headers/
++elif [ $BUILD_SHARED_LIBS == ON ]; then
+   if [ ! -f $onnxruntime_version/jni/arm64-v8a/libonnxruntime.so ]; then
+     mkdir -p $onnxruntime_version
+     pushd $onnxruntime_version
+diff --git a/build-android-armv7-eabi.sh b/build-android-armv7-eabi.sh
+index 7d379703..280346f6 100755
+--- a/build-android-armv7-eabi.sh
++++ b/build-android-armv7-eabi.sh
+@@ -69,9 +69,15 @@ fi
+ echo "ANDROID_NDK: $ANDROID_NDK"
+ sleep 1
+ 
+-onnxruntime_version=1.23.2
+-
+-if [ $BUILD_SHARED_LIBS == ON ]; then
++onnxruntime_version=${SITEED_SHERPA_ONNX_ORT_VERSION:-1.23.2}
++
++if [ -n "${SITEED_SHERPA_ONNX_ORT_LIB_DIR:-}" ] && [ -n "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}" ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_LIB_DIR
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR
++elif [ -n "${SITEED_SHERPA_ONNX_ORT_ROOT:-}" ] && [ $BUILD_SHARED_LIBS == ON ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/jni/armeabi-v7a/
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/headers/
++elif [ $BUILD_SHARED_LIBS == ON ]; then
+   if [ ! -f $onnxruntime_version/jni/armeabi-v7a/libonnxruntime.so ]; then
+     mkdir -p $onnxruntime_version
+     pushd $onnxruntime_version
+diff --git a/build-android-x86-64.sh b/build-android-x86-64.sh
+index 60b17d3c..6ece0099 100755
+--- a/build-android-x86-64.sh
++++ b/build-android-x86-64.sh
+@@ -69,9 +69,15 @@ fi
+ echo "ANDROID_NDK: $ANDROID_NDK"
+ sleep 1
+ 
+-onnxruntime_version=1.23.2
+-
+-if [ $BUILD_SHARED_LIBS == ON ]; then
++onnxruntime_version=${SITEED_SHERPA_ONNX_ORT_VERSION:-1.23.2}
++
++if [ -n "${SITEED_SHERPA_ONNX_ORT_LIB_DIR:-}" ] && [ -n "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}" ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_LIB_DIR
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR
++elif [ -n "${SITEED_SHERPA_ONNX_ORT_ROOT:-}" ] && [ $BUILD_SHARED_LIBS == ON ]; then
++  export SHERPA_ONNXRUNTIME_LIB_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/jni/x86_64/
++  export SHERPA_ONNXRUNTIME_INCLUDE_DIR=$SITEED_SHERPA_ONNX_ORT_ROOT/headers/
++elif [ $BUILD_SHARED_LIBS == ON ]; then
+   if [ ! -f $onnxruntime_version/jni/x86_64/libonnxruntime.so ]; then
+     mkdir -p $onnxruntime_version
+     pushd $onnxruntime_version

@@ -1,58 +1,54 @@
-Kotlin Wrapper Patches for sherpa-onnx v1.12.28
-================================================
+Sherpa-ONNX Patch Inventory for v1.12.34
+========================================
 
-These patches track our modifications to upstream Kotlin wrapper files in
+These patches track our modifications to upstream sherpa-onnx sources and
+wrapper files.
+
+Wrapper patches track our modifications to the vendored upstream Kotlin API
+files in:
+  third_party/sherpa-onnx/sherpa-onnx/kotlin-api/
+
+The shipped Android wrapper lives in:
   android/src/main/kotlin/com/k2fsa/sherpa/onnx/
 
-The upstream files are copied verbatim from:
-  https://github.com/k2-fsa/sherpa-onnx (tag v1.12.28)
-  android/SherpaOnnx/app/src/main/java/com/k2fsa/sherpa/onnx/
+`android/scripts/sync-kotlin-api.sh` copies the vendored upstream files into the
+shipped Android wrapper and reapplies `KotlinApiOverrides.patch`.
 
-Pinned version: v1.12.28 (setup.sh downloads prebuilt .so at this version)
+Pinned version: v1.12.34
 
 
 Files patched
 -------------
-AudioTagging.patch
-  - compute() and external compute() return type: Array<Any> -> Array<AudioEvent>
-  - Without this fix, calling compute() would require unsafe Any casts and crash
-    at runtime when the JNI bridge returns a typed array.
+OrtAndroidOverrides.patch
+  - patches upstream Android build scripts so they honor:
+    `SITEED_SHERPA_ONNX_ORT_VERSION`
+    `SITEED_SHERPA_ONNX_ORT_ROOT`
+    `SITEED_SHERPA_ONNX_ORT_LIB_DIR`
+    `SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR`
+  - applied automatically by `./setup.sh` and `./build-sherpa-android.sh`
+  - this keeps the ORT override reproducible from a clean upstream clone
 
-OfflineRecognizer.patch
-  - OfflineRecognizerResult: added durations (TDT model field)
-  - OfflineParaformerModelConfig: added qnnConfig
-  - OfflineWhisperModelConfig: added enableTokenTimestamps, enableSegmentTimestamps
-  - OfflineMoonshineModelConfig: added mergedDecoder
-  - OfflineSenseVoiceModelConfig: added qnnConfig
-  - Added new data classes: OfflineZipformerCtcModelConfig, OfflineWenetCtcModelConfig,
-    OfflineOmnilingualAsrCtcModelConfig, OfflineMedAsrCtcModelConfig,
-    OfflineFunAsrNanoModelConfig, OfflineFireRedAsrCtcModelConfig, OfflineCanaryModelConfig
-  - OfflineModelConfig: added all new model type fields to match JNI struct layout
-
-Tts.patch
-  - OfflineTtsKokoroModelConfig: added lang field
-  - OfflineTtsModelConfig: added kitten and pocket fields
-
-OnlineRecognizer.patch
-  - OnlineRecognizerResult: added ysProbs field
+KotlinApiOverrides.patch
+  - tracked diff between the vendored upstream Kotlin API files and the shipped
+    Android wrapper files
+  - includes JNI ABI fixes, wrapper signature fixes, and repo-specific helper
+    changes that must survive upstream refreshes
+  - applied automatically by `android/scripts/sync-kotlin-api.sh`
 
 
 How to apply on version upgrade
 --------------------------------
 When setup.sh is updated to a new upstream version:
 
-1. Download the new upstream Kotlin files (same paths as above).
-2. Compare each upstream file to our file:
-     diff upstream/AudioTagging.kt android/.../AudioTagging.kt
-3. Re-apply relevant changes manually, checking for conflicts with new upstream additions.
-4. Update the patch files:
-     cd <repo-root>
-     git diff packages/sherpa-onnx.rn/android/src/main/kotlin/com/k2fsa/sherpa/onnx/AudioTagging.kt \
-       > packages/sherpa-onnx.rn/patches/AudioTagging.patch
-   (repeat for each file)
+1. Refresh or re-pin `third_party/sherpa-onnx`.
+2. Run:
+     bash packages/sherpa-onnx.rn/android/scripts/sync-kotlin-api.sh
+3. Inspect the resulting wrapper diff and resolve any upstream conflicts.
+4. Regenerate `KotlinApiOverrides.patch` from the new vendored upstream state.
 5. Update the version header in this README.
 
-To apply a patch from scratch (e.g., against fresh upstream files):
-  patch -p1 < patches/AudioTagging.patch
-
-Note: patches are relative to the repo root (git diff output format).
+Note:
+- `OrtAndroidOverrides.patch` is applied from inside `third_party/sherpa-onnx`
+  via `git apply`, so its paths are relative to the upstream checkout root.
+- `KotlinApiOverrides.patch` is relative to the repo root and targets the
+  shipped Android wrapper paths under `packages/sherpa-onnx.rn/android/...`.
