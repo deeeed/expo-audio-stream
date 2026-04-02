@@ -1,6 +1,6 @@
 # `@siteed/moonshine.rn`
 
-Android-first React Native wrapper around Moonshine Voice's transcription and
+React Native wrapper around Moonshine Voice's transcription and
 intent-recognition C API.
 
 This package can use either:
@@ -8,6 +8,10 @@ This package can use either:
 - the published Moonshine Android artifact from Maven
 - a source-built Moonshine Android AAR generated from a pinned upstream checkout
   under `third_party/moonshine`
+- a source-built Moonshine iOS xcframework generated from the same pinned
+  upstream checkout
+- a package-owned web backend built on `onnxruntime-web`, with model assets
+  staged under `prebuilt/web`
 
 Current API coverage:
 
@@ -60,18 +64,27 @@ Source checkout and Android source build:
 ```bash
 bash packages/moonshine.rn/setup.sh
 bash packages/moonshine.rn/build-moonshine-android.sh
+bash packages/moonshine.rn/build-moonshine-ios.sh
+bash packages/moonshine.rn/build-moonshine-web.sh
 ```
 
 That produces:
 
 - `packages/moonshine.rn/prebuilt/android/moonshine-voice-source-release.aar`
 - `packages/moonshine.rn/prebuilt/android/build-metadata.json`
+- `packages/moonshine.rn/prebuilt/ios/Moonshine.xcframework`
+- `packages/moonshine.rn/prebuilt/ios/build-metadata.json`
+- `packages/moonshine.rn/prebuilt/web/model/...`
+- `packages/moonshine.rn/prebuilt/web/build-metadata.json`
 
 To make the React Native package consume that local source-built artifact:
 
 ```bash
 SITEED_MOONSHINE_ANDROID_USE_SOURCE=1 yarn workspace audio-playground android
 ```
+
+For iOS, the podspec consumes `prebuilt/ios/Moonshine.xcframework` directly
+once it has been built and the app is reinstalled with CocoaPods.
 
 The source-built artifact is the recommended Android path. It gives this
 package direct JNI access to vendored Moonshine features that are not available
@@ -123,6 +136,26 @@ Current Android limitation:
 - Streaming audio currently crosses the React Native bridge as `number[]` PCM
   chunks. Keep live chunks in the ~100-250ms range for now; a JSI/ArrayBuffer
   transport would be the future optimization path for heavier streaming loads.
+
+Current web status:
+
+- The web backend is package-owned. It does not depend on the published
+  `@moonshine-ai/moonshine-js` bundle at runtime.
+- Web supports offline transcription plus file-driven live streaming through
+  the same `MoonshineService` / `MoonshineTranscriber` API that native uses.
+  The current web streaming path consumes PCM chunks from the app audio layer
+  (for example `@siteed/audio-studio`) and emits the same transcript events as
+  the native wrapper.
+- Web maps the current live English contenders to the available web tiers:
+  `small-streaming -> tiny` and `medium-streaming -> base`.
+- Web requires `window.ort` to be loaded before creating a transcriber. In
+  playground this is done from `src/index.web.tsx` before the app mounts.
+- Web `loadFromMemory()` and intent recognition are still not implemented in
+  this package-owned backend and currently fail explicitly with runtime errors.
+- Web does not expose native-style speaker clustering / diarization metadata
+  yet. Transcript lines are emitted, but speaker hints remain native-only.
+- Use `configureMoonshineWeb()` if you want to override the default model asset
+  CDN or the `onnxruntime-web` wasm base path.
 
 Android artifact override:
 

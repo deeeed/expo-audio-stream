@@ -6,7 +6,7 @@ module.exports = {
         packageImportPath: 'import net.siteed.moonshine.MoonshinePackage;',
         packageInstance: 'new MoonshinePackage()',
       },
-      ios: null,
+      ios: {},
     },
   },
 };

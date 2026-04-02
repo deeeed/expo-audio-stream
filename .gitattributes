@@ -3,4 +3,6 @@ apps/sherpa-voice/public/*.data filter=lfs diff=lfs merge=lfs -text
 apps/sherpa-voice/public/wasm/**/*.data filter=lfs diff=lfs merge=lfs -text
 apps/sherpa-voice/public/wasm/**/*.onnx filter=lfs diff=lfs merge=lfs -text
 packages/moonshine.rn/prebuilt/android/*.aar filter=lfs diff=lfs merge=lfs -text
+packages/moonshine.rn/prebuilt/ios/Moonshine.xcframework/** filter=lfs diff=lfs merge=lfs -text
+packages/moonshine.rn/prebuilt/web/** filter=lfs diff=lfs merge=lfs -text
 packages/sherpa-onnx.rn/android/src/main/jniLibs/**/*.so filter=lfs diff=lfs merge=lfs -text
