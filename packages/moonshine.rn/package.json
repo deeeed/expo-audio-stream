@@ -1,6 +1,6 @@
 {
   "name": "@siteed/moonshine.rn",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "description": "React Native wrapper for Moonshine Voice on-device transcription",
   "source": "./src/index.ts",
   "main": "./lib/commonjs/index.js",
@@ -24,6 +24,9 @@
     "android",
     "ios",
     "prebuilt",
+    "!prebuilt/ios/current/**",
+    "!prebuilt/android/moonshine-voice-source-release.aar",
+    "!prebuilt/web/model/**",
     "patches",
     "*.podspec",
     "apply-upstream-patches.sh",
