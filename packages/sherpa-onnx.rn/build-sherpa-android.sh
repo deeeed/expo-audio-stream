@@ -91,6 +91,10 @@ cp -r third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/
 
 ARM64_IMPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so")"
 ARM64_EXPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/arm64-v8a/libonnxruntime.so")"
+ARMEABI_V7A_IMPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/armeabi-v7a/libsherpa-onnx-jni.so")"
+ARMEABI_V7A_EXPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/armeabi-v7a/libonnxruntime.so")"
+X86_64_IMPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/x86_64/libsherpa-onnx-jni.so")"
+X86_64_EXPORTED_ORT_VERSION="$(extract_ort_symbol_version "android/src/main/jniLibs/x86_64/libonnxruntime.so")"
 
 cat > prebuilt/android/build-metadata.json <<EOF
 {
@@ -100,7 +104,11 @@ cat > prebuilt/android/build-metadata.json <<EOF
   "onnxRuntimeLibDirOverride": "${SITEED_SHERPA_ONNX_ORT_LIB_DIR:-}",
   "onnxRuntimeIncludeDirOverride": "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}",
   "arm64ImportedOrtSymbolVersion": "${ARM64_IMPORTED_ORT_VERSION}",
-  "arm64ExportedOrtSymbolVersion": "${ARM64_EXPORTED_ORT_VERSION}"
+  "arm64ExportedOrtSymbolVersion": "${ARM64_EXPORTED_ORT_VERSION}",
+  "armeabiV7aImportedOrtSymbolVersion": "${ARMEABI_V7A_IMPORTED_ORT_VERSION}",
+  "armeabiV7aExportedOrtSymbolVersion": "${ARMEABI_V7A_EXPORTED_ORT_VERSION}",
+  "x86_64ImportedOrtSymbolVersion": "${X86_64_IMPORTED_ORT_VERSION}",
+  "x86_64ExportedOrtSymbolVersion": "${X86_64_EXPORTED_ORT_VERSION}"
 }
 EOF
 
