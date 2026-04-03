@@ -186,6 +186,23 @@ Current iOS status:
   native module, so simulator validation is the current source of truth for
   parity on this branch.
 
+Beta release / external validation:
+
+- Before a stable release, validate the package from an external consumer repo
+  rather than only from this monorepo.
+- Recommended target:
+  - `~/dev/demo-audiolab`
+- Release preparation and checklist:
+  - [`./BETA_RELEASE_PLAN.md`](./BETA_RELEASE_PLAN.md)
+- Pasteable external-consumer validation prompt:
+  - [`./EXTERNAL_VALIDATION_PROMPT.md`](./EXTERNAL_VALIDATION_PROMPT.md)
+
+Useful package-local preflight:
+
+```bash
+yarn release:beta:preflight
+```
+
 Android artifact override:
 
 - `SITEED_MOONSHINE_ANDROID_MAVEN_COORD`
