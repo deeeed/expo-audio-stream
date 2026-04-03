@@ -26,16 +26,18 @@ stability yet.
 
 ## Package-size risk to validate before publish
 
-The current `npm pack --dry-run` result is very large because the package ships
-prebuilt native/web artifacts:
+The package payload must stay under npm's practical upload limits while still
+being usable for real consumers.
+
+The original beta candidate was too large because it shipped too many heavy
+native/web artifacts at once:
 
 - iOS xcframework slices
 - Android AAR
 - bundled web model assets
 
-Before a public beta, decide whether that package size is acceptable for the
-intended distribution strategy or whether some artifacts should move to a
-different delivery path.
+The first publishable beta was achieved by trimming repo-only / duplicate
+payloads, but package size should still be watched closely in every release.
 
 At minimum, inspect every beta tarball with:
 
@@ -91,6 +93,7 @@ the internal playground monorepo.
 
 - package install works from npm beta
 - React Native / Expo autolinking behaves as documented
+- Yarn 4 / Yarn Berry consumer setup is documented clearly enough
 - CocoaPods / Android build setup is understandable
 - web setup is understandable
 
@@ -110,6 +113,7 @@ Record every confusing step, including:
 - asset-path confusion
 - platform caveats that are only implied today
 - APIs that feel too internal or too monorepo-specific
+- package-size concerns that would make upgrades unrealistic for clients
 
 ## Exit criteria before stable
 
@@ -126,4 +130,5 @@ Do not cut a stable release until the external app validates:
 - tighten README installation section based on external feedback
 - add one minimal example snippet per platform
 - simplify any setup that repeatedly trips the external client
+- keep `npm pack --json --dry-run` as a hard release gate
 - cut `0.2.0-beta.1`, `beta.2`, etc. until the flow is clean enough for stable

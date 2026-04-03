@@ -33,6 +33,7 @@ From `~/dev/demo-audiolab`:
 ```bash
 rm -rf node_modules ios android .expo dist
 rm -f yarn.lock package-lock.json pnpm-lock.yaml
+printf 'nodeLinker: node-modules\n' > .yarnrc.yml
 yarn install
 ```
 
@@ -96,6 +97,7 @@ Run the documented Android setup and build flow.
 Record:
 
 - whether the package links/builds cleanly
+- whether the app had to move to `minSdkVersion 35`
 - any ORT or native dependency surprises
 
 ### Web

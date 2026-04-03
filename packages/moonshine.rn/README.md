@@ -13,6 +13,24 @@ This package can use either:
 - a package-owned web backend built on `onnxruntime-web`, with model assets
   staged under `prebuilt/web`
 
+## External-consumer quick notes
+
+- For Yarn Berry / Yarn 4 consumer apps, prefer:
+
+  ```yaml
+  nodeLinker: node-modules
+  ```
+
+  in `.yarnrc.yml` for the most predictable React Native / Expo install flow.
+
+- Android currently requires:
+  - `minSdkVersion 35`
+
+- The published npm package is optimized for runtime consumption, not for
+  repo-local source-built Android AAR usage. Published Android consumers should
+  use the default Maven-based dependency path unless they explicitly opt into a
+  custom/source-built override.
+
 Current API coverage:
 
 - Explicit transcriber instances:
@@ -76,6 +94,13 @@ That produces:
 - `packages/moonshine.rn/prebuilt/ios/build-metadata.json`
 - `packages/moonshine.rn/prebuilt/web/model/...`
 - `packages/moonshine.rn/prebuilt/web/build-metadata.json`
+
+Repo note:
+
+- Those large generated artifacts are primarily for repo-local build and
+  validation flows.
+- The published npm package intentionally excludes the source-built Android AAR
+  and bundled web model weights to keep the tarball smaller.
 
 To make the React Native package consume that local source-built artifact:
 
@@ -165,6 +190,8 @@ Current web status:
   finalized segments, not Moonshine's native speaker embedding pipeline, so it
   should be treated as tentative turn segmentation rather than reliable
   diarization.
+- By default, the published package expects web model assets to be fetched from
+  Moonshine's CDN.
 - Use `configureMoonshineWeb()` if you want to override the default model asset
   CDN or the `onnxruntime-web` wasm base path.
 
@@ -202,6 +229,14 @@ Useful package-local preflight:
 ```bash
 yarn release:beta:preflight
 ```
+
+External validation findings from the first beta cycle:
+
+- npm publish is possible after trimming duplicate/repo-only artifacts
+- Yarn 4 consumer apps worked more reliably with `nodeLinker: node-modules`
+- iOS external consumer prebuild + simulator build smoke succeeded
+- Android external consumer build currently fails unless the app accepts
+  `minSdkVersion 35`
 
 Android artifact override:
 
