@@ -38,7 +38,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
@@ -390,13 +390,19 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
   const results = [];
   const seen = new Set();
   for (const candidate of candidates) {
-    const name = candidate.deviceName || '';
+    const resolvedCandidate =
+      candidate.appId?.includes('net.siteed.audioplayground') ||
+      candidate.appId?.includes('net.siteed.')
+        ? annotateIOSTarget(candidate)
+        : candidate;
+    const name = resolvedCandidate.deviceName || '';
     if (seen.has(name)) continue; // already found agentic target for this device
-    const hasAgentic = await probeTarget(candidate.webSocketDebuggerUrl, WebSocketImpl);
+    const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
     if (hasAgentic) {
       seen.add(name);
       results.push({
-        wsUrl: candidate.webSocketDebuggerUrl,
+        ...resolvedCandidate,
+        wsUrl: resolvedCandidate.webSocketDebuggerUrl,
         deviceName: name,
       });
     }
@@ -425,13 +431,19 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
       });
 
       for (const candidate of retryCandidates) {
-        const name = candidate.deviceName || '';
+        const resolvedCandidate =
+          candidate.appId?.includes('net.siteed.audioplayground') ||
+          candidate.appId?.includes('net.siteed.')
+            ? annotateIOSTarget(candidate)
+            : candidate;
+        const name = resolvedCandidate.deviceName || '';
         if (seen.has(name)) continue;
-        const hasAgentic = await probeTarget(candidate.webSocketDebuggerUrl, WebSocketImpl);
+        const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
         if (hasAgentic) {
           seen.add(name);
           results.push({
-            wsUrl: candidate.webSocketDebuggerUrl,
+            ...resolvedCandidate,
+            wsUrl: resolvedCandidate.webSocketDebuggerUrl,
             deviceName: name,
           });
         }
@@ -443,7 +455,11 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
 
   // Final fallback: if still no agentic target, use highest page number candidate
   if (results.length === 0) {
-    const fallbackTarget = candidates[0];
+    const fallbackTarget =
+      candidates[0].appId?.includes('net.siteed.audioplayground') ||
+      candidates[0].appId?.includes('net.siteed.')
+        ? annotateIOSTarget(candidates[0])
+        : candidates[0];
     const fallbackName = fallbackTarget.deviceName || '(unnamed)';
     process.stderr.write(
       `[cdp-bridge] Warning: No __AGENTIC__ target found after ${DISCOVERY_RETRIES} retries ` +
@@ -451,6 +467,7 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
       `Falling back to best candidate: "${fallbackName}" (${fallbackTarget.webSocketDebuggerUrl})\n`
     );
     results.push({
+      ...fallbackTarget,
       wsUrl: fallbackTarget.webSocketDebuggerUrl,
       deviceName: fallbackName,
     });
@@ -1089,6 +1106,98 @@ function resolveAndroidSerial(deviceName) {
   return resolveAndroidDeviceRecord(deviceName)?.serial || null;
 }
 
+function getBootedIOSSimulators() {
+  const output = execSync('xcrun simctl list devices -j', {
+    encoding: 'utf8',
+  });
+  const data = JSON.parse(output);
+  const booted = [];
+  for (const [, devs] of Object.entries(data.devices)) {
+    for (const d of devs) {
+      if (d.state === 'Booted') booted.push(d);
+    }
+  }
+  return booted;
+}
+
+function getConnectedIOSPhysicalDevices() {
+  try {
+    const output = execFileSync('/usr/bin/xcrun', ['devicectl', 'list', 'devices', '-v'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const blocks = output.split(/(?=▿ .+ - [0-9A-F]{8}-)/);
+    const devices = [];
+    for (const block of blocks) {
+      if (!block.includes('physical')) continue;
+      if (!block.includes('available') && !block.includes('paired')) continue;
+      const name =
+        block.match(/name: Optional\("([^"]+)"\)/)?.[1] ||
+        block.match(/marketingName: Optional\("([^"]+)"\)/)?.[1];
+      const udid = block.match(/udid: Optional\("([^"]+)"\)/)?.[1];
+      if (name && udid) {
+        devices.push({ name, udid });
+      }
+    }
+    return devices;
+  } catch {
+    return [];
+  }
+}
+
+function normalizeIOSDeviceFilterName(deviceName) {
+  return (deviceName || '')
+    .replace(/^sim:/i, '')
+    .replace(/^device:/i, '')
+    .replace(/^ios:/i, '');
+}
+
+function annotateIOSTarget(target) {
+  const metroDeviceName = target.deviceName || '';
+  const bootedSimulators = getBootedIOSSimulators();
+  const connectedPhysicalDevices = getConnectedIOSPhysicalDevices();
+  const matchingSimulator = bootedSimulators.find(
+    (device) => device.name.toLowerCase() === metroDeviceName.toLowerCase()
+  );
+
+  if (matchingSimulator) {
+    return {
+      ...target,
+      deviceName: `sim:${matchingSimulator.name}`,
+      originalDeviceName: metroDeviceName,
+      targetType: 'simulator',
+      udid: matchingSimulator.udid,
+    };
+  }
+
+  const logicalDeviceId = target.reactNative?.logicalDeviceId;
+  const matchingPhysicalDevice =
+    connectedPhysicalDevices.length === 1
+      ? connectedPhysicalDevices[0]
+      : connectedPhysicalDevices.find(
+          (device) =>
+            device.name.toLowerCase() === metroDeviceName.toLowerCase() ||
+            device.udid === logicalDeviceId
+        );
+
+  if (matchingPhysicalDevice) {
+    return {
+      ...target,
+      deviceName: `device:${matchingPhysicalDevice.name}`,
+      originalDeviceName: metroDeviceName,
+      targetType: 'physical',
+      udid: matchingPhysicalDevice.udid,
+    };
+  }
+
+  return {
+    ...target,
+    deviceName: `ios:${metroDeviceName || 'unknown'}`,
+    originalDeviceName: metroDeviceName,
+    targetType: 'unknown',
+  };
+}
+
 /**
  * Resolve whether an iOS device is a simulator or physical device.
  * Returns { type: 'simulator', udid } or { type: 'physical' }.
@@ -1098,18 +1207,7 @@ function resolveAndroidSerial(deviceName) {
  * like "iPhone 16 Pro Max".
  */
 function resolveIOSDevice(deviceName) {
-  const output = execSync('xcrun simctl list devices -j', {
-    encoding: 'utf8',
-  });
-  const data = JSON.parse(output);
-
-  // Collect all booted simulators
-  const booted = [];
-  for (const [, devs] of Object.entries(data.devices)) {
-    for (const d of devs) {
-      if (d.state === 'Booted') booted.push(d);
-    }
-  }
+  const booted = getBootedIOSSimulators();
 
   if (!deviceName) {
     // No device name — use first booted simulator if available
@@ -1119,9 +1217,11 @@ function resolveIOSDevice(deviceName) {
     return { type: 'physical' };
   }
 
+  const normalizedName = normalizeIOSDeviceFilterName(deviceName);
+
   // Exact name match against booted simulators (case-insensitive)
   const exactMatches = booted.filter(
-    (d) => d.name.toLowerCase() === deviceName.toLowerCase()
+    (d) => d.name.toLowerCase() === normalizedName.toLowerCase()
   );
 
   if (exactMatches.length === 1) {

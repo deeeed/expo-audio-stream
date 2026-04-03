@@ -14,7 +14,7 @@ node scripts/agentic/cdp-bridge.mjs list-devices
 |-----------|-----|
 | App installed | `scripts/agentic/start-metro.sh` |
 | Android fresh install | `yarn android` |
-| iOS fresh install | `IOS_SIMULATOR=playground-ios yarn ios` |
+| iOS fresh install | `IOS_SIMULATOR=playground-1 yarn ios` |
 | Web | `node scripts/agentic/web-browser.mjs launch & && scripts/agentic/start-metro.sh` |
 | Android physical | `adb devices` → `adb disconnect <wifi-ip>:5555` → `start-metro.sh` → deep link: `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground-development://expo-development-client/?url=http://<LAN_IP>:7365"` |
 | iOS physical | `start-metro.sh` → `xcrun devicectl device process launch --device <UDID> --terminate-existing --payload-url "exp+audioplayground-development://expo-development-client/?url=http%3A%2F%2F<LAN_IP>%3A7365" <bundle-id>` |
@@ -23,9 +23,10 @@ Physical devices: always use Mac LAN IP (`ipconfig getifaddr en0`), never `local
 
 Preferred iOS simulator slot:
 
-- `playground-ios`
-- The preflight flow auto-creates it if missing.
-- Avoid reusing older ad hoc simulator names after SpringBoard/runtime failures.
+- `playground-1`
+- This should stay aligned with the Farmslot pool entry for `macwork-audiolab-1`.
+- The preflight flow auto-creates the configured simulator if missing, but the
+  farm-managed slot name remains the source of truth.
 
 ## Step 2 — Feedback channels
 

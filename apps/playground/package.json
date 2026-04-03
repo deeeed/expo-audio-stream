@@ -10,7 +10,7 @@
         "stop": "bash scripts/agentic/stop-metro.sh",
         "android": "APP_VARIANT=development PLATFORM=android HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
         "ios": "APP_VARIANT=development PLATFORM=ios HEADLESS=0 REBUILD=1 bash scripts/agentic/preflight.sh",
-        "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-playground-ios}\" --boot-only",
+        "ios:boot": "../../scripts/ios-launch.sh --simulator \"${IOS_SIMULATOR:-playground-1}\" --boot-only",
         "ios:launch": "APP_VARIANT=development PLATFORM=ios HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",
         "ios:select": "../../scripts/ios-launch.sh --select --scheme audioplayground-development --port 7365",
         "android:launch": "APP_VARIANT=development PLATFORM=android HEADLESS=0 SKIP_BUILD=1 bash scripts/agentic/preflight.sh",

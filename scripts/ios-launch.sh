@@ -7,12 +7,12 @@
 # deep link targeting when multiple simulators are booted.
 #
 # Usage:
-#   ./scripts/ios-launch.sh --simulator "playground-ios" --scheme "audioplayground-development" --port 7365
+#   ./scripts/ios-launch.sh --simulator "playground-1" --scheme "audioplayground-development" --port 7365
 #   ./scripts/ios-launch.sh --simulator "SherpaVoice-Dev" --scheme "sherpa-voice" --port 7500
 #   ./scripts/ios-launch.sh --select --scheme "audioplayground" --port 7365   # interactive picker
 #
 # Can also be called with env vars:
-#   IOS_SIMULATOR="playground-ios" APP_SCHEME="audioplayground-development" METRO_PORT=7365 ./scripts/ios-launch.sh
+#   IOS_SIMULATOR="playground-1" APP_SCHEME="audioplayground-development" METRO_PORT=7365 ./scripts/ios-launch.sh
 # ========================================================
 
 set -euo pipefail
