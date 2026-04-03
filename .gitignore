@@ -100,3 +100,4 @@ apps/sherpa-voice/public/wasm/
 # But keep organized screenshots
 !**/screenshots/
 CLAUDE.local.md
+.omx/
