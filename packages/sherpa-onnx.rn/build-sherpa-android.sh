@@ -31,6 +31,50 @@ extract_ort_symbol_version() {
     || true
 }
 
+
+resolve_android_ort_include_dir() {
+  if [ -n "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR:-}" ] && [ -d "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR}" ]; then
+    echo "${SITEED_SHERPA_ONNX_ORT_INCLUDE_DIR}"
+    return
+  fi
+
+  local built_dir="third_party/sherpa-onnx/build-android-arm64-v8a/${SITEED_SHERPA_ONNX_ORT_VERSION}/headers"
+  if [ -d "$built_dir" ]; then
+    echo "$built_dir"
+    return
+  fi
+
+  echo ""
+}
+
+refresh_prebuilt_include_tree() {
+  local ort_include_dir
+  ort_include_dir="$(resolve_android_ort_include_dir)"
+  if [ -z "$ort_include_dir" ]; then
+    echo -e "${RED}Error: Unable to locate Android ONNX Runtime headers for packaging.${NC}"
+    exit 1
+  fi
+
+  rm -rf prebuilt/include
+  mkdir -p prebuilt/include/onnxruntime prebuilt/include/sherpa-onnx/c-api
+
+  cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/
+  cp third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/sherpa-onnx/c-api/
+  cp "$ort_include_dir"/*.h prebuilt/include/onnxruntime/
+
+  cat > prebuilt/include/module.modulemap <<'EOM'
+module CSherpaOnnx {
+    umbrella header "sherpa-onnx/c-api/c-api.h"
+    export *
+}
+
+module COnnxRuntime {
+    header "onnxruntime/onnxruntime_c_api.h"
+    export *
+}
+EOM
+}
+
 # Check if sherpa-onnx is cloned
 if [ ! -d "third_party/sherpa-onnx" ]; then
   echo -e "${RED}Error: sherpa-onnx repository not found. Run ./setup.sh first.${NC}"
@@ -83,8 +127,7 @@ mkdir -p prebuilt/android/x86_64
 cp third_party/sherpa-onnx/build-android-x86-64/install/lib/*.so prebuilt/android/x86_64/
 
 # Copy headers
-mkdir -p prebuilt/include
-cp -r third_party/sherpa-onnx/sherpa-onnx/c-api/*.h prebuilt/include/
+refresh_prebuilt_include_tree
 
 # Keep the shipped Android module in sync with the rebuilt prebuilts.
 ./android/scripts/copy-libs.sh
