@@ -5,6 +5,20 @@
 
 set -e
 
+run_simctl_timeout() {
+    python3 - "$@" <<'PY'
+import subprocess
+import sys
+
+cmd = ["xcrun", "simctl", *sys.argv[1:]]
+try:
+    completed = subprocess.run(cmd, check=False, timeout=15)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+sys.exit(completed.returncode)
+PY
+}
+
 # Check if xcrun is available (macOS only)
 if ! command -v xcrun &> /dev/null; then
     echo "❌ xcrun not found. This script only works on macOS with Xcode installed"
@@ -60,7 +74,7 @@ echo "   Bundle ID: $BUNDLE_ID"
 
 # Send deep link to simulator
 echo "📱 Sending deep link to simulator..."
-xcrun simctl openurl booted "$DEEP_LINK"
+run_simctl_timeout openurl booted "$DEEP_LINK"
 
 if [ $? -eq 0 ]; then
     echo "✅ Deep link sent successfully!"
@@ -76,4 +90,4 @@ else
     echo "   2. Check if the correct simulator is running"
     echo "   3. Verify the app scheme is registered correctly"
     exit 1
-fi 
+fi

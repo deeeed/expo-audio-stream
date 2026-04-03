@@ -2,6 +2,7 @@ import '@expo/metro-runtime'
 import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web'
 import Constants from 'expo-constants'
 import { renderRootComponent } from 'expo-router/build/renderRootComponent'
+import { configureMoonshineWeb } from '@siteed/moonshine.rn'
 
 import { AppRoot } from './AppRoot'
 import { initWorker } from './utils/indexedDB'
@@ -128,6 +129,10 @@ async function initializeApp(): Promise<void> {
     console.log(`__DEV__=${__DEV__} Loading ONNX Runtime`)
     await loadOnnxRuntime({ ortVersion: config.ortVersion })
     console.log(`__DEV__=${__DEV__} ONNX Runtime loaded`)
+
+    configureMoonshineWeb({
+      onnxRuntimeWasmBasePath: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${config.ortVersion}/dist/`,
+    })
 
     initWorker({
       audioStorageWorkerUrl: `${config.baseUrl}/audioStorage.worker.js`,

@@ -7,7 +7,7 @@ All commands from `apps/playground/`. `cdp-bridge.mjs` is the single entry point
 ```bash
 scripts/agentic/start-metro.sh          # Start Metro :7365
 adb devices                             # Android: verify connected
-xcrun simctl boot "iPhone 16 Pro Max"   # iOS: boot simulator
+xcrun simctl boot "playground-ios"      # iOS: boot canonical simulator
 node scripts/agentic/web-browser.mjs launch &  # Web: launch Chrome
 ```
 
@@ -34,7 +34,8 @@ All accept `--device <name>` for multi-device targeting.
 .canGoBack()             .goBack()
 .startRecording(config)  .stopRecording()   .pauseRecording()  .resumeRecording()
 .pressTestId(testId)     .scrollView({testId, offset, animated})
-.getLastResult()         .getDevices()      .testExtractPreview()  ...
+.getLastResult()         .getDevices()      .testExtractPreview()
+.testMoonshineLoad()     .testMoonshineStart()  .benchmarkMoonshineSampleFile()  ...
 ```
 
 Config: JSON-serializable only (no callbacks). Poll `getState()` for recording progress.
@@ -82,6 +83,7 @@ Uses React fiber tree (`__REACT_DEVTOOLS_GLOBAL_HOOK__`) — dev mode only. No d
 | `No debug targets` | App not running; retry with deep link |
 | `__AGENTIC__ undefined` | Not dev mode, or bridge not loaded in `_layout.tsx` |
 | `{ ok: false }` on press/scroll | Wrong testID or component not on current screen |
+| iOS simulator became flaky / SpringBoard unstable | Use the canonical `playground-ios` simulator and relaunch with `preflight.sh` |
 | Android stuck on dev launcher | `adb shell am start -a android.intent.action.VIEW -d "exp+audioplayground-development://expo-development-client/?url=http://<LAN_IP>:7365"` |
 | `expo run:android` resets ADB reverse | Re-run `adb reverse tcp:7365 tcp:7365` |
 | Multiple ADB devices / hangs | `adb disconnect <wifi-ip>:5555` |

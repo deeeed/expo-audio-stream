@@ -18,9 +18,14 @@ command -v git >/dev/null 2>&1 || {
 
 mkdir -p third_party
 mkdir -p prebuilt/android
+mkdir -p prebuilt/ios
+mkdir -p prebuilt/web
 
 MOONSHINE_VERSION="$(node -p "require('./package.json').moonshineVersion")"
+MOONSHINE_JS_VERSION="$(node -p "require('./package.json').moonshineJsVersion")"
+MOONSHINE_JS_GIT_HEAD="$(node -p "require('./package.json').moonshineJsGitHead")"
 UPSTREAM_DIR="$SCRIPT_DIR/third_party/moonshine"
+UPSTREAM_JS_DIR="$SCRIPT_DIR/third_party/moonshine-js"
 
 echo -e "${BLUE}Setting up Moonshine upstream checkout (${MOONSHINE_VERSION})...${NC}"
 
@@ -39,6 +44,22 @@ fi
 
 ./apply-upstream-patches.sh
 
+echo -e "${BLUE}Setting up MoonshineJS upstream checkout (${MOONSHINE_JS_VERSION} @ ${MOONSHINE_JS_GIT_HEAD})...${NC}"
+
+if [ ! -d "$UPSTREAM_JS_DIR/.git" ]; then
+  git clone https://github.com/moonshine-ai/moonshine-js "$UPSTREAM_JS_DIR"
+fi
+
+cd "$UPSTREAM_JS_DIR"
+git fetch origin
+git checkout --detach "$MOONSHINE_JS_GIT_HEAD"
+git reset --hard "$MOONSHINE_JS_GIT_HEAD"
+cd "$SCRIPT_DIR"
+
 echo -e "${GREEN}Moonshine upstream checkout is ready.${NC}"
 echo -e "${YELLOW}Build Android source artifact with:${NC}"
 echo -e "${YELLOW}  bash packages/moonshine.rn/build-moonshine-android.sh${NC}"
+echo -e "${YELLOW}Build iOS source artifact with:${NC}"
+echo -e "${YELLOW}  bash packages/moonshine.rn/build-moonshine-ios.sh${NC}"
+echo -e "${YELLOW}Build web assets with:${NC}"
+echo -e "${YELLOW}  bash packages/moonshine.rn/build-moonshine-web.sh${NC}"

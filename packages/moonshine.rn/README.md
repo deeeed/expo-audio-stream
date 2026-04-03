@@ -1,6 +1,6 @@
 # `@siteed/moonshine.rn`
 
-Android-first React Native wrapper around Moonshine Voice's transcription and
+React Native wrapper around Moonshine Voice's transcription and
 intent-recognition C API.
 
 This package can use either:
@@ -8,6 +8,10 @@ This package can use either:
 - the published Moonshine Android artifact from Maven
 - a source-built Moonshine Android AAR generated from a pinned upstream checkout
   under `third_party/moonshine`
+- a source-built Moonshine iOS xcframework generated from the same pinned
+  upstream checkout
+- a package-owned web backend built on `onnxruntime-web`, with model assets
+  staged under `prebuilt/web`
 
 Current API coverage:
 
@@ -60,18 +64,27 @@ Source checkout and Android source build:
 ```bash
 bash packages/moonshine.rn/setup.sh
 bash packages/moonshine.rn/build-moonshine-android.sh
+bash packages/moonshine.rn/build-moonshine-ios.sh
+bash packages/moonshine.rn/build-moonshine-web.sh
 ```
 
 That produces:
 
 - `packages/moonshine.rn/prebuilt/android/moonshine-voice-source-release.aar`
 - `packages/moonshine.rn/prebuilt/android/build-metadata.json`
+- `packages/moonshine.rn/prebuilt/ios/Moonshine.xcframework`
+- `packages/moonshine.rn/prebuilt/ios/build-metadata.json`
+- `packages/moonshine.rn/prebuilt/web/model/...`
+- `packages/moonshine.rn/prebuilt/web/build-metadata.json`
 
 To make the React Native package consume that local source-built artifact:
 
 ```bash
 SITEED_MOONSHINE_ANDROID_USE_SOURCE=1 yarn workspace audio-playground android
 ```
+
+For iOS, the podspec consumes `prebuilt/ios/Moonshine.xcframework` directly
+once it has been built and the app is reinstalled with CocoaPods.
 
 The source-built artifact is the recommended Android path. It gives this
 package direct JNI access to vendored Moonshine features that are not available
@@ -123,6 +136,55 @@ Current Android limitation:
 - Streaming audio currently crosses the React Native bridge as `number[]` PCM
   chunks. Keep live chunks in the ~100-250ms range for now; a JSI/ArrayBuffer
   transport would be the future optimization path for heavier streaming loads.
+
+Current web status:
+
+- The web backend is package-owned. It does not depend on the published
+  `@moonshine-ai/moonshine-js` bundle at runtime.
+- Web supports offline transcription plus file-driven live streaming through
+  the same `MoonshineService` / `MoonshineTranscriber` API that native uses.
+  The current web streaming path consumes PCM chunks from the app audio layer
+  (for example `@siteed/audio-studio`) and emits the same transcript events as
+  the native wrapper.
+- Web maps the current live English contenders to the available web tiers:
+  `small-streaming -> tiny` and `medium-streaming -> base`.
+- Web requires `window.ort` to be loaded before creating a transcriber. In
+  playground this is done from `src/index.web.tsx` before the app mounts.
+- Web `loadFromMemory()` is supported for the same three-part
+  `encoder + decoder + tokenizer` contract that native uses. The browser
+  backend currently uses the first two blobs to create temporary ONNX object
+  URLs and ignores the tokenizer bytes because decoding is handled by
+  `llama-tokenizer-js`.
+- Web intent recognition is supported through the same
+  `createIntentRecognizer()` / `processUtterance()` API. The package-owned web
+  backend loads Moonshine's `embeddinggemma-300m` ONNX model, mounts its
+  external `.onnx_data` sidecar into `onnxruntime-web`, and uses a package-
+  owned tokenizer implementation for trigger phrase and utterance embeddings.
+- Web exposes experimental speaker-turn hints when `identifySpeakers` is
+  enabled. This is implemented with a package-owned audio-feature clusterer on
+  finalized segments, not Moonshine's native speaker embedding pipeline, so it
+  should be treated as tentative turn segmentation rather than reliable
+  diarization.
+- Use `configureMoonshineWeb()` if you want to override the default model asset
+  CDN or the `onnxruntime-web` wasm base path.
+
+Current iOS status:
+
+- iOS simulator validation is in place for the parity branch.
+- Confirmed on April 3, 2026:
+  - app launch / dev client / CDP connectivity
+  - intent recognizer creation on iOS simulator
+  - deterministic file transcription on iOS simulator (`Hello world` on the
+    bundled speech WAV sample)
+  - live Moonshine session startup on iOS simulator
+- iOS live speaker-turn hints are currently disabled in the playground live
+  demo. The native transcriber works, but the current live-session path avoids
+  passing transcriber options on iOS because that broke streaming startup during
+  validation.
+- Physical-device validation is intentionally deferred for now. The currently
+  installed iPhone dev binary did not yet include the newly linked Moonshine
+  native module, so simulator validation is the current source of truth for
+  parity on this branch.
 
 Android artifact override:
 

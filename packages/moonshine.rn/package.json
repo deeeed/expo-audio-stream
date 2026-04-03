@@ -28,6 +28,8 @@
     "*.podspec",
     "apply-upstream-patches.sh",
     "build-moonshine-android.sh",
+    "build-moonshine-ios.sh",
+    "build-moonshine-web.sh",
     "react-native.config.js",
     "setup.sh",
     "!ios/build",
@@ -43,6 +45,8 @@
     "clean": "del-cli android/build lib",
     "setup:upstream": "bash ./setup.sh",
     "build:android:source": "bash ./build-moonshine-android.sh",
+    "build:ios:source": "bash ./build-moonshine-ios.sh",
+    "build:web:source": "bash ./build-moonshine-web.sh",
     "prepare": "bob build"
   },
   "keywords": [
@@ -61,6 +65,10 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
     "access": "public"
+  },
+  "dependencies": {
+    "llama-tokenizer-js": "^1.2.2",
+    "onnxruntime-web": "^1.22.0"
   },
   "nativePackage": true,
   "devDependencies": {
@@ -149,5 +157,7 @@
     "type": "legacy-module",
     "languages": "kotlin-swift",
     "version": "0.48.3"
-  }
+  },
+  "moonshineJsVersion": "0.1.29",
+  "moonshineJsGitHead": "e32209e0a71017b879c7ea1a93cbc48593aabde9"
 }

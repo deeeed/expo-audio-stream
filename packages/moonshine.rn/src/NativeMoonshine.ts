@@ -131,18 +131,15 @@ const NativeMoonshine = NativeModules.Moonshine as
 export const MOONSHINE_EVENT_NAME = 'MoonshineTranscriptEvent';
 
 export function isMoonshineNativeAvailable(): boolean {
-  return Platform.OS === 'android' && Boolean(NativeMoonshine);
+  return (Platform.OS === 'android' || Platform.OS === 'ios') && Boolean(NativeMoonshine);
 }
 
 export function getMoonshineUnavailableReason(): string | undefined {
   if (Platform.OS === 'web') {
     return 'Moonshine is not implemented on web';
   }
-  if (Platform.OS === 'ios') {
-    return 'Moonshine iOS is not implemented yet';
-  }
   if (!NativeMoonshine) {
-    return 'Moonshine native module is not linked. Enable Android linking for the consuming app and rebuild the app binary.';
+    return 'Moonshine native module is not linked. Enable native linking for the consuming app and rebuild the app binary.';
   }
   return undefined;
 }

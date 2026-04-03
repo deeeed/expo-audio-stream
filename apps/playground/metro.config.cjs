@@ -40,16 +40,29 @@ const extraNodeModules = modules.reduce((acc, name) => {
 
 // Prevent metro from resolving duplicate packages in all workspace packages
 const packageRoots = [uiRoot, libRoot, playgroundApiRoot, essentiaRoot, sherpaRoot]
-const blacklistRE = exclusionList(
-    packageRoots.flatMap((pkgRoot) =>
-        modules.map(
-            (m) =>
-                new RegExp(
-                    `^${escape(path.join(pkgRoot, 'node_modules', m))}\\/.*$`
-                )
-        )
+const duplicatePackageBlocks = packageRoots.flatMap((pkgRoot) =>
+    modules.map(
+        (m) =>
+            new RegExp(
+                `^${escape(path.join(pkgRoot, 'node_modules', m))}\\/.*$`
+            )
     )
 )
+
+const generatedPathBlocks = [
+    path.join(monorepoRoot, '.omx'),
+    path.join(projectRoot, '.agent'),
+    path.join(projectRoot, 'ios', 'build'),
+    path.join(projectRoot, 'ios', 'build-device'),
+    path.join(projectRoot, 'ios', 'build-main-compare'),
+    path.join(projectRoot, 'ios', 'build-raw-branch'),
+    path.join(projectRoot, 'ios', 'build-raw-main'),
+].map((blockedPath) => new RegExp(`^${escape(blockedPath)}\\/.*$`))
+
+const blacklistRE = exclusionList([
+    ...duplicatePackageBlocks,
+    ...generatedPathBlocks,
+])
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname)

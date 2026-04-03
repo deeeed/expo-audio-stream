@@ -297,12 +297,16 @@ export function useMoonshineLiveSession(
                 liveModelId,
                 setStatusMessage
             )
+            const transcriberOptions =
+                Platform.OS === 'android'
+                    ? {
+                          ...config.options,
+                          identifySpeakers: true,
+                      }
+                    : config.options
             const transcriber = await Moonshine.createTranscriberFromFiles({
                 ...config,
-                options: {
-                    ...config.options,
-                    identifySpeakers: true,
-                },
+                ...(transcriberOptions ? { options: transcriberOptions } : {}),
             })
             const nextLiveInitMs = Date.now() - initStartedAt
             setCurrentLiveTranscriber(transcriber)
@@ -317,11 +321,15 @@ export function useMoonshineLiveSession(
             await startRecording(recordingConfig)
 
             if (mountedRef.current) {
-                setStatusMessage(
+                const baseStatusMessage =
                     strategy === 'medium-only'
                         ? 'Listening with Moonshine medium.'
                         : 'Listening with Moonshine small.'
-                )
+                const platformSuffix =
+                    Platform.OS === 'ios'
+                        ? ' Speaker-turn hints are currently disabled on iOS.'
+                        : ''
+                setStatusMessage(`${baseStatusMessage}${platformSuffix}`)
             }
         } catch (startError) {
             const message =
