@@ -131,7 +131,6 @@ async function initializeApp(): Promise<void> {
     console.log(`__DEV__=${__DEV__} ONNX Runtime loaded`)
 
     configureMoonshineWeb({
-      modelAssetBasePath: 'https://download.moonshine.ai/model/',
       onnxRuntimeWasmBasePath: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${config.ortVersion}/dist/`,
     })
 

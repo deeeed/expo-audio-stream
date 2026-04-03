@@ -34,6 +34,15 @@ sys.exit(completed.returncode)
 PY
 }
 
+simulator_app_installed() {
+  local sim_uuid="$1"
+  local bundle_id="$2"
+  if run_simctl_timeout get_app_container "$sim_uuid" "$bundle_id" app >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
 resolve_ios_workspace_and_scheme() {
   local variant="$1"
   local workspace_basename="AudioPlayground"
@@ -260,22 +269,27 @@ APP_ROOT="$APP_ROOT" WATCHER_PORT="${PORT}" bash "${MONOREPO_ROOT}/scripts/agent
 info "Step 3: Check if app is installed"
 APP_INSTALLED=false
 
-if [ "${SKIP_BUILD:-0}" = "1" ] && [ "$AGENTIC_SKIP_BUILD_SUPPORTED" = "true" ]; then
-  if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
+if [[ "${SKIP_BUILD:-0}" == "1" ]] && [[ "$AGENTIC_SKIP_BUILD_SUPPORTED" == "true" ]]; then
+  if [[ "$PLATFORM" == "ios" ]] && [[ "${IOS_DEVICE_MODE:-simulator}" == "physical" ]]; then
     if xcrun devicectl device info apps --device "${IOS_DEVICE_UDID}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
       APP_INSTALLED=true
       pass "App ${BUNDLE_ID_IOS} already installed on physical device ${IOS_DEVICE_UDID}"
     fi
-  elif [ "$PLATFORM" = "ios" ]; then
-    APP_INSTALLED=true
-    pass "Assuming app ${BUNDLE_ID_IOS} is already installed on ${SIM} (simctl listapps is unreliable on this CoreSimulator runtime)"
-  elif [ "$PLATFORM" = "android" ]; then
+  elif [[ "$PLATFORM" == "ios" ]]; then
+    if simulator_app_installed "${SIM_UUID}" "${BUNDLE_ID_IOS}"; then
+      APP_INSTALLED=true
+      pass "App ${BUNDLE_ID_IOS} already installed on ${SIM}"
+    else
+      fail "App ${BUNDLE_ID_IOS} is not installed on ${SIM}. Re-run without SKIP_BUILD=1 for the first install."
+      exit 1
+    fi
+  elif [[ "$PLATFORM" == "android" ]]; then
     if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
       APP_INSTALLED=true
       pass "App ${BUNDLE_ID_ANDROID} already installed on ${SERIAL}"
     fi
   fi
-elif [ "${SKIP_BUILD:-0}" != "1" ]; then
+elif [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   # Check if already installed (for non-skip-build apps)
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "simulator" ]; then
     info "Skipping iOS simulator install probe on ${SIM}; rebuilding/installing is more reliable than simctl listapps on this CoreSimulator runtime"

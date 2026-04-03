@@ -321,19 +321,15 @@ export function useMoonshineLiveSession(
             await startRecording(recordingConfig)
 
             if (mountedRef.current) {
-                setStatusMessage(
+                const baseStatusMessage =
                     strategy === 'medium-only'
                         ? 'Listening with Moonshine medium.'
                         : 'Listening with Moonshine small.'
-                )
-                if (Platform.OS === 'ios') {
-                    setStatusMessage(
-                        (strategy === 'medium-only'
-                            ? 'Listening with Moonshine medium.'
-                            : 'Listening with Moonshine small.') +
-                            ' Speaker-turn hints are currently disabled on iOS.'
-                    )
-                }
+                const platformSuffix =
+                    Platform.OS === 'ios'
+                        ? ' Speaker-turn hints are currently disabled on iOS.'
+                        : ''
+                setStatusMessage(`${baseStatusMessage}${platformSuffix}`)
             }
         } catch (startError) {
             const message =

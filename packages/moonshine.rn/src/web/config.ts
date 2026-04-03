@@ -48,9 +48,29 @@ function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : `${value}/`;
 }
 
+function detectBundledMoonshineWebAssetBasePath(): string | null {
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.url) {
+      return new URL('../../prebuilt/web/model/', import.meta.url).toString();
+    }
+  } catch {
+    // fall through to alternate detection
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/node_modules/@siteed/moonshine.rn/prebuilt/web/model/`;
+  }
+
+  return null;
+}
+
 export function detectMoonshineWebAssetBasePath(): string {
   if (config.modelAssetBasePath) {
     return ensureTrailingSlash(config.modelAssetBasePath);
+  }
+  const bundledAssetBasePath = detectBundledMoonshineWebAssetBasePath();
+  if (bundledAssetBasePath) {
+    return ensureTrailingSlash(bundledAssetBasePath);
   }
   return DEFAULT_WEB_MODEL_CDN;
 }

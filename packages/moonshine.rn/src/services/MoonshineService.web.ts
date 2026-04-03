@@ -483,7 +483,7 @@ export class MoonshineService {
   public async loadFromAssets(
     config: MoonshineAssetModelConfig
   ): Promise<MoonshineInitializeResult> {
-    return this.loadDefaultTranscriberFromResult(
+    return this.replaceDefaultTranscriberFromResult(
       await this.createWebTranscriber(config, config.assetPath)
     );
   }
@@ -491,7 +491,7 @@ export class MoonshineService {
   public async loadFromFiles(
     config: MoonshineModelConfig
   ): Promise<MoonshineInitializeResult> {
-    return this.loadDefaultTranscriberFromResult(
+    return this.replaceDefaultTranscriberFromResult(
       await this.createWebTranscriber(config, config.modelPath)
     );
   }
@@ -499,7 +499,7 @@ export class MoonshineService {
   public async loadFromMemory(
     config: MoonshineMemoryModelConfig
   ): Promise<MoonshineInitializeResult> {
-    return this.loadDefaultTranscriberFromResult(
+    return this.replaceDefaultTranscriberFromResult(
       await this.createWebTranscriberFromMemory(config)
     );
   }
@@ -909,13 +909,23 @@ export class MoonshineService {
     return { success: true };
   }
 
-  private loadDefaultTranscriberFromResult(
+  private async replaceDefaultTranscriberFromResult(
     result: MoonshineInitializeResult
-  ): MoonshineInitializeResult {
-    this.defaultTranscriber =
-      result.success && result.transcriberId
-        ? new MoonshineTranscriber(this, result.transcriberId)
-        : null;
+  ): Promise<MoonshineInitializeResult> {
+    if (!result.success || !result.transcriberId) {
+      return result;
+    }
+
+    const previousDefaultTranscriberId = this.defaultTranscriber?.transcriberId;
+    this.defaultTranscriber = new MoonshineTranscriber(this, result.transcriberId);
+
+    if (
+      previousDefaultTranscriberId &&
+      previousDefaultTranscriberId !== result.transcriberId
+    ) {
+      await this.releaseTranscriber(previousDefaultTranscriberId);
+    }
+
     return result;
   }
 
@@ -1239,7 +1249,14 @@ export class MoonshineService {
       stream.pendingRun = true;
       stream.pendingFinalize = true;
       this.scheduleStreamTranscription(transcriber, stream);
+      const startedAt = Date.now();
+      const maxWaitMs = 5000;
       while (stream.inFlight || stream.pendingRun || stream.pendingFinalize) {
+        if (Date.now() - startedAt > maxWaitMs) {
+          throw new Error(
+            `Moonshine web stopStream timed out while waiting for stream "${streamId}" to flush`
+          );
+        }
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
