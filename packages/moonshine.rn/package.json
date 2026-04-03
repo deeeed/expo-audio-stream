@@ -47,7 +47,9 @@
     "build:android:source": "bash ./build-moonshine-android.sh",
     "build:ios:source": "bash ./build-moonshine-ios.sh",
     "build:web:source": "bash ./build-moonshine-web.sh",
-    "prepare": "bob build"
+    "prepare": "bob build",
+    "pack:check": "npm pack --json --dry-run",
+    "release:beta:preflight": "yarn typecheck && yarn test && npm pack --json --dry-run"
   },
   "keywords": [
     "react-native",
