@@ -2,8 +2,11 @@ import Moonshine, {
     type MoonshineModelConfig,
     type MoonshineTranscriptLine,
     type MoonshineTranscriber,
+    normalizeMoonshineWebModelArch,
+    resolveMoonshineWebModelBasePath,
 } from '@siteed/moonshine.rn'
 import * as FileSystem from 'expo-file-system/legacy'
+import { Platform } from 'react-native'
 import { initWhisper, type WhisperContext } from 'whisper.rn'
 
 import { baseLogger } from '../config'
@@ -101,7 +104,20 @@ export async function getBenchmarkModelStatus(
         throw new Error(`Unknown benchmark model ${modelId}`)
     }
 
-    if (model.engine === 'moonshine') {
+    const moonshineConfig =
+        model.engine === 'moonshine' ? model.moonshine ?? null : null
+
+    if (moonshineConfig) {
+        if (Platform.OS === 'web') {
+            const normalizedArch = normalizeMoonshineWebModelArch(
+                moonshineConfig.modelArch
+            )
+            return {
+                downloaded: true,
+                localPath: resolveMoonshineWebModelBasePath(undefined, normalizedArch),
+            }
+        }
+
         const dirUri = await getMoonshineModelDirectoryUri(modelId)
         const files = getMoonshineDownloadFiles(modelId)
         const statuses = await Promise.all(
@@ -146,7 +162,15 @@ export async function prepareBenchmarkModel(
         throw new Error(`Unknown benchmark model ${modelId}`)
     }
 
-    if (model.engine === 'moonshine') {
+    const moonshineConfig =
+        model.engine === 'moonshine' ? model.moonshine ?? null : null
+
+    if (moonshineConfig) {
+        if (Platform.OS === 'web') {
+            onStatus?.('Moonshine web uses package-owned runtime with staged/upstream model assets.')
+            return getBenchmarkModelStatus(modelId)
+        }
+
         const dirUri = await getMoonshineModelDirectoryUri(modelId)
         await FileSystem.makeDirectoryAsync(dirUri, {
             intermediates: true,
@@ -187,6 +211,17 @@ export async function getMoonshineRuntimeConfig(
     const model = getAsrBenchmarkModel(modelId)
     if (!model?.moonshine) {
         throw new Error(`Model ${modelId} is not a Moonshine benchmark model`)
+    }
+
+    if (Platform.OS === 'web') {
+        const normalizedArch = normalizeMoonshineWebModelArch(
+            model.moonshine.modelArch
+        )
+        return {
+            modelArch: model.moonshine.modelArch,
+            modelPath: resolveMoonshineWebModelBasePath(undefined, normalizedArch),
+            updateIntervalMs: model.moonshine.updateIntervalMs,
+        }
     }
 
     const prepared = await prepareBenchmarkModel(modelId, onStatus)

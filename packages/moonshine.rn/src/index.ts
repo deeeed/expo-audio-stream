@@ -11,3 +11,4 @@ export {
   MoonshineTranscriber,
 } from './services/MoonshineService';
 export * from './types/interfaces';
+export * from './web/config';

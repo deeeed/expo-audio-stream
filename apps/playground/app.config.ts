@@ -220,6 +220,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             ['./plugins/withCustomGradleConfig.cjs', {}],
             ['./plugins/withLibcppFix.cjs', {}],
             [
+                './plugins/withVariantExpoScheme.cjs',
+                {
+                    variant: validatedEnv.APP_VARIANT,
+                    appScheme: APP_SCHEME,
+                },
+            ],
+            [
                 'react-native-edge-to-edge',
                 {
                     enableEdgeToEdge: true,

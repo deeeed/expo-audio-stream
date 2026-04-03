@@ -38,11 +38,14 @@ import {
 import type { OnnxTensorData } from '@siteed/sherpa-onnx.rn'
 import {
     getBenchmarkModelOrThrow,
+    getMoonshineRuntimeConfig,
     runBenchmarkFile,
     runBenchmarkSimulatedLive,
     runMoonshineSpeakerTurnValidation,
     safeReleaseMoonshine,
+    safeReleaseMoonshineTranscriber,
 } from './utils/asrBenchmarkRuntime'
+import Moonshine, { type MoonshineTranscriber } from '@siteed/moonshine.rn'
 
 // State holders updated by AgenticBridgeSync component
 let _audioState: Record<string, unknown> = {}
@@ -107,6 +110,91 @@ async function loadSampleFileUri(): Promise<string> {
     const dest = `${FileSystem.cacheDirectory}jfk_test.mp3`
     await FileSystem.copyAsync({ from: asset.localUri, to: dest })
     return dest
+}
+
+async function loadSpeechWavSampleFileUri(): Promise<string> {
+    const asset = Asset.fromModule(
+        require('../public/audio_samples/recorder_hello_world.wav')
+    )
+    await asset.downloadAsync()
+    if (!asset.localUri) throw new Error('Failed to load speech WAV sample asset')
+    const dest = `${FileSystem.cacheDirectory}speech_sample.wav`
+    await FileSystem.copyAsync({ from: asset.localUri, to: dest })
+    return dest
+}
+
+function resolveMoonshineProbeModelPath(
+    modelPath: string,
+    appendTrailingSlash?: boolean
+): string {
+    if (!appendTrailingSlash || modelPath.endsWith('/')) {
+        return modelPath
+    }
+    return `${modelPath}/`
+}
+
+async function runMoonshineProbe(
+    modelId: string,
+    op: string,
+    options: {
+        appendTrailingSlash?: boolean
+        transcriberOptions?: Record<string, unknown>
+    } | undefined,
+    afterCreate?: (transcriber: MoonshineTranscriber) => Promise<void>
+): Promise<void> {
+    let transcriber: MoonshineTranscriber | null = null
+    try {
+        if (!modelId) {
+            throw new Error(`${op} requires a modelId`)
+        }
+
+        const config = await getMoonshineRuntimeConfig(modelId)
+        const resolvedModelPath =
+            typeof config.modelPath === 'string'
+                ? resolveMoonshineProbeModelPath(
+                      config.modelPath,
+                      options?.appendTrailingSlash
+                  )
+                : config.modelPath
+
+        const mergedOptions =
+            config.options != null || options?.transcriberOptions != null
+                ? {
+                      ...config.options,
+                      ...options?.transcriberOptions,
+                  }
+                : undefined
+
+        transcriber = await Moonshine.createTranscriberFromFiles({
+            ...config,
+            modelPath: resolvedModelPath,
+            ...(mergedOptions ? { options: mergedOptions } : {}),
+        })
+
+        if (afterCreate) {
+            await afterCreate(transcriber)
+        }
+
+        _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: {
+                modelArch: config.modelArch,
+                modelId,
+                modelPath: resolvedModelPath,
+                transcriberId: transcriber.transcriberId,
+            },
+        }
+    } catch (e) {
+        _lastAsyncResult = {
+            op,
+            status: 'error',
+            error: String(e),
+            result: { modelId },
+        }
+    } finally {
+        await safeReleaseMoonshineTranscriber(transcriber)
+    }
 }
 
 if (__DEV__) {
@@ -372,6 +460,72 @@ if (__DEV__) {
                     await safeReleaseMoonshine()
                 }
             })()
+            return { op, status: 'pending' }
+        },
+
+        benchmarkMoonshineSampleFile: (modelId: string) => {
+            const op = 'benchmarkMoonshineSampleFile'
+            _lastAsyncResult = { op, status: 'pending' }
+            void (async () => {
+                try {
+                    if (!modelId) {
+                        throw new Error('benchmarkMoonshineSampleFile requires a modelId')
+                    }
+                    const fileUri = await loadSpeechWavSampleFileUri()
+                    const model = getBenchmarkModelOrThrow(modelId)
+                    const result = await runBenchmarkFile(modelId, fileUri)
+                    _lastAsyncResult = {
+                        op,
+                        status: 'success',
+                        result: {
+                            audioUri: fileUri,
+                            engine: model.engine,
+                            initMs: result.initMs,
+                            modelId,
+                            modelName: model.name,
+                            recognizeMs: result.recognizeMs,
+                            transcript: result.transcript,
+                        },
+                    }
+                } catch (e) {
+                    _lastAsyncResult = {
+                        op,
+                        status: 'error',
+                        error: String(e),
+                        result: { modelId },
+                    }
+                } finally {
+                    await safeReleaseMoonshine()
+                }
+            })()
+            return { op, status: 'pending' }
+        },
+
+        testMoonshineLoad: (
+            modelId: string,
+            options?: {
+                appendTrailingSlash?: boolean
+                transcriberOptions?: Record<string, unknown>
+            }
+        ) => {
+            const op = 'testMoonshineLoad'
+            _lastAsyncResult = { op, status: 'pending' }
+            void runMoonshineProbe(modelId, op, options)
+            return { op, status: 'pending' }
+        },
+
+        testMoonshineStart: (
+            modelId: string,
+            options?: {
+                appendTrailingSlash?: boolean
+                transcriberOptions?: Record<string, unknown>
+            }
+        ) => {
+            const op = 'testMoonshineStart'
+            _lastAsyncResult = { op, status: 'pending' }
+            void runMoonshineProbe(modelId, op, options, async (transcriber) => {
+                await transcriber.start()
+            })
             return { op, status: 'pending' }
         },
 

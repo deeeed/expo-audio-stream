@@ -1,5 +1,6 @@
 import { Asset } from 'expo-asset'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Platform } from 'react-native'
 
 import { baseLogger } from '../config'
 import {
@@ -89,11 +90,19 @@ export function useAsrBenchmark() {
     const [simulatedInterimText, setSimulatedInterimText] = useState('')
     const [simulatedCommittedText, setSimulatedCommittedText] = useState('')
 
+    const benchmarkModels = useMemo(
+        () =>
+            Platform.OS === 'web'
+                ? ASR_BENCHMARK_MODELS.filter((model) => model.engine === 'moonshine')
+                : ASR_BENCHMARK_MODELS,
+        []
+    )
+
     const selectedModel = useMemo(
         () =>
-            ASR_BENCHMARK_MODELS.find((model) => model.id === selectedModelId) ??
+            benchmarkModels.find((model) => model.id === selectedModelId) ??
             null,
-        [selectedModelId]
+        [benchmarkModels, selectedModelId]
     )
     const selectedSample = useMemo(
         () => samples.find((sample) => sample.id === selectedSampleId) ?? null,
@@ -107,19 +116,19 @@ export function useAsrBenchmark() {
         : { downloaded: false, localPath: null }
 
     const simulatedBenchmarkModels = useMemo(
-        () => ASR_BENCHMARK_MODELS.filter((model) => model.liveCapable),
-        []
+        () => benchmarkModels.filter((model) => model.liveCapable),
+        [benchmarkModels]
     )
 
     const refreshModelStatuses = useCallback(async () => {
         const nextStatuses: Record<string, BenchmarkModelStatus> = {}
         await Promise.all(
-            ASR_BENCHMARK_MODELS.map(async (model) => {
+            benchmarkModels.map(async (model) => {
                 nextStatuses[model.id] = await getBenchmarkModelStatus(model.id)
             })
         )
         setModelStatuses(nextStatuses)
-    }, [])
+    }, [benchmarkModels])
 
     useEffect(() => {
         void refreshModelStatuses()
@@ -147,6 +156,19 @@ export function useAsrBenchmark() {
             setSelectedSampleId(samples[0].id)
         }
     }, [samples, selectedSampleId])
+
+    useEffect(() => {
+        if (!selectedModelId && benchmarkModels.length > 0) {
+            setSelectedModelId(benchmarkModels[0].id)
+            return
+        }
+        if (
+            selectedModelId &&
+            !benchmarkModels.some((model) => model.id === selectedModelId)
+        ) {
+            setSelectedModelId(benchmarkModels[0]?.id ?? '')
+        }
+    }, [benchmarkModels, selectedModelId])
 
     useEffect(() => {
         if (mode !== 'simulated') return
@@ -269,7 +291,7 @@ export function useAsrBenchmark() {
         setProcessing(true)
         setError(null)
         try {
-            for (const model of ASR_BENCHMARK_MODELS) {
+            for (const model of benchmarkModels) {
                 setStatusMessage(`Running ${model.name} on ${selectedSample.name}...`)
                 const startedAt = nowMs()
                 try {
@@ -319,7 +341,7 @@ export function useAsrBenchmark() {
             setStatusMessage('')
             setProcessing(false)
         }
-    }, [appendResult, refreshModelStatuses, selectedSample])
+    }, [appendResult, benchmarkModels, refreshModelStatuses, selectedSample])
 
     const runSelectedSimulatedBenchmark = useCallback(async () => {
         if (!selectedModel) {
@@ -408,7 +430,7 @@ export function useAsrBenchmark() {
     }, [clearSimulatedTranscript])
 
     return {
-        benchmarkModels: ASR_BENCHMARK_MODELS,
+        benchmarkModels,
         clearResults,
         error,
         mode,
