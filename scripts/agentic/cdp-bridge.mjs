@@ -1122,7 +1122,7 @@ function getBootedIOSSimulators() {
 
 function getConnectedIOSPhysicalDevices() {
   try {
-    const output = execSync('xcrun devicectl list devices -v', {
+    const output = execSync('/usr/bin/xcrun devicectl list devices -v', {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
