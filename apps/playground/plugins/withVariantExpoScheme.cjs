@@ -23,6 +23,9 @@ const withVariantExpoScheme = (config, props = {}) => {
   const appScheme = props.appScheme
 
   if (!appScheme || variant === 'production') {
+    // Production already gets Expo's standard scheme wiring from app.config.ts.
+    // This plugin only adds the variant-specific exp+<scheme> alias needed by
+    // development-style dev-client launch flows.
     return config
   }
 

@@ -1201,8 +1201,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
     ThrowNSError(@"Moonshine assetPath is required");
   }
   NSFileManager *fileManager = [NSFileManager defaultManager];
-  if ([fileManager fileExistsAtPath:assetPath]) {
-    return assetPath;
+  if ([fileManager fileExistsAtPath:trimmedAssetPath]) {
+    return trimmedAssetPath;
   }
 
   NSArray<NSBundle *> *bundles = @[

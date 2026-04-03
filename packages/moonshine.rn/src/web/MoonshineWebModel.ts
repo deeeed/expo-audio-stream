@@ -1,39 +1,11 @@
 import llamaTokenizer from 'llama-tokenizer-js';
 import { detectMoonshineOnnxRuntimeWasmBasePath } from './config';
+import type { WebOrtRuntime, WebOrtSession, WebOrtTensor } from './ort-types';
 
 type WebModelShape = {
   headDim: number;
   numKVHeads: number;
   numLayers: number;
-};
-
-type WebOrtTensor = {
-  data: unknown;
-  dims: number[];
-  getData?: () => Promise<unknown>;
-};
-
-type WebOrtSession = {
-  run(feeds: Record<string, WebOrtTensor>): Promise<Record<string, WebOrtTensor>>;
-};
-
-type WebOrtRuntime = {
-  env: {
-    wasm: {
-      wasmPaths: string;
-    };
-  };
-  InferenceSession: {
-    create(
-      path: string,
-      options?: { executionProviders?: string[] }
-    ): Promise<WebOrtSession>;
-  };
-  Tensor: new (
-    type: string,
-    data: Float32Array | Uint8Array | BigInt64Array,
-    dims: number[]
-  ) => WebOrtTensor;
 };
 
 type LoadedSessions = {

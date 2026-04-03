@@ -1,43 +1,6 @@
 import { detectMoonshineOnnxRuntimeWasmBasePath } from './config';
 import { MoonshineWebBinTokenizer } from './MoonshineWebBinTokenizer';
-
-type WebOrtTensor = {
-  data: unknown;
-  dims: number[];
-  getData?: () => Promise<unknown>;
-};
-
-type WebOrtSession = {
-  run(feeds: Record<string, WebOrtTensor>): Promise<Record<string, WebOrtTensor>>;
-};
-
-type WebOrtRuntime = {
-  env: {
-    wasm: {
-      wasmPaths: string;
-    };
-  };
-  InferenceSession: {
-    create(
-      path: string,
-      options?: {
-        executionProviders?: string[];
-        externalData?: Array<
-          | string
-          | {
-              data: ArrayBuffer | Uint8Array;
-              path: string;
-            }
-        >;
-      }
-    ): Promise<WebOrtSession>;
-  };
-  Tensor: new (
-    type: string,
-    data: Float32Array | Uint8Array | BigInt64Array,
-    dims: number[]
-  ) => WebOrtTensor;
-};
+import type { WebOrtRuntime, WebOrtSession, WebOrtTensor } from './ort-types';
 
 type LoadedIntentModel = {
   session: WebOrtSession;
