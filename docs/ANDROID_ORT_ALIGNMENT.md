@@ -126,6 +126,21 @@ or from the app:
 yarn workspace @siteed/sherpa-voice android:ort:check
 ```
 
+For Expo apps that install both packages, add the Sherpa config plugin so
+prebuild injects `android.packagingOptions.pickFirsts=**/libonnxruntime.so`:
+
+```json
+{
+  "expo": {
+    "plugins": ["@siteed/sherpa-onnx.rn"]
+  }
+}
+```
+
+That packaging rule is only safe after ABI alignment is complete; it tells Gradle
+which duplicate `libonnxruntime.so` to keep once both engines are shipping the
+same SONAME and symbol version.
+
 The checker inspects:
 
 - Sherpa JNI imported ORT symbol version

@@ -16,6 +16,7 @@ import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -37,6 +38,26 @@ private data class TranscriberState(
 
 class MoonshineModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
+
+  private fun resolveModelRootPath(rawPath: String, label: String): File {
+    val trimmed = rawPath.trim()
+    if (trimmed.isEmpty()) {
+      throw IllegalArgumentException("Moonshine ${label} is required")
+    }
+
+    val candidate = if (trimmed.startsWith("file://", ignoreCase = true)) {
+      val parsed = Uri.parse(trimmed)
+      parsed.path?.let(::File) ?: File(trimmed.removePrefix("file://"))
+    } else {
+      File(trimmed)
+    }
+
+    if (!candidate.exists()) {
+      throw IllegalArgumentException("Moonshine ${label} does not exist: $rawPath")
+    }
+
+    return candidate
+  }
 
   companion object {
     const val EVENT_NAME = "MoonshineTranscriptEvent"
@@ -154,13 +175,7 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
   fun createIntentRecognizer(config: ReadableMap, promise: Promise) {
     try {
       val modelPath = config.getString("modelPath")
-      if (modelPath.isNullOrBlank()) {
-        throw IllegalArgumentException("Moonshine intent modelPath is required")
-      }
-      val modelRoot = File(modelPath)
-      if (!modelRoot.exists()) {
-        throw IllegalArgumentException("Moonshine intent model path does not exist: $modelPath")
-      }
+      val modelRoot = resolveModelRootPath(modelPath ?: "", "intent model path")
       val modelArch = resolveIntentModelArch(config)
       val modelVariant =
         if (config.hasKey("modelVariant") && !config.isNull("modelVariant")) {
@@ -228,13 +243,7 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
   fun createTranscriberFromFiles(config: ReadableMap, promise: Promise) {
     createTranscriber(config, promise, assignAsDefault = false) { options, modelArch ->
       val modelPath = config.getString("modelPath")
-      if (modelPath.isNullOrBlank()) {
-        throw IllegalArgumentException("Moonshine modelPath is required")
-      }
-      val modelRoot = File(modelPath)
-      if (!modelRoot.exists()) {
-        throw IllegalArgumentException("Moonshine model path does not exist: $modelPath")
-      }
+      val modelRoot = resolveModelRootPath(modelPath ?: "", "model path")
       MoonshineDirectJni.loadTranscriberFromFiles(modelRoot.absolutePath, modelArch, options)
     }
   }
@@ -320,13 +329,7 @@ class MoonshineModule(reactContext: ReactApplicationContext) :
   fun loadFromFiles(config: ReadableMap, promise: Promise) {
     createTranscriber(config, promise, assignAsDefault = true) { options, modelArch ->
       val modelPath = config.getString("modelPath")
-      if (modelPath.isNullOrBlank()) {
-        throw IllegalArgumentException("Moonshine modelPath is required")
-      }
-      val modelRoot = File(modelPath)
-      if (!modelRoot.exists()) {
-        throw IllegalArgumentException("Moonshine model path does not exist: $modelPath")
-      }
+      val modelRoot = resolveModelRootPath(modelPath ?: "", "model path")
       MoonshineDirectJni.loadTranscriberFromFiles(modelRoot.absolutePath, modelArch, options)
     }
   }

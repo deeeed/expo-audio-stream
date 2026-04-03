@@ -238,6 +238,25 @@ yarn install
 See [`docs/ANDROID_ORT_ALIGNMENT.md`](../../docs/ANDROID_ORT_ALIGNMENT.md) for
 the full mixed-engine alignment workflow with Moonshine.
 
+### Expo mixed-engine packaging
+
+If your Expo Android app installs both `@siteed/sherpa-onnx.rn` and
+`@siteed/moonshine.rn`, add the Sherpa config plugin so prebuild injects
+`android.packagingOptions.pickFirsts=**/libonnxruntime.so` into
+`android/gradle.properties`:
+
+```json
+{
+  "expo": {
+    "plugins": ["@siteed/sherpa-onnx.rn"]
+  }
+}
+```
+
+That only resolves the duplicate-file packaging error. Both engines still need
+to be built against the same ONNX Runtime ABI before the resulting APK will
+load reliably at runtime.
+
 ## API Reference
 
 ### Services
