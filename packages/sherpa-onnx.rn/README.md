@@ -257,6 +257,9 @@ That only resolves the duplicate-file packaging error. Both engines still need
 to be built against the same ONNX Runtime ABI before the resulting APK will
 load reliably at runtime.
 
+See [`docs/STABLE_RELEASE_CHECKLIST.md`](../../docs/STABLE_RELEASE_CHECKLIST.md)
+for the shared beta -> stable release gate used across Sherpa and Moonshine.
+
 ## API Reference
 
 ### Services

@@ -216,6 +216,7 @@ Current iOS status:
 Beta release / external validation:
 
 - Before a stable release, validate the package from an external consumer repo
+- Use [`docs/STABLE_RELEASE_CHECKLIST.md`](../../docs/STABLE_RELEASE_CHECKLIST.md) as the shared go/no-go gate for beta -> stable decisions
   rather than only from this monorepo.
 - Recommended target:
   - `~/dev/demo-audiolab`

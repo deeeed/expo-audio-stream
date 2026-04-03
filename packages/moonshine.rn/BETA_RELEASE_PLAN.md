@@ -117,6 +117,9 @@ Record every confusing step, including:
 
 ## Exit criteria before stable
 
+See the shared checklist in [`docs/STABLE_RELEASE_CHECKLIST.md`](../../docs/STABLE_RELEASE_CHECKLIST.md) before promoting a beta to `latest`.
+
+
 Do not cut a stable release until the external app validates:
 
 - install/setup is reproducible
