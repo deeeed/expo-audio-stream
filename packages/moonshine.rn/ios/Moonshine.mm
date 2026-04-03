@@ -244,6 +244,17 @@ void ThrowNSError(NSString *message, NSInteger code = MoonshineErrorCodeGeneric)
   @throw MoonshineNSError(message, code);
 }
 
+NSError *MoonshineNSErrorFromException(id exception) {
+  if ([exception isKindOfClass:NSError.class]) {
+    return (NSError *)exception;
+  }
+  if ([exception isKindOfClass:NSException.class]) {
+    NSException *objcException = (NSException *)exception;
+    return MoonshineNSError(objcException.reason ?: objcException.description);
+  }
+  return MoonshineNSError([exception description] ?: @"Moonshine error");
+}
+
 void RejectPromiseWithError(
     RCTPromiseRejectBlock reject,
     NSError *error,
@@ -408,8 +419,8 @@ RCT_EXPORT_METHOD(addAudioToStream:(NSString *)streamId
                                  samples:samples
                                 resolver:resolve
                                 rejecter:reject];
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -438,8 +449,8 @@ RCT_EXPORT_METHOD(clearIntents:(NSString *)intentRecognizerId
     ThrowIfMoonshineError(moonshine_clear_intents(handle), @"clear intents");
     ClearIntentMatch(handle);
     resolve([self successMap]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -471,8 +482,8 @@ RCT_EXPORT_METHOD(createIntentRecognizer:(NSDictionary *)config
     NSMutableDictionary *result = [self successMap];
     result[@"intentRecognizerId"] = intentRecognizerId;
     resolve(result);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -574,8 +585,8 @@ RCT_EXPORT_METHOD(getIntentCount:(NSString *)intentRecognizerId
       ThrowNSError([NSString stringWithFormat:@"Failed to get Moonshine intent count: %@", StringFromCString(moonshine_error_to_string(count))], count);
     }
     resolve(@(count));
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -589,8 +600,8 @@ RCT_EXPORT_METHOD(getIntentThreshold:(NSString *)intentRecognizerId
       ThrowNSError([NSString stringWithFormat:@"Failed to get Moonshine intent threshold: %@", StringFromCString(moonshine_error_to_string((int32_t)threshold))], (NSInteger)threshold);
     }
     resolve(@(threshold));
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -694,8 +705,8 @@ RCT_EXPORT_METHOD(processUtterance:(NSString *)intentRecognizerId
       }
     }
     resolve(result);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -716,8 +727,8 @@ RCT_EXPORT_METHOD(registerIntent:(NSString *)intentRecognizerId
             reinterpret_cast<void *>(static_cast<intptr_t>(handle))),
         @"register intent");
     resolve([self successMap]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -738,8 +749,8 @@ RCT_EXPORT_METHOD(releaseIntentRecognizer:(NSString *)intentRecognizerId
     ClearIntentMatch(handle);
     [self.intentRecognizerHandles removeObjectForKey:intentRecognizerId];
     resolve([self successMap]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -749,8 +760,8 @@ RCT_EXPORT_METHOD(releaseTranscriber:(NSString *)transcriberId
   @try {
     BOOL released = [self releaseTranscriberInternal:transcriberId];
     resolve(@{@"released": @(released)});
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -763,8 +774,8 @@ RCT_EXPORT_METHOD(removeStream:(NSString *)streamId
                             streamId:streamId
                             resolver:resolve
                             rejecter:reject];
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -794,8 +805,8 @@ RCT_EXPORT_METHOD(setIntentThreshold:(NSString *)intentRecognizerId
         moonshine_set_intent_threshold(handle, threshold.floatValue),
         @"set intent threshold");
     resolve([self successMap]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -816,8 +827,8 @@ RCT_EXPORT_METHOD(startStream:(NSString *)streamId
                            streamId:streamId
                            resolver:resolve
                            rejecter:reject];
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -858,8 +869,8 @@ RCT_EXPORT_METHOD(stopStream:(NSString *)streamId
                           streamId:streamId
                           resolver:resolve
                           rejecter:reject];
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -953,8 +964,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
         moonshine_unregister_intent(handle, triggerPhrase.UTF8String),
         @"unregister intent");
     resolve([self successMap]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -1018,7 +1029,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
     NSMutableDictionary *result = [self successMap];
     result[@"transcriberId"] = transcriberId;
     resolve(result);
-  } @catch (NSError *error) {
+  } @catch (id exception) {
+    NSError *error = MoonshineNSErrorFromException(exception);
     resolve([self errorResult:error.localizedDescription ?: @"Moonshine load failed"]);
   }
 }
@@ -1488,8 +1500,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
     }
     [self stopAndFlushStreamForTranscriber:transcriberId state:state streamHandle:temporaryStreamHandle];
     resolve([self buildTranscriptionResultForState:state streamHandle:temporaryStreamHandle]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error, @"MOONSHINE_TRANSCRIBE_ERROR");
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception), @"MOONSHINE_TRANSCRIBE_ERROR");
   } @finally {
     if (temporaryStreamHandle >= 0) {
       @try {
@@ -1523,8 +1535,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
       ThrowNSError(@"Moonshine offline transcription returned no transcript");
     }
     resolve([self buildTranscriptionResultForTranscript:transcript state:state]);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
@@ -1550,8 +1562,8 @@ RCT_EXPORT_METHOD(unregisterIntent:(NSString *)intentRecognizerId
 
   @try {
     block(transcriberId, state);
-  } @catch (NSError *error) {
-    RejectPromiseWithError(reject, error);
+  } @catch (id exception) {
+    RejectPromiseWithError(reject, MoonshineNSErrorFromException(exception));
   }
 }
 
