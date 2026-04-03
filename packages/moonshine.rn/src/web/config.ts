@@ -89,6 +89,14 @@ export function normalizeMoonshineWebModelArch(
   }
 }
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 export function resolveMoonshineWebModelBasePath(
   candidatePath: string | undefined,
   modelArch: 'tiny' | 'base'
@@ -96,7 +104,7 @@ export function resolveMoonshineWebModelBasePath(
   if (candidatePath?.trim()) {
     return candidatePath.endsWith('/quantized')
       ? candidatePath.slice(0, -'/quantized'.length)
-      : candidatePath.replace(/\/+$/, '');
+      : trimTrailingSlashes(candidatePath);
   }
   const assetBasePath = detectMoonshineWebAssetBasePath();
   return assetBasePath.endsWith('/model/')

@@ -123,6 +123,80 @@ async function loadSpeechWavSampleFileUri(): Promise<string> {
     return dest
 }
 
+function resolveMoonshineProbeModelPath(
+    modelPath: string,
+    appendTrailingSlash?: boolean
+): string {
+    if (!appendTrailingSlash || modelPath.endsWith('/')) {
+        return modelPath
+    }
+    return `${modelPath}/`
+}
+
+async function runMoonshineProbe(
+    modelId: string,
+    op: string,
+    options: {
+        appendTrailingSlash?: boolean
+        transcriberOptions?: Record<string, unknown>
+    } | undefined,
+    afterCreate?: (transcriber: MoonshineTranscriber) => Promise<void>
+): Promise<void> {
+    let transcriber: MoonshineTranscriber | null = null
+    try {
+        if (!modelId) {
+            throw new Error(`${op} requires a modelId`)
+        }
+
+        const config = await getMoonshineRuntimeConfig(modelId)
+        const resolvedModelPath =
+            typeof config.modelPath === 'string'
+                ? resolveMoonshineProbeModelPath(
+                      config.modelPath,
+                      options?.appendTrailingSlash
+                  )
+                : config.modelPath
+
+        const mergedOptions =
+            config.options != null || options?.transcriberOptions != null
+                ? {
+                      ...config.options,
+                      ...options?.transcriberOptions,
+                  }
+                : undefined
+
+        transcriber = await Moonshine.createTranscriberFromFiles({
+            ...config,
+            modelPath: resolvedModelPath,
+            ...(mergedOptions ? { options: mergedOptions } : {}),
+        })
+
+        if (afterCreate) {
+            await afterCreate(transcriber)
+        }
+
+        _lastAsyncResult = {
+            op,
+            status: 'success',
+            result: {
+                modelArch: config.modelArch,
+                modelId,
+                modelPath: resolvedModelPath,
+                transcriberId: transcriber.transcriberId,
+            },
+        }
+    } catch (e) {
+        _lastAsyncResult = {
+            op,
+            status: 'error',
+            error: String(e),
+            result: { modelId },
+        }
+    } finally {
+        await safeReleaseMoonshineTranscriber(transcriber)
+    }
+}
+
 if (__DEV__) {
     (globalThis as Record<string, unknown>).__AGENTIC__ = {
         platform: Platform.OS,
@@ -436,51 +510,7 @@ if (__DEV__) {
         ) => {
             const op = 'testMoonshineLoad'
             _lastAsyncResult = { op, status: 'pending' }
-            void (async () => {
-                let transcriber: MoonshineTranscriber | null = null
-                try {
-                    if (!modelId) {
-                        throw new Error('testMoonshineLoad requires a modelId')
-                    }
-
-                    const config = await getMoonshineRuntimeConfig(modelId)
-                    const resolvedModelPath =
-                        options?.appendTrailingSlash &&
-                        typeof config.modelPath === 'string' &&
-                        !config.modelPath.endsWith('/')
-                            ? `${config.modelPath}/`
-                            : config.modelPath
-
-                    transcriber = await Moonshine.createTranscriberFromFiles({
-                        ...config,
-                        modelPath: resolvedModelPath,
-                        options: {
-                            ...config.options,
-                            ...(options?.transcriberOptions ?? {}),
-                        },
-                    })
-
-                    _lastAsyncResult = {
-                        op,
-                        status: 'success',
-                        result: {
-                            modelArch: config.modelArch,
-                            modelId,
-                            modelPath: resolvedModelPath,
-                            transcriberId: transcriber.transcriberId,
-                        },
-                    }
-                } catch (e) {
-                    _lastAsyncResult = {
-                        op,
-                        status: 'error',
-                        error: String(e),
-                        result: { modelId },
-                    }
-                } finally {
-                    await safeReleaseMoonshineTranscriber(transcriber)
-                }
-            })()
+            void runMoonshineProbe(modelId, op, options)
             return { op, status: 'pending' }
         },
 
@@ -493,52 +523,9 @@ if (__DEV__) {
         ) => {
             const op = 'testMoonshineStart'
             _lastAsyncResult = { op, status: 'pending' }
-            void (async () => {
-                let transcriber: MoonshineTranscriber | null = null
-                try {
-                    if (!modelId) {
-                        throw new Error('testMoonshineStart requires a modelId')
-                    }
-
-                    const config = await getMoonshineRuntimeConfig(modelId)
-                    const resolvedModelPath =
-                        options?.appendTrailingSlash &&
-                        typeof config.modelPath === 'string' &&
-                        !config.modelPath.endsWith('/')
-                            ? `${config.modelPath}/`
-                            : config.modelPath
-
-                    transcriber = await Moonshine.createTranscriberFromFiles({
-                        ...config,
-                        modelPath: resolvedModelPath,
-                        options: {
-                            ...config.options,
-                            ...(options?.transcriberOptions ?? {}),
-                        },
-                    })
-                    await transcriber.start()
-
-                    _lastAsyncResult = {
-                        op,
-                        status: 'success',
-                        result: {
-                            modelArch: config.modelArch,
-                            modelId,
-                            modelPath: resolvedModelPath,
-                            transcriberId: transcriber.transcriberId,
-                        },
-                    }
-                } catch (e) {
-                    _lastAsyncResult = {
-                        op,
-                        status: 'error',
-                        error: String(e),
-                        result: { modelId },
-                    }
-                } finally {
-                    await safeReleaseMoonshineTranscriber(transcriber)
-                }
-            })()
+            void runMoonshineProbe(modelId, op, options, async (transcriber) => {
+                await transcriber.start()
+            })
             return { op, status: 'pending' }
         },
 

@@ -123,8 +123,16 @@ function resolveIntentModelFileName(modelVariant?: string): string {
   }
 }
 
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 function joinPath(basePath: string, fileName: string): string {
-  const trimmed = basePath.replace(/\/+$/, '');
+  const trimmed = trimTrailingSlashes(basePath);
   return `${trimmed}/${fileName}`;
 }
 
