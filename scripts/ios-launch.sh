@@ -7,12 +7,12 @@
 # deep link targeting when multiple simulators are booted.
 #
 # Usage:
-#   ./scripts/ios-launch.sh --simulator "AudioPlayground-Dev" --scheme "audioplayground" --port 7365
+#   ./scripts/ios-launch.sh --simulator "playground-ios" --scheme "audioplayground-development" --port 7365
 #   ./scripts/ios-launch.sh --simulator "SherpaVoice-Dev" --scheme "sherpa-voice" --port 7500
 #   ./scripts/ios-launch.sh --select --scheme "audioplayground" --port 7365   # interactive picker
 #
 # Can also be called with env vars:
-#   IOS_SIMULATOR="AudioPlayground-Dev" APP_SCHEME="audioplayground" METRO_PORT=7365 ./scripts/ios-launch.sh
+#   IOS_SIMULATOR="playground-ios" APP_SCHEME="audioplayground-development" METRO_PORT=7365 ./scripts/ios-launch.sh
 # ========================================================
 
 set -euo pipefail
@@ -36,6 +36,20 @@ info()    { echo -e "${BLUE}[info]${NC} $1"; }
 success() { echo -e "${GREEN}[ok]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[warn]${NC} $1"; }
 error()   { echo -e "${RED}[error]${NC} $1"; }
+
+run_simctl_timeout() {
+    python3 - "$@" <<'PY'
+import subprocess
+import sys
+
+cmd = ["xcrun", "simctl", *sys.argv[1:]]
+try:
+    completed = subprocess.run(cmd, check=False, timeout=15)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+sys.exit(completed.returncode)
+PY
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -199,7 +213,7 @@ DEEP_LINK="exp+${APP_SCHEME}://expo-development-client/?url=http%3A%2F%2Flocalho
 info "Sending deep link to $SIMULATOR_NAME ($UDID)"
 info "  -> $DEEP_LINK"
 
-xcrun simctl openurl "$UDID" "$DEEP_LINK"
+run_simctl_timeout openurl "$UDID" "$DEEP_LINK"
 
 success "Launched $APP_SCHEME on $SIMULATOR_NAME"
 echo ""

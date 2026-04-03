@@ -168,6 +168,24 @@ Current web status:
 - Use `configureMoonshineWeb()` if you want to override the default model asset
   CDN or the `onnxruntime-web` wasm base path.
 
+Current iOS status:
+
+- iOS simulator validation is in place for the parity branch.
+- Confirmed on April 3, 2026:
+  - app launch / dev client / CDP connectivity
+  - intent recognizer creation on iOS simulator
+  - deterministic file transcription on iOS simulator (`Hello world` on the
+    bundled speech WAV sample)
+  - live Moonshine session startup on iOS simulator
+- iOS live speaker-turn hints are currently disabled in the playground live
+  demo. The native transcriber works, but the current live-session path avoids
+  passing transcriber options on iOS because that broke streaming startup during
+  validation.
+- Physical-device validation is intentionally deferred for now. The currently
+  installed iPhone dev binary did not yet include the newly linked Moonshine
+  native module, so simulator validation is the current source of truth for
+  parity on this branch.
+
 Android artifact override:
 
 - `SITEED_MOONSHINE_ANDROID_MAVEN_COORD`

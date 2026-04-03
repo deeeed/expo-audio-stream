@@ -18,6 +18,86 @@ source "$(cd "$APP_ROOT" && git rev-parse --show-toplevel)/scripts/agentic/_lib.
 cd "$APP_ROOT"
 
 PLATFORM="${PLATFORM:-ios}"
+APP_VARIANT_EFFECTIVE="${APP_VARIANT:-development}"
+
+run_simctl_timeout() {
+  python3 - "$@" <<'PY'
+import subprocess
+import sys
+
+cmd = ["xcrun", "simctl", *sys.argv[1:]]
+try:
+    completed = subprocess.run(cmd, check=False, timeout=15)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+sys.exit(completed.returncode)
+PY
+}
+
+resolve_ios_workspace_and_scheme() {
+  local variant="$1"
+  local workspace_basename="AudioPlayground"
+
+  if [ "$variant" != "production" ]; then
+    workspace_basename="AudioDevPlayground"
+  fi
+
+  local workspace_path="ios/${workspace_basename}.xcworkspace"
+  local project_path="ios/${workspace_basename}.xcodeproj"
+
+  if [ ! -d "$workspace_path" ] || [ ! -d "$project_path" ]; then
+    local setup_script="${APP_ROOT}/scripts/setup-env.sh"
+    if [ -x "$setup_script" ]; then
+      info "Preparing iOS prebuild for variant ${variant}..."
+      (cd "$APP_ROOT" && "$setup_script" "$variant" force)
+    else
+      fail "Missing iOS workspace for variant ${variant}: ${workspace_path}"
+      fail "Run APP_VARIANT=${variant} yarn expo prebuild --clean"
+      exit 1
+    fi
+  fi
+
+  IOS_WORKSPACE_PATH="$workspace_path"
+  IOS_SCHEME_NAME="$workspace_basename"
+}
+
+ensure_ios_simulator_exists() {
+  local sim_name="$1"
+
+  if xcrun simctl list devices 2>/dev/null | grep -q "${sim_name}"; then
+    return 0
+  fi
+
+  info "Simulator '${sim_name}' not found — creating a fresh iOS simulator..."
+
+  local runtime_id
+  runtime_id=$(xcrun simctl list runtimes -j | python3 -c "
+import json, sys
+runtimes = json.load(sys.stdin).get('runtimes', [])
+ios = [r for r in runtimes if r.get('isAvailable') and r.get('platform') == 'iOS']
+ios.sort(key=lambda r: r.get('version', ''))
+if not ios:
+    sys.exit(1)
+print(ios[-1]['identifier'])
+" 2>/dev/null || true)
+
+  if [ -z "${runtime_id:-}" ]; then
+    fail "Could not determine an available iOS runtime for simulator creation"
+    exit 1
+  fi
+
+  local device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-16"
+  if ! xcrun simctl list devicetypes 2>/dev/null | grep -q "${device_type}"; then
+    device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-15"
+  fi
+
+  if ! xcrun simctl create "${sim_name}" "${device_type}" "${runtime_id}" >/dev/null 2>&1; then
+    fail "Failed to create simulator '${sim_name}'"
+    exit 1
+  fi
+
+  pass "Created simulator ${sim_name}"
+}
 
 # ── 1. Boot device ──────────────────────────────────────────────
 info "Step 1: Boot device (${PLATFORM})"
@@ -77,16 +157,27 @@ for block in blocks:
   if [ "$USE_IOS_PHYSICAL" = false ]; then
     SIM="${IOS_SIMULATOR:-${AGENTIC_DEFAULT_SIMULATOR}}"
     IOS_DEVICE_MODE="simulator"
-    if ! xcrun simctl list devices 2>/dev/null | grep -q "${SIM}"; then
-      fail "Simulator '${SIM}' does not exist — run farmslot setup-slot.sh first"
-      exit 1
-    fi
+    ensure_ios_simulator_exists "${SIM}"
     if xcrun simctl list devices booted 2>/dev/null | grep -q "${SIM}"; then
       pass "Simulator ${SIM} already booted"
     else
       xcrun simctl boot "${SIM}" 2>/dev/null || true
       sleep 2
       pass "Simulator ${SIM} booted"
+    fi
+
+    SIM_UUID=$(xcrun simctl list devices -j | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for runtime,devs in data['devices'].items():
+  for d in devs:
+    if d['name']=='${SIM}' and d['isAvailable']:
+      print(d['udid']); sys.exit(0)
+sys.exit(1)
+" 2>/dev/null || true)
+    if [ -z "${SIM_UUID:-}" ]; then
+      fail "Could not resolve simulator UUID for ${SIM}"
+      exit 1
     fi
   fi
 elif [ "$PLATFORM" = "android" ]; then
@@ -176,10 +267,8 @@ if [ "${SKIP_BUILD:-0}" = "1" ] && [ "$AGENTIC_SKIP_BUILD_SUPPORTED" = "true" ];
       pass "App ${BUNDLE_ID_IOS} already installed on physical device ${IOS_DEVICE_UDID}"
     fi
   elif [ "$PLATFORM" = "ios" ]; then
-    if xcrun simctl listapps "${SIM}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
-      APP_INSTALLED=true
-      pass "App ${BUNDLE_ID_IOS} already installed on ${SIM}"
-    fi
+    APP_INSTALLED=true
+    pass "Assuming app ${BUNDLE_ID_IOS} is already installed on ${SIM} (simctl listapps is unreliable on this CoreSimulator runtime)"
   elif [ "$PLATFORM" = "android" ]; then
     if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
       APP_INSTALLED=true
@@ -189,10 +278,7 @@ if [ "${SKIP_BUILD:-0}" = "1" ] && [ "$AGENTIC_SKIP_BUILD_SUPPORTED" = "true" ];
 elif [ "${SKIP_BUILD:-0}" != "1" ]; then
   # Check if already installed (for non-skip-build apps)
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "simulator" ]; then
-    if xcrun simctl listapps "${SIM}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
-      APP_INSTALLED=true
-      pass "App ${BUNDLE_ID_IOS} already installed on ${SIM}"
-    fi
+    info "Skipping iOS simulator install probe on ${SIM}; rebuilding/installing is more reliable than simctl listapps on this CoreSimulator runtime"
   elif [ "$PLATFORM" = "android" ]; then
     if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then
       APP_INSTALLED=true
@@ -214,30 +300,30 @@ if [ "$APP_INSTALLED" = false ]; then
   fi
 
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
-    info "Building iOS app for physical device ${IOS_DEVICE_UDID}..."
-    APP_VARIANT=development RCT_METRO_PORT="${PORT}" NODE_ENV=development \
-      yarn expo run:ios --device "${IOS_DEVICE_UDID}" --no-bundler
+    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
+    info "Building iOS app for physical device ${IOS_DEVICE_UDID} using ${IOS_SCHEME_NAME}..."
+    xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
+      -destination "id=${IOS_DEVICE_UDID}" \
+      -configuration Debug \
+      -derivedDataPath ios/build-device \
+      -allowProvisioningUpdates \
+      build 2>&1 | tail -5
+    APP_PATH="ios/build-device/Build/Products/Debug-iphoneos/${IOS_SCHEME_NAME}.app"
+    if [ ! -d "$APP_PATH" ]; then
+      fail "Built .app not found at $APP_PATH"
+      exit 1
+    fi
+    xcrun devicectl device install app --device "${IOS_DEVICE_UDID}" "$APP_PATH"
     pass "iOS app built and installed on physical device"
   elif [ "$PLATFORM" = "ios" ]; then
-    # Resolve simulator name → UUID for reliable targeting
-    SIM_UUID=$(xcrun simctl list devices -j | python3 -c "
-import json,sys
-data=json.load(sys.stdin)
-for runtime,devs in data['devices'].items():
-  for d in devs:
-    if d['name']=='${SIM}' and d['isAvailable']:
-      print(d['udid']); sys.exit(0)
-sys.exit(1)
-")
-    info "Building iOS app for simulator ${SIM} (${SIM_UUID})..."
-    WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
-    SCHEME_NAME=$(basename "$WORKSPACE" .xcworkspace)
-    xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME_NAME" \
+    resolve_ios_workspace_and_scheme "$APP_VARIANT_EFFECTIVE"
+    info "Building iOS app for simulator ${SIM} (${SIM_UUID}) using ${IOS_SCHEME_NAME}..."
+    xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
       -destination "platform=iOS Simulator,id=${SIM_UUID}" \
       -configuration Debug \
       -derivedDataPath ios/build \
       build 2>&1 | tail -5
-    APP_PATH="ios/build/Build/Products/Debug-iphonesimulator/${SCHEME_NAME}.app"
+    APP_PATH="ios/build/Build/Products/Debug-iphonesimulator/${IOS_SCHEME_NAME}.app"
     if [ ! -d "$APP_PATH" ]; then
       fail "Built .app not found at $APP_PATH"
       exit 1
@@ -275,6 +361,7 @@ DEV_CLIENT_URL="exp+${SCHEME}://expo-development-client/?url=${ENCODED_URL}"
 
 if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
   xcrun devicectl device process launch \
+    --timeout 30 \
     --device "${IOS_DEVICE_UDID}" \
     --terminate-existing \
     --payload-url "${DEV_CLIENT_URL}" \
@@ -282,24 +369,25 @@ if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; 
 
   sleep 5
   xcrun devicectl device process launch \
+    --timeout 30 \
     --device "${IOS_DEVICE_UDID}" \
     --payload-url "${DEV_CLIENT_URL}" \
     "${BUNDLE_ID_IOS}" 2>/dev/null || true
   pass "App launched on physical device ${IOS_DEVICE_UDID} → ${METRO_HOST}:${PORT}"
 
 elif [ "$PLATFORM" = "ios" ]; then
-  xcrun simctl spawn "${SIM}" defaults write "${BUNDLE_ID_IOS}" EXDevMenuIsOnboardingFinished -bool YES 2>/dev/null || true
-  xcrun simctl spawn "${SIM}" defaults write "${BUNDLE_ID_IOS}" EXDevMenuDisableAutoLaunch -bool YES 2>/dev/null || true
+  xcrun simctl spawn "${SIM_UUID}" defaults write "${BUNDLE_ID_IOS}" EXDevMenuIsOnboardingFinished -bool YES 2>/dev/null || true
+  xcrun simctl spawn "${SIM_UUID}" defaults write "${BUNDLE_ID_IOS}" EXDevMenuDisableAutoLaunch -bool YES 2>/dev/null || true
 
-  xcrun simctl terminate "${SIM}" "${BUNDLE_ID_IOS}" 2>/dev/null || true
+  run_simctl_timeout terminate "${SIM_UUID}" "${BUNDLE_ID_IOS}" 2>/dev/null || true
   sleep 1
-  xcrun simctl openurl "${SIM}" "${DEV_CLIENT_URL}" 2>/dev/null || true
+  run_simctl_timeout openurl "${SIM_UUID}" "${DEV_CLIENT_URL}" 2>/dev/null || true
 
   sleep 5
-  if ! xcrun simctl spawn "${SIM}" launchctl list 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
+  if ! xcrun simctl spawn "${SIM_UUID}" launchctl list 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
     info "App exited after launch — retrying..."
     sleep 2
-    xcrun simctl openurl "${SIM}" "${DEV_CLIENT_URL}" 2>/dev/null || true
+    run_simctl_timeout openurl "${SIM_UUID}" "${DEV_CLIENT_URL}" 2>/dev/null || true
   fi
   pass "App launched on ${SIM} → localhost:${PORT}"
 

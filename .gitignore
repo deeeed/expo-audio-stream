@@ -87,6 +87,7 @@ packages/react-native-essentia/third_party/essentia
 
 packages/moonshine.rn/third_party/moonshine
 packages/moonshine.rn/third_party/moonshine-js
+packages/moonshine.rn/prebuilt/ios/current/
 
 packages/sherpa-onnx.rn/prebuilt/
 packages/sherpa-onnx.rn/lib/
