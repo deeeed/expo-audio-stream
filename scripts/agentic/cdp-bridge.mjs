@@ -38,7 +38,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
@@ -1122,7 +1122,7 @@ function getBootedIOSSimulators() {
 
 function getConnectedIOSPhysicalDevices() {
   try {
-    const output = execSync('/usr/bin/xcrun devicectl list devices -v', {
+    const output = execFileSync('/usr/bin/xcrun', ['devicectl', 'list', 'devices', '-v'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     });
