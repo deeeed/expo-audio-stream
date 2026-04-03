@@ -127,6 +127,24 @@ NSString *TrimmedPathString(NSString *value) {
   return trimmed;
 }
 
+NSString *ResolvedLocalPathString(NSString *value) {
+  if (value == nil) {
+    return nil;
+  }
+  NSString *trimmed = [value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+  if ([trimmed length] == 0) {
+    return trimmed;
+  }
+  if ([trimmed hasPrefix:@"file://"]) {
+    NSURL *url = [NSURL URLWithString:trimmed];
+    if (url.fileURL && url.path.length > 0) {
+      return url.path;
+    }
+    return [trimmed stringByRemovingPercentEncoding] ?: trimmed;
+  }
+  return trimmed;
+}
+
 BOOL IsStrictIntegerString(NSString *value) {
   if (value.length == 0) {
     return NO;
@@ -458,7 +476,7 @@ RCT_EXPORT_METHOD(createIntentRecognizer:(NSDictionary *)config
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
-    NSString *modelPath = StringFromValue(config[@"modelPath"]);
+    NSString *modelPath = ResolvedLocalPathString(StringFromValue(config[@"modelPath"]));
     if (modelPath.length == 0) {
       ThrowNSError(@"Moonshine intent modelPath is required");
     }
@@ -527,7 +545,7 @@ RCT_EXPORT_METHOD(createTranscriberFromFiles:(NSDictionary *)config
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   [self createTranscriber:config resolver:resolve assignAsDefault:NO loader:^int32_t(std::vector<transcriber_option_t> &options) {
-    NSString *modelPath = StringFromValue(config[@"modelPath"]);
+    NSString *modelPath = ResolvedLocalPathString(StringFromValue(config[@"modelPath"]));
     if (modelPath.length == 0) {
       ThrowNSError(@"Moonshine modelPath is required");
     }
@@ -635,7 +653,7 @@ RCT_EXPORT_METHOD(loadFromFiles:(NSDictionary *)config
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
   [self createTranscriber:config resolver:resolve assignAsDefault:YES loader:^int32_t(std::vector<transcriber_option_t> &options) {
-    NSString *modelPath = StringFromValue(config[@"modelPath"]);
+    NSString *modelPath = ResolvedLocalPathString(StringFromValue(config[@"modelPath"]));
     if (modelPath.length == 0) {
       ThrowNSError(@"Moonshine modelPath is required");
     }
