@@ -1,0 +1,43 @@
+{
+  "$schema": "../../tools/src/prebuilds/schemas/spm.config.schema.json",
+  "products": [
+    {
+      "name": "AudioStudio",
+      "podName": "AudioStudio",
+      "platforms": ["iOS(\"16.4\")"],
+      "externalDependencies": [
+        "ReactNativeDependencies",
+        "React",
+        "Hermes",
+        "expo-modules-core/ExpoModulesCore"
+      ],
+      "targets": [
+        {
+          "type": "objc",
+          "name": "AudioStudio_ios_objc",
+          "moduleName": "AudioStudio",
+          "path": "ios",
+          "pattern": "**/*.mm",
+          "headerPattern": "**/*.h",
+          "dependencies": ["ReactNativeDependencies", "React", "Hermes"],
+          "linkedFrameworks": ["Foundation", "UIKit"],
+          "includeDirectories": [".", "../cpp", "../cpp/kiss_fft"]
+        },
+        {
+          "type": "swift",
+          "name": "AudioStudio",
+          "path": "ios",
+          "pattern": "**/*.swift",
+          "dependencies": [
+            "ReactNativeDependencies",
+            "React",
+            "Hermes",
+            "expo-modules-core/ExpoModulesCore",
+            "AudioStudio_ios_objc"
+          ],
+          "linkedFrameworks": ["Foundation", "UIKit"]
+        }
+      ]
+    }
+  ]
+}
