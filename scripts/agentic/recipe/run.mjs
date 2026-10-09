@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import fs from 'node:fs/promises';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { Command } from 'commander';
+import { readRecipeCliJsonFileWithinRoot } from '@farmslot/recipe-runner/cli/support';
 import { buildDiscoveryIndex, findRecipe, registerDiscoveryCommands } from '@farmslot/recipe-cli';
 import { manifest, actionNames, library, repoRoot, createAudiolabHost, recipeApp, appDomain, appRootFor, resolveDevice, matrixDevices, selectMatrixDevice, captureFailureDiagnostics } from './host.mjs';
 
@@ -36,11 +37,14 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
     await discovery(['describe', recipeName, '--platform', values.platform, ...(values.json ? ['--json'] : [])]);
   } else {
     if (command === 'run' && !values.matrix && !values['dry-run'] && values.device && !values.device.toLowerCase().includes('web') && !process.env.PLATFORM && !args.some(arg => arg === '--platform' || arg.startsWith('--platform='))) throw new Error('Native proof requires --platform ios or android.');
+    const projectRoot = path.resolve(values['project-root'] ?? repoRoot);
     const documentPath = path.resolve(recipeName ?? '');
-    const recipeDocument = recipeName ? await fs.readFile(documentPath, 'utf8').then(JSON.parse).catch(error => { if (error.code === 'ENOENT' || error.code === 'EISDIR') return undefined; throw error; }) : undefined;
+    const isFile = Boolean(recipeName && await fs.stat(documentPath).then(info => info.isFile(), () => false));
+    const canonicalRoot = isFile ? await fs.realpath(projectRoot) : projectRoot;
+    const canonicalDocument = isFile ? await fs.realpath(documentPath) : documentPath;
+    const recipeDocument = isFile ? await readRecipeCliJsonFileWithinRoot(canonicalRoot, path.relative(canonicalRoot, canonicalDocument)) : undefined;
     const documentDomain = Object.values(recipeDocument?.workflow?.nodes ?? {}).map(node => recipeApp(node.ref)).find(Boolean);
     const app = values.app ?? recipeApp(recipeName) ?? documentDomain ?? process.env.AUDIOLAB_APP ?? (path.basename(process.cwd()) === 'sherpa-voice' ? 'sherpa-voice' : 'playground');
-    const projectRoot = path.resolve(values['project-root'] ?? repoRoot);
     const appRoot = appRootFor(projectRoot, app);
     const domain = appDomain(app);
     const params = Object.fromEntries((values.param ?? []).map(arg => {
@@ -74,7 +78,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
       const index = await buildDiscoveryIndex({ libraries: [library], platform, handlers: actionNames });
       const requested = recipeName ?? `${domain}.expo.config`;
       const local = path.resolve(requested);
-      const exists = await fs.stat(local).then(info => info.isFile(), () => false);
+      const exists = isFile;
       const match = exists ? undefined : await findRecipe(index, requested);
       if (!exists && !match) throw new Error(`Unknown recipe: ${requested}`);
       const host = createAudiolabHost({ app, platform, device, projectRoot,

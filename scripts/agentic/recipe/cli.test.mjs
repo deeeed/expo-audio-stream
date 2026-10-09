@@ -59,3 +59,21 @@ test('web preflight launches Metro and a headless browser', async t => {
   assert.deepEqual(JSON.parse(stdout.split('\n')[1]), { stage: 'browser', headless: 'true', channel: 'chrome', port: '7466' });
   assert.ok(!stdout.includes('native-called'));
 });
+
+test('file recipes cannot read outside the selected project root', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-outside-recipe-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const file = path.join(root, 'outside.recipe.json');
+  await fs.writeFile(file, JSON.stringify({ $schema: 'https://farmslot.io/schemas/recipe-v1.schema.json', workflow: { entry: 'done', nodes: { done: { action: 'end', status: 'pass' } } } }));
+  await assert.rejects(execute(process.execPath, [cli, 'validate', file], { cwd: repoRoot }), /outside|escape|within|relative/i);
+});
+
+test('file recipes resolve through a symlinked repo path', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-symlink-recipe-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const alias = path.join(root, 'repo');
+  await fs.symlink(repoRoot, alias, 'dir');
+  const file = path.join(alias, 'scripts/agentic/recipe/recipes/playground/smoke.navigation.recipe.json');
+  const { stdout } = await execute(process.execPath, [cli, 'validate', file], { cwd: repoRoot });
+  assert.equal(JSON.parse(stdout).status, 'pass');
+});
