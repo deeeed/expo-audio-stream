@@ -53,15 +53,7 @@ import { Buffer } from 'node:buffer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { checkAssert } = require('./lib/assert');
-const {
-  listEvalRefs,
-  listTeamNames,
-  loadPreConditionRegistry,
-  parsePreConditionSpec,
-  renderTemplate,
-  resolveEvalRef,
-} = require('./lib/catalog');
+const { resolveMetroPort } = require('./lib/runtime-config.cjs');
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -77,7 +69,6 @@ const AGENT_DIR = path.join(APP_ROOT, '.agent');
 const WEB_CONNECTION_FILE = path.join(AGENT_DIR, 'web-browser.json');
 const SCREENSHOT_DIR = path.join(AGENT_DIR, 'screenshots');
 const AGENTIC_CONF_FILE = path.join(APP_ROOT, 'scripts', 'agentic', 'agentic.conf');
-const PRE_CONDITIONS = loadPreConditionRegistry(APP_ROOT);
 
 function loadConfiguredPort() {
   if (!fs.existsSync(AGENTIC_CONF_FILE)) {
@@ -90,16 +81,9 @@ function loadConfiguredPort() {
 }
 
 function loadPort() {
-  return Number.parseInt(
-    process.env.WATCHER_PORT || String(loadConfiguredPort() || DEFAULT_PORT),
-    10
-  );
+  return resolveMetroPort(process.env, loadConfiguredPort() || DEFAULT_PORT);
 }
 
-function getDefaultTeam() {
-  const teams = listTeamNames(APP_ROOT);
-  return teams.length === 1 ? teams[0] : null;
-}
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -847,58 +831,6 @@ async function cdpEvalAsync(
   }
 }
 
-function normalizeRawResult(raw) {
-  if (raw == null) {
-    return 'null';
-  }
-
-  if (typeof raw === 'string') {
-    return raw;
-  }
-
-  return JSON.stringify(raw);
-}
-
-async function evalSpec(client, entry, params = {}) {
-  const expression =
-    typeof entry.expression === 'function'
-      ? entry.expression(params)
-      : renderTemplate(entry.expression, params);
-  return entry.async ? cdpEvalAsync(client, expression) : cdpEval(client, expression);
-}
-
-async function evaluatePreCondition(client, rawSpec) {
-  const parsedSpec = parsePreConditionSpec(rawSpec);
-  const name = typeof parsedSpec === 'string' ? parsedSpec : parsedSpec?.name;
-  const params =
-    typeof parsedSpec === 'string'
-      ? {}
-      : Object.fromEntries(
-          Object.entries(parsedSpec).filter(([key]) => key !== 'name')
-        );
-
-  const entry = PRE_CONDITIONS[name];
-  if (!entry) {
-    return {
-      ok: false,
-      name,
-      error: `Unknown pre-condition "${name}"`,
-    };
-  }
-
-  const raw = normalizeRawResult(await evalSpec(client, entry, params));
-  const assertSpec = renderTemplate(entry.assert, params);
-  const ok = checkAssert(raw, assertSpec);
-
-  return {
-    ok,
-    name,
-    description: entry.description || '',
-    hint: entry.hint || '',
-    raw,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Commands — adapted for Expo Router (URL-based navigation)
 // ---------------------------------------------------------------------------
@@ -944,25 +876,6 @@ const COMMANDS = {
       throw new Error('Usage: eval-async <expression>');
     }
     return await cdpEvalAsync(client, expression);
-  },
-
-  async 'eval-ref'(client, args) {
-    if (args[0] === '--list') {
-      return {
-        refs: listEvalRefs(APP_ROOT),
-      };
-    }
-
-    const ref = args[0];
-    if (!ref) {
-      throw new Error('Usage: eval-ref <team/ref> or eval-ref --list');
-    }
-
-    const resolved = resolveEvalRef(ref, {
-      appRoot: APP_ROOT,
-      defaultTeam: getDefaultTeam(),
-    });
-    return await evalSpec(client, resolved.entry);
   },
 
   async 'can-go-back'(client) {
@@ -1064,42 +977,6 @@ const COMMANDS = {
     return { ...result, deviceName };
   },
 
-  async 'check-pre-conditions'(client, args) {
-    const payload = args.join(' ');
-    if (!payload) {
-      throw new Error('Usage: check-pre-conditions <json-array>');
-    }
-
-    let specs;
-    try {
-      specs = JSON.parse(payload);
-    } catch (error) {
-      throw new Error(`Invalid pre-condition JSON: ${error.message}`);
-    }
-
-    if (!Array.isArray(specs)) {
-      throw new Error('check-pre-conditions expects a JSON array');
-    }
-
-    const failures = [];
-    const passed = [];
-
-    for (const spec of specs) {
-      const result = await evaluatePreCondition(client, spec);
-      if (result.ok) {
-        passed.push(result.name);
-      } else {
-        failures.push(result);
-      }
-    }
-
-    return {
-      ok: failures.length === 0,
-      passed,
-      failures,
-    };
-  },
-
   async reload(client, _args, { deviceName } = {}) {
     await client.send('Page.reload', {}, 5000);
     return { reloaded: true, deviceName };
@@ -1124,8 +1001,12 @@ const COMMANDS = {
 
     if (platform === 'web') {
       // Web: use CDP Page.captureScreenshot
+      const metrics = await client.send('Page.getLayoutMetrics', {}, 5000);
+      const viewport = metrics.cssVisualViewport;
       const result = await client.send('Page.captureScreenshot', {
         format: 'png',
+        captureBeyondViewport: true,
+        clip: { x: viewport.pageX, y: viewport.pageY, width: viewport.clientWidth, height: viewport.clientHeight, scale: 1 },
       }, 10000);
       if (!result.data) {
         throw new Error('Page.captureScreenshot returned no data');
@@ -1477,8 +1358,6 @@ Commands:
   get-state                          Get audio recorder state (isRecording, isPaused, durationMs, etc.)
   eval <expression>                  Evaluate arbitrary JS in app context
   eval-async <expression>            Evaluate a Promise-returning expression in app context
-  eval-ref <team/ref>                Evaluate a named ref from scripts/agentic/teams/*/evals*.json
-  eval-ref --list                    List named eval refs for the current app
   can-go-back                        Check if navigation can go back
   go-back                            Navigate back
   press-test-id <testId> [--value true|false]
@@ -1488,7 +1367,6 @@ Commands:
   clear-step-hud                     Clear the in-app HUD overlay
   scroll-view [--test-id <id>] [--offset <n>] [--animated|--no-animated]
                                      Scroll a ScrollView/FlatList/FlashList (default: offset=300, no-animated)
-  check-pre-conditions <json-array>  Evaluate registered pre-conditions for the current app
   reload                             Reload the JS bundle via Page.reload
   screenshot [label]                 Take a screenshot (dispatches per-platform)
   list-devices                       List all connected agentic devices
@@ -1596,12 +1474,20 @@ async function main() {
     process.exit(1);
   }
 
+  // Recipe execution must refuse ambiguous targets before any app mutation.
+  if (process.env.AUDIOLAB_RECIPE_PLATFORM && targets.length !== 1) {
+    throw new Error('Recipe proof requires exactly one selected device.');
+  }
+
   // -- Dispatch to target(s) -----------------------------------------------
   const results = [];
   for (const target of targets) {
     const client = await createWSClient(target.wsUrl, timeout, WebSocketImpl);
     try {
       const platform = await cdpEval(client, 'globalThis.__AGENTIC__?.platform').catch(() => '') || '';
+      if (process.env.AUDIOLAB_RECIPE_PLATFORM && platform !== process.env.AUDIOLAB_RECIPE_PLATFORM) {
+        throw new Error(`Requested ${process.env.AUDIOLAB_RECIPE_PLATFORM} proof, but the selected runtime is ${platform || 'unknown'}.`);
+      }
       const result = await handler(client, args.slice(1), {
         deviceName: target.deviceName,
         platform,

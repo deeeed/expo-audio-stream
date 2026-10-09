@@ -56,6 +56,7 @@ const APP_ROOT = process.env.APP_ROOT || process.cwd();
 // Resolve playwright from APP_ROOT's node_modules (not this script's location)
 const require = createRequire(path.join(APP_ROOT, 'package.json'));
 const { chromium } = require('playwright');
+const { resolveMetroPort } = require(path.join(__dirname, 'lib/runtime-config.cjs'));
 
 // Read a value from agentic.conf
 function readConf(key, fallback) {
@@ -73,7 +74,7 @@ function readConf(key, fallback) {
 // Configuration
 // ---------------------------------------------------------------------------
 
-const PORT = Number.parseInt(process.env.WATCHER_PORT || readConf('AGENTIC_PORT', '7365'), 10);
+const PORT = resolveMetroPort(process.env, readConf('AGENTIC_PORT', '7365'));
 const HEADLESS = process.env.WEB_HEADLESS === 'true';
 const TIMEOUT = Number.parseInt(process.env.WEB_TIMEOUT || '30000', 10);
 const CDP_PORT = Number.parseInt(process.env.CDP_PORT || readConf('AGENTIC_CDP_PORT', '9222'), 10);
@@ -182,8 +183,8 @@ async function cmdLaunch() {
     headless: HEADLESS,
     args: launchArgs,
   };
-  if (!HEADLESS) {
-    launchOptions.channel = 'chrome';
+  if (process.env.WEB_BROWSER_CHANNEL || !HEADLESS) {
+    launchOptions.channel = process.env.WEB_BROWSER_CHANNEL || 'chrome';
   }
   const browser = await chromium.launch(launchOptions);
 
