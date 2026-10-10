@@ -99,12 +99,10 @@ simulator_app_installed() {
 physical_ios_app_installed() {
   if xcrun devicectl device info apps --timeout 10 --device "$IOS_DEVICE_UDID" 2>/dev/null | grep -Fq "$BUNDLE_ID_IOS"; then return 0; fi
   # CoreDevice on iOS 26 can return an empty inventory after a successful install.
-  if ! command -v idb >/dev/null; then return 1; fi
+  # The selected-device installation service remains available on those phones.
   launch_stage ios-app-inventory 10 "device=$IOS_DEVICE_UDID" | python3 -c '
 import json,sys
-bundle=sys.argv[1]
-apps=[json.loads(line) for line in sys.stdin if line.strip()]
-sys.exit(0 if any(app.get("bundle_id")==bundle for app in apps) else 1)
+sys.exit(0 if sys.argv[1] in json.load(sys.stdin) else 1)
 ' "$BUNDLE_ID_IOS"
 }
 
@@ -123,12 +121,18 @@ resolve_ios_workspace_and_scheme() {
     local setup_script="${APP_ROOT}/scripts/setup-env.sh"
     if [ -x "$setup_script" ]; then
       info "Preparing iOS prebuild for variant ${variant}..."
-      (cd "$APP_ROOT" && "$setup_script" "$variant" force)
+      # CocoaPods host stubs must use the selected Xcode SDK, not a newer CLT SDK.
+      (cd "$APP_ROOT" && SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" "$setup_script" "$variant" force)
     else
       fail "Missing iOS workspace for variant ${variant}: ${workspace_path}"
       fail "Run APP_VARIANT=${variant} yarn expo prebuild --clean"
       exit 1
     fi
+  fi
+
+  if [ ! -d "$workspace_path" ]; then
+    fail "iOS prebuild did not create ${workspace_path}; resolve the CocoaPods error before building."
+    exit 1
   fi
 
   IOS_WORKSPACE_PATH="$workspace_path"

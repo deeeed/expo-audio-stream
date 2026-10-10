@@ -12,8 +12,7 @@
     "yarn": "{{home}}/.asdf/shims/yarn",
     "adb": "/opt/homebrew/bin/adb",
     "gradle": "{{appRoot}}/android/gradlew",
-    "ios-python": "{{repo}}/.agent/tools/ios/bin/python",
-    "idb": "{{home}}/dotfiles/bin/idb"
+    "ios-python": "{{repo}}/.agent/tools/ios/bin/python"
   },
   "stages": {
     "simulator-boot": {
@@ -191,12 +190,10 @@
       "timeoutSeconds": 35
     },
     "ios-app-inventory": {
-      "tool": "idb",
+      "tool": "ios-python",
       "argv": [
-        "list-apps",
-        "--udid",
-        "{{device}}",
-        "--json"
+        "{{repo}}/scripts/agentic/lib/ios-apps.py",
+        "{{device}}"
       ],
       "parameters": {
         "device": {
