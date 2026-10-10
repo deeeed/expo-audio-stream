@@ -25,7 +25,7 @@ test('relative Sherpa recipe paths resolve and select the right app', async () =
   assert.equal(JSON.parse(stdout).app, 'sherpa-voice');
 });
 
-test('gateway-quoted recipe and artifact paths reach the hook unchanged', async t => {
+test('farm hooks preserve quoted paths across support roots and service PATHs', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-hook-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const runnerDir = path.join(root, 'scripts/agentic/recipe');
@@ -33,14 +33,24 @@ test('gateway-quoted recipe and artifact paths reach the hook unchanged', async 
   await fs.writeFile(path.join(runnerDir, 'run.mjs'), 'console.log(JSON.stringify(process.argv.slice(2)))');
   const recipe = path.join(root, 'input recipe.json');
   const artifacts = path.join(root, 'proof artifacts');
+  const support = path.join(root, 'support space');
+  await fs.symlink(path.join(repoRoot, 'farmslot'), support);
+  const configDir = path.join(root, 'scripts/agentic/lib');
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.copyFile(path.join(repoRoot, 'scripts/agentic/lib/run-farm-hook.sh'), path.join(configDir, 'run-farm-hook.sh'));
   const project = JSON.parse(await fs.readFile(path.join(repoRoot, 'farmslot/projects/audiolab-farm/project.json'), 'utf8'));
   const variables = { farmslot_dir: path.join(repoRoot, 'farmslot'), repo: root, metro_port: '7466', cdp_port: '7676', platform: 'web', simulator: '', adb_serial: '', recipe_path: `'${recipe}'`, artifacts_dir: `'${artifacts}'` };
-  const command = project.hooks.recipe_run.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key]);
-  const { stdout } = await execute('bash', ['-c', command], { env: { ...process.env, AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
-  const args = JSON.parse(stdout);
-  assert.equal(args[1], recipe);
-  assert.equal(args[args.indexOf('--artifacts-dir') + 1], artifacts);
-  assert.equal(args[args.indexOf('--platform') + 1], 'web');
+  for (const farmslotRoot of [variables.farmslot_dir, support, `~/${path.relative(os.homedir(), support)}`]) {
+    const scoped = { ...variables, farmslot_dir: farmslotRoot };
+    const command = project.hooks.recipe_run.replace(/\{\{(\w+)\}\}/g, (_, key) => scoped[key]);
+    for (const shellPath of [process.env.PATH, '/usr/bin:/bin:/usr/sbin:/sbin']) {
+      const { stdout } = await execute('bash', ['-c', command], { env: { ...process.env, PATH: shellPath, AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
+      const args = JSON.parse(stdout);
+      assert.equal(args[1], recipe);
+      assert.equal(args[args.indexOf('--artifacts-dir') + 1], artifacts);
+      assert.equal(args[args.indexOf('--platform') + 1], 'web');
+    }
+  }
 });
 
 test('web preflight launches Metro and a headless browser', async t => {

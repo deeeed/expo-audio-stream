@@ -26,14 +26,14 @@
     ]
   },
   "hooks": {
-    "setup": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
-    "post_merge_install": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
-    "preflight": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
-    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+    "setup": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "post_merge_install": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
     "dev_server_check": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
     "recipe_action_manifest": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" manifest",
     "recipe_doctor": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" doctor --platform {{platform}}",
-    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}}",
+    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}}",
     "recycle": "if [ \"{{platform}}\" = ios ]; then xcrun simctl shutdown \"{{simulator}}\"; fi"
   },
   "health": {
@@ -98,7 +98,7 @@
         "port": "{{metro_port}}"
       },
       "hooks": {
-        "boot": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
         "health": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
         "shutdown": "lsof -nP -tiTCP:{{metro_port}} -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null; true"
       }
@@ -113,9 +113,9 @@
         "port": "{{cdp_port}}"
       },
       "hooks": {
-        "boot": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
         "health": "curl --fail --silent http://127.0.0.1:{{cdp_port}}/json/version >/dev/null",
-        "shutdown": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
+        "shutdown": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
       }
     }
   },
@@ -344,7 +344,7 @@
   "slot_actions": {
     "launch-app": {
       "label": "Launch Audiolab app",
-      "command": "bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
       "description": "Launch the assigned development client after acquiring its device and Metro capabilities."
     }
   },
