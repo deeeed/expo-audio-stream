@@ -26,8 +26,8 @@
     ]
   },
   "hooks": {
-    "setup": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
-    "post_merge_install": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "setup": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
+    "post_merge_install": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
     "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
     "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
     "dev_server_check": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
@@ -168,9 +168,7 @@
       "NODE_ENV": "development",
       "EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE": "1",
       "AUDIOLAB_APP": "playground",
-      "RECIPE_LIBRARY_PATH": "audiolab=scripts/agentic/recipe",
-      "IOS_DEVICE_UDID": "{{ios_device_udid}}",
-      "IOS_CDP_DEVICE_ID": "{{ios_inspector_id}}"
+      "RECIPE_LIBRARY_PATH": "audiolab=scripts/agentic/recipe"
     },
     "domains": {
       "playground": {

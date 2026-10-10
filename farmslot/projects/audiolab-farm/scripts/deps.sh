@@ -9,7 +9,7 @@ COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn install --immutable # NOSONAR: locked boo
 (cd apps/playground && yarn build:deps)
 bash "$SCRIPT_DIR/prepare-web.sh" "$PWD"
 
-if [[ -n "${IOS_DEVICE_UDID:-}" ]] && [[ ! -x "$PWD/.agent/tools/ios/bin/python" ]]; then
+if [[ "${IOS_DEVICE_UDID:-}" =~ ^[A-Fa-f0-9-]{16,36}$ ]] && [[ ! -x "$PWD/.agent/tools/ios/bin/python" ]]; then
   /opt/homebrew/bin/python3.12 -m venv "$PWD/.agent/tools/ios"
   PIP_CACHE_DIR="$PWD/.agent/cache/pip" "$PWD/.agent/tools/ios/bin/pip" --isolated install \
     --index-url https://pypi.org/simple pymobiledevice3==11.26.0

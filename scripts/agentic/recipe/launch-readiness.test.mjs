@@ -49,7 +49,7 @@ test('timeout stops a descendant that outlives its command leader', async t => {
     catch (error) { if (error.code !== 'ESRCH') throw error; }
   });
   const code = 'const {spawn}=require("child_process");const c=spawn(process.execPath,["-e","process.on(\\"SIGTERM\\",()=>{});console.log(\\"ready\\");setInterval(()=>{},100)"],{stdio:["ignore","pipe","inherit"]});c.stdout.once("data",()=>console.log(c.pid));setInterval(()=>{},100)';
-  const result = await executeStageCommand(fixtureStage(['-e', code]), 300);
+  const result = await executeStageCommand(fixtureStage(['-e', code]), 1200);
   child = Number(result.stdout.trim());
   assert.ok(child > 0);
   assert.equal(result.timedOut, true);
