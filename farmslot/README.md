@@ -1,6 +1,6 @@
 # Audiolab farm pack
 
-This pack owns the existing `audiolab-farm` project. Keep the registered `macpro-audiolab-*`, `macwork-audiolab-*` and `mini-audiolab-*` pool entries. Do not onboard a second project for this repo.
+This pack owns the existing `audiolab-farm` project. Keep the existing registered `audiolab-farm` pool entries. Do not onboard a second project for this repo.
 
 For the existing fleet, deploy `projects/audiolab-farm` into the registered project directory and its node support bundles after review. Preserve each slot's repo, simulator, ports and lifecycle state. The product repo supplies the shared recipe library; this pack supplies infrastructure hooks and workflow checklists.
 
