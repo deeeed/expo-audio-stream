@@ -11,6 +11,33 @@ import { selectIOSDevice, physicalIOSDeviceForTarget, nativeTargetKey } from '..
 const execute = promisify(execFile);
 const fixtureStage = argv => ({ executable: process.execPath, argv, cwd: process.cwd(), appRoot: process.cwd(), mode: 'run', timeoutSeconds: 2 });
 
+test('Sherpa Android validates assigned reverse mapping after cold launch', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-sherpa-launch-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const app = path.join(directory, 'apps/sherpa-voice');
+  const bin = path.join(directory, 'bin');
+  for (const folder of [bin, 'scripts/agentic', 'apps/sherpa-voice/scripts/agentic',
+    'apps/sherpa-voice/android/app/src/main/res/values', 'apps/sherpa-voice/android/app/src/main/res/xml']) {
+    await fs.mkdir(path.join(directory, folder), { recursive: true });
+  }
+  for (const name of ['preflight.sh', 'android-doctor.sh']) {
+    await fs.copyFile(new URL(`../../../apps/sherpa-voice/scripts/agentic/${name}`, import.meta.url), path.join(app, 'scripts/agentic', name));
+  }
+  await fs.writeFile(path.join(app, 'scripts/sync-android-dev-config.sh'), '#!/bin/sh\nexit 0\n');
+  await fs.writeFile(path.join(directory, 'scripts/agentic/preflight.sh'), '#!/bin/sh\ntouch "$LAUNCH_MARKER"\n');
+  await fs.writeFile(path.join(bin, 'git'), '#!/bin/sh\nprintf "%s\\n" "$FIXTURE_REPO"\n', { mode: 0o755 });
+  await fs.writeFile(path.join(bin, 'adb'), '#!/bin/sh\ntest -f "$LAUNCH_MARKER" || exit 1\nprintf "tcp:7464 tcp:7464\\ntcp:8081 tcp:8188\\n"\n', { mode: 0o755 });
+  await fs.writeFile(path.join(app, 'android/app/src/main/res/values/dev_server_port.xml'), '<integer name="react_native_dev_server_port">7464</integer>');
+  await fs.writeFile(path.join(app, 'android/app/src/main/res/xml/network_security_config.xml'), '<base-config cleartextTrafficPermitted="true" />');
+  await fs.writeFile(path.join(app, 'android/app/src/main/AndroidManifest.xml'), '<data android:scheme="sherpa-voice-development"/><data android:scheme="exp+sherpa-voice-development"/>');
+  const { stdout } = await execute('bash', [path.join(app, 'scripts/agentic/preflight.sh')], {
+    timeout: 2000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FIXTURE_REPO: directory,
+      LAUNCH_MARKER: path.join(directory, 'launched'), PLATFORM: 'android', APP_VARIANT: 'development',
+      WATCHER_PORT: '7464', ADB_SERIAL: 'assigned-pixel' },
+  });
+  assert.match(stdout, /adb reverse OK for assigned-pixel/);
+});
+
 test('physical capture tools recover after an interrupted package install', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-tools-retry-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
