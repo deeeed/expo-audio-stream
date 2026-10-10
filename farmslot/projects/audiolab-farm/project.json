@@ -109,13 +109,23 @@
       "streamable": true,
       "controllable": true,
       "watch": {
-        "type": "port-listen",
-        "port": "{{cdp_port}}"
+        "type": "pid-file",
+        "path": "{{browser_pid_file}}"
       },
       "hooks": {
-        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+        "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"{{browser_pid_file}}\"",
         "health": "curl --fail --silent http://127.0.0.1:{{cdp_port}}/json/version >/dev/null",
         "shutdown": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
+      },
+      "actions": {
+        "ready": {
+          "label": "Check app bridge",
+          "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" browser-health \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"{{browser_pid_file}}\"",
+          "timeoutMs": 400000,
+          "refresh": [
+            "resources"
+          ]
+        }
       }
     }
   },
@@ -163,6 +173,7 @@
     ]
   },
   "vars": {
+    "browser_pid_file": ".agent/browser.pid",
     "recipe_runner_resolve_cmd": "command -v node",
     "mark_cmd": "farmslot-agent mark"
   },
@@ -251,9 +262,8 @@
             "action": "boot"
           },
           "health": {
-            "kind": "resource",
-            "resource_id": "browser",
-            "action": "health"
+            "kind": "slot-action",
+            "action_id": "browser.ready"
           },
           "release": {
             "kind": "resource",

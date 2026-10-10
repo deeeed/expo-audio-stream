@@ -91,6 +91,90 @@ test('file recipes cannot read outside the selected project root', async t => {
   await assert.rejects(execute(process.execPath, [cli, 'validate', file], { cwd: repoRoot }), /outside|escape|within|relative/i);
 });
 
+test('browser launch waits for its child bridge and cleans up failed startup', async t => {
+  for (const scenario of ['app', 'timeout', 'stuck', 'kernel']) {
+    const fail = scenario === 'timeout' || scenario === 'stuck';
+    const kernel = scenario === 'kernel';
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-browser-ready-'));
+    const mock = path.join(root, 'node_modules/playwright');
+    await fs.mkdir(mock, { recursive: true });
+    await fs.writeFile(path.join(root, 'package.json'), '{}');
+    await fs.writeFile(path.join(mock, 'index.js'), `
+      const fs = require('node:fs');
+      exports.chromium = { launch: async () => {
+        fs.writeFileSync('child-pid', String(process.pid));
+        const live = setInterval(() => {}, 50);
+        const page = {
+          on() {}, goto: async () => {}, addInitScript: async () => {},
+          evaluate: async () => ({ width: 1280, height: 720 }),
+          waitForFunction: async () => {
+            fs.writeFileSync('waiting', 'yes');
+            while (!fs.existsSync('ready')) {
+              if (fs.existsSync('closed')) throw new Error('closed');
+              await new Promise(resolve => setTimeout(resolve, 10));
+            }
+          },
+        };
+        return {
+          newBrowserCDPSession: async () => ({ send: async () => ({ processInfo: [{ type: 'browser', id: process.pid }] }), detach: async () => {} }),
+          newContext: async () => ({ grantPermissions: async () => {}, newPage: async () => page,
+            newCDPSession: async () => ({ send: async () => ({ windowId: 1, bounds: { width: 1280, height: 720 } }), detach: async () => {} }) }),
+          close: async () => {
+            fs.writeFileSync('closed', 'yes');
+            if (process.env.MOCK_HANG_CLOSE === '1') await new Promise(() => {});
+            clearInterval(live);
+          },
+        };
+      } };
+    `);
+    const result = execute(process.execPath, [path.join(repoRoot, 'scripts/agentic/web-browser.mjs'), 'launch', kernel ? '--wait-browser' : '--wait'], {
+      cwd: root, env: { ...process.env, APP_ROOT: root, WEB_BROWSER_PID_FILE: path.join(root, '.agent/browser.pid'), WEB_TIMEOUT: '2000', WEB_STARTUP_TIMEOUT: fail ? '400' : '2000', MOCK_HANG_CLOSE: scenario === 'stuck' ? '1' : '', WEB_HEADLESS: 'true' },
+    });
+    let settled = false;
+    result.then(() => { settled = true; }, () => { settled = true; });
+    t.after(async () => {
+      result.child.kill('SIGTERM');
+      const pid = Number(await fs.readFile(path.join(root, 'child-pid'), 'utf8').catch(() => 0));
+      if (pid) {
+        try { process.kill(pid, 'SIGTERM'); } catch {}
+        for (let attempt = 0; attempt < 100; attempt++) {
+          try { process.kill(pid, 0); } catch { break; }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        try { process.kill(pid, 'SIGKILL'); } catch {}
+      }
+      await result.catch(() => {});
+      await fs.rm(root, { recursive: true, force: true });
+    });
+    const deadline = Date.now() + 1500;
+    while (!await fs.access(path.join(root, 'waiting')).then(() => true, () => false)) {
+      assert.ok(Date.now() < deadline, 'child must reach its bridge wait');
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    if (fail) {
+      await fs.mkdir(path.join(root, '.agent'), { recursive: true });
+      await fs.writeFile(path.join(root, '.agent/web-browser.json'), JSON.stringify({ pid: process.pid, browserPid: process.pid }));
+      await fs.writeFile(path.join(root, '.agent/browser.pid'), String(process.pid));
+      await assert.rejects(result, /Browser startup timed out/);
+      assert.equal(await fs.readFile(path.join(root, 'closed'), 'utf8'), 'yes');
+      assert.equal(JSON.parse(await fs.readFile(path.join(root, '.agent/web-browser.json'), 'utf8')).pid, process.pid);
+      assert.equal(await fs.readFile(path.join(root, '.agent/browser.pid'), 'utf8'), String(process.pid));
+    } else {
+      if (kernel) await result;
+      else assert.equal(settled, false, 'launch must wait for the child bridge');
+      await fs.writeFile(path.join(root, 'ready'), 'yes');
+      assert.match((await result).stdout, /Browser ready in background/);
+      const readyDeadline = Date.now() + 1500;
+      while (!await fs.access(path.join(root, '.agent/web-browser.json')).then(() => true, () => false)) {
+        assert.ok(Date.now() < readyDeadline, 'daemon must survive the kernel acknowledgement');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      process.kill(Number(await fs.readFile(path.join(root, 'child-pid'), 'utf8')), 0);
+      assert.equal(await fs.readFile(path.join(root, '.agent/browser.pid'), 'utf8'), await fs.readFile(path.join(root, 'child-pid'), 'utf8') + '\n');
+    }
+  }
+});
+
 test('file recipes resolve through a symlinked repo path', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-symlink-recipe-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
