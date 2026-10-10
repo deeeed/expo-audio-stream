@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 9999,
-    backgroundColor: 'rgba(0, 0, 0, 0.58)',
+    backgroundColor: Platform.OS === 'android' ? '#222' : 'rgba(0, 0, 0, 0.58)',
     paddingHorizontal: 10,
     paddingVertical: 3,
   },

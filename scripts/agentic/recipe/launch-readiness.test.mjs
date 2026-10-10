@@ -86,6 +86,22 @@ test('physical capture tools recover after an interrupted package install', asyn
   assert.equal(await fs.readFile(path.join(bin, '../attempts'), 'utf8'), 'install\ninstall\n');
 });
 
+test('stage tools use the configured SDK and the executing Node version', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-sdk with spaces-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const bin = path.join(directory, 'platform-tools');
+  await fs.mkdir(bin);
+  const adb = path.join(bin, 'adb');
+  await fs.writeFile(adb, '#!/bin/sh\ntest "$1" = -s && test "$2" = emulator-5580 && test "$5" = sys.boot_completed || exit 1\nprintf "1\\n"\n', { mode: 0o755 });
+  const previous = process.env.ANDROID_HOME;
+  process.env.ANDROID_HOME = directory;
+  t.after(() => { if (previous === undefined) delete process.env.ANDROID_HOME; else process.env.ANDROID_HOME = previous; });
+  const stage = compileStage('android-boot', 'playground', { serial: 'emulator-5580' });
+  assert.equal(stage.executable, adb);
+  assert.equal(await runStage(stage, 2, 'configured-adb'), 0);
+  assert.equal(compileStage('native-deps', 'playground', {}).executable, path.join(path.dirname(process.execPath), 'yarn'));
+});
+
 test('the pack stage allow-list refuses command and argument injection', () => {
   assert.throws(() => compileStage('arbitrary-command', 'playground', {}));
   assert.throws(() => compileStage('metro', '../outside', {}));

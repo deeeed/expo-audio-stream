@@ -186,8 +186,9 @@ if [ "$PLATFORM" = "ios" ]; then
   fi
   if [ "$USE_IOS_PHYSICAL" = true ]; then
     if IOS_PHYSICAL_INFO=$(node "$MONOREPO_ROOT/scripts/agentic/lib/ios-devices.mjs"); then
-      IOS_DEVICE_UDID=$(printf '%s' "$IOS_PHYSICAL_INFO" | python3 -c 'import json,sys;print(json.load(sys.stdin)["udid"])')
-      IOS_PHYSICAL_NAME=$(printf '%s' "$IOS_PHYSICAL_INFO" | python3 -c 'import json,sys;print(json.load(sys.stdin)["name"])')
+      IFS=$'\t' read -r IOS_DEVICE_UDID IOS_PHYSICAL_NAME < <(
+        printf '%s' "$IOS_PHYSICAL_INFO" | python3 -c 'import json,sys;device=json.load(sys.stdin);print(device["udid"]+"\t"+device["name"])'
+      )
       export IOS_DEVICE_UDID
       IOS_DEVICE_MODE=physical
       pass "Physical iOS device selected: ${IOS_PHYSICAL_NAME} (${IOS_DEVICE_UDID})"

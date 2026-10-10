@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
@@ -25,7 +24,9 @@ export function compileStage(id, app, parameters, definitions = manifest) {
     validated[key] = value;
   }
   const appRoot = path.join(repo, 'apps', app);
-  const context = { ...validated, repo, app, appRoot, home: os.homedir() };
+  const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+  const context = { ...validated, repo, app, appRoot, node_bin: path.dirname(process.execPath),
+    ...(androidHome ? { android_home: androidHome } : {}) };
   const render = text => text.replaceAll(/\{\{(\w+)\}\}/g, (_match, key) => {
     if (!Object.hasOwn(context, key)) throw new Error(`Unbound manifest argument: ${key}`);
     return context[key];

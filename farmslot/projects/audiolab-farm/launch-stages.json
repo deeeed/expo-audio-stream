@@ -9,8 +9,8 @@
     "xcodebuild": "/usr/bin/xcodebuild",
     "bash": "/bin/bash",
     "node": "node-runtime",
-    "yarn": "{{home}}/.asdf/shims/yarn",
-    "adb": "/opt/homebrew/bin/adb",
+    "yarn": "{{node_bin}}/yarn",
+    "adb": "{{android_home}}/platform-tools/adb",
     "gradle": "{{appRoot}}/android/gradlew",
     "ios-python": "{{repo}}/.agent/tools/ios/bin/python"
   },
