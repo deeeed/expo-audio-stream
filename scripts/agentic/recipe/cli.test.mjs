@@ -91,6 +91,28 @@ test('file recipes cannot read outside the selected project root', async t => {
   await assert.rejects(execute(process.execPath, [cli, 'validate', file], { cwd: repoRoot }), /outside|escape|within|relative/i);
 });
 
+test('single-step execution does not replay earlier side effects', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-single-step-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'apps/playground'), { recursive: true });
+  const recipe = path.join(root, 'recipe.json');
+  const artifacts = path.join(root, 'artifacts');
+  await fs.writeFile(recipe, JSON.stringify({
+    $schema: 'https://farmslot.io/schemas/recipe-v1.schema.json',
+    title: 'Observe without starting a recording',
+    workflow: { entry: 'start', nodes: {
+      start: { action: 'command', cmd: 'touch recording-started', intent: 'Start a recording.', next: 'observe' },
+      observe: { action: 'command', cmd: 'printf observed', intent: 'Observe the existing state.', next: 'done' },
+      done: { action: 'end', status: 'pass' },
+    } },
+  }));
+  await execute(process.execPath, [cli, 'run', recipe, '--step', 'observe', '--no-hud', '--platform', 'web', '--device', 'web', '--project-root', root, '--artifacts-dir', artifacts], { cwd: root });
+  assert.equal(await fs.access(path.join(root, 'recording-started')).then(() => true, () => false), false);
+  const trace = JSON.parse(await fs.readFile(path.join(artifacts, 'trace.json'), 'utf8'));
+  assert.deepEqual(trace.entries.filter(entry => entry.action === 'command').map(entry => entry.nodeId), ['observe']);
+  assert.equal(JSON.parse(await fs.readFile(path.join(artifacts, 'summary.json'), 'utf8')).stopAfterNode, 'observe');
+});
+
 test('browser launch waits for its child bridge and cleans up failed startup', async t => {
   for (const scenario of ['app', 'timeout', 'stuck', 'kernel']) {
     const fail = scenario === 'timeout' || scenario === 'stuck';

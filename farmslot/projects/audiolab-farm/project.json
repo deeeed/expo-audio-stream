@@ -209,10 +209,10 @@
           "class": "low",
           "resources": [
             {
-              "id": "{{metro_port}}",
+              "id": "dev-server",
               "kind": "port",
               "access": "exclusive",
-              "scope": "machine"
+              "scope": "slot"
             }
           ]
         },
@@ -248,10 +248,10 @@
           "class": "low",
           "resources": [
             {
-              "id": "{{cdp_port}}",
+              "id": "browser",
               "kind": "port",
               "access": "exclusive",
-              "scope": "machine"
+              "scope": "slot"
             }
           ]
         },
@@ -284,10 +284,10 @@
           "class": "medium",
           "resources": [
             {
-              "id": "{{simulator}}",
+              "id": "ios-sim",
               "kind": "device",
               "access": "exclusive",
-              "scope": "machine"
+              "scope": "slot"
             }
           ]
         },
@@ -321,10 +321,10 @@
           "class": "medium",
           "resources": [
             {
-              "id": "{{adb_serial}}",
+              "id": "android-emu",
               "kind": "device",
               "access": "exclusive",
-              "scope": "machine"
+              "scope": "slot"
             }
           ]
         },

@@ -3,7 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { Command } from 'commander';
-import { readRecipeCliJsonFileWithinRoot } from '@farmslot/recipe-runner/cli/support';
+import { readRecipeCliJsonFileWithinRoot, parseRecipeParamAssignments } from '@farmslot/recipe-runner/cli/support';
+import { extractWorkflowGraph } from '@farmslot/recipe-runner';
 import { buildDiscoveryIndex, findRecipe, registerDiscoveryCommands } from '@farmslot/recipe-cli';
 import { manifest, actionNames, library, repoRoot, createAudiolabHost, recipeApp, appDomain, appRootFor, resolveDevice, matrixDevices, selectMatrixDevice, captureFailureDiagnostics } from './host.mjs';
 
@@ -47,14 +48,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
     const app = values.app ?? recipeApp(recipeName) ?? documentDomain ?? process.env.AUDIOLAB_APP ?? (path.basename(process.cwd()) === 'sherpa-voice' ? 'sherpa-voice' : 'playground');
     const appRoot = appRootFor(projectRoot, app);
     const domain = appDomain(app);
-    const params = Object.fromEntries((values.param ?? []).map(arg => {
-      const split = arg.indexOf('=');
-      if (split < 1) throw new Error('Parameters require key=value.');
-      const raw = arg.slice(split + 1);
-      let value;
-      try { value = JSON.parse(raw); } catch { value = raw; }
-      return [arg.slice(0, split), value];
-    }));
+    const params = parseRecipeParamAssignments(values.param ?? []);
     const platforms = (values.matrix ?? values.platform).split(',').map(value => value.trim());
     for (const platform of platforms) {
       if (!['web', 'ios', 'android'].includes(platform)) throw new Error(`Unknown platform: ${platform}`);
@@ -86,7 +80,27 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
         noHud: values['no-hud'] || requested.endsWith('expo.config') || requested.endsWith('expo.config.recipe.json'),
       });
       const { runner } = host;
-      const request = host.request({ recipePath: exists ? local : match.recipe.path,
+      const recipePath = exists ? local : match.recipe.path;
+      let selectedRecipe;
+      if (values.step) {
+        const root = await fs.realpath(projectRoot);
+        const file = await fs.realpath(recipePath);
+        const document = await readRecipeCliJsonFileWithinRoot(root, path.relative(root, file));
+        if (!document.workflow?.nodes?.[values.step]) throw new Error(`Unknown recipe step: ${values.step}`);
+        selectedRecipe = { ...document, workflow: { ...document.workflow, entry: values.step } };
+        const retained = extractWorkflowGraph(selectedRecipe).mainNodeIds;
+        if (document.workflow.teardown) {
+          for (const id of extractWorkflowGraph({ ...document, workflow: { ...document.workflow, entry: document.workflow.teardown } }).mainNodeIds) retained.add(id);
+        }
+        selectedRecipe.workflow.nodes = Object.fromEntries(Object.entries(document.workflow.nodes).filter(([id]) => retained.has(id)));
+        if (document.proofTargets) {
+          const linked = new Set(Object.values(selectedRecipe.workflow.nodes).flatMap(node => node.proves ?? []));
+          const targets = document.proofTargets.filter(target => linked.has(target.id));
+          if (targets.length) selectedRecipe.proofTargets = targets;
+          else delete selectedRecipe.proofTargets;
+        }
+      }
+      const request = host.request({ ...(selectedRecipe ? { recipeDocument: selectedRecipe } : { recipePath }),
         artifactsDir: platforms.length > 1 ? path.join(artifactRoot, platform) : artifactRoot,
         params, ...(values.step ? { stopAfterNode: values.step } : {}),
       });

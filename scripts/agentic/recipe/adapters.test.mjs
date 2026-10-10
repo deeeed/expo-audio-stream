@@ -6,8 +6,8 @@ import os from 'node:os';
 import { createRecipeRunner } from '@farmslot/recipe-runner';
 import { validateRecipeCliInput } from '@farmslot/recipe-runner/cli/support';
 import { PNG } from 'pngjs';
-import { manifest, selectMatrixDevice, resolveDevice } from './host.mjs';
-import { createAdapters } from './adapters.mjs';
+import { manifest, selectMatrixDevice, resolveDevice, createAudiolabHost } from './host.mjs';
+import { createAdapters, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
 
 async function fixture(t, platform = 'web', screenshot = null) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-adapter-'));
@@ -51,6 +51,28 @@ test('probe failure wins over its successful condition', async t => {
   await assert.rejects(adapter('audiolab.query').execute({ expression: 'probe',
     assert: { field: 'ready', operator: 'eq', value: true },
     fail_when: { field: 'failed', operator: 'eq', value: true }, poll: true }), /failed early/);
+});
+
+test('offline validation rejects unknown named queries before runtime access', async () => {
+  const host = createAudiolabHost({ app: 'playground', platform: 'web', device: 'web', noHud: true });
+  await assert.rejects(host.runner.preflight(host.request({
+    recipeDocument: { $schema: 'https://farmslot.io/schemas/recipe-v1.schema.json', title: 'Typo in readiness query',
+      workflow: { entry: 'inspect', nodes: {
+        inspect: { action: 'audiolab.query', ref: 'missing-query', intent: 'Read app readiness.', next: 'done' },
+        done: { action: 'end', status: 'pass' },
+      } },
+    }, artifactsDir: '/tmp/unused-audiolab-query-validation',
+  })), /enum|manifest|invalid/i);
+});
+
+test('offline readiness fixtures reject a contradictory catalogue assertion', t => {
+  const query = getQueryCatalogue('playground')['playground.record_screen_visible'];
+  const original = query.assert;
+  t.after(() => { query.assert = original; });
+  assert.equal(validateQueryCatalogue('playground'), 2);
+  assert.equal(validateQueryCatalogue('sherpa-voice'), 2);
+  query.assert = { field: 'visible', operator: 'eq', value: false };
+  assert.throws(() => validateQueryCatalogue('playground'), /fixtures disagree/);
 });
 
 test('boolean false reaches the real bridge command', async t => {

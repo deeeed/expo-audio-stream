@@ -13,6 +13,30 @@ const queries = JSON.parse(await fs.readFile(new URL('./queries.json', import.me
 const source = { kind: 'bundled', trust: 'trusted', name: 'audiolab' };
 
 const nodeFile = nodeId => nodeId.replaceAll('/', '-');
+export function getQueryCatalogue(app) {
+  const catalogue = queries[app];
+  if (!catalogue) throw new Error(`Unknown app query catalogue: ${app}`);
+  return catalogue;
+}
+
+export function resolveQuery(app, node) {
+  const spec = node.ref ? getQueryCatalogue(app)[node.ref] : node;
+  if (!spec?.expression) throw new Error(`Unknown ${app} probe: ${node.ref ?? '<expression missing>'}`);
+  return spec;
+}
+
+export function validateQueryCatalogue(app) {
+  let count = 0;
+  for (const ref of Object.keys(getQueryCatalogue(app))) {
+    const spec = resolveQuery(app, { ref });
+    if (!spec.fixtures) continue;
+    if (!spec.assert || !checkAssert(parseRaw(spec.fixtures.pass), spec.assert) || checkAssert(parseRaw(spec.fixtures.fail), spec.assert)) {
+      throw new Error(`Readiness fixtures disagree with ${app} probe ${ref}`);
+    }
+    count++;
+  }
+  return count;
+}
 export async function readRecentMetroLog(appRoot) {
   const log = await fs.readFile(process.env.METRO_LOG ?? path.join(appRoot, '.agent/metro.log'), 'utf8').catch(error => {
     if (error.code === 'ENOENT') return '';
@@ -39,8 +63,7 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
     return result;
   }
   async function query(node) {
-    const spec = node.ref ? queries[app]?.[node.ref] : node;
-    if (!spec?.expression) throw new Error(`Unknown ${app} probe: ${node.ref ?? '<expression missing>'}`);
+    const spec = resolveQuery(app, node);
     const isAsync = node.async ?? spec.async;
     const timeout = node.timeout_ms ?? (node.poll ? 10000 : isAsync ? Number(process.env.EVAL_TIMEOUT ?? 30000) : 60000);
     const deadline = Date.now() + timeout;

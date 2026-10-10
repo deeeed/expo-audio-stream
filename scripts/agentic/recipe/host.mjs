@@ -8,7 +8,7 @@ const { appRootFor } = runtimeConfig;
 export { appRootFor };
 
 import { createRecipeRunner } from '@farmslot/recipe-runner';
-import { createAdapters, createBridge, readRecentMetroLog } from './adapters.mjs';
+import { createAdapters, createBridge, readRecentMetroLog, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
 
 export const libraryRoot = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(libraryRoot, '../../..');
@@ -28,8 +28,15 @@ export function appDomain(app) {
 }
 export function createAudiolabHost({ app, platform, device, projectRoot = repoRoot, noHud = false, updateBaselines = false }) {
   appDomain(app);
+  validateQueryCatalogue(app);
   const appRoot = appRootFor(projectRoot, app);
-  const runner = createRecipeRunner({ actionManifest: manifest,
+  const probe = manifest.actions['audiolab.query'];
+  const scopedManifest = { ...manifest, actions: { ...manifest.actions, 'audiolab.query': {
+    ...probe, schema: { ...probe.schema, properties: { ...probe.schema.properties,
+      ref: { ...probe.schema.properties.ref, enum: Object.keys(getQueryCatalogue(app)) },
+    } }, examples: probe.examples.map(example => ({ ...example, ref: 'route' })),
+  } } };
+  const runner = createRecipeRunner({ actionManifest: scopedManifest,
     adapters: createAdapters({ app, appRoot, platform, device, actions: actionNames, updateBaselines }),
     defaultSource: provenance, hud: noHud ? false : { enabled: true },
     runner: { source: 'audiolab', git_ref: 'checkout', name: 'audiolab-recipe' },

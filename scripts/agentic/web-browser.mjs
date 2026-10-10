@@ -187,7 +187,7 @@ async function waitForBridge(page) {
 // ---------------------------------------------------------------------------
 
 function terminateLauncher(child) {
-  const snapshot = spawnSync('ps', ['-axo', 'pid=,ppid=,pgid='], { encoding: 'utf8' });
+  const snapshot = spawnSync('/bin/ps', ['-axo', 'pid=,ppid=,pgid='], { encoding: 'utf8' });
   const processes = (snapshot.stdout ?? '').trim().split('\n').map(line => {
     const [pid, ppid, pgid] = line.trim().split(/\s+/).map(Number);
     return { pid, ppid, pgid };
@@ -209,61 +209,63 @@ function terminateLauncher(child) {
   child.kill('SIGKILL');
 }
 
+async function launchDaemon() {
+  const waitForBrowser = process.argv.includes('--wait-browser');
+  const waitForReady = waitForBrowser || process.argv.includes('--wait');
+  const logFile = path.join(AGENT_DIR, 'web-browser.log');
+  const logFd = fs.openSync(logFile, 'a');
+  const child = spawn(process.execPath, process.argv.slice(1), {
+    detached: true,
+    stdio: waitForReady ? ['ignore', logFd, logFd, 'ipc'] : ['ignore', logFd, logFd],
+    env: { ...process.env, _WEB_BROWSER_DAEMON: '1' },
+  });
+  fs.closeSync(logFd);
+  if (!waitForReady) {
+    child.unref();
+    console.log('Browser launching in background. Logs → .agent/web-browser.log');
+    return;
+  }
+  let shutdownTimer;
+  let cancelled = false;
+  const cancel = () => {
+    cancelled = true;
+    child.kill('SIGTERM');
+    shutdownTimer ??= setTimeout(() => terminateLauncher(child), 2000);
+  };
+  process.once('SIGINT', cancel);
+  process.once('SIGTERM', cancel);
+  try {
+    await new Promise((resolve, reject) => {
+      let ready = false;
+      let timedOut = false;
+      const timer = setTimeout(() => { timedOut = true; cancel(); }, STARTUP_TIMEOUT);
+      child.on('message', message => {
+        if (cancelled || (message !== 'ready' && !(waitForBrowser && message === 'browser-ready'))) return;
+        ready = true;
+        clearTimeout(timer);
+        resolve();
+      });
+      child.once('exit', code => {
+        clearTimeout(timer);
+        clearTimeout(shutdownTimer);
+        if (!ready) reject(new Error(timedOut ? 'Browser startup timed out' : `Browser exited before readiness (${code})`));
+      });
+      child.once('error', error => { clearTimeout(timer); reject(error); });
+    });
+  } finally {
+    process.removeListener('SIGINT', cancel);
+    process.removeListener('SIGTERM', cancel);
+  }
+  child.disconnect();
+  child.unref();
+  console.log('Browser ready in background. Logs → .agent/web-browser.log');
+  return;
+}
+
 async function cmdLaunch() {
   ensureDirs();
 
-  if (!process.env._WEB_BROWSER_DAEMON) {
-    const waitForBrowser = process.argv.includes('--wait-browser');
-    const waitForReady = waitForBrowser || process.argv.includes('--wait');
-    const logFile = path.join(AGENT_DIR, 'web-browser.log');
-    const logFd = fs.openSync(logFile, 'a');
-    const child = spawn(process.execPath, process.argv.slice(1), {
-      detached: true,
-      stdio: waitForReady ? ['ignore', logFd, logFd, 'ipc'] : ['ignore', logFd, logFd],
-      env: { ...process.env, _WEB_BROWSER_DAEMON: '1' },
-    });
-    fs.closeSync(logFd);
-    if (!waitForReady) {
-      child.unref();
-      console.log('Browser launching in background. Logs → .agent/web-browser.log');
-      return;
-    }
-    let shutdownTimer;
-    let cancelled = false;
-    const cancel = () => {
-      cancelled = true;
-      child.kill('SIGTERM');
-      shutdownTimer ??= setTimeout(() => terminateLauncher(child), 2000);
-    };
-    process.once('SIGINT', cancel);
-    process.once('SIGTERM', cancel);
-    try {
-      await new Promise((resolve, reject) => {
-        let ready = false;
-        let timedOut = false;
-        const timer = setTimeout(() => { timedOut = true; cancel(); }, STARTUP_TIMEOUT);
-        child.on('message', message => {
-          if (cancelled || (message !== 'ready' && !(waitForBrowser && message === 'browser-ready'))) return;
-          ready = true;
-          clearTimeout(timer);
-          resolve();
-        });
-        child.once('exit', code => {
-          clearTimeout(timer);
-          clearTimeout(shutdownTimer);
-          if (!ready) reject(new Error(timedOut ? 'Browser startup timed out' : `Browser exited before readiness (${code})`));
-        });
-        child.once('error', error => { clearTimeout(timer); reject(error); });
-      });
-    } finally {
-      process.removeListener('SIGINT', cancel);
-      process.removeListener('SIGTERM', cancel);
-    }
-    child.disconnect();
-    child.unref();
-    console.log('Browser ready in background. Logs → .agent/web-browser.log');
-    return;
-  }
+  if (!process.env._WEB_BROWSER_DAEMON) return launchDaemon();
 
   const baseURL = `http://localhost:${PORT}`;
 
@@ -344,7 +346,7 @@ async function cmdLaunch() {
     // Retry page.goto — Metro may still be starting up
     for (let attempt = 1; attempt <= NAVIGATION_ATTEMPTS; attempt++) {
       try {
-        await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
+        await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: TIMEOUT }); // NOSONAR: navigation retries must finish in sequence on the same page.
         break;
       } catch (err) {
         if (stopping) return;
@@ -406,20 +408,24 @@ async function connectBrowser(timeout = DEFAULT_TIMEOUT) {
   }
 }
 
+function checkBrowserLiveness() {
+  if (BROWSER_PID_FILE && fs.existsSync(BROWSER_PID_FILE)) {
+    try { process.kill(readPidFile(BROWSER_PID_FILE), 0); }
+    catch (error) { if (error.code === 'ESRCH') throw new Error('Chrome exited before app readiness'); }
+  }
+}
+
 async function cmdWaitReady() {
   const deadline = Date.now() + STARTUP_TIMEOUT;
   while (Date.now() < deadline) {
-    if (BROWSER_PID_FILE && fs.existsSync(BROWSER_PID_FILE)) {
-      try { process.kill(readPidFile(BROWSER_PID_FILE), 0); }
-      catch (error) { if (error.code === 'ESRCH') throw new Error('Chrome exited before app readiness'); }
-    }
+    checkBrowserLiveness();
     let attached;
     try {
       const connection = loadConnection();
       const expectedPid = BROWSER_PID_FILE ? readPidFile(BROWSER_PID_FILE) : connection.browserPid;
       if (expectedPid === connection.browserPid) {
-        attached = await connectBrowser(500);
-        if (await getBrowserPid(attached.browser) === expectedPid) {
+        attached = await connectBrowser(500); // NOSONAR: readiness retries must close each connection before opening another.
+        if (await getBrowserPid(attached.browser) === expectedPid) { // NOSONAR: verify ownership before reading the route on this connection.
           const route = await attached.page.evaluate(() => globalThis.__AGENTIC__?.getRoute?.());
           if (route?.pathname) return { ready: true, route };
         }
