@@ -6,7 +6,7 @@ import os from 'node:os';
 import { createRecipeRunner } from '@farmslot/recipe-runner';
 import { validateRecipeCliInput } from '@farmslot/recipe-runner/cli/support';
 import { PNG } from 'pngjs';
-import { manifest, selectMatrixDevice, resolveDevice, createAudiolabHost } from './host.mjs';
+import { manifest, selectMatrixDevice, resolveDevice, createAudiolabHost, captureFailureDiagnostics } from './host.mjs';
 import { createAdapters, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
 
 async function fixture(t, platform = 'web', screenshot = null) {
@@ -73,6 +73,25 @@ test('offline readiness fixtures reject a contradictory catalogue assertion', t 
   assert.equal(validateQueryCatalogue('sherpa-voice'), 2);
   query.assert = { field: 'visible', operator: 'eq', value: false };
   assert.throws(() => validateQueryCatalogue('playground'), /fixtures disagree/);
+});
+
+test('failed-run diagnostics retain bounded Metro and browser logs', async t => {
+  const adapter = await fixture(t);
+  const artifacts = path.join(adapter.root, 'artifacts');
+  await fs.mkdir(path.join(adapter.root, '.agent'), { recursive: true });
+  await fs.mkdir(artifacts, { recursive: true });
+  await fs.writeFile(path.join(artifacts, 'artifact-manifest.json'), JSON.stringify({ artifacts: [] }));
+  const lines = Array.from({ length: 800 }, (_, index) => `startup line ${index}`).join('\n');
+  for (const name of ['metro.log', 'web-browser.log']) await fs.writeFile(path.join(adapter.root, '.agent', name), lines);
+  await captureFailureDiagnostics({ appRoot: adapter.root, platform: 'web', device: 'web', artifactsDir: artifacts });
+  const index = JSON.parse(await fs.readFile(path.join(artifacts, 'artifact-manifest.json'), 'utf8'));
+  for (const name of ['metro.log', 'web-browser.log']) {
+    const relative = `diagnostics/${name}`;
+    assert.equal(index.artifacts.find(entry => entry.path === relative).type, 'log');
+    const retained = await fs.readFile(path.join(artifacts, relative), 'utf8');
+    assert.equal(retained.split('\n').length, 500);
+    assert.ok(retained.startsWith('startup line 300'));
+  }
 });
 
 test('boolean false reaches the real bridge command', async t => {

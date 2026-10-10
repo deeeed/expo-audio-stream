@@ -15,7 +15,7 @@ yarn recipe run sherpa.asr-ui-validate-qwen3 --app sherpa-voice --platform ios -
 
 From either app, `yarn recipe` uses the same runner and selects that app. Recipe ids remain explicit. Native runs require `--platform ios|android` and an assigned device. Set `METRO_PORT` and `CDP_PORT` to the slot values. Web proof can use `CDP_URL` for an isolated browser. The runner refuses broadcast evidence.
 
-`run --dry-run` validates the entire dependency graph without running actions or writing artifacts. `--param key=value` supplies typed parameters. `--matrix web,ios,android` runs each platform into a separate artifact directory. `--step <node>` stops after one root node and still executes teardown. `--update-baselines` explicitly updates a visual baseline. `--no-hud` is available for diagnostics; those captures are not review evidence. Matrix runs discover a separate target for each platform.
+`run --dry-run` validates the entire dependency graph without running actions or writing artifacts. `--param key=value` supplies typed parameters. `--matrix web,ios,android` runs each platform into a separate artifact directory. `--step <node>` enters that root node directly, skips preceding actions, stops after the selected node, and still executes teardown. `--update-baselines` explicitly updates a visual baseline. `--no-hud` is available for diagnostics; those captures are not review evidence. Matrix runs discover a separate target for each platform.
 
 Live runs retain `recipe.json`, `recipe-resolution.json`, `resolved-recipes/`, `summary.json`, `trace.json`, `recipe-invocation.json`, and `artifact-manifest.json`. Validate a retained package with:
 

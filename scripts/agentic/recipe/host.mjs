@@ -8,7 +8,7 @@ const { appRootFor } = runtimeConfig;
 export { appRootFor };
 
 import { createRecipeRunner } from '@farmslot/recipe-runner';
-import { createAdapters, createBridge, readRecentMetroLog, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
+import { createAdapters, createBridge, readRecentMetroLog, readRecentLog, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
 
 export const libraryRoot = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(libraryRoot, '../../..');
@@ -91,8 +91,12 @@ export async function captureFailureDiagnostics({ appRoot, device, platform, art
       await retain('diagnostics/failure.png', await fs.readFile(shot.screenshot), 'screenshot');
     }
   } catch (error) { report.screenshot = { error: error.message }; }
-  const log = await readRecentMetroLog(appRoot).catch(() => '');
-  if (log) await retain('diagnostics/metro.log', log, 'log');
+  for (const [name, contents] of [
+    ['metro.log', await readRecentMetroLog(appRoot).catch(() => '')],
+    ['web-browser.log', await readRecentLog(path.join(appRoot, '.agent/web-browser.log')).catch(() => '')],
+  ]) {
+    if (contents) await retain(`diagnostics/${name}`, contents, 'log');
+  }
   await retain('diagnostics/state.json', JSON.stringify(report, null, 2) + '\n', 'json');
   const manifestPath = path.join(artifactsDir, 'artifact-manifest.json');
   const artifacts = JSON.parse(await fs.readFile(manifestPath, 'utf8'));

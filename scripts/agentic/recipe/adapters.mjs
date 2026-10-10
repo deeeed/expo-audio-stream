@@ -37,12 +37,15 @@ export function validateQueryCatalogue(app) {
   }
   return count;
 }
-export async function readRecentMetroLog(appRoot) {
-  const log = await fs.readFile(process.env.METRO_LOG ?? path.join(appRoot, '.agent/metro.log'), 'utf8').catch(error => {
+export async function readRecentLog(file) {
+  const log = await fs.readFile(file, 'utf8').catch(error => {
     if (error.code === 'ENOENT') return '';
     throw error;
   });
   return log.split('\n').slice(-500).join('\n');
+}
+export function readRecentMetroLog(appRoot) {
+  return readRecentLog(process.env.METRO_LOG ?? path.join(appRoot, '.agent/metro.log'));
 }
 
 export function createBridge({ appRoot, device, platform }) {
