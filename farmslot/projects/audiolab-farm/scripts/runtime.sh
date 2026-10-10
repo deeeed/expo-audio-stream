@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export IOS_DEVICE_UDID="${9:-}"
 source "$(dirname "$0")/env.sh"
 MODE="${1:?mode required}"
 REPO_PATH="${2:?repo required}"

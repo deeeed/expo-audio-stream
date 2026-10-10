@@ -87,6 +87,29 @@ test('farm hooks preserve quoted paths across support roots and service PATHs', 
   }
 });
 
+test('prerequisites preserve deployed paths before checkout and physical hooks fail early', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-prerequisite-hook-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const support = path.join(root, 'support space');
+  await fs.symlink(path.join(repoRoot, 'farmslot'), support);
+  const project = JSON.parse(await fs.readFile(path.join(repoRoot, 'farmslot/projects/audiolab-farm/project.json'), 'utf8'));
+  const env = { ...process.env, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_PYTHON_BIN: '',
+    IOS_DEVICE_UDID: '', FARMSLOT_MACHINE: 'fixture-node' };
+  // Framework #924 resolves remote home-relative roots before rendering hooks.
+  const variables = { farmslot_dir: support, ios_device_udid: '' };
+  const hook = project.hooks.prerequisites.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key]);
+  await execute('bash', ['-c', hook], { env, cwd: root });
+  const udid = '00008101-001348AC1490801E';
+  for (const [script, args] of [
+    ['runtime.sh', ['launch', root, '7465', '7675', 'ios', '', '', '', udid]],
+    ['recipe-hook.sh', ['run', root, 'ios', '', '', 'playground.smoke.navigation', root, udid]],
+  ]) {
+    await assert.rejects(execute('bash', [path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts', script), ...args], { env }),
+      error => /missing Python3.12 on fixture-node, set AUDIOLAB_PYTHON_BIN/.test(error.stderr));
+  }
+  assert.equal(await fs.access(path.join(root, '.agent')).then(() => true, () => false), false);
+});
+
 test('web preflight launches Metro and a headless browser', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-web-hook-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));

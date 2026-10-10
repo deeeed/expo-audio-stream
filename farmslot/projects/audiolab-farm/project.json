@@ -35,7 +35,7 @@
     "recipe_doctor": "\"$AUDIOLAB_NODE_BIN/node\" \"{{repo}}/scripts/agentic/recipe/run.mjs\" doctor --platform {{platform}}",
     "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}} \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
     "recycle": "if [ \"{{platform}}\" = ios ] && [ -z \"{{ios_device_udid}}\" ]; then xcrun simctl shutdown \"{{simulator}}\"; fi",
-    "prerequisites": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash {{farmslot_dir}}/projects/audiolab-farm/scripts/prerequisites.sh"
+    "prerequisites": "IOS_DEVICE_UDID=\"{{ios_device_udid}}\" bash \"{{farmslot_dir}}/projects/audiolab-farm/scripts/prerequisites.sh\""
   },
   "health": {
     "dev_server_log": ".agent/audiolab-metro.log",
