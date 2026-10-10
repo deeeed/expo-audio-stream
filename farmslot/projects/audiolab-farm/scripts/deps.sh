@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/env.sh"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/env.sh"
 cd "${1:?repo path required}"
 export YARN_CACHE_FOLDER="$PWD/.agent/cache/yarn"
 mkdir -p "$YARN_CACHE_FOLDER"
 COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn install --immutable # NOSONAR: locked bootstrap requires workspace prepare, native prebuilts and patch-package lifecycle hooks.
 (cd apps/playground && yarn build:deps)
+bash "$SCRIPT_DIR/prepare-web.sh" "$PWD"

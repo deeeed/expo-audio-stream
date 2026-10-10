@@ -56,7 +56,7 @@ const APP_ROOT = process.env.APP_ROOT || process.cwd();
 // Resolve playwright from APP_ROOT's node_modules (not this script's location)
 const require = createRequire(path.join(APP_ROOT, 'package.json'));
 const { chromium } = require('playwright');
-const { resolveMetroPort } = require(path.join(__dirname, 'lib/runtime-config.cjs'));
+const { resolveMetroPort, webViewport } = require(path.join(__dirname, 'lib/runtime-config.cjs'));
 
 // Read a value from agentic.conf
 function readConf(key, fallback) {
@@ -176,6 +176,8 @@ async function cmdLaunch() {
 
   const launchArgs = [
     `--remote-debugging-port=${CDP_PORT}`,
+    `--window-size=${webViewport.width},${webViewport.height}`,
+    '--force-device-scale-factor=1',
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
   ];
@@ -189,12 +191,21 @@ async function cmdLaunch() {
   const browser = await chromium.launch(launchOptions);
 
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
+    viewport: null,
   });
 
   await context.grantPermissions(['microphone'], { origin: `http://localhost:${PORT}` });
 
   const page = await context.newPage();
+  // Size the native window: a detached CDP client can clear viewport emulation.
+  const windowSession = await context.newCDPSession(page);
+  const { windowId, bounds } = await windowSession.send('Browser.getWindowForTarget');
+  const content = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  await windowSession.send('Browser.setWindowBounds', { windowId, bounds: {
+    width: bounds.width + webViewport.width - content.width,
+    height: bounds.height + webViewport.height - content.height,
+  } });
+  await windowSession.detach();
 
   await page.addInitScript(() => {
     const _AC = window.AudioContext || window.webkitAudioContext;

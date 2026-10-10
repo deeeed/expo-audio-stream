@@ -170,6 +170,7 @@ export function useAsr() {
             const modelType = asrConfig.modelType || 'transducer'
             const perBackendUrl = getWebAsrBackend(modelType)?.modelBaseUrl
             const config: AsrModelConfig = {
+                ...asrConfig,
                 modelDir,
                 modelBaseUrl: perBackendUrl ?? getWebModelBaseUrl('asr'),
                 onProgress: makeWebProgressHandler(setStatusMessage),
