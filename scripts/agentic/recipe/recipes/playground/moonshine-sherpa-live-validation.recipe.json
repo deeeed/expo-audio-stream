@@ -135,26 +135,12 @@
       },
       "wait-sherpa-speech-event": {
         "action": "audiolab.query",
-        "intent": "Wait sherpa speech event.",
+        "intent": "Wait for a completed speaker turn before stopping the live session.",
         "next": "press-stop",
         "assert": {
-          "any": [
-            {
-              "operator": "gte",
-              "field": "speakerEventCounts.speech_start",
-              "value": 1
-            },
-            {
-              "operator": "gte",
-              "field": "speakerEventCounts.turn_final",
-              "value": 1
-            },
-            {
-              "operator": "gte",
-              "field": "sherpaTurnCount",
-              "value": 1
-            }
-          ]
+          "operator": "gte",
+          "field": "sherpaTurnCount",
+          "value": 1
         },
         "fail_when": {
           "operator": "not_null",
