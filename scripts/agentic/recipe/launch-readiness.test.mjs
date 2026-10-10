@@ -11,6 +11,23 @@ import { selectIOSDevice, physicalIOSDeviceForTarget, nativeTargetKey } from '..
 const execute = promisify(execFile);
 const fixtureStage = argv => ({ executable: process.execPath, argv, cwd: process.cwd(), appRoot: process.cwd(), mode: 'run', timeoutSeconds: 2 });
 
+test('physical capture tools recover after an interrupted package install', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-tools-retry-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const bin = path.join(directory, '.agent/tools/ios/bin');
+  await fs.mkdir(bin, { recursive: true });
+  await fs.writeFile(path.join(bin, 'python'), '#!/bin/sh\ntest -f .agent/tools/ios/ready\n', { mode: 0o755 });
+  await fs.writeFile(path.join(bin, 'pip'), '#!/bin/sh\necho install >> .agent/tools/ios/attempts\ntest "$FAIL_INSTALL" != 1 || exit 1\ntouch .agent/tools/ios/ready\n', { mode: 0o755 });
+  const source = await fs.readFile(new URL('../../../farmslot/projects/audiolab-farm/scripts/deps.sh', import.meta.url), 'utf8');
+  const install = source.slice(source.indexOf('if [[ "${IOS_DEVICE_UDID'));
+  const env = { ...process.env, IOS_DEVICE_UDID: '00008101-001348AC1490801E', FAIL_INSTALL: '1' };
+  await assert.rejects(execute('bash', ['-e', '-c', install], { cwd: directory, env }));
+  env.FAIL_INSTALL = '0';
+  await execute('bash', ['-e', '-c', install], { cwd: directory, env });
+  await execute('bash', ['-e', '-c', install], { cwd: directory, env });
+  assert.equal(await fs.readFile(path.join(bin, '../attempts'), 'utf8'), 'install\ninstall\n');
+});
+
 test('the pack stage allow-list refuses command and argument injection', () => {
   assert.throws(() => compileStage('arbitrary-command', 'playground', {}));
   assert.throws(() => compileStage('metro', '../outside', {}));
