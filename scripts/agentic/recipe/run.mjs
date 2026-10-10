@@ -39,7 +39,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
     if (command === 'run' && !values.matrix && !values['dry-run'] && values.device && !values.device.toLowerCase().includes('web') && !process.env.PLATFORM && !args.some(arg => arg === '--platform' || arg.startsWith('--platform='))) throw new Error('Native proof requires --platform ios or android.');
     const projectRoot = path.resolve(values['project-root'] ?? repoRoot);
     const documentPath = path.resolve(recipeName ?? '');
-    const isFile = Boolean(recipeName && await fs.stat(documentPath).then(info => info.isFile(), () => false));
+    const isFile = Boolean(recipeName && await fs.stat(documentPath).then(info => info.isFile(), () => false)); // NOSONAR: metadata only; canonical file contents are confined by the SDK reader below.
     const canonicalRoot = isFile ? await fs.realpath(projectRoot) : projectRoot;
     const canonicalDocument = isFile ? await fs.realpath(documentPath) : documentPath;
     const recipeDocument = isFile ? await readRecipeCliJsonFileWithinRoot(canonicalRoot, path.relative(canonicalRoot, canonicalDocument)) : undefined;

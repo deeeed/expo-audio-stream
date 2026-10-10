@@ -4,5 +4,5 @@ source "$(dirname "$0")/env.sh"
 cd "${1:?repo path required}"
 export YARN_CACHE_FOLDER="$PWD/.agent/cache/yarn"
 mkdir -p "$YARN_CACHE_FOLDER"
-COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn install --immutable
+COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn install --immutable # NOSONAR: locked bootstrap requires workspace prepare, native prebuilts and patch-package lifecycle hooks.
 (cd apps/playground && yarn build:deps)
