@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 import { repoRoot } from './host.mjs';
 
 const execute = promisify(execFile);
+const renderHook = (template, variables) => template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+  if (!Object.hasOwn(variables, key)) throw new Error(`Unbound hook variable: ${key}`);
+  return variables[key];
+});
 const cli = fileURLToPath(new URL('./run.mjs', import.meta.url));
 
 test('public manifest command returns the gateway action contract', async () => {
@@ -73,10 +77,10 @@ test('farm hooks preserve quoted paths across support roots and service PATHs', 
   await fs.mkdir(configDir, { recursive: true });
   await fs.copyFile(path.join(repoRoot, 'scripts/agentic/lib/run-farm-hook.sh'), path.join(configDir, 'run-farm-hook.sh'));
   const project = JSON.parse(await fs.readFile(path.join(repoRoot, 'farmslot/projects/audiolab-farm/project.json'), 'utf8'));
-  const variables = { farmslot_dir: path.join(repoRoot, 'farmslot'), repo: root, metro_port: '7466', cdp_port: '7676', platform: 'web', simulator: '', adb_serial: '', recipe_path: `'${recipe}'`, artifacts_dir: `'${artifacts}'` };
+  const variables = { farmslot_dir: path.join(repoRoot, 'farmslot'), repo: root, metro_port: '7466', cdp_port: '7676', platform: 'web', simulator: '', adb_serial: '', recipe_path: `'${recipe}'`, artifacts_dir: `'${artifacts}'`, ios_device_udid: '', ios_inspector_id: '' };
   for (const farmslotRoot of [variables.farmslot_dir, support, `~/${path.relative(os.homedir(), support)}`]) {
     const scoped = { ...variables, farmslot_dir: farmslotRoot };
-    const command = project.hooks.recipe_run.replace(/\{\{(\w+)\}\}/g, (_, key) => scoped[key]);
+    const command = renderHook(project.hooks.recipe_run, scoped);
     for (const shellPath of [process.env.PATH, '/usr/bin:/bin:/usr/sbin:/sbin']) {
       const { stdout } = await execute('bash', ['-c', command], { env: { ...process.env, PATH: shellPath, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
       const args = JSON.parse(stdout);
@@ -97,7 +101,7 @@ test('prerequisites preserve deployed paths before checkout and physical hooks f
     IOS_DEVICE_UDID: '', FARMSLOT_MACHINE: 'fixture-node' };
   // Framework #924 resolves remote home-relative roots before rendering hooks.
   const variables = { farmslot_dir: support, ios_device_udid: '' };
-  const hook = project.hooks.prerequisites.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key]);
+  const hook = renderHook(project.hooks.prerequisites, variables);
   await execute('bash', ['-c', hook], { env, cwd: root });
   const udid = '00008101-001348AC1490801E';
   for (const [script, args] of [
