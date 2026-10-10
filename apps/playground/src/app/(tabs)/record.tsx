@@ -578,7 +578,7 @@ export default function RecordScreen() {
             setEnableMoonshineSherpaLive(true)
             setEnableLiveTranscription(false)
             setResult(null)
-            moonshineSherpaLive.clear()
+            moonshineSherpaLiveRef.current.clear()
             updateRecordAttributedValidation({
                 audioUri: options.audioUri,
                 error: undefined,
@@ -611,7 +611,7 @@ export default function RecordScreen() {
                     statusMessage: 'Starting live Moonshine + Sherpa session...',
                 })
 
-                await moonshineSherpaLive.startSession({ externalAudio: true })
+                await moonshineSherpaLiveRef.current.startSession({ externalAudio: true })
                 liveStarted = true
 
                 for (
@@ -621,7 +621,7 @@ export default function RecordScreen() {
                 ) {
                     const chunkStartedAt = Date.now()
                     const chunk = Float32Array.from(wav.samples.slice(offset, offset + chunkSize))
-                    await moonshineSherpaLive.processAudioEvent({
+                    await moonshineSherpaLiveRef.current.processAudioEvent({
                         data: chunk,
                         eventDataSize: chunk.byteLength,
                         fileUri: options.audioUri,
@@ -653,7 +653,7 @@ export default function RecordScreen() {
                     progress: 1,
                     statusMessage: 'Finalizing live transcript and speaker turns...',
                 })
-                await moonshineSherpaLive.stopSession({ stopRecorder: false })
+                await moonshineSherpaLiveRef.current.stopSession({ stopRecorder: false })
                 liveStarted = false
                 await sleep(1500)
 
@@ -723,11 +723,11 @@ export default function RecordScreen() {
                 throw validationError
             } finally {
                 if (liveStarted) {
-                    await moonshineSherpaLive.stopSession({ stopRecorder: false }).catch(() => undefined)
+                    await moonshineSherpaLiveRef.current.stopSession({ stopRecorder: false }).catch(() => undefined)
                 }
             }
         },
-        [moonshineSherpaLive, updateRecordAttributedValidation],
+        [updateRecordAttributedValidation],
     )
 
     useEffect(() => {

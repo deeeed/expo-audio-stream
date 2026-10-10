@@ -499,19 +499,25 @@ elif [ "$PLATFORM" = "ios" ]; then
   pass "App launched on ${SIM} → localhost:${PORT}"
 
 elif [ "$PLATFORM" = "android" ]; then
+  ANDROID_ACTIVITY="$(adb -s "${SERIAL}" shell cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p "${BUNDLE_ID_ANDROID}" | tr -d '\r' | tail -n 1)"
+  if [[ "$ANDROID_ACTIVITY" != "${BUNDLE_ID_ANDROID}/"* ]]; then
+    fail "No launcher activity for ${BUNDLE_ID_ANDROID}"
+    exit 1
+  fi
   PREFS_DIR="/data/data/${BUNDLE_ID_ANDROID}/shared_prefs"
   PREFS_FILE="expo.modules.devmenu.sharedpreferences.xml"
   adb -s "${SERIAL}" shell "mkdir -p ${PREFS_DIR} && echo '<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?><map><boolean name=\"isOnboardingFinished\" value=\"true\" /></map>' > ${PREFS_DIR}/${PREFS_FILE}" 2>/dev/null || true
 
   adb -s "${SERIAL}" shell am force-stop "${BUNDLE_ID_ANDROID}" 2>/dev/null || true
   sleep 1
-  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" 2>/dev/null || true
+  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY"
 
   sleep 5
   if ! adb -s "${SERIAL}" shell pidof "${BUNDLE_ID_ANDROID}" >/dev/null 2>&1; then
     info "App exited after launch — retrying..."
     sleep 2
-    adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" 2>/dev/null || true
+    adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY"
   fi
   pass "App launched on ${SERIAL} → ${METRO_HOST}:${PORT}"
 fi

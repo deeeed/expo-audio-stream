@@ -1001,6 +1001,24 @@ const COMMANDS = {
 
     if (platform === 'web') {
       // Web: use CDP Page.captureScreenshot
+      // Wait for decoded assets and painted frames before capturing the web page.
+      const ready = await client.send('Runtime.evaluate', {
+        expression: `(async () => {
+          await new Promise(resolve => {
+            // Slow/broken assets and background frames must remain capturable.
+            const timer = setTimeout(resolve, 500);
+            Promise.allSettled([document.fonts.ready,
+              ...Array.from(document.images, image => image.decode())]).then(() => {
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                clearTimeout(timer);
+                resolve();
+              }));
+            });
+          });
+        })()`,
+        awaitPromise: true,
+      }, 5000);
+      if (ready.exceptionDetails) throw new Error('Web screenshot assets did not become ready');
       const metrics = await client.send('Page.getLayoutMetrics', {}, 5000);
       const viewport = metrics.cssVisualViewport;
       const result = await client.send('Page.captureScreenshot', {
