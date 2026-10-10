@@ -25,6 +25,27 @@ test('relative Sherpa recipe paths resolve and select the right app', async () =
   assert.equal(JSON.parse(stdout).app, 'sherpa-voice');
 });
 
+test('recipe doctor checks the selected checkout and installed bridge wiring', async t => {
+  for (const app of ['playground', 'sherpa-voice']) {
+    const { stdout } = await execute(process.execPath, [cli, 'doctor', '--app', app, '--project-root', repoRoot], { cwd: repoRoot });
+    const result = JSON.parse(stdout);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.checks.some(check => check.id === 'bridge-provider' && check.status === 'pass'));
+  }
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-doctor-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  for (const target of [path.join(root, 'missing'), root]) {
+    if (target === root) await fs.writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'incomplete' }));
+    await assert.rejects(execute(process.execPath, [cli, 'doctor', '--project-root', target], { cwd: repoRoot }), error => {
+      const result = JSON.parse(error.stdout);
+      assert.equal(result.status, 'fail');
+      assert.ok(result.checks.some(check => check.id === 'bridge-provider' && check.status === 'fail'));
+      assert.equal(result.checks.find(check => check.id === 'checkout').status, target === root ? 'pass' : 'fail');
+      return true;
+    });
+  }
+});
+
 test('farm bootstrap permits public installs without a token and preserves a supplied token', async () => {
   const script = path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/env.sh');
   for (const token of [undefined, 'fixture']) {

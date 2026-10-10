@@ -7,6 +7,7 @@ import { readRecipeCliJsonFileWithinRoot, parseRecipeParamAssignments } from '@f
 import { extractWorkflowGraph } from '@farmslot/recipe-runner';
 import { buildDiscoveryIndex, findRecipe, registerDiscoveryCommands } from '@farmslot/recipe-cli';
 import { manifest, actionNames, library, repoRoot, createAudiolabHost, recipeApp, appDomain, appRootFor, resolveDevice, matrixDevices, selectMatrixDevice, captureFailureDiagnostics } from './host.mjs';
+import { checkRecipeCheckout } from './doctor.mjs';
 
 const args = process.argv.slice(2);
 
@@ -69,6 +70,12 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
         continue;
       }
       if (!device && command === 'run' && !values['dry-run']) throw new Error('Native proof requires --device or a slot-injected device.');
+      const doctorChecks = command === 'doctor' ? await checkRecipeCheckout({ projectRoot, appRoot, domain }) : [];
+      if (doctorChecks.some(check => check.status === 'fail')) {
+        console.log(JSON.stringify({ runner_protocol_version: 1, status: 'fail', checks: doctorChecks }, null, 2));
+        failed = true;
+        continue;
+      }
       const index = await buildDiscoveryIndex({ libraries: [library], platform, handlers: actionNames });
       const requested = recipeName ?? `${domain}.expo.config`;
       const local = path.resolve(requested);
@@ -106,7 +113,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
       });
       if (['validate', 'doctor'].includes(command) || values['dry-run']) {
         const plan = await runner.preflight(request);
-        console.log(JSON.stringify(command === 'doctor' ? { runner_protocol_version: 1, status: 'pass', checks: [{ id: 'recipe-plan', status: 'pass', message: 'Action manifest and complete recipe dependency graph are ready.' }] } : { status: 'pass', app, platform, plan }, null, 2));
+        console.log(JSON.stringify(command === 'doctor' ? { runner_protocol_version: 1, status: 'pass', checks: [...doctorChecks, { id: 'recipe-plan', status: 'pass', message: 'Action manifest and complete recipe dependency graph are ready.' }] } : { status: 'pass', app, platform, plan }, null, 2));
       } else if (command === 'run') {
         const result = await runner.run(request);
         console.log(JSON.stringify(result, null, 2));
