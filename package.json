@@ -19,7 +19,10 @@
         "benchmark:diarization:sherpa-python": "node scripts/diarization-benchmark/run-sherpa-python.mjs",
         "verify:diarization-benchmark": "node scripts/diarization-benchmark/verify-contract.mjs",
         "doctor:diarization-benchmark": "node scripts/diarization-benchmark/doctor.mjs",
-        "check": "bash scripts/check.sh"
+        "check": "bash scripts/check.sh",
+        "recipe": "node scripts/agentic/recipe/run.mjs",
+        "recipe:validate": "node scripts/agentic/recipe/validate-all.mjs",
+        "test:recipes": "node --test scripts/agentic/recipe/*.test.mjs scripts/agentic/cdp-bridge.origin.test.mjs"
     },
     "nohoist": [
         "**/react-native",
@@ -33,7 +36,10 @@
     },
     "devDependencies": {
         "@expo/config-plugins": "~57.0.8",
+        "@farmslot/recipe-cli": "0.11.1",
+        "@farmslot/recipe-runner": "0.28.1",
         "@storybook/react-native-web-vite": "^10.2.10",
+        "commander": "^12.0.0",
         "eslint-import-resolver-typescript": "^3.7.0",
         "eslint-plugin-import": "^2.31.0",
         "globals": "^15.8.0",

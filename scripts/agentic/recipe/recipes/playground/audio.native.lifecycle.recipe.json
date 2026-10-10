@@ -1,0 +1,59 @@
+{
+  "$schema": "https://farmslot.io/schemas/recipe-v1.schema.json",
+  "title": "AudioLab Recipe v1 native audio lifecycle",
+  "description": "Runs a native audio extraction probe through the existing app bridge, polls the async result, and records UI evidence.",
+  "proofTargets": [
+    {
+      "id": "native",
+      "claim": "Recipe v1 can drive AudioLab native-module probes through a namespaced action."
+    },
+    {
+      "id": "evidence",
+      "claim": "The runner emits summary, trace, artifact manifest, and screenshot evidence."
+    }
+  ],
+  "workflow": {
+    "entry": "status",
+    "nodes": {
+      "status": {
+        "action": "audiolab.query",
+        "next": "record",
+        "intent": "Read the current AudioLab recorder state through the project bridge.",
+        "ref": "recording-state"
+      },
+      "record": {
+        "action": "ui.navigate",
+        "path": "/(tabs)/record",
+        "next": "extractPreview",
+        "intent": "Open the recorder for audio validation."
+      },
+      "extractPreview": {
+        "action": "audiolab.native_preview",
+        "timeout_ms": 30000,
+        "assert": {
+          "operator": "eq",
+          "value": "success",
+          "field": "status"
+        },
+        "next": "proof",
+        "intent": "Run the native extractPreview probe and wait for its bridged success result.",
+        "proves": [
+          "native"
+        ]
+      },
+      "proof": {
+        "action": "ui.screenshot",
+        "next": "done",
+        "intent": "Preserve the visible audio tools as navigation proof.",
+        "proves": [
+          "evidence"
+        ],
+        "path": "screenshots/audiolab-native-audio-v1.png"
+      },
+      "done": {
+        "action": "end",
+        "status": "pass"
+      }
+    }
+  }
+}

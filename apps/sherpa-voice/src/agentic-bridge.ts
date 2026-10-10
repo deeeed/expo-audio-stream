@@ -1744,7 +1744,7 @@ if (__DEV__) {
         ) => {
             const { testId, offset = 300, animated = false } = options
             try {
-                const tryScroll = (fiber: Record<string, unknown> | null): boolean => {
+                const scrollNode = (fiber: Record<string, unknown> | null): boolean => {
                     if (!fiber) return false
                     const stateNode = fiber.stateNode as Record<string, unknown> | null
                     if (stateNode) {
@@ -1763,6 +1763,11 @@ if (__DEV__) {
                             return true
                         }
                     }
+                    return false
+                }
+                const tryScroll = (fiber: Record<string, unknown> | null): boolean => {
+                    if (!fiber) return false
+                    if (scrollNode(fiber)) return true
                     if (tryScroll(fiber.child as Record<string, unknown> | null)) return true
                     if (tryScroll(fiber.sibling as Record<string, unknown> | null)) return true
                     return false
@@ -1776,10 +1781,13 @@ if (__DEV__) {
                         if (testId) {
                             const anchor = findFiberByTestId(testId)
                             if (anchor) {
-                                scrolled =
-                                    tryScroll(anchor) ||
-                                    tryScroll(anchor.child as Record<string, unknown> | null) ||
-                                    tryScroll(anchor.sibling as Record<string, unknown> | null)
+                                scrolled = tryScroll(anchor)
+                                // Model pickers can be plain Views inside the page's ScrollView.
+                                for (let parent = anchor.return as Record<string, unknown> | null;
+                                    parent && !scrolled;
+                                    parent = parent.return as Record<string, unknown> | null) {
+                                    scrolled = scrollNode(parent)
+                                }
                             }
                         } else {
                             scrolled = tryScroll(rootFiber)
