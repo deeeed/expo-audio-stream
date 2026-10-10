@@ -511,13 +511,13 @@ elif [ "$PLATFORM" = "android" ]; then
 
   adb -s "${SERIAL}" shell am force-stop "${BUNDLE_ID_ANDROID}" 2>/dev/null || true
   sleep 1
-  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY"
+  adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY" # NOSONAR: Assigned development Metro uses local/LAN HTTP; no credentials are passed.
 
   sleep 5
   if ! adb -s "${SERIAL}" shell pidof "${BUNDLE_ID_ANDROID}" >/dev/null 2>&1; then
     info "App exited after launch — retrying..."
     sleep 2
-    adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY"
+    adb -s "${SERIAL}" shell am start -a android.intent.action.VIEW -d "${DEV_CLIENT_URL}" -n "$ANDROID_ACTIVITY" # NOSONAR: Retry uses the same local development Metro URL, without credentials.
   fi
   pass "App launched on ${SERIAL} → ${METRO_HOST}:${PORT}"
 fi

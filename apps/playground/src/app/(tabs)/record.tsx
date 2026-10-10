@@ -534,7 +534,7 @@ export default function RecordScreen() {
             }
         }
 
-        preloadWhisperModel()
+        void preloadWhisperModel()
     }, [
         enableLiveTranscription, 
         validSRTranscription, 
@@ -2234,7 +2234,7 @@ style={{
             }
         }
 
-        initializeDefaultDirectory()
+        void initializeDefaultDirectory()
     }, [show])
 
     if (error) {
