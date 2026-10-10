@@ -28,12 +28,12 @@
   "hooks": {
     "setup": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
     "post_merge_install": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
-    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\"",
-    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"{{ios_device_udid}}\"",
+    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
+    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
     "dev_server_check": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
     "recipe_action_manifest": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" manifest",
     "recipe_doctor": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" doctor --platform {{platform}}",
-    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}} \"{{ios_device_udid}}\"",
+    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}} \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
     "recycle": "if [ \"{{platform}}\" = ios ] && [ -z \"{{ios_device_udid}}\" ]; then xcrun simctl shutdown \"{{simulator}}\"; fi"
   },
   "health": {
@@ -168,7 +168,9 @@
       "NODE_ENV": "development",
       "EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE": "1",
       "AUDIOLAB_APP": "playground",
-      "RECIPE_LIBRARY_PATH": "audiolab=scripts/agentic/recipe"
+      "RECIPE_LIBRARY_PATH": "audiolab=scripts/agentic/recipe",
+      "IOS_DEVICE_UDID": "{{ios_device_udid}}",
+      "IOS_CDP_DEVICE_ID": "{{ios_inspector_id}}"
     },
     "domains": {
       "playground": {
@@ -206,7 +208,8 @@
     "browser_pid_file": ".agent/browser.pid",
     "recipe_runner_resolve_cmd": "command -v node",
     "mark_cmd": "farmslot-agent mark",
-    "ios_device_udid": ""
+    "ios_device_udid": "",
+    "ios_inspector_id": ""
   },
   "prepare": {
     "core": {
@@ -495,7 +498,7 @@
   "slot_actions": {
     "launch-app": {
       "label": "Launch Audiolab app",
-      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\"",
+      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\" \"{{ios_inspector_id}}\"",
       "description": "Wait for the assigned device, Metro and native app bridge with stage progress and a bounded launch deadline.",
       "timeoutMs": 600000
     }
@@ -505,7 +508,8 @@
       "scripts",
       "projects/audiolab-farm/project.json",
       "projects/audiolab-farm/scripts",
-      "projects/audiolab-farm/setup"
+      "projects/audiolab-farm/setup",
+      "projects/audiolab-farm/launch-stages.json"
     ]
   }
 }

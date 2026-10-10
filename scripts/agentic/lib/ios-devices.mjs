@@ -30,15 +30,13 @@ export function selectIOSDevice({ udid, name } = {}, devices = connectedIOSDevic
   return matches[0];
 }
 
-export function physicalIOSDeviceForTarget(target, devices) {
-  const logicalId = target.reactNative?.logicalDeviceId;
-  const identified = devices.filter(device => device.udid === logicalId || device.identifier === logicalId);
-  if (identified.length === 1) return identified[0];
-  const named = devices.filter(device => device.name.toLowerCase() === (target.deviceName || '').toLowerCase());
-  if (named.length === 1) return named[0];
-  // iOS can report the generic "iPhone" without the device-name entitlement.
-  // That fallback is attributable only while one physical device is connected.
-  if (devices.length === 1) return devices[0];
+export function physicalIOSDeviceForTarget(target, devices, binding = {}) {
+  if (!binding.udid || !binding.inspectorId || target.reactNative?.logicalDeviceId !== binding.inspectorId) return;
+  return selectIOSDevice({ udid: binding.udid }, devices);
+}
+
+export function nativeTargetKey(target) {
+  return target.reactNative?.logicalDeviceId || target.udid || target.deviceName || '';
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

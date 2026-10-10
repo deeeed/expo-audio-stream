@@ -50,7 +50,8 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
-import { connectedIOSDevices, selectIOSDevice, physicalIOSDeviceForTarget } from './lib/ios-devices.mjs';
+import { compileStage, executeStageCommand } from './lib/stage-runner.mjs';
+import { connectedIOSDevices, selectIOSDevice, physicalIOSDeviceForTarget, nativeTargetKey } from './lib/ios-devices.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -534,10 +535,11 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
       ? annotateIOSTarget(candidate)
       : candidate;
     const name = resolvedCandidate.deviceName || '';
-    if (seen.has(name)) continue; // already found agentic target for this device
+    const key = nativeTargetKey(resolvedCandidate);
+    if (seen.has(key)) continue;
     const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
     if (hasAgentic) {
-      seen.add(name);
+      seen.add(key);
       results.push({
         ...resolvedCandidate,
         wsUrl: resolvedCandidate.webSocketDebuggerUrl,
@@ -573,10 +575,11 @@ async function discoverAllTargets(port, WebSocketImpl, deviceFilter) {
           ? annotateIOSTarget(candidate)
           : candidate;
         const name = resolvedCandidate.deviceName || '';
-        if (seen.has(name)) continue;
+        const key = nativeTargetKey(resolvedCandidate);
+        if (seen.has(key)) continue;
         const hasAgentic = await probeTarget(resolvedCandidate.webSocketDebuggerUrl, WebSocketImpl);
         if (hasAgentic) {
-          seen.add(name);
+          seen.add(key);
           results.push({
             ...resolvedCandidate,
             wsUrl: resolvedCandidate.webSocketDebuggerUrl,
@@ -1062,7 +1065,7 @@ const COMMANDS = {
           fs.rmSync(tempDir, { recursive: true, force: true });
         }
       } else {
-        capturePhysicalIOS(iosDevice.udid, filepath);
+        await capturePhysicalIOS(iosDevice.udid, filepath);
       }
     } else {
       throw new Error(
@@ -1240,7 +1243,7 @@ function annotateIOSTarget(target) {
     };
   }
 
-  const matchingPhysicalDevice = physicalIOSDeviceForTarget(target, connectedPhysicalDevices);
+  const matchingPhysicalDevice = physicalIOSDeviceForTarget(target, connectedPhysicalDevices, { udid: process.env.IOS_DEVICE_UDID, inspectorId: process.env.IOS_CDP_DEVICE_ID });
 
   if (matchingPhysicalDevice) {
     return {
@@ -1302,10 +1305,10 @@ function resolveIOSDevice(deviceName) {
   return resolvePhysicalIOSDevice(deviceName);
 }
 
-function capturePhysicalIOS(udid, filepath) {
-  execFileSync('/opt/homebrew/bin/idevicescreenshot', ['--udid', udid, filepath], {
-    timeout: 15000, stdio: ['ignore', 'ignore', 'pipe'],
-  });
+async function capturePhysicalIOS(udid, filepath) {
+  const stage = compileStage('ios-screenshot', path.basename(APP_ROOT), { device: udid, filename: path.basename(filepath) });
+  const result = await executeStageCommand(stage, 35000);
+  if (result.code !== 0) throw new Error(`Physical iOS screenshot failed: ${result.stderr}`);
 }
 
 function resolvePhysicalIOSDevice(deviceName) {

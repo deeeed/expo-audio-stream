@@ -26,12 +26,19 @@ case "$LAUNCH_TIMEOUT" in
   *) ;;
 esac
 launch_stage() {
-  local mode="$1" label="$2" ceiling="$3"
-  shift 3
+  local id="$1" ceiling="$2"
+  shift 2
   local remaining=$((LAUNCH_TIMEOUT - (SECONDS - LAUNCH_STARTED)))
-  if [[ "$remaining" -le 0 ]]; then fail "Launch deadline reached before ${label}"; return 1; fi
+  if [[ "$remaining" -le 0 ]]; then fail "Launch deadline reached before ${id}"; return 1; fi
   if [[ "$ceiling" -gt "$remaining" ]]; then ceiling="$remaining"; fi
-  python3 "$MONOREPO_ROOT/scripts/agentic/lib/wait-ready.py" "$mode" "$ceiling" "$label" "$@"
+  local params
+  params=$(python3 - "$@" <<'PARAMS'
+import json, sys
+print(json.dumps(dict(argument.split('=', 1) for argument in sys.argv[1:])))
+PARAMS
+)
+  node "$MONOREPO_ROOT/scripts/agentic/lib/stage-runner.mjs" "$id" \
+    --app "$(basename "$APP_ROOT")" --timeout "$ceiling" --params "$params"
 }
 
 load_env_defaults() {
@@ -90,7 +97,15 @@ simulator_app_installed() {
 }
 
 physical_ios_app_installed() {
-  xcrun devicectl device info apps --timeout 10 --device "$IOS_DEVICE_UDID" 2>/dev/null | grep -Fq "$BUNDLE_ID_IOS"
+  if xcrun devicectl device info apps --timeout 10 --device "$IOS_DEVICE_UDID" 2>/dev/null | grep -Fq "$BUNDLE_ID_IOS"; then return 0; fi
+  # CoreDevice on iOS 26 can return an empty inventory after a successful install.
+  if ! command -v idb >/dev/null; then return 1; fi
+  launch_stage ios-app-inventory 10 "device=$IOS_DEVICE_UDID" | python3 -c '
+import json,sys
+bundle=sys.argv[1]
+apps=[json.loads(line) for line in sys.stdin if line.strip()]
+sys.exit(0 if any(app.get("bundle_id")==bundle for app in apps) else 1)
+' "$BUNDLE_ID_IOS"
 }
 
 resolve_ios_workspace_and_scheme() {
@@ -205,7 +220,7 @@ sys.exit(1)
       fail "Could not resolve simulator UUID for ${SIM}"
       exit 1
     fi
-    launch_stage run "simulator boot" 120 xcrun simctl bootstatus "$SIM_UUID" -b
+    launch_stage simulator-boot 120 "device=$SIM_UUID"
   fi
 elif [ "$PLATFORM" = "android" ]; then
   # Determine device mode:
@@ -252,7 +267,7 @@ elif [ "$PLATFORM" = "android" ]; then
         adb -s "${SERIAL}" emu kill 2>/dev/null || true
         sleep 2
         emulator -avd "$AVD" -port "$EMU_PORT" -no-snapshot-load &>/dev/null &
-        launch_stage poll "Android boot" 120 bash -c 'adb -s "$1" shell getprop sys.boot_completed | grep -q 1' bash "$SERIAL"
+        launch_stage android-boot 120 "serial=$SERIAL"
         pass "Emulator ${AVD} restarted with window"
       else
         pass "Emulator ${SERIAL} already running"
@@ -261,7 +276,7 @@ elif [ "$PLATFORM" = "android" ]; then
       info "Emulator ${SERIAL} not found — booting ${AVD}..."
       emulator -avd "$AVD" -port "$EMU_PORT" $WINDOW_FLAG -no-snapshot-load &>/dev/null &
       SERIAL="emulator-${EMU_PORT}"
-      launch_stage poll "Android boot" 120 bash -c 'adb -s "$1" shell getprop sys.boot_completed | grep -q 1' bash "$SERIAL"
+      launch_stage android-boot 120 "serial=$SERIAL"
       pass "Emulator ${AVD} booted on ${SERIAL}"
     fi
     adb -s "${SERIAL}" reverse tcp:"${PORT}" tcp:"${PORT}" 2>/dev/null || true
@@ -281,7 +296,7 @@ fi
 # ── 2. Start Metro ─────────────────────────────────────────────
 info "Step 2: Start Metro on port ${PORT}"
 MONOREPO_ROOT="$(cd "$APP_ROOT" && git rev-parse --show-toplevel)"
-launch_stage run "Metro startup" 60 bash "${MONOREPO_ROOT}/scripts/agentic/start-metro.sh"
+launch_stage metro 60
 
 # ── 3. Build + install app if needed ───────────────────────────
 info "Step 3: Check if app is installed"
@@ -336,7 +351,11 @@ if [ "$APP_INSTALLED" = false ]; then
   # Run pre-build hook if defined
   if [ -n "${AGENTIC_PRE_BUILD_HOOK:-}" ]; then
     info "Running pre-build hook: ${AGENTIC_PRE_BUILD_HOOK}"
-    launch_stage run "native dependencies" 300 bash -c "$AGENTIC_PRE_BUILD_HOOK"
+    if [[ "$AGENTIC_PRE_BUILD_HOOK" != "yarn build:deps" ]]; then
+      fail "Native dependency hook must name a command in launch-stages.json"
+      exit 1
+    fi
+    launch_stage native-deps 300
   fi
 
   if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; then
@@ -344,20 +363,9 @@ if [ "$APP_INSTALLED" = false ]; then
     info "Building iOS app for physical device ${IOS_DEVICE_UDID} using ${IOS_SCHEME_NAME}..."
     BUILD_LOG=".agent/ios-device-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
-    XCODEBUILD_SIGNING_ARGS=()
-    if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
-      XCODEBUILD_SIGNING_ARGS+=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
-      XCODEBUILD_SIGNING_ARGS+=(CODE_SIGN_STYLE=Automatic)
-    fi
     set +e
-    launch_stage run "iOS native build" 420 xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
-      -destination "id=${IOS_DEVICE_UDID}" \
-      -configuration Debug \
-      -derivedDataPath ios/build-device \
-      -allowProvisioningUpdates \
-      -allowProvisioningDeviceRegistration \
-      "${XCODEBUILD_SIGNING_ARGS[@]}" \
-      build 2>&1 | tee "$BUILD_LOG"
+    launch_stage ios-device-build 420 "scheme=$IOS_SCHEME_NAME" "device=$IOS_DEVICE_UDID" \
+      "team=${IOS_DEVELOPMENT_TEAM:-}" 2>&1 | tee "$BUILD_LOG"
     XCODEBUILD_STATUS=${PIPESTATUS[0]}
     set -e
     if [ "$XCODEBUILD_STATUS" -ne 0 ]; then
@@ -377,11 +385,7 @@ if [ "$APP_INSTALLED" = false ]; then
     BUILD_LOG=".agent/ios-simulator-build-$(date -u +%Y%m%dT%H%M%SZ).log"
     mkdir -p .agent
     set +e
-    launch_stage run "iOS native build" 420 xcodebuild -workspace "$IOS_WORKSPACE_PATH" -scheme "$IOS_SCHEME_NAME" \
-      -destination "platform=iOS Simulator,id=${SIM_UUID}" \
-      -configuration Debug \
-      -derivedDataPath ios/build \
-      build 2>&1 | tee "$BUILD_LOG"
+    launch_stage ios-simulator-build 420 "scheme=$IOS_SCHEME_NAME" "device=$SIM_UUID" 2>&1 | tee "$BUILD_LOG"
     XCODEBUILD_STATUS=${PIPESTATUS[0]}
     set -e
     if [ "$XCODEBUILD_STATUS" -ne 0 ]; then
@@ -397,7 +401,7 @@ if [ "$APP_INSTALLED" = false ]; then
     pass "iOS app built and installed on ${SIM}"
   elif [ "$PLATFORM" = "android" ]; then
     info "Building Android app for ${SERIAL}..."
-    (cd android && launch_stage run "Android native build" 420 ./gradlew :app:assembleDebug)
+    launch_stage android-build 420
     APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
     if [ ! -f "$APK_PATH" ]; then
       fail "APK not found at $APK_PATH"
@@ -497,5 +501,4 @@ info "Step 5: Wait for native dev-client handshake and app bridge"
 export WATCHER_PORT="$PORT" AUDIOLAB_RECIPE_PLATFORM="$PLATFORM"
 export IOS_SIMULATOR="${SIM:-}" ADB_SERIAL="${SERIAL:-}"
 DEVICE_NAME=$(node "$MONOREPO_ROOT/scripts/agentic/recipe/run.mjs" device --platform "$PLATFORM")
-launch_stage poll "dev-client handshake and app bridge on ${PORT}" 180 \
-  node "$APP_ROOT/scripts/agentic/cdp-bridge.mjs" --device "$DEVICE_NAME" get-route
+launch_stage native-handshake 180 "name=$DEVICE_NAME"

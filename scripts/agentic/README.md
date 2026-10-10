@@ -36,4 +36,7 @@ The pack at `farmslot/` uses the existing `audiolab-farm` project id. Its checkl
 
 Select physical devices with `IOS_DEVICE_UDID` or `ADB_SERIAL`. The farm forwards `ios_device_udid` from the slot's `ios-device` resource to launch and recipe hooks. Physical device capability leases retain the phone when released. Check the MetaMask Pixel slot for an active run and acquire its device reservation before using a shared Pixel. Android forwards only the selected Metro port and preserves other reverse mappings.
 
-Physical iOS screenshot capture requires `idevicescreenshot` from libimobiledevice and a mounted developer disk image. Device discovery uses `devicectl` JSON, shared by preflight, recipe selection and screenshot capture.
+Physical iOS capture uses the project-owned Python 3.12 tools environment and pinned pymobiledevice3 developer service. Prepare installs it for physical iOS slots. Set `ios_inspector_id` to the opaque native inspector ID verified by a fresh HUD capture on the selected UDID. Device discovery uses `devicectl` JSON, shared by preflight, recipe selection and screenshot capture.
+
+
+Launch stages are declared in `farmslot/projects/audiolab-farm/launch-stages.json`. The runner accepts only named stages and their validated parameters, then spawns the manifest executable with an argv array and `shell: false`. Stage commands and app roots cannot be supplied by a recipe or CLI argument. The current native dependency hook maps to the manifest's `native-deps` stage.
