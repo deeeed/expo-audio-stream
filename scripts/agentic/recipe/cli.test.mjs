@@ -227,3 +227,12 @@ test('file recipes resolve through a symlinked repo path', async t => {
   const { stdout } = await execute(process.execPath, [cli, 'validate', file], { cwd: repoRoot });
   assert.equal(JSON.parse(stdout).status, 'pass');
 });
+
+
+test('shell port resolution stays numeric under forced console colors', async () => {
+  const script = path.join(repoRoot, 'scripts/agentic/lib/runtime-config.cjs');
+  const { stdout } = await execute(process.execPath, [script, '7365'], {
+    env: { ...process.env, FORCE_COLOR: '1', METRO_PORT: '7465' },
+  });
+  assert.equal(stdout, '7465\n');
+});

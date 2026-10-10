@@ -4,7 +4,8 @@ const appRootFor = (root, app = process.env.AUDIOLAB_APP || 'playground') => pat
 const webViewport = { width: 1280, height: 720 };
 module.exports = { resolveMetroPort, appRootFor, webViewport };
 if (require.main === module) {
-  console.log(process.argv[2] === 'app-root'
+  const value = process.argv[2] === 'app-root'
     ? appRootFor(process.argv[3])
-    : resolveMetroPort(process.env, process.argv[2]));
+    : resolveMetroPort(process.env, process.argv[2]);
+  process.stdout.write(String(value) + '\n');
 }
