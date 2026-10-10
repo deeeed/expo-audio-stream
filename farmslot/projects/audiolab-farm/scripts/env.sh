@@ -1,7 +1,9 @@
 #!/bin/bash
 # Import the same managed credentials as the existing Audiolab project.
 # Keep values off stdout and never load credential files.
-export PATH="${HOME}/.asdf/shims:${HOME}/.asdf/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+source "$(dirname "${BASH_SOURCE[0]}")/configured-paths.sh"
+audiolab_check_paths || return 1
+export PATH="$AUDIOLAB_NODE_BIN:$PATH"
 for key in AUDIOLAB_NPM_TOKEN EAS_PROJECT_ID APPLE_TEAM_ID; do
   if [ -z "${!key:-}" ]; then
     value="$(launchctl getenv "$key" 2>/dev/null || true)"

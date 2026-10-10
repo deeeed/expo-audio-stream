@@ -49,7 +49,7 @@ test('recipe doctor checks the selected checkout and installed bridge wiring', a
 test('farm bootstrap permits public installs without a token and preserves a supplied token', async () => {
   const script = path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/env.sh');
   for (const token of [undefined, 'fixture']) {
-    const env = { ...process.env, EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' };
+    const env = { ...process.env, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' };
     if (token === undefined) delete env.AUDIOLAB_NPM_TOKEN;
     else env.AUDIOLAB_NPM_TOKEN = token;
     const { stdout } = await execute('bash', ['-c',
@@ -78,7 +78,7 @@ test('farm hooks preserve quoted paths across support roots and service PATHs', 
     const scoped = { ...variables, farmslot_dir: farmslotRoot };
     const command = project.hooks.recipe_run.replace(/\{\{(\w+)\}\}/g, (_, key) => scoped[key]);
     for (const shellPath of [process.env.PATH, '/usr/bin:/bin:/usr/sbin:/sbin']) {
-      const { stdout } = await execute('bash', ['-c', command], { env: { ...process.env, PATH: shellPath, AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
+      const { stdout } = await execute('bash', ['-c', command], { env: { ...process.env, PATH: shellPath, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
       const args = JSON.parse(stdout);
       assert.equal(args[1], recipe);
       assert.equal(args[args.indexOf('--artifacts-dir') + 1], artifacts);
@@ -98,7 +98,7 @@ test('web preflight launches Metro and a headless browser', async t => {
   const configDir = path.join(root, 'scripts/agentic/lib');
   await fs.mkdir(configDir, { recursive: true });
   await fs.copyFile(path.join(repoRoot, 'scripts/agentic/lib/runtime-config.cjs'), path.join(configDir, 'runtime-config.cjs'));
-  const { stdout } = await execute('bash', [path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/runtime.sh'), 'launch', root, '7466', '7676', 'web'], { env: { ...process.env, AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
+  const { stdout } = await execute('bash', [path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/runtime.sh'), 'launch', root, '7466', '7676', 'web'], { env: { ...process.env, AUDIOLAB_NODE_BIN: path.dirname(process.execPath), AUDIOLAB_NPM_TOKEN: 'fixture', EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' } });
   assert.equal(stdout.split('\n')[0], 'metro-started');
   assert.deepEqual(JSON.parse(stdout.split('\n')[1]), { stage: 'browser', headless: 'true', channel: 'chrome', port: '7466' });
   assert.ok(!stdout.includes('native-called'));

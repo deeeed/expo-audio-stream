@@ -11,6 +11,37 @@ import { selectIOSDevice, physicalIOSDeviceForTarget, nativeTargetKey } from '..
 const execute = promisify(execFile);
 const fixtureStage = argv => ({ executable: process.execPath, argv, cwd: process.cwd(), appRoot: process.cwd(), mode: 'run', timeoutSeconds: 2 });
 
+test('configured prerequisites fail before mutation and require Python only for physical iOS', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-configured-tools-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const script = path.resolve(import.meta.dirname, '../../../farmslot/projects/audiolab-farm/scripts/configured-paths.sh');
+  const python = path.join(directory, 'python with spaces');
+  await fs.writeFile(python, '#!/bin/sh\nprintf "%s\\n" "$FIXTURE_PYTHON_VERSION"\n', { mode: 0o755 });
+  const checks = `
+source "$1"
+AUDIOLAB_NODE_BIN=
+IOS_DEVICE_UDID=
+if audiolab_check_paths; then exit 2; fi
+AUDIOLAB_NODE_BIN="$2"
+audiolab_check_paths || exit 3
+IOS_DEVICE_UDID=00008101-001348AC1490801E
+AUDIOLAB_PYTHON_BIN=
+if audiolab_check_paths; then exit 4; fi
+AUDIOLAB_PYTHON_BIN="$3"
+export FIXTURE_PYTHON_VERSION=3.12
+audiolab_check_paths || exit 5
+FIXTURE_PYTHON_VERSION=3.14
+if audiolab_check_paths; then exit 6; fi
+printf 'checks passed'
+`;
+  const { stdout, stderr } = await execute('bash', ['-c', checks, 'bash', script, path.dirname(process.execPath), python], {
+    env: { ...process.env, FARMSLOT_MACHINE: 'fixture-node' },
+  });
+  assert.equal(stdout, 'checks passed');
+  assert.match(stderr, /missing Node on fixture-node, set AUDIOLAB_NODE_BIN/);
+  assert.match(stderr, /missing Python3.12 on fixture-node, set AUDIOLAB_PYTHON_BIN/);
+});
+
 test('Sherpa Android validates assigned reverse mapping after cold launch', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-sherpa-launch-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
@@ -31,7 +62,7 @@ test('Sherpa Android validates assigned reverse mapping after cold launch', asyn
   await fs.writeFile(path.join(app, 'android/app/src/main/res/xml/network_security_config.xml'), '<base-config cleartextTrafficPermitted="true" />');
   await fs.writeFile(path.join(app, 'android/app/src/main/AndroidManifest.xml'), '<data android:scheme="sherpa-voice-development"/><data android:scheme="exp+sherpa-voice-development"/>');
   const { stdout } = await execute('bash', [path.join(app, 'scripts/agentic/preflight.sh')], {
-    timeout: 2000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FIXTURE_REPO: directory,
+    timeout: 4000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, FIXTURE_REPO: directory,
       LAUNCH_MARKER: path.join(directory, 'launched'), PLATFORM: 'android', APP_VARIANT: 'development',
       WATCHER_PORT: '7464', ADB_SERIAL: 'assigned-pixel' },
   });

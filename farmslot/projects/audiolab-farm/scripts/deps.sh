@@ -11,7 +11,7 @@ bash "$SCRIPT_DIR/prepare-web.sh" "$PWD"
 
 if [[ "${IOS_DEVICE_UDID:-}" =~ ^[A-Fa-f0-9-]{16,36}$ ]]; then
   if [[ ! -x "$PWD/.agent/tools/ios/bin/python" ]]; then
-    /opt/homebrew/bin/python3.12 -m venv "$PWD/.agent/tools/ios"
+    "$AUDIOLAB_PYTHON_BIN" -m venv "$PWD/.agent/tools/ios"
   fi
   # A cancelled pip install can leave a working Python without capture tools.
   if ! "$PWD/.agent/tools/ios/bin/python" -c 'import importlib.metadata; import pymobiledevice3.services.dvt.instruments.screenshot; assert importlib.metadata.version("pymobiledevice3") == "11.26.0"' >/dev/null 2>&1; then
