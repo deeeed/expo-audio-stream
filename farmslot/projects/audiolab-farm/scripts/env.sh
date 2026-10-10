@@ -11,6 +11,8 @@ for key in AUDIOLAB_NPM_TOKEN EAS_PROJECT_ID APPLE_TEAM_ID; do
     if [ -n "$value" ]; then export "$key=$value"; fi
   fi
 done
+# Public npm installs use the same empty-token default as CI.
+export AUDIOLAB_NPM_TOKEN="${AUDIOLAB_NPM_TOKEN-}"
 unset value key
 
 audiolab_app_root() {

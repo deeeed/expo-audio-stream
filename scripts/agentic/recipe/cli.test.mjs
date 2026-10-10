@@ -25,6 +25,19 @@ test('relative Sherpa recipe paths resolve and select the right app', async () =
   assert.equal(JSON.parse(stdout).app, 'sherpa-voice');
 });
 
+test('farm bootstrap permits public installs without a token and preserves a supplied token', async () => {
+  const script = path.join(repoRoot, 'farmslot/projects/audiolab-farm/scripts/env.sh');
+  for (const token of [undefined, 'fixture']) {
+    const env = { ...process.env, EAS_PROJECT_ID: 'fixture', APPLE_TEAM_ID: 'fixture' };
+    if (token === undefined) delete env.AUDIOLAB_NPM_TOKEN;
+    else env.AUDIOLAB_NPM_TOKEN = token;
+    const { stdout } = await execute('bash', ['-c',
+      'launchctl() { :; }; tmux() { :; }; source "$1"; printf "%s|%s" "${AUDIOLAB_NPM_TOKEN+x}" "$AUDIOLAB_NPM_TOKEN"',
+      'bash', script], { env });
+    assert.equal(stdout, `x|${token ?? ''}`);
+  }
+});
+
 test('farm hooks preserve quoted paths across support roots and service PATHs', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-hook-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
