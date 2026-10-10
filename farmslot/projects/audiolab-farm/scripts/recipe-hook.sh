@@ -8,6 +8,7 @@ SIMULATOR="${4:-}"
 SERIAL="${5:-}"
 RECIPE_PATH="${6:-}"
 ARTIFACTS_PATH="${7:-}"
+export IOS_DEVICE_UDID="${8:-}"
 export IOS_SIMULATOR="$SIMULATOR" ADB_SERIAL="$SERIAL"
 cd "$REPO_PATH"
 if [ "$COMMAND" = health ]; then

@@ -63,7 +63,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
     for (const platform of platforms) {
       const device = matrixTargets ? matrixTargets.get(platform).name
         : ['validate', 'doctor'].includes(command) || values['dry-run'] ? values.device || platform
-        : await resolveDevice({ platform, device: values.device || process.env.FARMSLOT_RECIPE_DEVICE, simulator: process.env.IOS_SIMULATOR, serial: process.env.ADB_SERIAL });
+        : await resolveDevice({ platform, device: values.device || process.env.FARMSLOT_RECIPE_DEVICE, simulator: process.env.IOS_SIMULATOR, iosDevice: process.env.IOS_DEVICE_UDID, serial: process.env.ADB_SERIAL });
       if (command === 'device') {
         if (!device) throw new Error('No assigned recipe device.');
         console.log(device);

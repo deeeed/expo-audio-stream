@@ -50,6 +50,7 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
+import { connectedIOSDevices, selectIOSDevice } from './lib/ios-devices.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -1059,9 +1060,9 @@ const COMMANDS = {
           fs.rmSync(tempDir, { recursive: true, force: true });
         }
       } else {
-        // Physical iOS device — no reliable CLI screenshot tool available.
-        process.stderr.write(`[cdp-bridge] Skipping screenshot for physical iOS device "${deviceName}" (not supported)\n`);
-        return { screenshot: null, deviceName, platform, skipped: 'physical iOS device screenshots not supported' };
+        execFileSync('idevicescreenshot', ['--udid', iosDevice.udid, filepath], {
+          timeout: 15000, stdio: ['ignore', 'ignore', 'pipe'],
+        });
       }
     } else {
       throw new Error(
@@ -1176,28 +1177,8 @@ function getBootedIOSSimulators() {
 }
 
 function getConnectedIOSPhysicalDevices() {
-  try {
-    const output = execFileSync('/usr/bin/xcrun', ['devicectl', 'list', 'devices', '-v'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    const blocks = output.split(/(?=▿ .+ - [0-9A-F]{8}-)/);
-    const devices = [];
-    for (const block of blocks) {
-      if (!block.includes('physical')) continue;
-      if (!block.includes('available') && !block.includes('paired')) continue;
-      const name =
-        block.match(/name: Optional\("([^"]+)"\)/)?.[1] ||
-        block.match(/marketingName: Optional\("([^"]+)"\)/)?.[1];
-      const udid = block.match(/udid: Optional\("([^"]+)"\)/)?.[1];
-      if (name && udid) {
-        devices.push({ name, udid });
-      }
-    }
-    return devices;
-  } catch {
-    return [];
-  }
+  try { return connectedIOSDevices(); }
+  catch { return []; }
 }
 
 function normalizeIOSDeviceFilterName(deviceName) {
@@ -1303,7 +1284,7 @@ function resolveIOSDevice(deviceName) {
     if (booted.length > 0) {
       return { type: 'simulator', udid: booted[0].udid };
     }
-    return { type: 'physical' };
+    return resolvePhysicalIOSDevice(deviceName);
   }
 
   const normalizedName = normalizeIOSDeviceFilterName(deviceName);
@@ -1326,8 +1307,13 @@ function resolveIOSDevice(deviceName) {
     );
   }
 
-  // No exact simulator match — it's a physical device
-  return { type: 'physical' };
+  return resolvePhysicalIOSDevice(deviceName);
+}
+
+function resolvePhysicalIOSDevice(deviceName) {
+  const device = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID,
+    name: normalizeIOSDeviceFilterName(deviceName) }, getConnectedIOSPhysicalDevices());
+  return { type: 'physical', udid: device.udid };
 }
 
 function inferTargetType(platform, deviceName) {

@@ -28,13 +28,13 @@
   "hooks": {
     "setup": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
     "post_merge_install": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/deps.sh\" \"{{repo}}\"",
-    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
-    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
+    "preflight": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\"",
+    "health_check": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" health \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"\" \"{{ios_device_udid}}\"",
     "dev_server_check": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
     "recipe_action_manifest": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" manifest",
     "recipe_doctor": "node \"{{repo}}/scripts/agentic/recipe/run.mjs\" doctor --platform {{platform}}",
-    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}}",
-    "recycle": "if [ \"{{platform}}\" = ios ]; then xcrun simctl shutdown \"{{simulator}}\"; fi"
+    "recipe_run": "METRO_PORT={{metro_port}} WATCHER_PORT={{metro_port}} CDP_PORT={{cdp_port}} bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/recipe-hook.sh\" run \"{{repo}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" {{recipe_path}} {{artifacts_dir}} \"{{ios_device_udid}}\"",
+    "recycle": "if [ \"{{platform}}\" = ios ] && [ -z \"{{ios_device_udid}}\" ]; then xcrun simctl shutdown \"{{simulator}}\"; fi"
   },
   "health": {
     "dev_server_log": ".agent/audiolab-metro.log",
@@ -42,7 +42,7 @@
   },
   "platforms": {
     "ios": {
-      "device_check": "xcrun simctl list devices booted 2>/dev/null | grep -q '{{simulator}}'",
+      "device_check": "if [ -n \"{{ios_device_udid}}\" ]; then xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null; else xcrun simctl list devices booted | grep -q \"{{simulator}}\"; fi",
       "recycle": null
     },
     "android": {
@@ -127,6 +127,36 @@
           ]
         }
       }
+    },
+    "ios-device": {
+      "type": "device",
+      "platform": "ios",
+      "label": "Physical ios",
+      "streamable": true,
+      "controllable": false,
+      "watch": {
+        "type": "process-poll",
+        "cmd": "xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null"
+      },
+      "hooks": {
+        "health": "xcrun devicectl device info details --timeout 10 --device \"{{ios_device_udid}}\" >/dev/null",
+        "shutdown": "true"
+      }
+    },
+    "android-device": {
+      "type": "device",
+      "platform": "android",
+      "label": "Physical android",
+      "streamable": true,
+      "controllable": false,
+      "watch": {
+        "type": "process-poll",
+        "cmd": "adb -s \"{{adb_serial}}\" get-state | grep -q device"
+      },
+      "hooks": {
+        "health": "adb -s \"{{adb_serial}}\" get-state | grep -q device",
+        "shutdown": "true"
+      }
     }
   },
   "recipe_run_supports_playback_slow": false,
@@ -175,7 +205,8 @@
   "vars": {
     "browser_pid_file": ".agent/browser.pid",
     "recipe_runner_resolve_cmd": "command -v node",
-    "mark_cmd": "farmslot-agent mark"
+    "mark_cmd": "farmslot-agent mark",
+    "ios_device_udid": ""
   },
   "prepare": {
     "core": {
@@ -348,14 +379,124 @@
         "release_effects": [
           "android-emu stops"
         ]
+      },
+      "ios.physical": {
+        "label": "Assigned physical ios device",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "ios-device",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "platform": {
+              "const": "ios"
+            }
+          }
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "health"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "ios-device",
+            "action": "shutdown"
+          }
+        },
+        "affected_resources": [
+          {
+            "resource_id": "ios-device",
+            "ownership": "capability",
+            "release_effect": "retain"
+          }
+        ],
+        "release_effects": [
+          "Release the device reservation without stopping the phone or clearing app data."
+        ]
+      },
+      "android.physical": {
+        "label": "Assigned physical android device",
+        "version": "1",
+        "share_policy": "exclusive",
+        "dependencies": [],
+        "cost": {
+          "class": "low",
+          "resources": [
+            {
+              "id": "android-device",
+              "kind": "device",
+              "access": "exclusive",
+              "scope": "slot"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "platform": {
+              "const": "android"
+            },
+            "adb_serial": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:][A-Za-z0-9._:-]*$"
+            }
+          }
+        },
+        "actions": {
+          "acquire": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "health"
+          },
+          "health": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "health"
+          },
+          "release": {
+            "kind": "resource",
+            "resource_id": "android-device",
+            "action": "shutdown"
+          }
+        },
+        "affected_resources": [
+          {
+            "resource_id": "android-device",
+            "ownership": "capability",
+            "release_effect": "retain"
+          }
+        ],
+        "release_effects": [
+          "Release the device reservation without stopping the phone or clearing app data."
+        ]
       }
     }
   },
   "slot_actions": {
     "launch-app": {
       "label": "Launch Audiolab app",
-      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
-      "description": "Launch the assigned development client after acquiring its device and Metro capabilities.",
+      "command": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" launch \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\" \"\" \"{{ios_device_udid}}\"",
+      "description": "Wait for the assigned device, Metro and native app bridge with stage progress and a bounded launch deadline.",
       "timeoutMs": 600000
     }
   },

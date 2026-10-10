@@ -1,3 +1,4 @@
+import { selectIOSDevice } from '../lib/ios-devices.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,10 +50,14 @@ export function createAudiolabHost({ app, platform, device, projectRoot = repoRo
     },
   };
 }
-export async function resolveDevice({ platform, device, simulator, serial }, execute = promisify(execFile)) {
+export async function resolveDevice({ platform, device, simulator, serial, iosDevice }, execute = promisify(execFile)) {
   if (device) return device;
   if (platform === 'web') return 'web';
-  if (platform === 'ios') return simulator;
+  if (platform === 'ios') {
+    if (!iosDevice) return simulator;
+    const physical = selectIOSDevice({ udid: iosDevice });
+    return `device:${physical.name}`;
+  }
   if (platform === 'android' && serial) {
     const { stdout } = await execute('adb', ['-s', serial, 'shell', 'getprop', 'ro.product.model']);
     return stdout.trim();

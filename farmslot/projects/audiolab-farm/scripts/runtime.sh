@@ -5,6 +5,8 @@ MODE="${1:?mode required}"
 REPO_PATH="${2:?repo required}"
 export METRO_PORT="${3:?Metro port required}" WATCHER_PORT="${3}"
 export CDP_PORT="${4:-}" PLATFORM="${5:-}" IOS_SIMULATOR="${6:-}" ADB_SERIAL="${7:-}"
+export IOS_DEVICE_UDID="${9:-}"
+if [ -n "$IOS_DEVICE_UDID" ]; then export DEVICE_MODE=device; fi
 export APP_VARIANT="${APP_VARIANT:-development}" NODE_ENV="${NODE_ENV:-development}"
 export EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE=1 HEADLESS=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 if [ -n "${8:-}" ]; then export WEB_BROWSER_PID_FILE="$REPO_PATH/$8"; fi

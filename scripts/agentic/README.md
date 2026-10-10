@@ -28,3 +28,12 @@ App bridge expressions live in `recipe/queries.json`. Recipes call namespaced `a
 The CDP, browser, native-log, device and launch scripts remain available for authoring and diagnostics. ASR benchmarks and diarization scoring scripts remain separate tools. They are not recipe executors.
 
 The pack at `farmslot/` uses the existing `audiolab-farm` project id. Its checklists, domain notes and runtime hooks have one canonical home. See `farmslot/README.md` before installing it on a fleet.
+
+
+### Native launch readiness
+
+`launch-app` has a 600-second Farmslot action deadline. Preflight uses a 540-second overall budget, reports progress while stages run, waits for simulator boot completion, and waits up to 180 seconds for the selected development client to answer through its app bridge. Missing debug targets fail launch. Installed simulator clients are reused; `REBUILD=1` forces a native rebuild.
+
+Select physical devices with `IOS_DEVICE_UDID` or `ADB_SERIAL`. The farm forwards `ios_device_udid` from the slot's `ios-device` resource to launch and recipe hooks. Physical device capability leases retain the phone when released. Check the MetaMask Pixel slot for an active run and acquire its device reservation before using a shared Pixel. Android forwards only the selected Metro port and preserves other reverse mappings.
+
+Physical iOS screenshot capture requires `idevicescreenshot` from libimobiledevice and a mounted developer disk image. Device discovery uses `devicectl` JSON, shared by preflight, recipe selection and screenshot capture.
