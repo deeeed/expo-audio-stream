@@ -23,13 +23,14 @@ LAUNCH_STARTED=$SECONDS
 LAUNCH_TIMEOUT="${AGENTIC_LAUNCH_TIMEOUT:-540}"
 case "$LAUNCH_TIMEOUT" in
   ''|*[!0-9]*) fail "AGENTIC_LAUNCH_TIMEOUT must be a positive number of seconds"; exit 1 ;;
+  *) ;;
 esac
 launch_stage() {
   local mode="$1" label="$2" ceiling="$3"
   shift 3
   local remaining=$((LAUNCH_TIMEOUT - (SECONDS - LAUNCH_STARTED)))
-  if [ "$remaining" -le 0 ]; then fail "Launch deadline reached before ${label}"; return 1; fi
-  if [ "$ceiling" -gt "$remaining" ]; then ceiling="$remaining"; fi
+  if [[ "$remaining" -le 0 ]]; then fail "Launch deadline reached before ${label}"; return 1; fi
+  if [[ "$ceiling" -gt "$remaining" ]]; then ceiling="$remaining"; fi
   python3 "$MONOREPO_ROOT/scripts/agentic/lib/wait-ready.py" "$mode" "$ceiling" "$label" "$@"
 }
 
@@ -157,7 +158,7 @@ print(ios[-1]['identifier'])
 info "Step 1: Boot device (${PLATFORM})"
 if [ "$PLATFORM" = "ios" ]; then
   USE_IOS_PHYSICAL=false
-  if [ "${DEVICE_MODE:-}" = device ] || [ -n "${IOS_DEVICE_UDID:-}" ] || { [ "${IOS_SIMULATOR+set}" = set ] && [ -z "$IOS_SIMULATOR" ]; }; then
+  if [[ "${DEVICE_MODE:-}" = device ]] || [[ -n "${IOS_DEVICE_UDID:-}" ]] || { [[ "${IOS_SIMULATOR+set}" = set ]] && [[ -z "$IOS_SIMULATOR" ]]; }; then
     USE_IOS_PHYSICAL=true
   fi
   if [ "$USE_IOS_PHYSICAL" = true ]; then
@@ -167,7 +168,7 @@ if [ "$PLATFORM" = "ios" ]; then
       export IOS_DEVICE_UDID
       IOS_DEVICE_MODE=physical
       pass "Physical iOS device selected: ${IOS_PHYSICAL_NAME} (${IOS_DEVICE_UDID})"
-    elif [ -z "${IOS_DEVICE_UDID:-}" ] && [ "${DEVICE_MODE:-}" != device ] && [ "$AGENTIC_IOS_PHYSICAL_FALLBACK" = simulator ]; then
+    elif [[ -z "${IOS_DEVICE_UDID:-}" ]] && [[ "${DEVICE_MODE:-}" != device ]] && [[ "$AGENTIC_IOS_PHYSICAL_FALLBACK" = simulator ]]; then
       info "No physical iOS device selected; falling back to simulator"
       USE_IOS_PHYSICAL=false
     else
@@ -208,7 +209,7 @@ elif [ "$PLATFORM" = "android" ]; then
   #   - If ANDROID_DEVICE is unset → default emulator
   #   - If ANDROID_DEVICE is explicitly empty → physical device
   USE_PHYSICAL=false
-  if [ "${DEVICE_MODE:-}" = device ] || { [ -n "${ADB_SERIAL:-}" ] && [[ "$ADB_SERIAL" != emulator-* ]]; } || { [ "${ANDROID_DEVICE+set}" = set ] && [ -z "$ANDROID_DEVICE" ]; }; then
+  if [[ "${DEVICE_MODE:-}" = device ]] || { [[ -n "${ADB_SERIAL:-}" ]] && [[ "$ADB_SERIAL" != emulator-* ]]; } || { [[ "${ANDROID_DEVICE+set}" = set ]] && [[ -z "$ANDROID_DEVICE" ]]; }; then
     USE_PHYSICAL=true
   fi
 
@@ -438,7 +439,7 @@ if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; 
   IOS_PHYSICAL_LAUNCH_STATUS=$?
   set -e
 
-  if [ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]; then
+  if [[ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]]; then
     set +e
     xcrun devicectl device process launch \
       --timeout 30 \
@@ -449,7 +450,7 @@ if [ "$PLATFORM" = "ios" ] && [ "${IOS_DEVICE_MODE:-simulator}" = "physical" ]; 
     set -e
   fi
 
-  if [ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]; then
+  if [[ "$IOS_PHYSICAL_LAUNCH_STATUS" -ne 0 ]]; then
     fail "Physical iOS launch failed; full log: ${APP_ROOT}/${IOS_PHYSICAL_LAUNCH_LOG}"
     tail -40 "${IOS_PHYSICAL_LAUNCH_LOG}" || true
     exit "$IOS_PHYSICAL_LAUNCH_STATUS"
@@ -485,6 +486,7 @@ fi
 # A successful process launch is not proof that Metro bundled JS or the bridge answered.
 info "Step 5: Wait for native dev-client handshake and app bridge"
 export WATCHER_PORT="$PORT" AUDIOLAB_RECIPE_PLATFORM="$PLATFORM"
+export IOS_SIMULATOR="${SIM:-}" ADB_SERIAL="${SERIAL:-}"
 DEVICE_NAME=$(node "$MONOREPO_ROOT/scripts/agentic/recipe/run.mjs" device --platform "$PLATFORM")
 launch_stage poll "dev-client handshake and app bridge on ${PORT}" 180 \
   node "$APP_ROOT/scripts/agentic/cdp-bridge.mjs" --device "$DEVICE_NAME" get-route

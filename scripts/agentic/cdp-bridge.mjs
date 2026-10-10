@@ -50,7 +50,7 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
-import { connectedIOSDevices, selectIOSDevice } from './lib/ios-devices.mjs';
+import { connectedIOSDevices, selectIOSDevice, physicalIOSDeviceForTarget } from './lib/ios-devices.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -1060,9 +1060,7 @@ const COMMANDS = {
           fs.rmSync(tempDir, { recursive: true, force: true });
         }
       } else {
-        execFileSync('idevicescreenshot', ['--udid', iosDevice.udid, filepath], {
-          timeout: 15000, stdio: ['ignore', 'ignore', 'pipe'],
-        });
+        capturePhysicalIOS(iosDevice.udid, filepath);
       }
     } else {
       throw new Error(
@@ -1240,15 +1238,7 @@ function annotateIOSTarget(target) {
     };
   }
 
-  const logicalDeviceId = target.reactNative?.logicalDeviceId;
-  const matchingPhysicalDevice =
-    connectedPhysicalDevices.length === 1
-      ? connectedPhysicalDevices[0]
-      : connectedPhysicalDevices.find(
-          (device) =>
-            device.name.toLowerCase() === metroDeviceName.toLowerCase() ||
-            device.udid === logicalDeviceId
-        );
+  const matchingPhysicalDevice = physicalIOSDeviceForTarget(target, connectedPhysicalDevices);
 
   if (matchingPhysicalDevice) {
     return {
@@ -1308,6 +1298,12 @@ function resolveIOSDevice(deviceName) {
   }
 
   return resolvePhysicalIOSDevice(deviceName);
+}
+
+function capturePhysicalIOS(udid, filepath) {
+  execFileSync('/opt/homebrew/bin/idevicescreenshot', ['--udid', udid, filepath], {
+    timeout: 15000, stdio: ['ignore', 'ignore', 'pipe'],
+  });
 }
 
 function resolvePhysicalIOSDevice(deviceName) {
@@ -1473,6 +1469,11 @@ async function main() {
     }
   }
 
+  if (process.env.IOS_DEVICE_UDID && process.env.AUDIOLAB_RECIPE_PLATFORM === 'ios') {
+    const assigned = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID });
+    targets = targets.filter(target => target.targetType === 'physical' && target.udid === assigned.udid);
+  }
+
   if (targets.length === 0) {
     console.error('ERROR: No agentic devices found. Is the app running?');
     process.exit(1);
@@ -1489,6 +1490,12 @@ async function main() {
     const client = await createWSClient(target.wsUrl, timeout, WebSocketImpl);
     try {
       const platform = await cdpEval(client, 'globalThis.__AGENTIC__?.platform').catch(() => '') || '';
+      if (platform === 'ios' && process.env.IOS_DEVICE_UDID) {
+        const assigned = selectIOSDevice({ udid: process.env.IOS_DEVICE_UDID });
+        if (target.targetType !== 'physical' || target.udid !== assigned.udid) {
+          throw new Error('The native runtime is not attributable to the assigned physical iOS device.');
+        }
+      }
       if (process.env.AUDIOLAB_RECIPE_PLATFORM && platform !== process.env.AUDIOLAB_RECIPE_PLATFORM) {
         throw new Error(`Requested ${process.env.AUDIOLAB_RECIPE_PLATFORM} proof, but the selected runtime is ${platform || 'unknown'}.`);
       }
