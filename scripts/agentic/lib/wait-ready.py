@@ -39,7 +39,7 @@ def progress(label, started, ceiling):
 
 
 def command_result(command, mode, deadline, label, started, ceiling):
-    process = subprocess.Popen(command, start_new_session=True,
+    process = subprocess.Popen(command, start_new_session=True,  # NOSONAR: argv comes from trusted project launch stages, never recipe input; no shell is invoked.
                                stdout=subprocess.PIPE if mode == "poll" else None,
                                stderr=subprocess.PIPE if mode == "poll" else None)
     finished = False

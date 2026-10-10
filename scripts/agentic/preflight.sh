@@ -89,6 +89,10 @@ simulator_app_installed() {
   return 1
 }
 
+physical_ios_app_installed() {
+  xcrun devicectl device info apps --timeout 10 --device "$IOS_DEVICE_UDID" 2>/dev/null | grep -Fq "$BUNDLE_ID_IOS"
+}
+
 resolve_ios_workspace_and_scheme() {
   local variant="$1"
   local workspace_basename="${AGENTIC_IOS_WORKSPACE_PRODUCTION:-AudioPlayground}"
@@ -285,7 +289,7 @@ APP_INSTALLED=false
 
 if [[ "${SKIP_BUILD:-0}" == "1" ]] && [[ "$AGENTIC_SKIP_BUILD_SUPPORTED" == "true" ]]; then
   if [[ "$PLATFORM" == "ios" ]] && [[ "${IOS_DEVICE_MODE:-simulator}" == "physical" ]]; then
-    if xcrun devicectl device info apps --device "${IOS_DEVICE_UDID}" 2>/dev/null | grep -q "${BUNDLE_ID_IOS}"; then
+    if physical_ios_app_installed; then
       APP_INSTALLED=true
       pass "App ${BUNDLE_ID_IOS} already installed on physical device ${IOS_DEVICE_UDID}"
     fi
@@ -309,6 +313,11 @@ elif [[ "${SKIP_BUILD:-0}" != "1" ]]; then
     if simulator_app_installed "${SIM_UUID}" "${BUNDLE_ID_IOS}"; then
       APP_INSTALLED=true
       pass "Development client ${BUNDLE_ID_IOS} already installed on ${SIM}"
+    fi
+  elif [[ "$PLATFORM" = ios ]]; then
+    if physical_ios_app_installed; then
+      APP_INSTALLED=true
+      pass "Development client ${BUNDLE_ID_IOS} already installed on ${IOS_DEVICE_UDID}"
     fi
   elif [ "$PLATFORM" = "android" ]; then
     if adb -s "${SERIAL}" shell pm list packages 2>/dev/null | grep -q "${BUNDLE_ID_ANDROID}"; then

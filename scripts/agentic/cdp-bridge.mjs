@@ -856,7 +856,9 @@ const COMMANDS = {
   },
 
   async 'get-route'(client) {
-    return await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
+    const route = await cdpEval(client, 'globalThis.__AGENTIC__?.getRoute()');
+    if (typeof route?.pathname !== 'string') throw new Error('The app bridge has no ready route.');
+    return route;
   },
 
   async 'get-state'(client) {
