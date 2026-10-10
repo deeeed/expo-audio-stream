@@ -11,7 +11,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Apps with native screens can keep evidence visible above modal presentations.
-let NativeOverlay: React.ComponentType<React.PropsWithChildren> | undefined;
+let NativeOverlay: React.ComponentType<React.PropsWithChildren<{
+  unstable_accessibilityContainerViewIsModal?: boolean;
+}>> | undefined;
 try {
   NativeOverlay = require('react-native-screens').FullWindowOverlay;
 } catch {
@@ -95,7 +97,9 @@ export function RecipeHud({
       {error ? <Text style={[styles.error, customStyles?.error]}>{error}</Text> : null}
     </View>
   );
-  return Platform.OS === 'ios' && NativeOverlay ? <NativeOverlay>{hud}</NativeOverlay> : hud;
+  return Platform.OS === 'ios' && NativeOverlay
+    ? <NativeOverlay unstable_accessibilityContainerViewIsModal={false}>{hud}</NativeOverlay>
+    : hud;
 }
 
 function formatBadge(state: FarmslotRecipeHudState): string {
