@@ -16,7 +16,7 @@ test('Sherpa Android validates assigned reverse mapping after cold launch', asyn
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const app = path.join(directory, 'apps/sherpa-voice');
   const bin = path.join(directory, 'bin');
-  for (const folder of [bin, 'scripts/agentic', 'apps/sherpa-voice/scripts/agentic',
+  for (const folder of ['bin', 'scripts/agentic', 'apps/sherpa-voice/scripts/agentic',
     'apps/sherpa-voice/android/app/src/main/res/values', 'apps/sherpa-voice/android/app/src/main/res/xml']) {
     await fs.mkdir(path.join(directory, folder), { recursive: true });
   }
