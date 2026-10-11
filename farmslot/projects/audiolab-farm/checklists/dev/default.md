@@ -9,3 +9,4 @@ platforms: [web, mobile, ios, android]
 - [ ] Make the smallest change and run focused checks.
 - [ ] Run the app recipe and validate its artifact package.
 - [ ] Write artifacts/pr-description.md with evidence and remaining limits.
+{{CI_PARITY_STEP}}
