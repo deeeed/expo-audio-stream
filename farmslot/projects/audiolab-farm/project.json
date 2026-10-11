@@ -12,8 +12,15 @@
     "apps/sherpa-voice",
     "apps/minimal"
   ],
+  "ci": {
+    "local_check": "bash apps/playground/.agent/ci-parity"
+  },
   "fixtures": {
     "templates": [
+      {
+        "src": "ci-parity",
+        "dst": "apps/playground/.agent/ci-parity"
+      },
       {
         "src": "runtime.md",
         "dst": "apps/playground/.agent/agentic-toolkit.md"
