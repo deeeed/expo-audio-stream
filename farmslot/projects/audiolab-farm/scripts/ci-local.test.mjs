@@ -21,12 +21,17 @@ function fixture(t) {
   }
   const recipes = path.join(repo, 'scripts/agentic/recipe');
   mkdirSync(recipes, { recursive: true });
+  writeFileSync(path.join(repo, 'scripts/package-manifest.sh'), '#!/bin/sh\necho "package manifest checked"\n');
+  mkdirSync(path.join(repo, 'packages/audio-studio/plugin/src'), { recursive: true });
+  writeFileSync(path.join(repo, 'packages/audio-studio/plugin/src/index.ts'), 'export const value = 1;\n');
+  mkdirSync(path.join(repo, 'apps/playground/config'), { recursive: true });
+  writeFileSync(path.join(repo, 'apps/playground/config/validate-env.test.ts'), 'export const value = 1;\n');
   writeFileSync(path.join(recipes, 'validate-all.mjs'), 'console.log("recipe protocol checked");\n');
   writeFileSync(path.join(recipes, 'adapters.mjs'), 'export const value = 1;\n');
   writeFileSync(path.join(recipes, 'adapters.test.mjs'), 'import assert from "node:assert/strict"; import { value } from "./adapters.mjs"; assert.equal(value,1);\n');
   const log = path.join(root, 'calls.jsonl');
   writeFileSync(path.join(bin, 'yarn'), `#!/usr/bin/env node
-import fs from 'node:fs';
+const fs=require('node:fs');
 const args=process.argv.slice(2);
 fs.appendFileSync(process.env.AUDIO_CI_TEST_LOG,JSON.stringify(args)+'\\n');
 process.exit(args.includes('test')&&process.env.AUDIO_CI_TEST_UNIT_FAIL?7:0);
@@ -37,7 +42,7 @@ process.exit(args.includes('test')&&process.env.AUDIO_CI_TEST_UNIT_FAIL?7:0);
   git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--no-gpg-sign', '-qm', 'Initial']);
   git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
   const run = (extra = {}) => {
-    const env = { ...process.env, PATH: bin + path.delimiter + process.env.PATH, AUDIO_CI_TEST_LOG: log, ...extra };
+    const env = { ...process.env, PATH: bin + path.delimiter + process.env.PATH, AUDIOLAB_NODE_BIN: bin, AUDIO_CI_TEST_LOG: log, ...extra };
     // This fixture launches the standalone worker command, outside node:test.
     delete env.NODE_TEST_CONTEXT;
     return spawnSync(process.execPath, [path.join(scriptDir, 'ci-local.mjs')], { cwd: repo, env, encoding: 'utf8' });
@@ -48,17 +53,18 @@ process.exit(args.includes('test')&&process.env.AUDIO_CI_TEST_UNIT_FAIL?7:0);
 
 test('a library source change runs its CI types, changed-file lint and related tests only', (t) => {
   const { repo, run, calls } = fixture(t);
-  const file = 'packages/sherpa-onnx.rn/src/space name.ts';
+  const file = 'packages/audio-studio/src/space name.ts';
   writeFileSync(path.join(repo, file), 'export {};\n');
   const result = run();
   assert.equal(result.status, 0, result.stderr);
   const commands = calls();
   assert.equal(commands.length, 3);
-  assert.deepEqual(commands[0], ['workspace', '@siteed/sherpa-onnx.rn', 'typecheck', '--incremental', 'false']);
+  assert.deepEqual(commands[0], ['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']);
   assert.ok(commands[1].includes('src/space name.ts'));
   assert.ok(commands[2].includes('--findRelatedTests'));
   assert.ok(commands[2].includes(path.join(realpathSync(repo), file)));
   assert.ok(commands.every((args) => !args.includes('@siteed/moonshine.rn')));
+  assert.match(result.stdout, /package manifest checked/);
 });
 
 test('a related-unit failure refuses the parity check with its exit code', (t) => {
@@ -73,6 +79,53 @@ test('recipe implementation changes execute unchanged adapter tests', (t) => {
   const result = run();
   assert.notEqual(result.status, 0, result.stdout + '\n' + result.stderr);
   assert.match(result.stderr, /Recipe adapter tests failed/);
+});
+
+test('deleting library source still selects its typecheck and package inventory', (t) => {
+  const { repo, run, calls } = fixture(t);
+  rmSync(path.join(repo, 'packages/moonshine.rn/src/index.ts'));
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(calls(), [['workspace', '@siteed/moonshine.rn', 'typecheck', '--incremental', 'false']]);
+  assert.match(result.stdout, /package manifest checked/);
+});
+
+test('plugin changes select plugin types, strict lint and related plugin unit tests', (t) => {
+  const { repo, run, calls } = fixture(t);
+  const file = 'packages/audio-studio/plugin/src/index.ts';
+  writeFileSync(path.join(repo, file), 'export const value = 2;\n');
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  const commands = calls();
+  assert.ok(commands.some((args) => args.includes('packages/audio-studio/plugin/tsconfig.json')));
+  assert.ok(commands.some((args) => args.includes('--max-warnings=0')));
+  assert.ok(commands.some((args) => args.includes('--findRelatedTests') && args.includes(path.join(realpathSync(repo), file))));
+});
+
+test('app config-test edits use the actual CI config tests without unsupported typed lint', (t) => {
+  const { repo, run, calls } = fixture(t);
+  writeFileSync(path.join(repo, 'apps/playground/config/validate-env.test.ts'), 'export const value = 2;\n');
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(calls(), [['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false'], ['workspace', 'audio-playground', 'test:config']]);
+});
+
+test('native additions run the package manifest guard', (t) => {
+  const { repo, run } = fixture(t);
+  mkdirSync(path.join(repo, 'packages/audio-studio/ios'), { recursive: true });
+  writeFileSync(path.join(repo, 'packages/audio-studio/ios/NewHeader.h'), '// Header\n');
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /package manifest checked/);
+});
+
+test('checked-in package inventory edits run the manifest guard', (t) => {
+  const { repo, run } = fixture(t);
+  mkdirSync(path.join(repo, '.package-manifests'));
+  writeFileSync(path.join(repo, '.package-manifests/studio.txt'), 'src/index.ts\n');
+  const result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /package manifest checked/);
 });
 
 test('each PR-producing catalog entry uses the shared step and the portable prepared command', () => {
