@@ -18,6 +18,14 @@
   "fixtures": {
     "templates": [
       {
+        "src": "runtime/recipe-quality.md",
+        "dst": "{{runtime_dir}}/recipe-quality.md"
+      },
+      {
+        "src": "runtime/review-quality.md",
+        "dst": "{{runtime_dir}}/review-quality.md"
+      },
+      {
         "src": "ci-parity",
         "dst": "apps/playground/.agent/ci-parity"
       },
@@ -211,6 +219,8 @@
     ]
   },
   "vars": {
+    "recipe_quality_path": "{{runtime_dir}}/recipe-quality.md",
+    "review_quality_path": "{{runtime_dir}}/review-quality.md",
     "browser_pid_file": ".agent/browser.pid",
     "recipe_runner_resolve_cmd": "command -v node",
     "mark_cmd": "farmslot-agent mark",
