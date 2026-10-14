@@ -18,6 +18,8 @@ HOSTFILE=".agent/metro.host"
 TIMEOUT=60
 
 mkdir -p .agent
+# Expo's structured event log is runtime output, beside the Metro log.
+export LOG_EVENTS="$APP_ROOT/.agent/expo-events.log"
 
 DEV_HOST="$(resolve_agentic_dev_host_or_localhost)"
 

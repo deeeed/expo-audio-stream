@@ -38,6 +38,7 @@ export function createProvider(context) {
     ? port(options.cdpPort ?? context.ports?.cdp?.value ?? process.env.CDP_PORT ?? context.slot?.ports?.cdp_port, 'CDP')
     : undefined;
   const runtimeEnv = { APP_ROOT: appRoot, AUDIOLAB_APP: app, PLATFORM: platform,
+    LOG_EVENTS: path.join(appRoot, '.agent/expo-events.log'),
     METRO_PORT: String(metro), WATCHER_PORT: String(metro),
     EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE: '1', HEADLESS: '1', WEB_HEADLESS: 'true', WEB_BROWSER_CHANNEL: 'chrome',
     ...(cdp ? { CDP_PORT: String(cdp) } : {}),
