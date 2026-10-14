@@ -27,6 +27,9 @@ test('provider factories are read-only and preserve app-scoped handler declarati
     assert.equal(provider.engine, undefined);
     assert.equal(provider.runtime.sdkVersion, 1);
     assert.equal(provider.runtime.id, 'web');
+    assert.equal(provider.runtime.harness.kind, 'built-in');
+    assert.equal('install' in provider.runtime.harness, false);
+    assert.equal('cleanup' in provider.runtime.harness, false);
     const handlers = await provider.runtime.actions.adapters();
     assert.deepEqual(handlers.map(h => h.action), ['audiolab.query', 'audiolab.choose', 'audiolab.logs', 'audiolab.native_preview']);
     const allowed = createAudiolabManifest(app).actions['audiolab.query'].schema.properties.ref.enum;
@@ -191,4 +194,40 @@ test('web recording selects the shared CDP recorder and binds its assigned endpo
   const native = createProvider(context('playground', 'ios'));
   assert.equal(native.runtime.recording.videoRecorder, undefined);
   assert.deepEqual(await native.runtime.recording.target(), { kind: 'simulator', device: 'assigned-simulator' });
+});
+
+test('built-in verification observes the bound bridge and refuses missing route readiness', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-verify-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const appRoot = path.join(root, 'apps/playground');
+  const scriptRoot = path.join(appRoot, 'scripts/agentic');
+  await fs.mkdir(scriptRoot, { recursive: true });
+  const state = path.join(appRoot, 'observed-route.json');
+  await fs.writeFile(state, JSON.stringify({ pathname: '/more' }));
+  await fs.writeFile(path.join(scriptRoot, 'cdp-bridge.mjs'), `
+    import fs from 'node:fs';
+    import assert from 'node:assert/strict';
+    assert.deepEqual(process.argv.slice(2), ['--device', 'web', 'get-route']);
+    assert.equal(fs.realpathSync(process.env.APP_ROOT), process.cwd());
+    console.log(fs.readFileSync('observed-route.json', 'utf8'));
+  `);
+  const keys = ['APP_ROOT', 'AUDIOLAB_APP', 'PLATFORM', 'LOG_EVENTS', 'METRO_PORT', 'WATCHER_PORT', 'CDP_PORT', 'EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE', 'HEADLESS', 'WEB_HEADLESS', 'WEB_BROWSER_CHANNEL'];
+  const saved = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
+  const selected = context();selected.project.checkoutRoot = root;selected.target.value = appRoot;
+  const provider = createProvider(selected);
+  const verification = provider.runtime.harness.verify(appRoot);
+  assert.equal(verification.command, undefined);
+  const runVerify = await verification.inProcess();
+  const output = [];
+  const io = { out: value => output.push(JSON.parse(value)), err: value => assert.fail(value) };
+  const files = await fs.readdir(appRoot);
+  assert.equal(await runVerify(['--target', '/unrelated-checkout'], io), 0, output.at(-1)?.reasons?.join('\n'));
+  assert.equal(output.pop().decision, 'ready');
+  assert.deepEqual(await fs.readdir(appRoot), files);
+  assert.equal(await fs.stat(path.join(appRoot, '.harness')).catch(() => null), null);
+  await fs.writeFile(state, '{}');
+  assert.equal(await runVerify([], io), 1);
+  assert.match(output.pop().reasons[0], /no observed route/);
+  assert.deepEqual(await fs.readdir(appRoot), files);
 });
