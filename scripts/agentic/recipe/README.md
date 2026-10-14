@@ -16,6 +16,6 @@ Doctor/status and static plans only observe. Launch and reload use the shared ca
 
 The navigation smoke asserts the observed More route, retains a screenshot, and restores/asserts its original route in authored teardown. Normal UI runs use the shared recorder. Explicit recording opt-out needs a reason. Physical iOS video capture is not declared by this provider; an allocated simulator is the supported iOS video target. Device availability belongs in pool configuration, not the pack.
 
-The existing project-hook and app-local commands remain available. The runner, CLI and direct SDK dependencies are pinned to one published closure. No project graph executor, recorder or artifact writer is added.
+The existing project-hook and app-local commands keep their screenshot-only default, with an artifact recording opt-out reason. The app-local `--record-video full-run` option records supported targets. The shared Farmslot CLI keeps its standard video default. The runner, CLI and direct SDK dependencies are pinned to one published closure. No project graph executor, recorder or artifact writer is added.
 
 Run `yarn test:recipes` for the default contracts. Host process inspection belongs to the live tier: `node --test scripts/agentic/recipe/provider.live.mjs`. Its disposable listener is stopped on every exit.

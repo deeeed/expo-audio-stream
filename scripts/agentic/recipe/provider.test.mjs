@@ -10,7 +10,7 @@ import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harn
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createProvider } from './provider.mjs';
 import { createBridge } from './adapters.mjs';
-import { repoRoot, createAudiolabManifest } from './host.mjs';
+import { repoRoot, createAudiolabManifest, createAudiolabHost } from './host.mjs';
 
 function context(app = 'playground', platform = 'web') {
   return { project: { checkoutRoot: repoRoot, app: `apps/${app}` },
@@ -71,6 +71,22 @@ test('explicit unpooled iOS selection reaches the native launch environment', t 
   const provider = createProvider(context('playground', 'ios'));
   provider.runtime.resolveSlotPorts();
   assert.equal(process.env.IOS_SIMULATOR, 'assigned-simulator');
+});
+
+test('native preflight retains an explicitly selected simulator UUID', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-simulator-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const udid = '11111111-2222-3333-4444-555555555555';
+  const devices = path.join(root, 'devices.json');
+  await fs.writeFile(devices, JSON.stringify({ devices: { ios: [{ name: 'Assigned iPhone', udid, isAvailable: true }] } }));
+  const source = await fs.readFile(path.join(repoRoot, 'scripts/agentic/preflight.sh'), 'utf8');
+  const start = source.indexOf('    SIM_UUID=$(xcrun');
+  const selection = source.slice(start, source.indexOf('\n  fi\nelif', start));
+  const script = `xcrun() { cat "$FIXTURE_DEVICES"; }; fail() { echo "$@" >&2; }; launch_stage() { printf '%s\\n' "$@"; };\n${selection}`;
+  const { stdout } = await promisify(execFile)('/bin/bash', ['-c', script], {
+    timeout: 2000, env: { ...process.env, SIM: udid, FIXTURE_DEVICES: devices },
+  });
+  assert.equal(stdout.trim(), `simulator-boot\n120\ndevice=${udid}`);
 });
 
 test('the declared factory resolves through the public shared host and default engine', async () => {
@@ -146,4 +162,12 @@ test('Expo logging uses the declared destination only for the Expo CLI entry', a
   await execute(process.execPath, ['--require', helper, require.resolve('expo/bin/cli'), 'config', '--type', 'public', '--json'], { cwd: appRoot, env });
   const output = await fs.readFile(log, 'utf8');
   assert.ok(output.includes('init'), 'Expo logger did not initialize at its configured destination.');
+});
+
+test('local and project-hook requests preserve screenshot validation on physical iOS', () => {
+  const host = createAudiolabHost({ app: 'playground', platform: 'ios', device: 'device:Assigned iPhone' });
+  const request = host.request({ recipePath: 'playground.smoke.navigation' });
+  assert.equal(request.recordVideo, 'off');
+  assert.match(request.recordingReason, /screenshots/);
+  assert.equal(host.request({ recordVideo: 'full-run' }).recordVideo, 'full-run');
 });

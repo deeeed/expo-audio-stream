@@ -49,7 +49,10 @@ export function createAudiolabHost({ app, platform, device, projectRoot = repoRo
   });
   return { runner, appRoot,
     request(input) {
-      return { ...input, projectRoot, adapter: platform,
+      // Preserve the app-local/project-hook screenshot default. The shared CLI
+      // supplies its own recording admission through the default engine.
+      return { recordVideo: 'off', recordingReason: 'App-local Audiolab validation captures recipe screenshots.',
+        ...input, projectRoot, adapter: platform,
         librarySources: [{ name: 'audiolab', root: libraryRoot, provenance }],
       };
     },
