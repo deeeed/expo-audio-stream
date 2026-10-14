@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
+import { createServer } from 'node:http';
 import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createProvider } from './provider.mjs';
@@ -170,4 +171,24 @@ test('local and project-hook requests preserve screenshot validation on physical
   assert.equal(request.recordVideo, 'off');
   assert.match(request.recordingReason, /screenshots/);
   assert.equal(host.request({ recordVideo: 'full-run' }).recordVideo, 'full-run');
+});
+
+test('web recording selects the shared CDP recorder and binds its assigned endpoint', async t => {
+  const server = createServer((_request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify([{ id: 'assigned-page', type: 'page', url: 'http://localhost:19746', webSocketDebuggerUrl: 'ws://unused' }]));
+  });
+  t.after(async () => { server.closeAllConnections();await new Promise(resolve => server.close(resolve)); });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const cdp = server.address().port;
+  const selected = context();selected.options.cdpPort = String(cdp);
+  const recorder = await createProvider(selected).runtime.recording.videoRecorder();
+  assert.equal(recorder.name, 'cdp-screencast');
+  await assert.rejects(recorder.start({
+    target: { kind: 'cdp-page', host: '127.0.0.1', port: cdp === 65535 ? 65534 : cdp + 1, targetId: 'assigned-page' },
+    outputPath: path.join(os.tmpdir(), 'audiolab-endpoint-refusal.mp4'),
+  }), /different endpoint/);
+  const native = createProvider(context('playground', 'ios'));
+  assert.equal(native.runtime.recording.videoRecorder, undefined);
+  assert.deepEqual(await native.runtime.recording.target(), { kind: 'simulator', device: 'assigned-simulator' });
 });

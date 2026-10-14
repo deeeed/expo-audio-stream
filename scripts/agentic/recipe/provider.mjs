@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ADAPTER_SDK_VERSION } from '@farmslot/adapter-sdk';
+import { createCdpVideoRecorder } from '@farmslot/recipe-runner';
 import { contextPorts } from '@farmslot/recipe-cli/harness';
 import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
@@ -155,7 +156,9 @@ export function createProvider(context) {
           }),
         })),
       },
-      recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }) },
+      recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }),
+        ...(platform === 'web' ? { videoRecorder: async () => createCdpVideoRecorder({ cdpPort: cdp, urlIncludes: `:${metro}` }) } : {}),
+      },
     },
     cancel() { if (launchedMetro) stopMetro(appRoot, metro); },
   };
