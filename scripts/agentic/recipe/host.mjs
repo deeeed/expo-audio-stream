@@ -39,8 +39,6 @@ export function createAudiolabManifest(app) {
   } } };
 }
 export function createAudiolabHost({ app, platform, device, projectRoot = repoRoot, noHud = false, updateBaselines = false }) {
-  appDomain(app);
-  validateQueryCatalogue(app);
   const appRoot = appRootFor(projectRoot, app);
   const scopedManifest = createAudiolabManifest(app);
   const runner = createRecipeRunner({ actionManifest: scopedManifest,
