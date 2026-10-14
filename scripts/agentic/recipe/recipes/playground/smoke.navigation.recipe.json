@@ -5,11 +5,15 @@
   "proofTargets": [
     {
       "id": "runtime",
-      "claim": "A Recipe v1 runner can connect to an AudioLab playground dev runtime."
+      "claim": "The assigned AudioLab runtime returns an observed route."
     },
     {
       "id": "navigation",
-      "claim": "The runner can navigate visible playground screens and capture proof."
+      "claim": "The assigned playground reaches its More screen."
+    },
+    {
+      "id": "restored",
+      "claim": "The smoke restores the original route after proof or failure."
     }
   ],
   "workflow": {
@@ -18,18 +22,12 @@
       "target": {
         "action": "app.status",
         "next": "status",
-        "intent": "Connect to a controllable AudioLab playground runtime before running proof steps.",
-        "proves": [
-          "runtime"
-        ]
+        "intent": "Connect to a controllable AudioLab playground runtime before running proof steps."
       },
       "status": {
         "action": "app.status",
-        "next": "record",
-        "intent": "Read the current AudioLab playground state so the run starts from an observed baseline.",
-        "proves": [
-          "runtime"
-        ]
+        "next": "assert-start",
+        "intent": "Read the current AudioLab playground state so the run starts from an observed baseline."
       },
       "record": {
         "action": "ui.navigate",
@@ -52,22 +50,82 @@
       "more": {
         "action": "ui.navigate",
         "path": "/(tabs)/more",
-        "next": "proof",
+        "next": "observe-more",
         "intent": "Open the additional audio tools."
       },
       "proof": {
         "action": "ui.screenshot",
         "next": "done",
         "intent": "Preserve the visible audio tools as navigation proof.",
-        "proves": [
-          "navigation"
-        ],
         "path": "screenshots/audiolab-navigation-v1.png"
       },
       "done": {
         "action": "end",
         "status": "pass"
+      },
+      "assert-start": {
+        "action": "assert_output",
+        "source": "status",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "matches",
+          "value": "^/"
+        },
+        "proves": [
+          "runtime"
+        ],
+        "intent": "Verify the starting route is observable.",
+        "next": "record"
+      },
+      "observe-more": {
+        "action": "app.status",
+        "intent": "Read the route after opening More.",
+        "next": "assert-more"
+      },
+      "assert-more": {
+        "action": "assert_output",
+        "source": "observe-more",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "/more"
+        },
+        "proves": [
+          "navigation"
+        ],
+        "intent": "Verify the playground reached More.",
+        "next": "proof"
+      },
+      "restore": {
+        "action": "ui.navigate",
+        "path": "{{outputs.status.pathname}}",
+        "intent": "Restore the original observed route.",
+        "next": "observe-restored"
+      },
+      "observe-restored": {
+        "action": "app.status",
+        "intent": "Read the route after restoration.",
+        "next": "assert-restored"
+      },
+      "assert-restored": {
+        "action": "assert_output",
+        "source": "observe-restored",
+        "assert": {
+          "path": "$.pathname",
+          "operator": "eq",
+          "value": "{{outputs.status.pathname}}"
+        },
+        "proves": [
+          "restored"
+        ],
+        "intent": "Verify the original route is restored.",
+        "next": "cleanup-done"
+      },
+      "cleanup-done": {
+        "action": "end",
+        "status": "pass"
       }
-    }
+    },
+    "teardown": "restore"
   }
 }

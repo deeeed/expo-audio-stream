@@ -29,6 +29,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
     platform: { type: 'string', default: process.env.PLATFORM ?? 'web' },
     device: { type: 'string' }, 'project-root': { type: 'string' }, 'artifacts-dir': { type: 'string' },
     param: { type: 'string', multiple: true }, matrix: { type: 'string' }, step: { type: 'string' },
+    'record-video': { type: 'string' }, 'recording-reason': { type: 'string' },
     'dry-run': { type: 'boolean' }, 'no-hud': { type: 'boolean' }, 'update-baselines': { type: 'boolean' }, json: { type: 'boolean' },
     describe: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   } });
@@ -109,7 +110,7 @@ if (['list', 'actions', 'describe', 'explain', 'search', 'template', 'completion
       }
       const request = host.request({ ...(selectedRecipe ? { recipeDocument: selectedRecipe } : { recipePath }),
         artifactsDir: platforms.length > 1 ? path.join(artifactRoot, platform) : artifactRoot,
-        params, ...(values.step ? { stopAfterNode: values.step } : {}),
+        params, ...(values['record-video'] ? { recordVideo: values['record-video'], recordingReason: values['recording-reason'] } : {}), ...(values.step ? { stopAfterNode: values.step } : {}),
       });
       if (['validate', 'doctor'].includes(command) || values['dry-run']) {
         const plan = await runner.preflight(request);

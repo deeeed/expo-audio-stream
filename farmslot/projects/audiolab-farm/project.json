@@ -527,5 +527,21 @@
       "projects/audiolab-farm/setup",
       "projects/audiolab-farm/launch-stages.json"
     ]
+  },
+  "recipe": {
+    "provider": {
+      "module": "./provider.mjs",
+      "root": {
+        "projectPath": "scripts/agentic/recipe"
+      }
+    },
+    "app": "apps/playground",
+    "adapter": "web",
+    "domain": "playground",
+    "checks": [
+      {
+        "recipe": "playground.expo.config"
+      }
+    ]
   }
 }

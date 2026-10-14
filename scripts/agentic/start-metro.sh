@@ -30,66 +30,20 @@ print_launch_hint() {
   fi
 }
 
-# --- Detect a running Metro via HTTP probe ---
+# Check checkout ownership before reusing or stopping any listener.
+node "$MONOREPO_ROOT/scripts/agentic/lib/metro-process.mjs" check "$APP_ROOT" "$PORT"
 if curl -sf "http://localhost:${PORT}/status" >/dev/null 2>&1; then
-  # Metro bakes the packager hostname at startup. On physical devices, reusing
-  # an old Metro after Wi-Fi/LAN changes can make the app connect to a stale IP
-  # even though the localhost health probe passes.
-  if [ -f "$HOSTFILE" ]; then
-    PREVIOUS_HOST="$(cat "$HOSTFILE" 2>/dev/null || true)"
-    if [ -n "$PREVIOUS_HOST" ] && [ "$PREVIOUS_HOST" != "$DEV_HOST" ]; then
-      echo "Metro is running on port $PORT for stale host $PREVIOUS_HOST; restarting for $DEV_HOST..."
-      PORT_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
-      if [ -n "$PORT_PID" ]; then
-        kill "$PORT_PID" 2>/dev/null || true
-        sleep 1
-        REMAINING=$(lsof -ti:"$PORT" 2>/dev/null || true)
-        [ -n "$REMAINING" ] && kill -9 "$REMAINING" 2>/dev/null || true
-      fi
-      rm -f "$PIDFILE" "$HOSTFILE"
-    else
-      echo "Metro already running on port $PORT."
-      print_launch_hint
-      if [ -s "$LOGFILE" ]; then
-        echo "Recent logs from $LOGFILE:"
-        tail -20 "$LOGFILE"
-      fi
-      exit 0
-    fi
-  elif [ -f "$PIDFILE" ] && ! kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
-    echo "Metro is running on port $PORT but ${PIDFILE} is stale; restarting so physical-device host metadata is refreshed..."
-    PORT_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
-    if [ -n "$PORT_PID" ]; then
-      kill "$PORT_PID" 2>/dev/null || true
-      sleep 1
-      REMAINING=$(lsof -ti:"$PORT" 2>/dev/null || true)
-      [ -n "$REMAINING" ] && kill -9 "$REMAINING" 2>/dev/null || true
-    fi
-    rm -f "$PIDFILE" "$HOSTFILE"
+  PREVIOUS_HOST="$(cat "$HOSTFILE" 2>/dev/null || true)"
+  if [ -n "$PREVIOUS_HOST" ] && [ "$PREVIOUS_HOST" != "$DEV_HOST" ]; then
+    echo "Restarting this checkout's Metro for host $DEV_HOST..."
+    bash "$MONOREPO_ROOT/scripts/agentic/stop-metro.sh"
+    # Poll shutdown rather than starting a second server on the same port.
+    node -e 'const net=require("node:net");const end=Date.now()+5000;function poll(){const s=net.connect(Number(process.argv[1]),"127.0.0.1");s.once("error",()=>process.exit(0));s.once("connect",()=>{s.destroy();if(Date.now()>=end)process.exit(1);setTimeout(poll,50)});s.setTimeout(200,()=>s.destroy())}poll()' "$PORT"
   else
-    echo "Metro is running on port $PORT without host metadata; restarting so physical-device host metadata is refreshed..."
-    PORT_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
-    if [ -n "$PORT_PID" ]; then
-      kill "$PORT_PID" 2>/dev/null || true
-      sleep 1
-      REMAINING=$(lsof -ti:"$PORT" 2>/dev/null || true)
-      [ -n "$REMAINING" ] && kill -9 "$REMAINING" 2>/dev/null || true
-    fi
-    rm -f "$PIDFILE" "$HOSTFILE"
+    echo "Metro already running on port $PORT for this checkout."
+    print_launch_hint
+    exit 0
   fi
-fi
-
-# A stale Metro may have been stopped above; re-check before starting.
-if curl -sf "http://localhost:${PORT}/status" >/dev/null 2>&1; then
-  echo "Metro is still running on port $PORT without trusted host metadata; restarting..."
-  PORT_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
-  if [ -n "$PORT_PID" ]; then
-    kill "$PORT_PID" 2>/dev/null || true
-    sleep 1
-    REMAINING=$(lsof -ti:"$PORT" 2>/dev/null || true)
-    [ -n "$REMAINING" ] && kill -9 "$REMAINING" 2>/dev/null || true
-  fi
-  rm -f "$PIDFILE" "$HOSTFILE"
 fi
 
 # --- No Metro detected — start fresh ---
