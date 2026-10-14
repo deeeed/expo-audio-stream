@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const inspect = (args) => {
-  try { return execFileSync(args[0], args.slice(1), { encoding: 'utf8', timeout: 3000 }).trim(); }
+  try { return execFileSync(args[0], args.slice(1), { encoding: 'utf8', timeout: 10000 }).trim(); }
   catch (error) { if (error.status === 1) return ''; throw error; }
 };
 

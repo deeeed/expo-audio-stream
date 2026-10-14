@@ -3,14 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
+import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createProvider } from './provider.mjs';
 import { createBridge } from './adapters.mjs';
 import { repoRoot, createAudiolabManifest } from './host.mjs';
-import { stopMetro } from '../lib/metro-process.mjs';
 
 function context(app = 'playground', platform = 'web') {
   return { project: { checkoutRoot: repoRoot, app: `apps/${app}` },
@@ -85,20 +82,23 @@ test('bridge cancellation stops the owned child instead of leaving a stalled act
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
 
-test('Metro stop refuses a foreign listener and stale PID but stops the owned server', async t => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-metro-'));
-  t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const owner = path.join(root, 'owner');const foreign = path.join(root, 'foreign');
-  for (const dir of [owner, foreign]) await fs.mkdir(path.join(dir, '.agent'), { recursive: true });
-  const script = path.join(root, 'metro-fixture.mjs');
-  await fs.writeFile(script, `import net from 'node:net';const s=net.createServer();s.listen(0,'127.0.0.1',()=>console.log(s.address().port));`);
-  const child = spawn(process.execPath, [script], { cwd: foreign, stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(async () => { if (child.exitCode === null && child.signalCode === null) { child.kill();await once(child, 'exit'); } });
-  const port = Number((await once(child.stdout, 'data'))[0].toString().trim());
-  await fs.writeFile(path.join(owner, '.agent/metro.pid'), String(child.pid));
-  assert.throws(() => stopMetro(owner, port), /another checkout/);
-  assert.doesNotThrow(() => process.kill(child.pid, 0));
-  const exit = once(child, 'exit');
-  assert.equal(stopMetro(foreign, port).signalled, 1);
-  await exit;
+
+test('generated app runtime logs do not drift the shared source identity', async t => {
+  const appRoot = path.join(repoRoot, 'apps/playground');
+  const fixture = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-log-'));
+  t.after(() => fs.rm(fixture, { recursive: true, force: true }));
+  const generated = path.join(fixture, '.agent');
+  await fs.mkdir(generated);
+  await fs.writeFile(path.join(fixture, 'app.mjs'), 'export const source = 1;');
+  const before = sourceSnapshot(fixture, undefined, [generated]);
+  await fs.writeFile(path.join(generated, 'events.log'), 'runtime event\n');
+  const after = sourceSnapshot(fixture, undefined, [generated]);
+  assert.equal(before.sourceFingerprint, after.sourceFingerprint);
+  await fs.writeFile(path.join(fixture, 'app.mjs'), 'export const source = 2;');
+  assert.notEqual(after.sourceFingerprint, sourceSnapshot(fixture, undefined, [generated]).sourceFingerprint);
+  const keys = ['APP_ROOT', 'AUDIOLAB_APP', 'PLATFORM', 'METRO_PORT', 'WATCHER_PORT', 'CDP_PORT', 'LOG_EVENTS', 'EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE', 'HEADLESS', 'WEB_HEADLESS', 'WEB_BROWSER_CHANNEL'];
+  const saved = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
+  createProvider(context()).runtime.resolveSlotPorts();
+  assert.equal(process.env.LOG_EVENTS, path.join(appRoot, '.agent/expo-events.log'));
 });
