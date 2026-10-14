@@ -8,6 +8,7 @@ import runtimeConfig from '../lib/runtime-config.cjs';
 const { appRootFor } = runtimeConfig;
 export { appRootFor };
 
+import { recordingTarget } from './recording-target.mjs';
 import { createRecipeRunner } from '@farmslot/recipe-runner';
 import { createAdapters, createBridge, readRecentMetroLog, readRecentLog, getQueryCatalogue, validateQueryCatalogue } from './adapters.mjs';
 
@@ -27,24 +28,31 @@ export function appDomain(app) {
   if (!domain) throw new Error(`Unknown app: ${app}`);
   return domain;
 }
-export function createAudiolabHost({ app, platform, device, projectRoot = repoRoot, noHud = false, updateBaselines = false }) {
+export function createAudiolabManifest(app) {
   appDomain(app);
   validateQueryCatalogue(app);
-  const appRoot = appRootFor(projectRoot, app);
   const probe = manifest.actions['audiolab.query'];
-  const scopedManifest = { ...manifest, actions: { ...manifest.actions, 'audiolab.query': {
+  return { ...manifest, actions: { ...manifest.actions, 'audiolab.query': {
     ...probe, schema: { ...probe.schema, properties: { ...probe.schema.properties,
       ref: { ...probe.schema.properties.ref, enum: Object.keys(getQueryCatalogue(app)) },
     } }, examples: probe.examples.map(example => ({ ...example, ref: 'route' })),
   } } };
+}
+export function createAudiolabHost({ app, platform, device, projectRoot = repoRoot, noHud = false, updateBaselines = false }) {
+  const appRoot = appRootFor(projectRoot, app);
+  const scopedManifest = createAudiolabManifest(app);
   const runner = createRecipeRunner({ actionManifest: scopedManifest,
     adapters: createAdapters({ app, appRoot, platform, device, actions: actionNames, updateBaselines }),
     defaultSource: provenance, hud: noHud ? false : { enabled: true },
+    recording: { targetProvider: { resolveRecordingTarget: () => recordingTarget({ platform, device, serial: process.env.ADB_SERIAL, simulator: process.env.IOS_SIMULATOR, iosDevice: process.env.IOS_DEVICE_UDID, cdp: process.env.CDP_PORT, metro: process.env.METRO_PORT || process.env.WATCHER_PORT }) } },
     runner: { source: 'audiolab', git_ref: 'checkout', name: 'audiolab-recipe' },
   });
   return { runner, appRoot,
     request(input) {
-      return { ...input, projectRoot, adapter: platform,
+      // Preserve the app-local/project-hook screenshot default. The shared CLI
+      // supplies its own recording admission through the default engine.
+      return { recordVideo: 'off', recordingReason: 'App-local Audiolab validation captures recipe screenshots.',
+        ...input, projectRoot, adapter: platform,
         librarySources: [{ name: 'audiolab', root: libraryRoot, provenance }],
       };
     },

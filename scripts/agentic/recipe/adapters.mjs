@@ -1,14 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { createStandardCoreAdapters, createStandardUiAdapters } from '@farmslot/recipe-runner';
+import { runOwnedRecipeProcess, recipeExecutionSignal, assertRecipeActive } from '@farmslot/recipe-runner/adapters/core';
 
 const require = createRequire(import.meta.url);
 const { checkAssert, parseRaw } = require('../lib/assert.js');
 const { comparePngFiles } = require('../lib/screenshot.js');
-const executeFile = promisify(execFile);
 const queries = JSON.parse(await fs.readFile(new URL('./queries.json', import.meta.url), 'utf8'));
 const source = { kind: 'bundled', trust: 'trusted', name: 'audiolab' };
 
@@ -50,9 +48,10 @@ export function readRecentMetroLog(appRoot) {
 
 export function createBridge({ appRoot, device, platform }) {
   return async function bridge(args, timeout = 60000) {
-    const { stdout } = await executeFile(process.execPath,
+    const { stdout, stderr, exitCode } = await runOwnedRecipeProcess(process.execPath,
       [path.join(appRoot, 'scripts/agentic/cdp-bridge.mjs'), ...(device ? ['--device', device] : []), ...args.map(String)],
-      { cwd: appRoot, timeout, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, ...(platform ? { AUDIOLAB_RECIPE_PLATFORM: platform } : {}), EVAL_TIMEOUT: String(timeout) } });
+      { cwd: appRoot, timeoutMs: timeout, signal: recipeExecutionSignal(), shell: false, env: { ...process.env, ...(platform ? { AUDIOLAB_RECIPE_PLATFORM: platform } : {}), EVAL_TIMEOUT: String(timeout) } });
+    if (exitCode !== 0) throw new Error(stderr.trim() || `Audiolab bridge exited ${exitCode}`);
     const result = parseRaw(stdout.trim());
     if (device && result?.devices && args[0] !== 'list-devices') throw new Error('Recipe proof requires exactly one selected device.');
     return result;
@@ -61,10 +60,6 @@ export function createBridge({ appRoot, device, platform }) {
 
 export function createAdapters({ app, appRoot, device, platform, actions, updateBaselines = false }) {
   const bridge = createBridge({ appRoot, device, platform });
-  function requireSuccess(result) {
-    if (result?.ok === false || result?.supported === false) throw new Error(JSON.stringify(result));
-    return result;
-  }
   async function query(node) {
     const spec = resolveQuery(app, node);
     const isAsync = node.async ?? spec.async;
@@ -72,9 +67,11 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
     const deadline = Date.now() + timeout;
     let output;
     do {
+      assertRecipeActive(recipeExecutionSignal());
       try {
         output = await bridge([isAsync ? 'eval-async' : 'eval', spec.expression], Math.max(1, deadline - Date.now()));
       } catch (error) {
+        assertRecipeActive(recipeExecutionSignal());
         if (!node.poll) throw error;
         output = { error: error.message };
         if (Date.now() >= deadline) break;
@@ -93,7 +90,54 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
     }
   }
   const custom = (action, execute, capabilities = []) => ({ action, source, capabilities, execute });
-  const transport = {
+  const transport = createBridgeTransport({ appRoot, device, platform, updateBaselines });
+  return [
+    ...createStandardCoreAdapters({ actions }),
+    ...createStandardUiAdapters({ actions, transport }),
+    custom('audiolab.query', async node => ({ output: await query(node) }), ['arbitrary-code', 'app-mutation']),
+    custom('audiolab.choose', async (node, context) => {
+      const last = [...context.outputs.values()].at(-1);
+      const state = { last, env: { platform, device } };
+      const index = node.rules.findIndex(rule => checkAssert(state, rule));
+      return { ...(index < 0 ? {} : { case: `case-${index}` }), output: last };
+    }),
+    custom('audiolab.logs', async (node, context) => {
+      const recent = await readRecentMetroLog(appRoot);
+      const forbidden = (node.must_not_appear ?? []).filter(text => recent.toLowerCase().includes(text.toLowerCase()));
+      const file = `logs/${nodeFile(context.nodeId)}.log`;
+      const destination = context.resolveArtifactPath(file);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, recent);
+      context.registerArtifact({ path: file, type: 'log', nodeId: context.nodeId });
+      if (forbidden.length) throw new Error(`Forbidden log messages: ${forbidden.join(', ')}`);
+      return { output: { matches: (node.watch_for ?? []).map(text => ({ text, count: recent.toLowerCase().split(text.toLowerCase()).length - 1 })) } };
+    }, ['host-read-export']),
+    custom('audiolab.native_preview', async node => {
+      if (platform === 'web') throw new Error('Native preview requires iOS or Android.');
+      const started = await bridge(['eval', `(() => {
+        const bridge = globalThis.__AGENTIC__;
+        if (typeof bridge?.testExtractPreview !== 'function' || typeof bridge?.getLastResult !== 'function') throw new Error('Native preview bridge is unavailable');
+        return { previous: bridge.getLastResult(), started: bridge.testExtractPreview() };
+      })()`]);
+      const output = await query({ expression: `JSON.stringify(globalThis.__AGENTIC__.getLastResult())`, poll: true,
+        timeout_ms: node.timeout_ms ?? 30000,
+        fail_when: { field: 'status', operator: 'eq', value: 'error' },
+        assert: { all: [{ field: 'status', operator: 'eq', value: 'success' }, { field: 'op', operator: 'eq', value: 'extractPreview' }] } });
+      if (JSON.stringify(output) === JSON.stringify(started.previous) && started.started?.status !== 'pending') throw new Error('Native preview returned a stale result.');
+      if (!checkAssert(output, node.assert)) throw new Error('Native preview assertion failed.');
+      return { output };
+    }, ['app-mutation']),
+  ];
+}
+
+function requireSuccess(result) {
+  if (result?.ok === false || result?.supported === false) throw new Error(JSON.stringify(result));
+  return result;
+}
+
+export function createBridgeTransport({ appRoot, device, platform, updateBaselines = false }) {
+  const bridge = createBridge({ appRoot, device, platform });
+  return {
     async execute(action, node, context) {
       switch (action) {
         case 'app.status': {
@@ -146,41 +190,4 @@ export function createAdapters({ app, appRoot, device, platform, actions, update
       }
     },
   };
-  return [
-    ...createStandardCoreAdapters({ actions }),
-    ...createStandardUiAdapters({ actions, transport }),
-    custom('audiolab.query', async node => ({ output: await query(node) }), ['arbitrary-code', 'app-mutation']),
-    custom('audiolab.choose', async (node, context) => {
-      const last = [...context.outputs.values()].at(-1);
-      const state = { last, env: { platform, device } };
-      const index = node.rules.findIndex(rule => checkAssert(state, rule));
-      return { ...(index < 0 ? {} : { case: `case-${index}` }), output: last };
-    }),
-    custom('audiolab.logs', async (node, context) => {
-      const recent = await readRecentMetroLog(appRoot);
-      const forbidden = (node.must_not_appear ?? []).filter(text => recent.toLowerCase().includes(text.toLowerCase()));
-      const file = `logs/${nodeFile(context.nodeId)}.log`;
-      const destination = context.resolveArtifactPath(file);
-      await fs.mkdir(path.dirname(destination), { recursive: true });
-      await fs.writeFile(destination, recent);
-      context.registerArtifact({ path: file, type: 'log', nodeId: context.nodeId });
-      if (forbidden.length) throw new Error(`Forbidden log messages: ${forbidden.join(', ')}`);
-      return { output: { matches: (node.watch_for ?? []).map(text => ({ text, count: recent.toLowerCase().split(text.toLowerCase()).length - 1 })) } };
-    }, ['host-read-export']),
-    custom('audiolab.native_preview', async node => {
-      if (platform === 'web') throw new Error('Native preview requires iOS or Android.');
-      const started = await bridge(['eval', `(() => {
-        const bridge = globalThis.__AGENTIC__;
-        if (typeof bridge?.testExtractPreview !== 'function' || typeof bridge?.getLastResult !== 'function') throw new Error('Native preview bridge is unavailable');
-        return { previous: bridge.getLastResult(), started: bridge.testExtractPreview() };
-      })()`]);
-      const output = await query({ expression: `JSON.stringify(globalThis.__AGENTIC__.getLastResult())`, poll: true,
-        timeout_ms: node.timeout_ms ?? 30000,
-        fail_when: { field: 'status', operator: 'eq', value: 'error' },
-        assert: { all: [{ field: 'status', operator: 'eq', value: 'success' }, { field: 'op', operator: 'eq', value: 'extractPreview' }] } });
-      if (JSON.stringify(output) === JSON.stringify(started.previous) && started.started?.status !== 'pending') throw new Error('Native preview returned a stale result.');
-      if (!checkAssert(output, node.assert)) throw new Error('Native preview assertion failed.');
-      return { output };
-    }, ['app-mutation']),
-  ];
 }

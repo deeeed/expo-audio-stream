@@ -116,7 +116,7 @@
       "hooks": {
         "boot": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\"",
         "health": "lsof -nP -iTCP:{{metro_port}} -sTCP:LISTEN >/dev/null 2>&1",
-        "shutdown": "lsof -nP -tiTCP:{{metro_port}} -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null; true"
+        "shutdown": "bash \"{{repo}}/scripts/agentic/lib/run-farm-hook.sh\" \"{{farmslot_dir}}/projects/audiolab-farm/scripts/runtime.sh\" metro-stop \"{{repo}}\" \"{{metro_port}}\" \"{{cdp_port}}\" \"{{platform}}\" \"{{simulator}}\" \"{{adb_serial}}\""
       }
     },
     "browser": {
@@ -526,6 +526,22 @@
       "projects/audiolab-farm/scripts",
       "projects/audiolab-farm/setup",
       "projects/audiolab-farm/launch-stages.json"
+    ]
+  },
+  "recipe": {
+    "provider": {
+      "module": "./provider.mjs",
+      "root": {
+        "projectPath": "scripts/agentic/recipe"
+      }
+    },
+    "app": "apps/playground",
+    "adapter": "web",
+    "domain": "playground",
+    "checks": [
+      {
+        "recipe": "playground.expo.config"
+      }
     ]
   }
 }

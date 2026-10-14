@@ -189,7 +189,7 @@ test('a dimension mismatch retains a valid failed artifact package', async t => 
     capture: { action: 'ui.screenshot', intent: 'Preserve the recorder for visual comparison.', path: 'screenshots/actual.png', baseline: 'baseline.png', next: 'done' },
     done: { action: 'end', status: 'pass' },
   } } };
-  const result = await testRunner([adapter('ui.screenshot')]).run({ projectRoot: root, artifactsDir, recipeDocument: recipe });
+  const result = await testRunner([adapter('ui.screenshot')]).run({ projectRoot: root, artifactsDir, recipeDocument: recipe, recordVideo: 'off', recordingReason: 'Screenshot-diff contract test without a live recorder.' });
   assert.equal(result.status, 'fail');
   const packageManifest = JSON.parse(await fs.readFile(path.join(artifactsDir, 'artifact-manifest.json'), 'utf8'));
   assert.ok(packageManifest.artifacts.some(artifact => artifact.path === 'screenshots/actual.png'));

@@ -217,7 +217,7 @@ import json,sys
 data=json.load(sys.stdin)
 for runtime,devs in data['devices'].items():
   for d in devs:
-    if d['name']=='${SIM}' and d['isAvailable']:
+    if (d['name']=='${SIM}' or d['udid']=='${SIM}') and d['isAvailable']:
       print(d['udid']); sys.exit(0)
 sys.exit(1)
 " 2>/dev/null || true)

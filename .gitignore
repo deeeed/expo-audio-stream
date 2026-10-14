@@ -60,6 +60,7 @@ playground/vendor/
 
 # Agent session state (machine-specific)
 .agent/
+apps/*/temp/recipe/
 
 # Expo
 .expo/*

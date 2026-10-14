@@ -16,10 +16,7 @@
         "intent": "Read Expo public config through the project package manager",
         "cmd": "cd apps/playground && yarn expo config --type public --json",
         "timeout_ms": 120000,
-        "next": "assert-config",
-        "proves": [
-          "expo-config"
-        ]
+        "next": "assert-config"
       },
       "assert-config": {
         "action": "assert_output",

@@ -9,7 +9,7 @@
     },
     {
       "id": "evidence",
-      "claim": "The runner emits summary, trace, artifact manifest, and screenshot evidence."
+      "claim": "The selected native runtime produces a retained recorder screenshot."
     }
   ],
   "workflow": {
@@ -35,24 +35,46 @@
           "value": "success",
           "field": "status"
         },
-        "next": "proof",
-        "intent": "Run the native extractPreview probe and wait for its bridged success result.",
-        "proves": [
-          "native"
-        ]
+        "next": "assert-preview",
+        "intent": "Run the native extractPreview probe and wait for its bridged success result."
       },
       "proof": {
         "action": "ui.screenshot",
-        "next": "done",
-        "intent": "Preserve the visible audio tools as navigation proof.",
-        "proves": [
-          "evidence"
-        ],
+        "next": "assert-capture",
+        "intent": "Preserve the recorder after native audio extraction.",
         "path": "screenshots/audiolab-native-audio-v1.png"
       },
       "done": {
         "action": "end",
         "status": "pass"
+      },
+      "assert-preview": {
+        "action": "assert_output",
+        "source": "extractPreview",
+        "assert": {
+          "path": "$.status",
+          "operator": "eq",
+          "value": "success"
+        },
+        "proves": [
+          "native"
+        ],
+        "intent": "Verify native audio extraction succeeded.",
+        "next": "proof"
+      },
+      "assert-capture": {
+        "action": "assert_output",
+        "source": "proof",
+        "assert": {
+          "path": "$.captured",
+          "operator": "eq",
+          "value": true
+        },
+        "proves": [
+          "evidence"
+        ],
+        "intent": "Verify the recorder screenshot was captured.",
+        "next": "done"
       }
     }
   }

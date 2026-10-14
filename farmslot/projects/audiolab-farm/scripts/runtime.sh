@@ -21,6 +21,7 @@ launch_browser() {
 }
 case "$MODE" in
   metro) exec bash scripts/agentic/start-metro.sh ;;
+  metro-stop) exec bash scripts/agentic/stop-metro.sh ;;
   launch)
     if [ "$PLATFORM" = web ]; then
       bash scripts/agentic/start-metro.sh
