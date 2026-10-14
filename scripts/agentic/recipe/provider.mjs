@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ADAPTER_SDK_VERSION } from '@farmslot/adapter-sdk';
+import { contextPorts } from '@farmslot/recipe-cli/harness';
 import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createBridge, createBridgeTransport, createAdapters } from './adapters.mjs';
@@ -21,8 +22,8 @@ export function createProvider(context) {
     ? JSON.parse(fs.readFileSync(context.slot.poolFile, 'utf8')).slots.find(slot => slot.id === (context.slot.poolSlot ?? context.slot.value))
     : undefined;
   const resources = configuredSlot?.resources ?? {};
-  const simulator = resources['ios-sim']?.simulator || process.env.IOS_SIMULATOR;
   const iosDevice = resources['ios-device']?.ios_device_udid || resources['ios-device']?.udid || process.env.IOS_DEVICE_UDID;
+  const simulator = resources['ios-sim']?.simulator || process.env.IOS_SIMULATOR || (platform === 'ios' && !iosDevice ? options.device : undefined);
   const serial = resources['android-device']?.adb_serial || resources['android-emu']?.adb_serial || process.env.ADB_SERIAL;
   const explicitDevice = options.device;
   if (platform === 'ios' && simulator && explicitDevice && explicitDevice !== simulator) throw new Error('The requested iOS device differs from the assigned slot simulator.');
@@ -33,10 +34,14 @@ export function createProvider(context) {
     if (!Number.isInteger(number) || number < 1 || number > 65535) throw new Error(`Select the assigned ${label} port.`);
     return number;
   };
-  const metro = port(options.watcherPort ?? context.ports?.watcher?.value ?? process.env.METRO_PORT ?? process.env.WATCHER_PORT ?? context.slot?.ports?.metro_port, 'Metro');
-  const cdp = platform === 'web'
-    ? port(options.cdpPort ?? context.ports?.cdp?.value ?? process.env.CDP_PORT ?? context.slot?.ports?.cdp_port, 'CDP')
-    : undefined;
+  // The shared host loads the factory before publishing context.ports.
+  // Use its read-only resolver so lifecycle and the invocation retain one target.
+  const ports = context.ports ?? contextPorts(context, [
+    ...(options.watcherPort !== undefined ? ['--watcher-port', String(options.watcherPort)] : []),
+    ...(options.cdpPort !== undefined ? ['--cdp-port', String(options.cdpPort)] : []),
+  ], { '--watcher-port': true, '--cdp-port': true }).ports;
+  const metro = port(ports?.watcher?.value, 'Metro');
+  const cdp = platform === 'web' ? port(ports?.cdp?.value, 'CDP') : undefined;
   const runtimeEnv = { APP_ROOT: appRoot, AUDIOLAB_APP: app, PLATFORM: platform,
     LOG_EVENTS: path.join(appRoot, '.agent/expo-events.log'),
     METRO_PORT: String(metro), WATCHER_PORT: String(metro),

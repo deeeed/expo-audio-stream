@@ -47,6 +47,32 @@ test('provider rejects unsupported or ambiguous app/device targeting before exec
   assert.throws(() => createProvider(wrong), /selected app checkout/);
 });
 
+test('clean-environment slot ports stay consistent with the shared host', t => {
+  const portKeys = ['TERMINAL_APP_PORT', 'RECIPE_WATCHER_PORT', 'WATCHER_PORT', 'METRO_PORT', 'RECIPE_CDP_PORT', 'CDP_PORT'];
+  const keys = [...portKeys, 'APP_ROOT', 'AUDIOLAB_APP', 'PLATFORM', 'LOG_EVENTS', 'EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE', 'HEADLESS', 'WEB_HEADLESS', 'WEB_BROWSER_CHANNEL'];
+  const saved = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
+  portKeys.forEach(key => delete process.env[key]);
+  const selected = context();selected.options = {};
+  selected.slot = { value: 'owned-slot', ports: { port: 19745, metro_port: 19746, cdp_port: 19767 } };
+  const provider = createProvider(selected);
+  assert.ok(portKeys.every(key => process.env[key] === undefined), 'Factory changed port settings.');
+  provider.runtime.resolveSlotPorts();
+  assert.equal(process.env.METRO_PORT, '19745');
+  assert.equal(process.env.WATCHER_PORT, '19745');
+  assert.equal(process.env.CDP_PORT, '19767');
+});
+
+test('explicit unpooled iOS selection reaches the native launch environment', t => {
+  const keys = ['IOS_SIMULATOR', 'IOS_DEVICE_UDID', 'APP_ROOT', 'AUDIOLAB_APP', 'PLATFORM', 'LOG_EVENTS', 'METRO_PORT', 'WATCHER_PORT', 'EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE', 'HEADLESS', 'WEB_HEADLESS', 'WEB_BROWSER_CHANNEL'];
+  const saved = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
+  delete process.env.IOS_SIMULATOR;delete process.env.IOS_DEVICE_UDID;
+  const provider = createProvider(context('playground', 'ios'));
+  provider.runtime.resolveSlotPorts();
+  assert.equal(process.env.IOS_SIMULATOR, 'assigned-simulator');
+});
+
 test('the declared factory resolves through the public shared host and default engine', async () => {
   await withProjectRecipeHost({ tokens: ['--project', 'audiolab-farm', '--target', repoRoot, '--app', 'apps/playground', '--adapter', 'web', '--watcher-port', '19746', '--cdp-port', '19767'],
     projectsDir: path.join(repoRoot, 'farmslot/projects'), command: 'run', options: { plan: true, watcherPort: '19746', cdpPort: '19767' } }, async host => {
