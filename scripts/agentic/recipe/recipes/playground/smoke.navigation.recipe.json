@@ -9,7 +9,8 @@
     },
     {
       "id": "navigation",
-      "claim": "The assigned playground reaches its More screen."
+      "claim": "The assigned playground reaches its More screen.",
+      "proofMode": "state"
     },
     {
       "id": "restored",
@@ -50,14 +51,8 @@
       "more": {
         "action": "ui.navigate",
         "path": "/(tabs)/more",
-        "next": "observe-more",
+        "next": "navigation-proof",
         "intent": "Open the additional audio tools."
-      },
-      "proof": {
-        "action": "ui.screenshot",
-        "next": "done",
-        "intent": "Preserve the visible audio tools as navigation proof.",
-        "path": "screenshots/audiolab-navigation-v1.png"
       },
       "done": {
         "action": "end",
@@ -76,25 +71,6 @@
         ],
         "intent": "Verify the starting route is observable.",
         "next": "record"
-      },
-      "observe-more": {
-        "action": "app.status",
-        "intent": "Read the route after opening More.",
-        "next": "assert-more"
-      },
-      "assert-more": {
-        "action": "assert_output",
-        "source": "observe-more",
-        "assert": {
-          "path": "$.pathname",
-          "operator": "eq",
-          "value": "/more"
-        },
-        "proves": [
-          "navigation"
-        ],
-        "intent": "Verify the playground reached More.",
-        "next": "proof"
       },
       "restore": {
         "action": "ui.navigate",
@@ -124,6 +100,18 @@
       "cleanup-done": {
         "action": "end",
         "status": "pass"
+      },
+      "navigation-proof": {
+        "action": "call",
+        "ref": "playground.flows.navigation-proof",
+        "claimBindings": {
+          "navigation": "navigation"
+        },
+        "proves": [
+          "navigation"
+        ],
+        "intent": "Verify the observed More route and preserve its navigation evidence.",
+        "next": "done"
       }
     },
     "teardown": "restore"
