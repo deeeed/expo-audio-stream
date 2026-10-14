@@ -223,7 +223,6 @@
     "review_quality_path": "{{runtime_dir}}/review-quality.md",
     "browser_pid_file": ".agent/browser.pid",
     "recipe_runner_resolve_cmd": "command -v node",
-    "mark_cmd": "farmslot-agent mark",
     "ios_device_udid": "",
     "ios_inspector_id": ""
   },

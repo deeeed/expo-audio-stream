@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -48,7 +48,7 @@ process.exit(args.includes('test')&&process.env.AUDIO_CI_TEST_UNIT_FAIL?7:0);
     return spawnSync(process.execPath, [path.join(scriptDir, 'ci-local.mjs')], { cwd: repo, env, encoding: 'utf8' });
   };
   const calls = () => readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  return { repo, run, calls };
+  return { root, repo, bin, log, run, calls };
 }
 
 test('a library source change runs its CI types, changed-file lint and related tests only', (t) => {
@@ -132,8 +132,39 @@ test('each PR-producing catalog entry uses the shared step and the portable prep
   const project = path.dirname(scriptDir);
   const config = JSON.parse(readFileSync(path.join(project, 'project.json'), 'utf8'));
   assert.equal(config.ci.local_check, 'bash apps/playground/.agent/ci-parity');
+  assert.equal(Object.hasOwn(config.vars, 'mark_cmd'), false, 'Use the connected-node SDK mark helper default.');
   for (const flow of ['dev', 'fix-bug', 'pr-complete', 'update-branch']) {
     const text = readFileSync(path.join(project, 'checklists', flow, 'default.md'), 'utf8');
     assert.equal((text.match(/\{\{CI_PARITY_STEP\}\}/g) || []).length, 1, flow);
   }
+});
+
+test('the prepared CI shell uses configured farm and Node paths with spaces', t => {
+  const { root, repo, bin, log, calls } = fixture(t);
+  const farm = path.join(root, 'configured farm');
+  const scripts = path.join(farm, 'projects/audiolab-farm/scripts');
+  mkdirSync(scripts, { recursive: true });
+  for (const file of ['ci-local.mjs', 'configured-paths.sh']) copyFileSync(path.join(scriptDir, file), path.join(scripts, file));
+  const tools = path.join(root, 'configured node');
+  mkdirSync(tools);
+  symlinkSync(process.execPath, path.join(tools, 'node'));
+  copyFileSync(path.join(bin, 'yarn'), path.join(tools, 'yarn'));
+  writeFileSync(path.join(repo, '.git/info/exclude'), 'apps/playground/.agent/\n');
+  const wrapper = path.join(repo, 'apps/playground/.agent/ci-parity');
+  mkdirSync(path.dirname(wrapper), { recursive: true });
+  copyFileSync(path.join(scriptDir, '../fixtures/ci-parity'), wrapper);
+  const env = { ...process.env, FARMSLOT_ROOT: farm, AUDIOLAB_NODE_BIN: tools, AUDIO_CI_TEST_LOG: log, IOS_DEVICE_UDID: '' };
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync('/bin/bash', [wrapper], { cwd: repo, env, encoding: 'utf8', timeout: 3000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(calls(), [['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']]);
+  for (const configured of [undefined, '']) {
+    const missing = { ...env };
+    if (configured === undefined) delete missing.FARMSLOT_ROOT;
+    else missing.FARMSLOT_ROOT = configured;
+    const refused = spawnSync('/bin/bash', [wrapper], { cwd: repo, env: missing, encoding: 'utf8', timeout: 1000 });
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Set FARMSLOT_ROOT to the farm installation root/);
+  }
+  assert.equal(calls().length, 1, 'Missing root configuration ran a CI command.');
 });

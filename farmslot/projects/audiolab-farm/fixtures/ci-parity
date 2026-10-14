@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-FARM_ROOT="{{farmslot_dir}}"
+FARM_ROOT="${FARMSLOT_ROOT:?Set FARMSLOT_ROOT to the farm installation root}"
 case "$FARM_ROOT" in
   '~/'*) FARM_ROOT="$HOME/${FARM_ROOT#\~/}" ;;
 esac
