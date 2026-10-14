@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
 import { createServer } from 'node:http';
-import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
+import { handleCall, recipeHarnessPath, sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createProvider } from './provider.mjs';
 import { createBridge } from './adapters.mjs';
@@ -230,4 +230,35 @@ test('built-in verification observes the bound bridge and refuses missing route 
   assert.equal(await runVerify([], io), 1);
   assert.match(output.pop().reasons[0], /no observed route/);
   assert.deepEqual(await fs.readdir(appRoot), files);
+});
+
+test('the published shared host executes a default-healing call without overlay mutations', async t => {
+  const parent = path.join(repoRoot, '.agent');
+  await fs.mkdir(parent, { recursive: true });
+  const artifacts = await fs.mkdtemp(path.join(parent, 'provider-default-heal-'));
+  t.after(() => fs.rm(artifacts, { recursive: true, force: true }));
+  const relative = path.relative(repoRoot, artifacts);
+  await withProjectRecipeHost({
+    tokens: ['--project', 'audiolab-farm', '--target', repoRoot, '--app', 'apps/playground', '--adapter', 'web',
+      '--watcher-port', '19746', '--cdp-port', '19767', '--artifacts-dir', relative],
+    projectsDir: path.join(repoRoot, 'farmslot/projects'), command: 'call',
+    options: { json: true, watcherPort: '19746', cdpPort: '19767', artifactsDir: relative,
+      recordVideo: 'off', recordingReason: 'Default-healing contract fixture without a live browser.', hud: 'hide', sourceTrust: 'trusted' },
+    deferOutput: true,
+  }, async host => {
+    assert.equal(host.cli.heal, undefined);
+    const overlay = recipeHarnessPath(host.context.target.value, 'web');
+    assert.equal(await fs.stat(overlay).catch(() => null), null);
+    // Only the app observation is a fixture; host healing, catalog, engine and writer are real.
+    host.provider.runtime.actions.ui = () => ({ base: { execute(action) {
+      assert.equal(action, 'app.status');
+      return { pathname: '/record' };
+    } } });
+    assert.equal(await handleCall([], { parsed: { positional: ['app.status'], options: host.cli },
+      engine: host.engine, librarySources: host.librarySources, signal: host.signal, beforeResult: host.finalize }), 0);
+    assert.equal(await fs.stat(overlay).catch(() => null), null);
+  });
+  const summary = JSON.parse(await fs.readFile(path.join(artifacts, 'summary.json'), 'utf8'));
+  assert.equal(summary.status, 'pass');
+  assert.deepEqual(summary.mutations, []);
 });
