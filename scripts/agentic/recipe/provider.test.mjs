@@ -6,7 +6,8 @@ import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
-import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
+import { createServer } from 'node:http';
+import { handleCall, recipeHarnessPath, sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
 import { createProvider } from './provider.mjs';
 import { createBridge } from './adapters.mjs';
@@ -26,6 +27,9 @@ test('provider factories are read-only and preserve app-scoped handler declarati
     assert.equal(provider.engine, undefined);
     assert.equal(provider.runtime.sdkVersion, 1);
     assert.equal(provider.runtime.id, 'web');
+    assert.equal(provider.runtime.harness.kind, 'built-in');
+    assert.equal('install' in provider.runtime.harness, false);
+    assert.equal('cleanup' in provider.runtime.harness, false);
     const handlers = await provider.runtime.actions.adapters();
     assert.deepEqual(handlers.map(h => h.action), ['audiolab.query', 'audiolab.choose', 'audiolab.logs', 'audiolab.native_preview']);
     const allowed = createAudiolabManifest(app).actions['audiolab.query'].schema.properties.ref.enum;
@@ -170,4 +174,91 @@ test('local and project-hook requests preserve screenshot validation on physical
   assert.equal(request.recordVideo, 'off');
   assert.match(request.recordingReason, /screenshots/);
   assert.equal(host.request({ recordVideo: 'full-run' }).recordVideo, 'full-run');
+});
+
+test('web recording selects the shared CDP recorder and binds its assigned endpoint', async t => {
+  const server = createServer((_request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify([{ id: 'assigned-page', type: 'page', url: 'http://localhost:19746', webSocketDebuggerUrl: 'ws://unused' }]));
+  });
+  t.after(async () => { server.closeAllConnections();await new Promise(resolve => server.close(resolve)); });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const cdp = server.address().port;
+  const selected = context();selected.options.cdpPort = String(cdp);
+  const recorder = await createProvider(selected).runtime.recording.videoRecorder();
+  assert.equal(recorder.name, 'cdp-screencast');
+  await assert.rejects(recorder.start({
+    target: { kind: 'cdp-page', host: '127.0.0.1', port: cdp === 65535 ? 65534 : cdp + 1, targetId: 'assigned-page' },
+    outputPath: path.join(os.tmpdir(), 'audiolab-endpoint-refusal.mp4'),
+  }), /different endpoint/);
+  const native = createProvider(context('playground', 'ios'));
+  assert.equal(native.runtime.recording.videoRecorder, undefined);
+  assert.deepEqual(await native.runtime.recording.target(), { kind: 'simulator', device: 'assigned-simulator' });
+});
+
+test('built-in verification observes the bound bridge and refuses missing route readiness', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-provider-verify-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const appRoot = path.join(root, 'apps/playground');
+  const scriptRoot = path.join(appRoot, 'scripts/agentic');
+  await fs.mkdir(scriptRoot, { recursive: true });
+  const state = path.join(appRoot, 'observed-route.json');
+  await fs.writeFile(state, JSON.stringify({ pathname: '/more' }));
+  await fs.writeFile(path.join(scriptRoot, 'cdp-bridge.mjs'), `
+    import fs from 'node:fs';
+    import assert from 'node:assert/strict';
+    assert.deepEqual(process.argv.slice(2), ['--device', 'web', 'get-route']);
+    assert.equal(fs.realpathSync(process.env.APP_ROOT), process.cwd());
+    console.log(fs.readFileSync('observed-route.json', 'utf8'));
+  `);
+  const keys = ['APP_ROOT', 'AUDIOLAB_APP', 'PLATFORM', 'LOG_EVENTS', 'METRO_PORT', 'WATCHER_PORT', 'CDP_PORT', 'EXPO_PUBLIC_FARMSLOT_RECIPE_BRIDGE', 'HEADLESS', 'WEB_HEADLESS', 'WEB_BROWSER_CHANNEL'];
+  const saved = keys.map(key => process.env[key]);
+  t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
+  const selected = context();selected.project.checkoutRoot = root;selected.target.value = appRoot;
+  const provider = createProvider(selected);
+  const verification = provider.runtime.harness.verify(appRoot);
+  assert.equal(verification.command, undefined);
+  const runVerify = await verification.inProcess();
+  const output = [];
+  const io = { out: value => output.push(JSON.parse(value)), err: value => assert.fail(value) };
+  const files = await fs.readdir(appRoot);
+  assert.equal(await runVerify(['--target', '/unrelated-checkout'], io), 0, output.at(-1)?.reasons?.join('\n'));
+  assert.equal(output.pop().decision, 'ready');
+  assert.deepEqual(await fs.readdir(appRoot), files);
+  assert.equal(await fs.stat(path.join(appRoot, '.harness')).catch(() => null), null);
+  await fs.writeFile(state, '{}');
+  assert.equal(await runVerify([], io), 1);
+  assert.match(output.pop().reasons[0], /no observed route/);
+  assert.deepEqual(await fs.readdir(appRoot), files);
+});
+
+test('the published shared host executes a default-healing call without overlay mutations', async t => {
+  const parent = path.join(repoRoot, '.agent');
+  await fs.mkdir(parent, { recursive: true });
+  const artifacts = await fs.mkdtemp(path.join(parent, 'provider-default-heal-'));
+  t.after(() => fs.rm(artifacts, { recursive: true, force: true }));
+  const relative = path.relative(repoRoot, artifacts);
+  await withProjectRecipeHost({
+    tokens: ['--project', 'audiolab-farm', '--target', repoRoot, '--app', 'apps/playground', '--adapter', 'web',
+      '--watcher-port', '19746', '--cdp-port', '19767', '--artifacts-dir', relative],
+    projectsDir: path.join(repoRoot, 'farmslot/projects'), command: 'call',
+    options: { json: true, watcherPort: '19746', cdpPort: '19767', artifactsDir: relative,
+      recordVideo: 'off', recordingReason: 'Default-healing contract fixture without a live browser.', hud: 'hide', sourceTrust: 'trusted' },
+    deferOutput: true,
+  }, async host => {
+    assert.equal(host.cli.heal, undefined);
+    const overlay = recipeHarnessPath(host.context.target.value, 'web');
+    assert.equal(await fs.stat(overlay).catch(() => null), null);
+    // Only the app observation is a fixture; host healing, catalog, engine and writer are real.
+    host.provider.runtime.actions.ui = () => ({ base: { execute(action) {
+      assert.equal(action, 'app.status');
+      return { pathname: '/record' };
+    } } });
+    assert.equal(await handleCall([], { parsed: { positional: ['app.status'], options: host.cli },
+      engine: host.engine, librarySources: host.librarySources, signal: host.signal, beforeResult: host.finalize }), 0);
+    assert.equal(await fs.stat(overlay).catch(() => null), null);
+  });
+  const summary = JSON.parse(await fs.readFile(path.join(artifacts, 'summary.json'), 'utf8'));
+  assert.equal(summary.status, 'pass');
+  assert.deepEqual(summary.mutations, []);
 });

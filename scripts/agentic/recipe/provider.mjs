@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ADAPTER_SDK_VERSION } from '@farmslot/adapter-sdk';
+import { createCdpVideoRecorder } from '@farmslot/recipe-runner';
 import { contextPorts } from '@farmslot/recipe-cli/harness';
 import { recordingTarget } from './recording-target.mjs';
 import { runOwnedRecipeProcess, recipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
@@ -82,24 +83,31 @@ export function createProvider(context) {
       return createBridgeTransport({ appRoot, platform, device: await selectedDevice() }).execute(action, node, execution);
     },
   };
+  async function runtimeStatus() {
+    try {
+      metroProcesses(appRoot, metro);
+      const observed = await bridge(['get-route']);
+      if (!observed.pathname) throw new Error('The selected app has no observed route.');
+      return { decision: 'ready', reasons: [], devServer: { label: 'Metro', status: 'ready' } };
+    } catch (error) { return { decision: 'not-ready', reasons: [error.message], nextAction: 'farmslot recipe launch --json' }; }
+  }
   return {
     runtime: {
       id: platform, targets: [platform], sdkVersion: ADAPTER_SDK_VERSION, headless: false,
       resolveSlotPorts: activate,
-      async runtimeStatus() {
-        try {
-          metroProcesses(appRoot, metro);
-          const observed = await bridge(['get-route']);
-          if (!observed.pathname) throw new Error('The selected app has no observed route.');
-          return { decision: 'ready', reasons: [], devServer: { label: 'Metro', status: 'ready' } };
-        } catch (error) { return { decision: 'not-ready', reasons: [error.message], nextAction: 'farmslot recipe launch --json' }; }
-      },
+      runtimeStatus,
       devServer: { label: 'Metro', describe: () => 'The selected app Metro server', portEnv: ['METRO_PORT'],
         stop: () => stopMetro(appRoot, metro) },
       logSources: () => [{ label: 'Metro', path: path.join(appRoot, '.agent/metro.log') }],
       appLogSource: () => ({ label: 'App console', path: path.join(appRoot, '.agent/web-console.log') }),
       hints: { launch: 'farmslot recipe launch --json', relaunch: 'farmslot recipe launch --json', runtimeProbeRecovery: () => 'farmslot recipe status --json' },
-      harness: { verify: () => ({ command: process.execPath, prefixArgs: [path.join(root, 'scripts/agentic/recipe/run.mjs'), 'doctor', '--app', app, '--platform', platform] }) },
+      harness: { kind: 'built-in', verify: () => ({
+        inProcess: async () => async (_args, io) => {
+          const status = await runtimeStatus();
+          io.out(JSON.stringify(status));
+          return status.decision === 'ready' ? 0 : 1;
+        },
+      }) },
       runtimeContext: { forbiddenFields: [] },
       readiness: { statusRuntime: true, captureProviders: ['Audiolab CDP bridge'] },
       async launch() {
@@ -155,7 +163,9 @@ export function createProvider(context) {
           }),
         })),
       },
-      recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }) },
+      recording: { target: () => recordingTarget({ platform, serial, simulator, device: explicitDevice, iosDevice, cdp, metro }),
+        ...(platform === 'web' ? { videoRecorder: async () => createCdpVideoRecorder({ cdpPort: cdp, urlIncludes: `:${metro}` }) } : {}),
+      },
     },
     cancel() { if (launchedMetro) stopMetro(appRoot, metro); },
   };
