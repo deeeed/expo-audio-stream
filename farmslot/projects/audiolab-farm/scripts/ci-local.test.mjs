@@ -153,18 +153,19 @@ test('the prepared CI shell uses configured farm and Node paths with spaces', t 
   const wrapper = path.join(repo, 'apps/playground/.agent/ci-parity');
   mkdirSync(path.dirname(wrapper), { recursive: true });
   copyFileSync(path.join(scriptDir, '../fixtures/ci-parity'), wrapper);
-  const env = { ...process.env, FARMSLOT_ROOT: farm, AUDIOLAB_NODE_BIN: tools, AUDIO_CI_TEST_LOG: log, IOS_DEVICE_UDID: '' };
+  const env = { ...process.env, AUDIOLAB_FARM_ROOT: farm, AUDIOLAB_NODE_BIN: tools, AUDIO_CI_TEST_LOG: log, IOS_DEVICE_UDID: '' };
   delete env.NODE_TEST_CONTEXT;
+  delete env.FARMSLOT_ROOT;
   const result = spawnSync('/bin/bash', [wrapper], { cwd: repo, env, encoding: 'utf8', timeout: 3000 });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(calls(), [['workspace', '@siteed/audio-studio', 'typecheck', '--incremental', 'false']]);
   for (const configured of [undefined, '']) {
     const missing = { ...env };
-    if (configured === undefined) delete missing.FARMSLOT_ROOT;
-    else missing.FARMSLOT_ROOT = configured;
+    if (configured === undefined) delete missing.AUDIOLAB_FARM_ROOT;
+    else missing.AUDIOLAB_FARM_ROOT = configured;
     const refused = spawnSync('/bin/bash', [wrapper], { cwd: repo, env: missing, encoding: 'utf8', timeout: 1000 });
     assert.notEqual(refused.status, 0);
-    assert.match(refused.stderr, /Set FARMSLOT_ROOT to the farm installation root/);
+    assert.match(refused.stderr, /Set AUDIOLAB_FARM_ROOT in pool.env to the Audiolab pack installation root/);
   }
   assert.equal(calls().length, 1, 'Missing root configuration ran a CI command.');
 });

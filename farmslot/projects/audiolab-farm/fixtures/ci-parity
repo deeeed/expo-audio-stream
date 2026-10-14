@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-FARM_ROOT="${FARMSLOT_ROOT:?Set FARMSLOT_ROOT to the farm installation root}"
+FARM_ROOT="${AUDIOLAB_FARM_ROOT:?Set AUDIOLAB_FARM_ROOT in pool.env to the Audiolab pack installation root}"
 case "$FARM_ROOT" in
   '~/'*) FARM_ROOT="$HOME/${FARM_ROOT#\~/}" ;;
 esac
