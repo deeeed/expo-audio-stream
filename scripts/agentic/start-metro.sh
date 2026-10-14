@@ -20,6 +20,7 @@ TIMEOUT=60
 mkdir -p .agent
 # Expo's structured event log is runtime output, beside the Metro log.
 export LOG_EVENTS="$APP_ROOT/.agent/expo-events.log"
+EXPO_NODE_OPTIONS="${NODE_OPTIONS:-} --require \"$MONOREPO_ROOT/scripts/agentic/lib/expo-events.cjs\""
 
 DEV_HOST="$(resolve_agentic_dev_host_or_localhost)"
 
@@ -55,15 +56,17 @@ echo "Starting Metro on port $PORT..."
 if [ "$AGENTIC_METRO_LOG_MODE" = "tee" ]; then
   nohup bash -lc '
     cd "$1"
+    export NODE_OPTIONS="$5"
     EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development REACT_NATIVE_PACKAGER_HOSTNAME="$4" \
       yarn expo start --dev-client --port "$2" 2>&1 | tee -a "$3"
-  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" "$DEV_HOST" >/dev/null 2>&1 &
+  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" "$DEV_HOST" "$EXPO_NODE_OPTIONS" >/dev/null 2>&1 &
 else
   nohup bash -lc '
     cd "$1"
+    export NODE_OPTIONS="$5"
     EXPO_USE_METRO_WORKSPACE_ROOT=1 NODE_ENV=development REACT_NATIVE_PACKAGER_HOSTNAME="$4" \
       yarn expo start --dev-client --port "$2" >> "$3" 2>&1
-  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" "$DEV_HOST" >/dev/null 2>&1 &
+  ' bash "$APP_ROOT" "$PORT" "$LOGFILE" "$DEV_HOST" "$EXPO_NODE_OPTIONS" >/dev/null 2>&1 &
 fi
 METRO_PID=$!
 echo "$METRO_PID" > "$PIDFILE"

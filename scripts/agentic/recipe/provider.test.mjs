@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import os from 'node:os';
 import { sourceSnapshot, withProjectRecipeHost } from '@farmslot/recipe-cli/harness';
 import { withRecipeExecutionSignal } from '@farmslot/recipe-runner/adapters/core';
@@ -101,4 +104,20 @@ test('generated app runtime logs do not drift the shared source identity', async
   t.after(() => keys.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key];else process.env[key] = saved[i]; }));
   createProvider(context()).runtime.resolveSlotPorts();
   assert.equal(process.env.LOG_EVENTS, path.join(appRoot, '.agent/expo-events.log'));
+});
+
+test('Expo logging uses the declared destination only for the Expo CLI entry', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-expo-log-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const appRoot = path.join(repoRoot, 'apps/playground');
+  const require = createRequire(path.join(appRoot, 'package.json'));
+  const helper = path.join(repoRoot, 'scripts/agentic/lib/expo-events.cjs');
+  const log = path.join(root, 'events.log');
+  const env = { ...process.env, LOG_EVENTS: log };
+  const execute = promisify(execFile);
+  await execute(process.execPath, ['--require', helper, '-e', 'console.log("ordinary child")'], { cwd: appRoot, env });
+  assert.equal(await fs.stat(log).catch(() => null), null);
+  await execute(process.execPath, ['--require', helper, require.resolve('expo/bin/cli'), 'config', '--type', 'public', '--json'], { cwd: appRoot, env });
+  const output = await fs.readFile(log, 'utf8');
+  assert.ok(output.includes('init'), 'Expo logger did not initialize at its configured destination.');
 });
