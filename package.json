@@ -4,7 +4,8 @@
     "workspaces": [
         "packages/*",
         "apps/*",
-        "documentation_site"
+        "documentation_site",
+        "scripts/agentic"
     ],
     "scripts": {
         "format": "prettier --write .",

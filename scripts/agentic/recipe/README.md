@@ -19,3 +19,5 @@ The navigation smoke asserts the observed More route, retains a screenshot, and 
 The existing project-hook and app-local commands keep their screenshot-only default, with an artifact recording opt-out reason. The app-local `--record-video full-run` option records supported targets. The shared Farmslot CLI keeps its standard video default. The runner, CLI and direct SDK dependencies are pinned to one published closure. No project graph executor, recorder or artifact writer is added.
 
 Run `yarn test:recipes` for the default contracts. Host process inspection belongs to the live tier: `node --test scripts/agentic/recipe/provider.live.mjs`. Its disposable listener is stopped on every exit.
+
+Task commands declare `stepGates: []` because Audiolab adds no numbered-step predicates. Shared deterministic checks, worker-terminal checks and closeout policy keep their defaults. The private `scripts/agentic` workspace owns the provider dependencies and sibling `lib` imports; retain that workspace for frozen task callbacks while keeping this directory as the recipe library root.
