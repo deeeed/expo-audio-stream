@@ -8251,6 +8251,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@siteed/audiolab-agentic@workspace:scripts/agentic":
+  version: 0.0.0-use.local
+  resolution: "@siteed/audiolab-agentic@workspace:scripts/agentic"
+  dependencies:
+    "@farmslot/adapter-sdk": "npm:0.13.0"
+    "@farmslot/recipe-cli": "npm:0.17.0"
+    "@farmslot/recipe-runner": "npm:0.34.1"
+    pngjs: "npm:^7.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@siteed/design-system@npm:^0.51.3":
   version: 0.51.3
   resolution: "@siteed/design-system@npm:0.51.3"

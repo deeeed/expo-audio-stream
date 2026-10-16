@@ -92,6 +92,7 @@ export function createProvider(context) {
     } catch (error) { return { decision: 'not-ready', reasons: [error.message], nextAction: 'farmslot recipe launch --json' }; }
   }
   return {
+    commandOptions: { task: { stepGates: [] } },
     runtime: {
       id: platform, targets: [platform], sdkVersion: ADAPTER_SDK_VERSION, headless: false,
       resolveSlotPorts: activate,

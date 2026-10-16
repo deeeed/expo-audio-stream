@@ -1,0 +1,10 @@
+{
+  "name": "@siteed/audiolab-agentic",
+  "private": true,
+  "dependencies": {
+    "@farmslot/adapter-sdk": "0.13.0",
+    "@farmslot/recipe-cli": "0.17.0",
+    "@farmslot/recipe-runner": "0.34.1",
+    "pngjs": "^7.0.0"
+  }
+}

@@ -24,6 +24,7 @@ test('provider factories are read-only and preserve app-scoped handler declarati
   const before = keys.map(key => process.env[key]);
   for (const app of ['playground', 'sherpa-voice']) {
     const provider = createProvider(context(app));
+    assert.deepEqual(provider.commandOptions, { task: { stepGates: [] } });
     assert.equal(provider.engine, undefined);
     assert.equal(provider.runtime.sdkVersion, 1);
     assert.equal(provider.runtime.id, 'web');
@@ -37,6 +38,29 @@ test('provider factories are read-only and preserve app-scoped handler declarati
     assert.equal(provider.runtime.actions.inputFindings('read', { action: 'audiolab.query', ref: 'foreign-app-query' })[0].severity, 'error');
   }
   assert.ok(keys.every((key, i) => process.env[key] === before[i]), 'Factory changed runtime settings.');
+});
+
+
+test('the provider workspace reloads with its sibling imports and installed dependencies', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'audiolab-frozen-provider-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const config = JSON.parse(await fs.readFile(path.join(repoRoot, 'farmslot/projects/audiolab-farm/project.json'), 'utf8'));
+  const declaration = config.recipe.provider;
+  const retained = path.join(root, 'provider');
+  const workspace = path.join(repoRoot, 'scripts/agentic');
+  await fs.cp(workspace, retained, { recursive: true });
+  const script = `
+    const { createProvider } = await import(process.argv[1]);
+    const checkout = process.argv[2];
+    const provider = createProvider({ project: { checkoutRoot: checkout, app: 'apps/playground' },
+      target: { value: checkout + '/apps/playground' }, adapter: { value: 'web' },
+      options: { watcherPort: '19746', cdpPort: '19767' } });
+    console.log(JSON.stringify(provider.commandOptions));
+  `;
+  const { stdout } = await promisify(execFile)(process.execPath,
+    ['--input-type=module', '-e', script, path.join(retained, path.relative(workspace, path.join(repoRoot, declaration.root.projectPath, declaration.module))), root],
+    { cwd: root, timeout: 4000, env: { ...process.env, NODE_PATH: '' } });
+  assert.deepEqual(JSON.parse(stdout), { task: { stepGates: [] } });
 });
 
 test('provider rejects unsupported or ambiguous app/device targeting before execution', () => {
